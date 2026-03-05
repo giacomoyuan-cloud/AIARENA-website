@@ -1492,6 +1492,10 @@ var TEAM_COLORS = {
   // === Get active submodel IDs for sending ===
   function getActiveSubmodels(){
     var result = [];
+    if(videoMode && activeBrands['kling']){
+      result.push(brandSelection['kling'] || 'kling25-i2v');
+      return result;
+    }
     var cards = document.querySelectorAll('#aaBrandBar .aa-brand-card');
     cards.forEach(function(card){
       var b = card.dataset.brand;
