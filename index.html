@@ -2904,6 +2904,9 @@ btn.classList.add('copied');
     syncImageCards();
     $('aaBrandBar').style.display = 'flex';
     $('aaBrandBarCollapsed').style.display = 'none';
+    syncImageCards();
+    $('aaBrandBar').style.display = 'flex';
+    $('aaBrandBarCollapsed').style.display = 'none';
     syncBrandUI(); sync2v2UI(); syncNbOptions(); updateModeBadge(); saveState();
     if($('aaSkillsWrap')) $('aaSkillsWrap').style.display = 'none';
     if($('aaDebateModeBar')) $('aaDebateModeBar').style.display = 'none';
@@ -4593,7 +4596,7 @@ if(debateMode === '2v2'){
     var show = imageMode;
     $('aaNbOptions').style.display = show ? 'block' : 'none';
     $('aaNbRefArea').style.display = 'none';
-    if(imageMode || videoMode){
+    if(videoMode){
       $('aaBrandBar').style.display = 'none';
       $('aaBrandBarCollapsed').style.display = 'none';
     } else {
