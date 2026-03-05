@@ -936,6 +936,9 @@
        <div class="aa-brand-card" data-brand="anthropic">
           <div class="aa-card-head"><span class="aa-card-brand">Anthropic</span><span class="aa-card-sub" id="aaCardSub-anthropic">Sonnet 4.6</span><span class="aa-card-dot" id="aaCardDot-anthropic"></span><span class="aa-team-label" id="aaTeam-anthropic"></span></div>
         </div>
+        <div class="aa-brand-card" data-brand="mj" id="aaMjCard" style="display:none;">
+          <div class="aa-card-head" style="--bc:#38bdf8;--bcbg:rgba(56,189,248,0.1);--bcglow:rgba(56,189,248,0.15);"><span class="aa-card-brand">MJ</span><span class="aa-card-sub" id="aaCardSub-mj">MJ 生图</span><span class="aa-card-dot" id="aaCardDot-mj"></span></div>
+        </div>
         <div id="aaJudgeCard" style="flex-shrink:0;display:none;">
           <div id="aaJudgeHead" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:6px 0;border-radius:10px;cursor:pointer;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);white-space:nowrap;transition:all 0.2s;width:80px;height:56px;box-sizing:border-box;">
             <span style="font-size:11px;font-weight:600;color:#6b6b88;letter-spacing:0.03em;" id="aaJudgeLabel">思维教练</span>
@@ -1000,9 +1003,11 @@
         <div class="aa-drop-item" data-sub="gemini31high-official"><span class="aa-drop-dot" data-health="proxy"></span>gemini 3.1 满血版</div>
         <div class="aa-drop-item" data-sub="gemini3-proxy"><span class="aa-drop-dot" data-health="proxy"></span>Gemini 3.ai</div>
         <div class="aa-drop-item" data-sub="gemini31-proxy"><span class="aa-drop-dot" data-health="proxy"></span>Gemini 3.1.ai</div>
-        <div class="aa-drop-item" data-sub="nanbanana2-official" style="display:none;"><span class="aa-drop-dot" data-health="official-google"></span>Nano Banana 2 🍌</div>
-        <div class="aa-drop-item" data-sub="nanbanana2-custom"><span class="aa-drop-dot" data-health="proxy"></span>Nano Banana 2 P2 🍌</div>
-        <div class="aa-drop-item" data-sub="mj-imagine"><span class="aa-drop-dot" data-health="proxy"></span>MJ 生图</div>
+        <div class="aa-drop-item" data-sub="nanbanana2-official" style="display:none;"><span class="aa-drop-dot" data-health="official-google"></span>Nano Banana 2</div>
+        <div class="aa-drop-item" data-sub="nanbanana2-custom"><span class="aa-drop-dot" data-health="proxy"></span>Nano Banana 2.2</div>
+      </div>
+      <div class="aa-card-dropdown" id="aaDrop-mj">
+        <div class="aa-drop-item selected" data-sub="mj-imagine"><span class="aa-drop-dot" data-health="proxy"></span>MJ 生图</div>
         <div class="aa-drop-item" data-sub="mj-describe"><span class="aa-drop-dot" data-health="proxy"></span>MJ 风格分析</div>
         <div class="aa-drop-item" data-sub="mj-blend"><span class="aa-drop-dot" data-health="proxy"></span>MJ 融合</div>
         <div class="aa-drop-item" data-sub="mj-variation"><span class="aa-drop-dot" data-health="proxy"></span>MJ 变体</div>
@@ -1011,11 +1016,11 @@
         <div class="aa-drop-item" data-sub="swap-face"><span class="aa-drop-dot" data-health="proxy"></span>换脸</div>
       </div>
         <div class="aa-card-dropdown" id="aaDrop-anthropic">
-        <div class="aa-drop-item" data-sub="sonnet46-custom"><span class="aa-drop-dot" data-health="proxy"></span>Sonnet 4.6 P2</div>
-        <div class="aa-drop-item" data-sub="sonnet46-lanyi"><span class="aa-drop-dot" data-health="proxy"></span>Sonnet 4.6 LANYI</div>
-        <div class="aa-drop-item" data-sub="opus46-lanyi"><span class="aa-drop-dot" data-health="proxy"></span>Opus 4.6 LANYI</div>
-        <div class="aa-drop-item" data-sub="opus46-thinking-lanyi"><span class="aa-drop-dot" data-health="proxy"></span>Opus 4.6 Thinking LANYI</div>
-        <div class="aa-drop-item" data-sub="opus46-custom"><span class="aa-drop-dot" data-health="proxy"></span>Opus 4.6 P2</div>
+        <div class="aa-drop-item" data-sub="sonnet46-lanyi"><span class="aa-drop-dot" data-health="proxy"></span>Sonnet 4.6.3</div>
+        <div class="aa-drop-item" data-sub="opus46-lanyi"><span class="aa-drop-dot" data-health="proxy"></span>Opus 4.6.3</div>
+        <div class="aa-drop-item" data-sub="sonnet46-custom"><span class="aa-drop-dot" data-health="proxy"></span>Sonnet 4.6.2</div>
+        <div class="aa-drop-item" data-sub="opus46-custom"><span class="aa-drop-dot" data-health="proxy"></span>Opus 4.6.2</div>
+        <div class="aa-drop-item" data-sub="opus46-thinking-lanyi"><span class="aa-drop-dot" data-health="proxy"></span>Opus 4.6.2 思考</div>
         <div class="aa-drop-item" data-sub="sonnet-thinking"><span class="aa-drop-dot" data-health="proxy"></span>Sonnet 4.6-思考</div>
         <div class="aa-drop-item" data-sub="opus-thinking"><span class="aa-drop-dot" data-health="proxy"></span>Opus 4.6-思考</div>
         <div class="aa-drop-item" data-sub="sonnet46-proxy"><span class="aa-drop-dot" data-health="proxy"></span>Sonnet 4.6</div>
@@ -1117,7 +1122,8 @@
     anthropic: {color:'#f59e0b', bg:'rgba(245,158,11,0.06)',  border:'rgba(245,158,11,0.15)'},
     openai:    {color:'#22c55e', bg:'rgba(34,197,94,0.06)',   border:'rgba(34,197,94,0.15)'},
     google:    {color:'#60a5fa', bg:'rgba(96,165,250,0.06)',  border:'rgba(96,165,250,0.15)'},
-    kling:     {color:'#e879f9', bg:'rgba(232,121,249,0.06)', border:'rgba(232,121,249,0.15)'}
+    kling:     {color:'#e879f9', bg:'rgba(232,121,249,0.06)', border:'rgba(232,121,249,0.15)'},
+    mj:        {color:'#38bdf8', bg:'rgba(56,189,248,0.06)',  border:'rgba(56,189,248,0.15)'}
   };
 
   // Submodel → brand mapping and display names
@@ -1142,20 +1148,20 @@
     'gemini3-proxy':     {brand:'google',    name:'Gemini 3.ai'},
     'nanbanana2-official': {brand:'google',  name:'Nano Banana 2'},
     'kling25-i2v':       {brand:'kling',     name:'Kling V2.5 Turbo'},
-    'sonnet46-custom':   {brand:'anthropic', name:'Sonnet 4.6 P2'},
-    'sonnet46-lanyi':    {brand:'anthropic', name:'Sonnet 4.6 LANYI'},
-    'opus46-lanyi':      {brand:'anthropic', name:'Opus 4.6 LANYI'},
-    'opus46-thinking-lanyi': {brand:'anthropic', name:'Opus 4.6 Thinking LANYI'},
-    'opus46-custom':     {brand:'anthropic', name:'Opus 4.6 P2'},
+    'sonnet46-custom':   {brand:'anthropic', name:'Sonnet 4.6.2'},
+    'opus46-custom':     {brand:'anthropic', name:'Opus 4.6.2'},
     'gpt52new-custom':   {brand:'openai',    name:'GPT-5.2 P2'},
-    'nanbanana2-custom': {brand:'google',    name:'Nano Banana 2 P2 🍌'},
-    'mj-imagine':        {brand:'google',    name:'MJ 生图'},
-    'mj-describe':       {brand:'google',    name:'MJ 风格分析'},
-    'mj-blend':          {brand:'google',    name:'MJ 融合'},
-    'mj-variation':      {brand:'google',    name:'MJ 变体'},
-    'mj-upscale':        {brand:'google',    name:'MJ 高清放大'},
-    'mj-zoom':           {brand:'google',    name:'MJ 扩图'},
-    'swap-face':         {brand:'google',    name:'换脸'}
+    'nanbanana2-custom': {brand:'google',    name:'Nano Banana 2.2'},
+    'mj-imagine':        {brand:'mj',        name:'MJ 生图'},
+    'mj-describe':       {brand:'mj',        name:'MJ 风格分析'},
+    'mj-blend':          {brand:'mj',        name:'MJ 融合'},
+    'mj-variation':      {brand:'mj',        name:'MJ 变体'},
+    'mj-upscale':        {brand:'mj',        name:'MJ 高清放大'},
+    'mj-zoom':           {brand:'mj',        name:'MJ 扩图'},
+    'swap-face':         {brand:'mj',        name:'换脸'},
+    'sonnet46-lanyi':    {brand:'anthropic', name:'Sonnet 4.6.3'},
+    'opus46-lanyi':      {brand:'anthropic', name:'Opus 4.6.3'},
+    'opus46-thinking-lanyi': {brand:'anthropic', name:'Opus 4.6.2 思考'},
   };
 
   var SYS_DEBATE = [
@@ -1470,10 +1476,11 @@ var TEAM_COLORS = {
     xai: 'grok41-official',
     anthropic: 'sonnet-thinking',
     openai: 'gpt4o-official',
-    google: 'gemini31-official'
+    google: 'gemini31-official',
+    mj: 'mj-imagine'
   };
   // Track which brands are active (for debate mode, multiple; for chat, one)
-  var activeBrands = {xai: true, anthropic: false, openai: false, google: false};
+  var activeBrands = {xai: true, anthropic: false, openai: false, google: false, mj: false};
 
   function $(id){ return document.getElementById(id); }
   function esc(t){ var d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
@@ -1505,9 +1512,11 @@ var TEAM_COLORS = {
       var bs = JSON.parse(localStorage.getItem('aa-brand-selection'));
       if(bs) brandSelection = bs;
       // 修复：非图像模式下 Google 不能是 nanbanana2
-      if(!imageMode && brandSelection['google'] === 'nanbanana2-official'){
+      if(!imageMode && (brandSelection['google'] === 'nanbanana2-official' || brandSelection['google'] === 'nanbanana2-custom')){
         brandSelection['google'] = 'gemini31-official';
       }
+      if(!imageMode){ activeBrands['mj'] = false; }
+      if(brandSelection['mj'] === undefined) brandSelection['mj'] = 'mj-imagine';
       var ab = JSON.parse(localStorage.getItem('aa-active-brands'));
     if(ab){ activeBrands = ab; if(activeBrands.kling === undefined) activeBrands.kling = false; }
       var sd = localStorage.getItem('aa-mode-debate');
@@ -1524,6 +1533,14 @@ var TEAM_COLORS = {
     var result = [];
     if(videoMode && activeBrands['kling']){
       result.push(brandSelection['kling'] || 'kling25-i2v');
+      return result;
+    }
+    if(imageMode && activeBrands['mj']){
+      result.push(brandSelection['mj'] || 'mj-imagine');
+      return result;
+    }
+    if(imageMode && activeBrands['google']){
+      result.push(brandSelection['google'] || 'nanbanana2-official');
       return result;
     }
     var cards = document.querySelectorAll('#aaBrandBar .aa-brand-card');
@@ -1545,6 +1562,9 @@ var TEAM_COLORS = {
       var b = card.dataset.brand;
       card.classList.toggle('active', !!activeBrands[b]);
     });
+    // MJ card active sync
+    var mjCard2 = $('aaMjCard');
+    if(mjCard2) mjCard2.classList.toggle('active', !!activeBrands['mj']);
     // Update card sub label
     ['xai','anthropic','openai','google'].forEach(function(b){
       var label = $('aaCardSub-'+b);
@@ -2822,11 +2842,14 @@ btn.classList.add('copied');
     $('aaRoundsBar').style.display = 'none';
     $('aaDebateModeBar').style.display = 'none';
     activeBrands = {xai:true, anthropic:false, openai:false, google:false, kling:false};
-    brandSelection['google'] = 'gemini31-official';
     brandSelection['kling'] = 'kling25-i2v';
-    // 如果 Google 被设成了 nanbanana2，退出图像模式时重置为 Gemini 3.1 Pro
-    if(brandSelection['google'] === 'nanbanana2-official') brandSelection['google'] = 'gemini31-official';
-    // 恢复品牌栏
+    // 退出图像模式：重置google，隐藏图像专用卡片，恢复对话卡片
+    if(brandSelection['google'] === 'nanbanana2-official' || brandSelection['google'] === 'nanbanana2-custom') brandSelection['google'] = 'gemini31-official';
+    activeBrands['mj'] = false;
+    // 恢复上次对话模式的激活状态：如果之前没有任何brand激活，默认xai
+    var anyActive = ['xai','anthropic','openai','google'].some(function(b){ return activeBrands[b]; });
+    if(!anyActive) activeBrands['xai'] = true;
+    syncImageCards();
     $('aaBrandBar').style.display = '';
     $('aaBrandBarCollapsed').style.display = 'none';
     syncBrandUI(); sync2v2UI(); syncNbOptions(); updateModeBadge(); saveState();
@@ -2867,16 +2890,19 @@ btn.classList.add('copied');
     $('aaBarImageBtn').classList.add('active');
     $('aaBarDebateBtn').classList.remove('active');
     $('aaBarChatBtn').classList.remove('active');
+    if($('aaBarVideoBtn')) $('aaBarVideoBtn').classList.remove('active');
     $('aaBarImageBtn').style.background='rgba(255,255,255,0.1)'; $('aaBarImageBtn').style.color='#e8e8ee';
     $('aaBarDebateBtn').style.background='transparent'; $('aaBarDebateBtn').style.color='#6b6b88';
     $('aaBarChatBtn').style.background='transparent'; $('aaBarChatBtn').style.color='#6b6b88';
-    $('aaBarVideoBtn').style.background='transparent'; $('aaBarVideoBtn').style.color='#6b6b88';
+    if($('aaBarVideoBtn')){ $('aaBarVideoBtn').style.background='transparent'; $('aaBarVideoBtn').style.color='#6b6b88'; }
     $('aaRoundsBar').style.display = 'none';
     $('aaDebateModeBar').style.display = 'none';
-    activeBrands = {xai:false, anthropic:false, openai:false, google:true};
+    // 图像模式：默认选Google卡片，强制切换到nanbanana2
+    activeBrands = {xai:false, anthropic:false, openai:false, google:true, mj:false};
     brandSelection['google'] = 'nanbanana2-official';
-    // 立即隐藏品牌栏
-    $('aaBrandBar').style.display = 'none';
+    // 显示图像专用卡片，隐藏非图像卡片
+    syncImageCards();
+    $('aaBrandBar').style.display = 'flex';
     $('aaBrandBarCollapsed').style.display = 'none';
     syncBrandUI(); sync2v2UI(); syncNbOptions(); updateModeBadge(); saveState();
     if($('aaSkillsWrap')) $('aaSkillsWrap').style.display = 'none';
@@ -3957,6 +3983,54 @@ if(debateMode === '2v2'){
       }
     }
   }
+// === 图像模式卡片显示控制 ===
+  function syncImageCards(){
+    var normalBrands = ['xai','anthropic','openai','google'];
+    normalBrands.forEach(function(b){
+      var card = document.querySelector('#aaBrandBar .aa-brand-card[data-brand="'+b+'"]');
+      if(card) card.style.display = imageMode ? 'none' : '';
+    });
+    var mjCard = $('aaMjCard');
+    if(mjCard) mjCard.style.display = imageMode ? '' : 'none';
+    // google卡片在图像模式显示（Nano Banana）
+    var googleCard = document.querySelector('#aaBrandBar .aa-brand-card[data-brand="google"]');
+    if(googleCard) googleCard.style.display = imageMode ? '' : '';
+    // 注册MJ卡片点击（避免重复注册用flag）
+    if(imageMode && mjCard && !mjCard._clickBound){
+      mjCard._clickBound = true;
+      mjCard.querySelector('.aa-card-head').addEventListener('click', function(e){
+        e.stopPropagation();
+        var drop = $('aaDrop-mj');
+        var wasOpen = drop.classList.contains('open');
+        document.querySelectorAll('#ai-arena-app .aa-card-dropdown').forEach(function(d){ d.classList.remove('open'); });
+        if(!wasOpen){
+          activeBrands = {xai:false, anthropic:false, openai:false, google:false, mj:true};
+          drop.style.visibility = 'hidden';
+          drop.classList.add('open');
+          positionDropdown(mjCard, drop);
+          drop.style.visibility = '';
+          syncBrandUI();
+          saveState();
+        } else {
+          activeBrands = {xai:false, anthropic:false, openai:false, google:false, mj:true};
+          syncBrandUI(); saveState();
+        }
+      });
+      // 注册MJ下拉选项
+      document.querySelectorAll('#aaDrop-mj .aa-drop-item').forEach(function(item){
+        item.addEventListener('click', function(e){
+          e.stopPropagation();
+          brandSelection['mj'] = item.dataset.sub;
+          $('aaDrop-mj').classList.remove('open');
+          var subLabel = $('aaCardSub-mj');
+          if(subLabel){ var info = SUBS[item.dataset.sub]; subLabel.textContent = info ? info.name : item.dataset.sub; }
+          activeBrands = {xai:false, anthropic:false, openai:false, google:false, mj:true};
+          syncBrandUI(); saveState();
+        });
+      });
+    }
+  }
+
 // === Drag reorder brand cards ===
   function initDragReorder(){
     var bar = $('aaBrandBar');
@@ -4550,6 +4624,7 @@ if(debateMode === '2v2'){
   }
   syncBrandUI();
   sync2v2UI();
+  syncImageCards();
   updateModeBadge();
   updateSkillsBtn();
   if(debate && $('aaSkillsWrap')) $('aaSkillsWrap').style.display = 'none';
