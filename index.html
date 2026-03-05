@@ -4012,17 +4012,13 @@ if(debateMode === '2v2'){
         var drop = $('aaDrop-mj');
         var wasOpen = drop.classList.contains('open');
         document.querySelectorAll('#ai-arena-app .aa-card-dropdown').forEach(function(d){ d.classList.remove('open'); });
+        activeBrands = {xai:false, anthropic:false, openai:false, google:false, mj:true};
+        syncBrandUI(); saveState();
         if(!wasOpen){
-          activeBrands = {xai:false, anthropic:false, openai:false, google:false, mj:true};
           drop.style.visibility = 'hidden';
           drop.classList.add('open');
           positionDropdown(mjCard, drop);
           drop.style.visibility = '';
-          syncBrandUI();
-          saveState();
-        } else {
-          activeBrands = {xai:false, anthropic:false, openai:false, google:false, mj:true};
-          syncBrandUI(); saveState();
         }
       });
       // 注册MJ下拉选项
