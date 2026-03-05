@@ -4471,7 +4471,6 @@ if(debateMode === '2v2'){
   };
 
   function syncNbOptions(){
-    // 非图像模式下，强制重置nano bananas和kling选择
     if(!imageMode && brandSelection['google'] === 'nanbanana2-official'){
       brandSelection['google'] = 'gemini31-official';
     }
@@ -4481,7 +4480,7 @@ if(debateMode === '2v2'){
     var show = imageMode;
     $('aaNbOptions').style.display = show ? 'block' : 'none';
     $('aaNbRefArea').style.display = 'none';
-    if(imageMode){
+    if(imageMode || videoMode){
       $('aaBrandBar').style.display = 'none';
       $('aaBrandBarCollapsed').style.display = 'none';
     } else {
@@ -4489,7 +4488,8 @@ if(debateMode === '2v2'){
         $('aaBrandBar').style.display = '';
       }
     }
-    if(!show){ nbRefImages = []; renderNbRefList(); $('aaTopic').placeholder = '输入内容...'; }
+    if(!show){ nbRefImages = []; renderNbRefList(); }
+    if(!imageMode && !videoMode) $('aaTopic').placeholder = '输入内容...';
     updateNbEditBanner();
   }
   var _origSyncBrandUI = syncBrandUI;
