@@ -999,6 +999,7 @@
         <div class="aa-drop-item" data-sub="gemini31high-official"><span class="aa-drop-dot" data-health="proxy"></span>Gemini 3.1 Pro Full</div>
         <div class="aa-drop-item" data-sub="gemini3-proxy"><span class="aa-drop-dot" data-health="proxy"></span>Gemini 3 Pro.ai</div>
         <div class="aa-drop-item" data-sub="gemini31-proxy"><span class="aa-drop-dot" data-health="proxy"></span>Gemini 3.1 Pro.ai</div>
+        <div class="aa-drop-item" data-sub="nanbanana2-official" style="display:none;"><span class="aa-drop-dot" data-health="official-google"></span>Nano Banana 2 🍌</div>
       </div>
         <div class="aa-card-dropdown" id="aaDrop-anthropic">
         <div class="aa-drop-item" data-sub="sonnet-thinking"><span class="aa-drop-dot" data-health="proxy"></span>Sonnet 4.6 Thinking</div>
@@ -1065,6 +1066,7 @@
           <button id="aaBarDebateBtn" class="aa-bar-btn" style="color:#6b6b88;background:transparent;">辩论</button>
           <button id="aaBarChatBtn" class="aa-bar-btn active" style="color:#e8e8ee;background:rgba(255,255,255,0.1);">对话</button>
           <button id="aaBarImageBtn" class="aa-bar-btn" style="color:#6b6b88;background:transparent;">图像</button>
+          <button id="aaBarVideoBtn" class="aa-bar-btn" style="color:#6b6b88;background:transparent;">视频</button>
         </div>
         <div class="aa-ctrl-grp" id="aaDebateModeBar" style="display:none;">
           <button class="aa-bar-btn active" data-dmode="free" style="color:#e8e8ee;background:rgba(255,255,255,0.1);">自由</button>
@@ -1098,7 +1100,8 @@
     xai:       {color:'#f87171', bg:'rgba(248,113,113,0.06)', border:'rgba(248,113,113,0.15)'},
     anthropic: {color:'#f59e0b', bg:'rgba(245,158,11,0.06)',  border:'rgba(245,158,11,0.15)'},
     openai:    {color:'#22c55e', bg:'rgba(34,197,94,0.06)',   border:'rgba(34,197,94,0.15)'},
-    google:    {color:'#60a5fa', bg:'rgba(96,165,250,0.06)',  border:'rgba(96,165,250,0.15)'}
+    google:    {color:'#60a5fa', bg:'rgba(96,165,250,0.06)',  border:'rgba(96,165,250,0.15)'},
+    kling:     {color:'#e879f9', bg:'rgba(232,121,249,0.06)', border:'rgba(232,121,249,0.15)'}
   };
 
   // Submodel → brand mapping and display names
@@ -1121,7 +1124,8 @@
     'gemini3-official':  {brand:'google',    name:'Gemini 3 Pro'},
     'gemini31-proxy':    {brand:'google',    name:'Gemini 3.1 Pro.ai'},
     'gemini3-proxy':     {brand:'google',    name:'Gemini 3 Pro.ai'},
-    'nanbanana2-official': {brand:'google',  name:'Nano Banana 2'}
+    'nanbanana2-official': {brand:'google',  name:'Nano Banana 2'},
+    'kling25-i2v':       {brand:'kling',     name:'Kling V2.5 Turbo'}
   };
 
   var SYS_DEBATE = [
@@ -1149,6 +1153,7 @@
   var rounds = 1, msgs = [], debate = false, aaRunning = false, abortF = false, searchOn = true;
 var debateMode = 'free'; // 'free' | '2v2'
 var imageMode = false;
+var videoMode = false;
 var TEAM_COLORS = {
   pro:  {color:'#60a5fa', bg:'rgba(96,165,250,0.10)', border:'rgba(96,165,250,0.25)', label:'正方'},
   con:  {color:'#f87171', bg:'rgba(248,113,113,0.10)', border:'rgba(248,113,113,0.25)', label:'反方'}
@@ -1474,7 +1479,7 @@ var TEAM_COLORS = {
         brandSelection['google'] = 'gemini31-official';
       }
       var ab = JSON.parse(localStorage.getItem('aa-active-brands'));
-      if(ab) activeBrands = ab;
+    if(ab){ activeBrands = ab; if(activeBrands.kling === undefined) activeBrands.kling = false; }
       var sd = localStorage.getItem('aa-mode-debate');
       if(sd === '1') debate = true;
       var dm = localStorage.getItem('aa-debate-mode');
@@ -1543,6 +1548,11 @@ var TEAM_COLORS = {
 
 // === Card head click: toggle dropdown & select brand ===
   function positionDropdown(card, drop){
+    // 控制nano bananas只在图像模式显示，kling只在视频模式显示
+    var nbItem = drop.querySelector('[data-sub="nanbanana2-official"]');
+    if(nbItem) nbItem.style.display = imageMode ? '' : 'none';
+    var klingItem = drop.querySelector('[data-sub="kling25-i2v"]');
+    if(klingItem) klingItem.style.display = videoMode ? '' : 'none';
     var rect = card.querySelector('.aa-card-head').getBoundingClientRect();
     drop.style.top = 'auto';
     drop.style.bottom = (window.innerHeight - rect.top + 4) + 'px';
@@ -1603,12 +1613,14 @@ var TEAM_COLORS = {
 
   // === Dropdown item click: select submodel ===
   document.querySelectorAll('#ai-arena-app .aa-drop-item').forEach(function(item){
-    item.addEventListener('click', function(e){
-      e.stopPropagation();
-      var sub = item.dataset.sub;
-      var info = SUBS[sub]; if(!info) return;
-      if(debate && sub === 'grok41-biz-official') return;
-      brandSelection[info.brand] = sub;
+        item.addEventListener('click', function(e){
+          e.stopPropagation();
+          var sub = item.dataset.sub;
+          var info = SUBS[sub]; if(!info) return;
+          if(debate && sub === 'grok41-biz-official') return;
+          if(sub === 'nanbanana2-official' && !imageMode) return;
+          if(sub === 'kling25-i2v' && !videoMode) return;
+          brandSelection[info.brand] = sub;
       // Close dropdown
       var drop = item.closest('.aa-card-dropdown');
       if(drop) drop.classList.remove('open');
@@ -2303,6 +2315,12 @@ var TEAM_COLORS = {
     var c = $('aaMessages');
     var el = c.querySelector('[data-uid="'+uid+'"]');
     if(!el) return;
+    var videoMatch = text && text.match(/\[KLING_VIDEO\]([\s\S]+?)\[\/KLING_VIDEO\]/);
+    if(videoMatch){
+      var msgObj = msgs.find(function(m){ return m.uid === uid; });
+      if(msgObj){ msgObj.videoUrl = videoMatch[1]; msgObj.text = text.replace(/\[KLING_VIDEO\][\s\S]+?\[\/KLING_VIDEO\]/, '').trim(); }
+      render(); return;
+    }
     if(reasoning){
       var rb = el.querySelector('.aa-reasoning-content');
       if(rb) rb.textContent = reasoning;
@@ -2729,16 +2747,19 @@ btn.classList.add('copied');
     });
   });
    $('aaBarDebateBtn').addEventListener('click', function(){
-    debate = true; imageMode = false;
+    debate = true; imageMode = false; videoMode = false;
     if(brandSelection['xai'] === 'grok41-biz-official') brandSelection['xai'] = 'grok41-official';
     $('aaBarDebateBtn').classList.add('active');
     $('aaBarChatBtn').classList.remove('active');
     $('aaBarImageBtn').classList.remove('active');
+    if($('aaBarVideoBtn')) $('aaBarVideoBtn').classList.remove('active');
     $('aaBarDebateBtn').style.background='rgba(255,255,255,0.1)'; $('aaBarDebateBtn').style.color='#e8e8ee';
     $('aaBarChatBtn').style.background='transparent'; $('aaBarChatBtn').style.color='#6b6b88';
     $('aaBarImageBtn').style.background='transparent'; $('aaBarImageBtn').style.color='#6b6b88';
-    // 如果 Google 被设成了 nanbanana2，退出图像模式时重置
-    if(brandSelection['google'] === 'nanbanana2-official') brandSelection['google'] = 'gemini31-official';
+    if($('aaBarVideoBtn')){ $('aaBarVideoBtn').style.background='transparent'; $('aaBarVideoBtn').style.color='#6b6b88'; }
+    brandSelection['google'] = 'gemini31-official';
+    brandSelection['kling'] = 'kling25-i2v';
+    activeBrands['kling'] = false;
     $('aaRoundsBar').style.display = 'none';
     $('aaDebateModeBar').style.display = 'flex';
     // Sync the debateMode button visuals to match current debateMode state
@@ -2753,17 +2774,21 @@ btn.classList.add('copied');
     if($('aaSkillsWrap')) $('aaSkillsWrap').style.display = 'none';
   });
   $('aaBarChatBtn').addEventListener('click', function(){
-    if(imageMode && msgs.length > 0){ alert('当前图像对话有上下文，建议新建窗口再切换回对话模式。'); return; }
-    debate = false; imageMode = false;
+    if((imageMode || videoMode) && msgs.length > 0){ alert('当前对话有上下文，建议新建窗口再切换回对话模式。'); return; }
+    debate = false; imageMode = false; videoMode = false;
     $('aaBarChatBtn').classList.add('active');
     $('aaBarDebateBtn').classList.remove('active');
     $('aaBarImageBtn').classList.remove('active');
+    if($('aaBarVideoBtn')) $('aaBarVideoBtn').classList.remove('active');
     $('aaBarChatBtn').style.background='rgba(255,255,255,0.1)'; $('aaBarChatBtn').style.color='#e8e8ee';
     $('aaBarDebateBtn').style.background='transparent'; $('aaBarDebateBtn').style.color='#6b6b88';
     $('aaBarImageBtn').style.background='transparent'; $('aaBarImageBtn').style.color='#6b6b88';
+    if($('aaBarVideoBtn')){ $('aaBarVideoBtn').style.background='transparent'; $('aaBarVideoBtn').style.color='#6b6b88'; }
     $('aaRoundsBar').style.display = 'none';
     $('aaDebateModeBar').style.display = 'none';
-    activeBrands = {xai:true, anthropic:false, openai:false, google:false};
+    activeBrands = {xai:true, anthropic:false, openai:false, google:false, kling:false};
+    brandSelection['google'] = 'gemini31-official';
+    brandSelection['kling'] = 'kling25-i2v';
     // 如果 Google 被设成了 nanbanana2，退出图像模式时重置为 Gemini 3.1 Pro
     if(brandSelection['google'] === 'nanbanana2-official') brandSelection['google'] = 'gemini31-official';
     // 恢复品牌栏
@@ -2773,9 +2798,31 @@ btn.classList.add('copied');
     if($('aaSkillsWrap')) $('aaSkillsWrap').style.display = '';
   });
 
-    $('aaBarImageBtn').addEventListener('click', function(){
+    $('aaBarVideoBtn').addEventListener('click', function(){
+    if(msgs.length > 0){ alert('当前对话有上下文，建议新建窗口再切换视频模式。'); return; }
+    debate = false; imageMode = false; videoMode = true;
+    $('aaBarVideoBtn').classList.add('active');
+    $('aaBarImageBtn').classList.remove('active');
+    $('aaBarDebateBtn').classList.remove('active');
+    $('aaBarChatBtn').classList.remove('active');
+    $('aaBarVideoBtn').style.background='rgba(255,255,255,0.1)'; $('aaBarVideoBtn').style.color='#e8e8ee';
+    $('aaBarImageBtn').style.background='transparent'; $('aaBarImageBtn').style.color='#6b6b88';
+    $('aaBarDebateBtn').style.background='transparent'; $('aaBarDebateBtn').style.color='#6b6b88';
+    $('aaBarChatBtn').style.background='transparent'; $('aaBarChatBtn').style.color='#6b6b88';
+    $('aaRoundsBar').style.display = 'none';
+    $('aaDebateModeBar').style.display = 'none';
+    activeBrands = {xai:false, anthropic:false, openai:false, google:false, kling:true};
+    brandSelection['kling'] = 'kling25-i2v';
+    $('aaBrandBar').style.display = 'none';
+    $('aaBrandBarCollapsed').style.display = 'none';
+    syncBrandUI(); updateModeBadge(); saveState();
+    if($('aaSkillsWrap')) $('aaSkillsWrap').style.display = 'none';
+    $('aaTopic').placeholder = '描述视频动作，例如：镜头缓慢推进，吉他手轻拨琴弦...';
+  });
+
+  $('aaBarImageBtn').addEventListener('click', function(){
     if(msgs.length > 0){ alert('当前对话有上下文，建议新建窗口再切换图像模式，避免混乱。'); return; }
-    debate = false; imageMode = true;
+    debate = false; imageMode = true; videoMode = false;
     $('aaBarImageBtn').classList.add('active');
     $('aaBarDebateBtn').classList.remove('active');
     $('aaBarChatBtn').classList.remove('active');
@@ -3287,6 +3334,12 @@ function initPersonaDragDrop(){
           +'<button onmousedown="window._aaStoreSelection()" onclick="window._aaQuoteMsg(\''+msg.uid+'\')" style="padding:3px 10px;border-radius:7px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:#6b6b88;font-size:11px;font-weight:500;cursor:pointer;font-family:\'Sora\',sans-serif;letter-spacing:0.02em;">引用</button>'
 
           +'</div>';
+      } else if(msg.videoUrl){
+        h += '<div class="aa-msg-body ai-bubble" style="border-color:'+brandInfo.border+';padding:12px;">';
+        if(msg.text && msg.text.indexOf('视频生成中') === -1) h += '<p style="margin:0 0 8px;font-size:13px;color:#c8c8dd;">'+esc(msg.text.replace(/\[KLING_VIDEO\].*\[\/KLING_VIDEO\]/,'').trim())+'</p>';
+        h += '<video controls style="max-width:100%;border-radius:8px;display:block;margin-bottom:8px;" src="'+esc(msg.videoUrl)+'"></video>';
+        h += '<a href="'+esc(msg.videoUrl)+'" download target="_blank" style="display:inline-block;padding:6px 12px;border-radius:8px;background:rgba(232,121,249,0.15);border:1px solid rgba(232,121,249,0.3);color:#e879f9;font-size:11px;font-weight:600;text-decoration:none;">下载视频</a>';
+        h += '</div>';
       } else if(msg.imgData){
         h += '<div class="aa-msg-body '+bodyClass+'" style="'+bodyStyle+';padding:8px;">';
         if(msg.text) h += '<p style="margin:0 0 8px;font-size:13px;color:#c8c8dd;">'+esc(msg.text)+'</p>';
@@ -4414,7 +4467,14 @@ if(debateMode === '2v2'){
   };
 
   function syncNbOptions(){
-    var show = imageMode || (!debate && activeBrands['google'] && brandSelection['google'] === 'nanbanana2-official');
+    // 非图像模式下，强制重置nano bananas和kling选择
+    if(!imageMode && brandSelection['google'] === 'nanbanana2-official'){
+      brandSelection['google'] = 'gemini31-official';
+    }
+    if(!videoMode && brandSelection['kling'] === 'kling25-i2v'){
+      activeBrands['kling'] = false;
+    }
+    var show = imageMode;
     $('aaNbOptions').style.display = show ? 'block' : 'none';
     $('aaNbRefArea').style.display = 'none';
     if(imageMode){
