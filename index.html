@@ -2810,6 +2810,8 @@ btn.classList.add('copied');
    $('aaBarDebateBtn').addEventListener('click', function(){
     debate = true; imageMode = false; videoMode = false;
     if(brandSelection['xai'] === 'grok41-biz-official') brandSelection['xai'] = 'grok41-official';
+    if(brandSelection['google'] === 'nanbanana2-official' || brandSelection['google'] === 'nanbanana2-custom') brandSelection['google'] = 'gemini31-official';
+    activeBrands = {xai:true, anthropic:true, openai:true, google:true, mj:false, kling:false};
     $('aaBarDebateBtn').classList.add('active');
     $('aaBarChatBtn').classList.remove('active');
     $('aaBarImageBtn').classList.remove('active');
@@ -2830,7 +2832,7 @@ btn.classList.add('copied');
       b.style.background = isActive ? 'rgba(255,255,255,0.1)' : 'transparent';
       b.style.color = isActive ? '#e8e8ee' : '#6b6b88';
     });
-    activeBrands = {xai:true, anthropic:true, openai:true, google:true};
+    syncImageCards();
     syncBrandUI(); sync2v2UI(); updateModeBadge(); saveState();
     if($('aaSkillsWrap')) $('aaSkillsWrap').style.display = 'none';
     if($('aaDebateModeBar')) $('aaDebateModeBar').style.display = 'flex';
