@@ -1058,15 +1058,17 @@
         <button class="aa-send" id="aaSendBtn" disabled>↑</button>
       </div>
       <div class="aa-ctrl-row">
-        <div style="position:relative;" id="aaSkillsWrap">
-          <button class="aa-gear-btn" id="aaSkillsBtn" style="font-size:10px;padding:0 10px;height:28px;">Skills</button>
-          <div class="aa-card-dropdown" id="aaSkillsDrop"></div>
-        </div>
         <div class="aa-ctrl-grp" id="aaModeToggle">
           <button id="aaBarDebateBtn" class="aa-bar-btn" style="color:#6b6b88;background:transparent;">辩论</button>
           <button id="aaBarChatBtn" class="aa-bar-btn active" style="color:#e8e8ee;background:rgba(255,255,255,0.1);">对话</button>
           <button id="aaBarImageBtn" class="aa-bar-btn" style="color:#6b6b88;background:transparent;">图像</button>
           <button id="aaBarVideoBtn" class="aa-bar-btn" style="color:#6b6b88;background:transparent;">视频</button>
+        </div>
+      </div>
+      <div class="aa-ctrl-row" id="aaSubCtrlRow" style="padding-top:6px;">
+        <div style="position:relative;" id="aaSkillsWrap">
+          <button class="aa-gear-btn" id="aaSkillsBtn" style="font-size:10px;padding:0 10px;height:28px;">Skills</button>
+          <div class="aa-card-dropdown" id="aaSkillsDrop"></div>
         </div>
         <div class="aa-ctrl-grp" id="aaDebateModeBar" style="display:none;">
           <button class="aa-bar-btn active" data-dmode="free" style="color:#e8e8ee;background:rgba(255,255,255,0.1);">自由</button>
@@ -2776,6 +2778,7 @@ btn.classList.add('copied');
     activeBrands = {xai:true, anthropic:true, openai:true, google:true};
     syncBrandUI(); sync2v2UI(); updateModeBadge(); saveState();
     if($('aaSkillsWrap')) $('aaSkillsWrap').style.display = 'none';
+    if($('aaDebateModeBar')) $('aaDebateModeBar').style.display = 'flex';
   });
   $('aaBarChatBtn').addEventListener('click', function(){
     if((imageMode || videoMode) && msgs.length > 0){ alert('当前对话有上下文，建议新建窗口再切换回对话模式。'); return; }
@@ -2800,11 +2803,13 @@ btn.classList.add('copied');
     $('aaBrandBarCollapsed').style.display = 'none';
     syncBrandUI(); sync2v2UI(); syncNbOptions(); updateModeBadge(); saveState();
     if($('aaSkillsWrap')) $('aaSkillsWrap').style.display = '';
+    if($('aaDebateModeBar')) $('aaDebateModeBar').style.display = 'none';
+    if($('aaRoundsBar')) $('aaRoundsBar').style.display = 'none';
   });
 
     $('aaBarVideoBtn').addEventListener('click', function(){
     if(msgs.length > 0){ alert('当前对话有上下文，建议新建窗口再切换视频模式。'); return; }
-    debate = false; imageMode = false; videoMode = true;
+    debate = false; imageMode = false; videoMode = true; debateMode = 'free';
     $('aaBarVideoBtn').classList.add('active');
     $('aaBarImageBtn').classList.remove('active');
     $('aaBarDebateBtn').classList.remove('active');
@@ -2821,6 +2826,10 @@ btn.classList.add('copied');
     $('aaBrandBarCollapsed').style.display = 'none';
     syncBrandUI(); updateModeBadge(); saveState();
     if($('aaSkillsWrap')) $('aaSkillsWrap').style.display = 'none';
+    if($('aaDebateModeBar')) $('aaDebateModeBar').style.display = 'none';
+    if($('aaRoundsBar')) $('aaRoundsBar').style.display = 'none';
+    $('aaSeatsArea').style.display = 'none';
+    $('aaPersonaArea').style.display = 'none';
     $('aaTopic').placeholder = '描述视频动作，例如：镜头缓慢推进，吉他手轻拨琴弦...';
   });
 
@@ -2842,6 +2851,8 @@ btn.classList.add('copied');
     $('aaBrandBarCollapsed').style.display = 'none';
     syncBrandUI(); sync2v2UI(); syncNbOptions(); updateModeBadge(); saveState();
     if($('aaSkillsWrap')) $('aaSkillsWrap').style.display = 'none';
+    if($('aaDebateModeBar')) $('aaDebateModeBar').style.display = 'none';
+    if($('aaRoundsBar')) $('aaRoundsBar').style.display = 'none';
   });
 
   $('aaDebateModeBar').addEventListener('click', function(e){
