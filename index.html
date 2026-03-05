@@ -3985,16 +3985,15 @@ if(debateMode === '2v2'){
   }
 // === 图像模式卡片显示控制 ===
   function syncImageCards(){
-    var normalBrands = ['xai','anthropic','openai','google'];
+    var normalBrands = ['xai','anthropic','openai'];
     normalBrands.forEach(function(b){
       var card = document.querySelector('#aaBrandBar .aa-brand-card[data-brand="'+b+'"]');
       if(card) card.style.display = imageMode ? 'none' : '';
     });
-    var mjCard = $('aaMjCard');
-    if(mjCard) mjCard.style.display = imageMode ? '' : 'none';
-    // google卡片在图像模式显示（Nano Banana）
     var googleCard = document.querySelector('#aaBrandBar .aa-brand-card[data-brand="google"]');
     if(googleCard) googleCard.style.display = imageMode ? '' : '';
+    var mjCard = $('aaMjCard');
+    if(mjCard) mjCard.style.display = imageMode ? '' : 'none';
     // 注册MJ卡片点击（避免重复注册用flag）
     if(imageMode && mjCard && !mjCard._clickBound){
       mjCard._clickBound = true;
@@ -4601,6 +4600,10 @@ if(debateMode === '2v2'){
       if(!debate){
         $('aaBrandBar').style.display = '';
       }
+      // 非图像模式强制隐藏MJ卡片
+      var mjCardSync = $('aaMjCard');
+      if(mjCardSync) mjCardSync.style.display = 'none';
+      activeBrands['mj'] = false;
     }
     if(!show){ nbRefImages = []; renderNbRefList(); }
     if(!imageMode && !videoMode) $('aaTopic').placeholder = '输入内容...';
