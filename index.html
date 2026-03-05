@@ -1605,8 +1605,15 @@ var TEAM_COLORS = {
     // 控制nano bananas只在图像模式显示，kling只在视频模式显示
     var nbItem = drop.querySelector('[data-sub="nanbanana2-official"]');
     if(nbItem) nbItem.style.display = imageMode ? '' : 'none';
+    var nb2Item = drop.querySelector('[data-sub="nanbanana2-custom"]');
+    if(nb2Item) nb2Item.style.display = imageMode ? '' : 'none';
     var klingItem = drop.querySelector('[data-sub="kling25-i2v"]');
     if(klingItem) klingItem.style.display = videoMode ? '' : 'none';
+    // 图像模式下隐藏所有非图像Google选项
+    ['gemini3-official','gemini31-official','gemini31high-official','gemini3-proxy','gemini31-proxy'].forEach(function(sub){
+      var item = drop.querySelector('[data-sub="'+sub+'"]');
+      if(item) item.style.display = imageMode ? 'none' : '';
+    });
     var rect = card.querySelector('.aa-card-head').getBoundingClientRect();
     drop.style.top = 'auto';
     drop.style.bottom = (window.innerHeight - rect.top + 4) + 'px';
@@ -4605,8 +4612,8 @@ if(debateMode === '2v2'){
       }
       // 非图像模式强制隐藏MJ卡片
       var mjCardSync = $('aaMjCard');
-      if(mjCardSync) mjCardSync.style.display = 'none';
-      activeBrands['mj'] = false;
+    if(mjCardSync) mjCardSync.style.display = imageMode ? '' : 'none';
+    if(!imageMode) activeBrands['mj'] = false;
     }
     if(!show){ nbRefImages = []; renderNbRefList(); }
     if(!imageMode && !videoMode) $('aaTopic').placeholder = '输入内容...';
