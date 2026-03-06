@@ -4647,11 +4647,11 @@ if(debateMode === '2v2'){
     reader.onload = function(e){
       var img = new Image();
       img.onload = function(){
-        var maxW = 1024, maxH = 1024, w = img.width, h = img.height;
+        var maxW = 800, maxH = 800, w = img.width, h = img.height;
         if(w > maxW || h > maxH){ var r = Math.min(maxW/w,maxH/h); w=Math.round(w*r); h=Math.round(h*r); }
         var canvas = document.createElement('canvas'); canvas.width=w; canvas.height=h;
         canvas.getContext('2d').drawImage(img,0,0,w,h);
-        var compressed = canvas.toDataURL('image/jpeg',0.85);
+        var compressed = canvas.toDataURL('image/jpeg',0.7);
         var b64 = compressed.split(',')[1];
         if(type === 'src'){
           swapSrcImg = {data:b64, mime:'image/jpeg'};
