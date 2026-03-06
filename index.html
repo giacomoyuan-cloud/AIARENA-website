@@ -3479,19 +3479,20 @@ function initPersonaDragDrop(){
       } else {
         // 提取所有 [MJ_IMAGE]...[/MJ_IMAGE] 链接
         var mjImgUrls = [];
-        var cleanText = (msg.text || '').replace(/\[MJ_IMAGE\]([\s\S]*?)\[\/MJ_IMAGE\]/g, function(match, url){
-          mjImgUrls.push(url.trim());
-          return '';
-        }).trim();
+        var mjButtonsData = null;
+        var cleanText = (msg.text || '')
+          .replace(/\[MJ_IMAGE\]([\s\S]*?)\[\/MJ_IMAGE\]/g, function(match, url){
+            mjImgUrls.push(url.trim());
+            return '';
+          })
+          .replace(/\[MJ_BUTTONS\]([\s\S]*?)\[\/MJ_BUTTONS\]/g, function(match, json){
+            try { mjButtonsData = JSON.parse(json); } catch(e){}
+            return '';
+          })
+          .trim();
 
         h += '<div class="aa-msg-body '+bodyClass+'" style="'+bodyStyle+'">';
         if(cleanText) h += renderMd(cleanText);
-          // 提取 MJ_BUTTONS 数据
-          var mjButtonsData = null;
-          var cleanText2 = (msg.text || '').replace(/\[MJ_BUTTONS\]([\s\S]*?)\[\/MJ_BUTTONS\]/g, function(match, json){
-            try { mjButtonsData = JSON.parse(json); } catch(e){}
-            return '';
-          });
           if(mjImgUrls.length){
             h += '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:'+(cleanText?'10px':'0')+'">';
             mjImgUrls.forEach(function(url){
