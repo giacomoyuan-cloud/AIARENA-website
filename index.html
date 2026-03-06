@@ -3458,16 +3458,32 @@ function initPersonaDragDrop(){
 
         h += '<div class="aa-msg-body '+bodyClass+'" style="'+bodyStyle+'">';
         if(cleanText) h += renderMd(cleanText);
-        if(mjImgUrls.length){
-          h += '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:'+(cleanText?'10px':'0')+'">';
-          mjImgUrls.forEach(function(url){
-            h += '<div style="position:relative;display:inline-block;">';
-            h += '<img src="'+esc(url)+'" style="max-width:100%;border-radius:10px;display:block;border:1px solid rgba(255,255,255,0.1);" crossorigin="anonymous">';
-            h += '<a href="'+esc(url)+'" download target="_blank" style="display:inline-block;margin-top:6px;padding:5px 12px;border-radius:8px;background:rgba(56,189,248,0.15);border:1px solid rgba(56,189,248,0.3);color:#38bdf8;font-size:11px;font-weight:600;text-decoration:none;">下载图片</a>';
-            h += '</div>';
+          // 提取 MJ_BUTTONS 数据
+          var mjButtonsData = null;
+          var cleanText2 = (msg.text || '').replace(/\[MJ_BUTTONS\]([\s\S]*?)\[\/MJ_BUTTONS\]/g, function(match, json){
+            try { mjButtonsData = JSON.parse(json); } catch(e){}
+            return '';
           });
-          h += '</div>';
-        }
+          if(mjImgUrls.length){
+            h += '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:'+(cleanText?'10px':'0')+'">';
+            mjImgUrls.forEach(function(url){
+              h += '<div style="position:relative;display:inline-block;">';
+              h += '<img src="'+esc(url)+'" style="max-width:100%;border-radius:10px;display:block;border:1px solid rgba(255,255,255,0.1);" crossorigin="anonymous">';
+              h += '<a href="'+esc(url)+'" download target="_blank" style="display:inline-block;margin-top:6px;padding:5px 12px;border-radius:8px;background:rgba(56,189,248,0.15);border:1px solid rgba(56,189,248,0.3);color:#38bdf8;font-size:11px;font-weight:600;text-decoration:none;">下载图片</a>';
+              h += '</div>';
+            });
+            h += '</div>';
+          }
+          if(mjButtonsData && mjButtonsData.buttons && mjButtonsData.buttons.length){
+            var taskId = mjButtonsData.taskId;
+            h += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;">';
+            mjButtonsData.buttons.forEach(function(btn){
+              var label = (btn.emoji ? btn.emoji+' ' : '') + (btn.label || btn.customId);
+              // 只显示常用操作：U1-U4（放大）和 V1-V4（变体）以及常见操作
+              h += '<button onclick="window._aaMjAction(\''+esc(taskId)+'\',\''+esc(btn.customId)+'\')" style="padding:5px 10px;border-radius:8px;background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.25);color:#38bdf8;font-size:11px;cursor:pointer;font-family:\'Sora\',sans-serif;transition:all 0.15s;">'+esc(label)+'</button>';
+            });
+            h += '</div>';
+          }
         h += '</div>';
 
         h += '<button class="aa-msg-quote-btn" onmousedown="window._aaStoreSelection()" onclick="window._aaQuoteMsg(\''+msg.uid+'\')">引用</button>';
@@ -4591,6 +4607,38 @@ if(debateMode === '2v2'){
     reader.readAsDataURL(f);
     ev.target.value = '';
   });
+
+  window._aaMjAction = function(taskId, customId){
+    if(aaRunning){ alert('请等待当前任务完成'); return; }
+    if(!getPass()){ alert('请先登录'); return; }
+    aaRunning = true; abortF = false;
+    var btn = $('aaSendBtn');
+    btn.textContent = '■'; btn.className = 'aa-send stop'; btn.disabled = false;
+    btn.onclick = function(){ abortF = true; hideThink(); finishMjAction(); };
+    var sub = 'mj-action';
+    var info = SUBS['mj-imagine'];
+    var brandInfo = BRANDS['mj'];
+    showThink('mj-imagine');
+    var uid = newUid();
+    var msgObj = {uid:uid, submodel:'mj-imagine', brand:'mj', name:'MJ 操作', text:'', color:brandInfo.color};
+    var firstChunk = true;
+    callWorkerStream('mj-imagine', '', null, null,
+      function(chunk){ if(firstChunk){ firstChunk=false; hideThink('mj-imagine'); msgs.push(msgObj); render(); } msgObj.text += chunk; liveUpdate(uid, msgObj.text); },
+      function(){ if(firstChunk) hideThink('mj-imagine'); finalizeMsg(uid, msgObj.text, false); render(); finishMjAction(); },
+      function(err){ if(firstChunk){ hideThink('mj-imagine'); msgObj.text=err.message; msgObj.isError=true; msgs.push(msgObj); render(); } finishMjAction(); },
+      function(name){ msgObj.name = name; },
+      null,
+      { model: 'mj-action', mjTaskId: taskId, mjCustomId: customId }
+    );
+    function finishMjAction(){
+      aaRunning = false;
+      var b = $('aaSendBtn');
+      b.textContent = '\u2191';
+      b.className = 'aa-send image-mode';
+      b.disabled = !$('aaTopic').value.trim() && !sentImgs.length;
+      b.onclick = null;
+    }
+  };
 
   window._aaNbClearEdit = function(){
     for(var i = msgs.length - 1; i >= 0; i--){
