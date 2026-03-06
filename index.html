@@ -3449,8 +3449,26 @@ function initPersonaDragDrop(){
         h += '<button onclick="window._aaDownloadImg(\''+msg.uid+'\')" style="padding:6px 12px;border-radius:8px;background:rgba(96,165,250,0.15);border:1px solid rgba(96,165,250,0.3);color:#60a5fa;font-size:11px;font-weight:600;cursor:pointer;font-family:\'Sora\',sans-serif;">下载原图</button>';
         h += '</div>';
       } else {
+        // 提取所有 [MJ_IMAGE]...[/MJ_IMAGE] 链接
+        var mjImgUrls = [];
+        var cleanText = (msg.text || '').replace(/\[MJ_IMAGE\]([\s\S]*?)\[\/MJ_IMAGE\]/g, function(match, url){
+          mjImgUrls.push(url.trim());
+          return '';
+        }).trim();
 
-        h += '<div class="aa-msg-body '+bodyClass+'" style="'+bodyStyle+'">'+renderMd(msg.text||'')+'</div>';
+        h += '<div class="aa-msg-body '+bodyClass+'" style="'+bodyStyle+'">';
+        if(cleanText) h += renderMd(cleanText);
+        if(mjImgUrls.length){
+          h += '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:'+(cleanText?'10px':'0')+'">';
+          mjImgUrls.forEach(function(url){
+            h += '<div style="position:relative;display:inline-block;">';
+            h += '<img src="'+esc(url)+'" style="max-width:100%;border-radius:10px;display:block;border:1px solid rgba(255,255,255,0.1);" crossorigin="anonymous">';
+            h += '<a href="'+esc(url)+'" download target="_blank" style="display:inline-block;margin-top:6px;padding:5px 12px;border-radius:8px;background:rgba(56,189,248,0.15);border:1px solid rgba(56,189,248,0.3);color:#38bdf8;font-size:11px;font-weight:600;text-decoration:none;">下载图片</a>';
+            h += '</div>';
+          });
+          h += '</div>';
+        }
+        h += '</div>';
 
         h += '<button class="aa-msg-quote-btn" onmousedown="window._aaStoreSelection()" onclick="window._aaQuoteMsg(\''+msg.uid+'\')">引用</button>';
 
