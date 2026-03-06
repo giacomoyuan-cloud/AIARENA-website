@@ -4019,15 +4019,7 @@ if(debateMode === '2v2'){
         if(!wasOpen){
           drop.style.visibility = 'hidden';
           drop.classList.add('open');
-          var rect = mjCard.querySelector('.aa-card-head').getBoundingClientRect();
-          drop.style.top = 'auto';
-          drop.style.bottom = (window.innerHeight - rect.top + 4) + 'px';
-          var dropWidth = drop.offsetWidth || 130;
-          var leftPos = rect.left + rect.width/2 - dropWidth/2;
-          if(leftPos + dropWidth > window.innerWidth - 8) leftPos = window.innerWidth - dropWidth - 8;
-          if(leftPos < 8) leftPos = 8;
-          drop.style.left = leftPos + 'px';
-          drop.style.transform = 'none';
+          positionDropdown(mjCard, drop);
           drop.style.visibility = '';
         }
       });
