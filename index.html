@@ -1576,7 +1576,7 @@ var TEAM_COLORS = {
     var mjCard2 = $('aaMjCard');
     if(mjCard2) mjCard2.classList.toggle('active', !!activeBrands['mj']);
     // Update card sub label
-    ['xai','anthropic','openai','google'].forEach(function(b){
+    ['xai','anthropic','openai','google','mj'].forEach(function(b){
       var label = $('aaCardSub-'+b);
       if(label){
         var sub = brandSelection[b];
@@ -1585,7 +1585,7 @@ var TEAM_COLORS = {
       }
     });
     // Update card dots based on current selection's health
-    ['xai','anthropic','openai','google'].forEach(function(b){
+    ['xai','anthropic','openai','google','mj'].forEach(function(b){
       var dot = $('aaCardDot-'+b);
       if(!dot) return;
       var sub = brandSelection[b];
