@@ -2916,9 +2916,13 @@ btn.classList.add('copied');
     if($('aaBarVideoBtn')){ $('aaBarVideoBtn').style.background='transparent'; $('aaBarVideoBtn').style.color='#6b6b88'; }
     $('aaRoundsBar').style.display = 'none';
     $('aaDebateModeBar').style.display = 'none';
-    // 图像模式：默认选Google卡片，强制切换到nanbanana2
-    activeBrands = {xai:false, anthropic:false, openai:false, google:true, mj:false};
-    brandSelection['google'] = 'nanbanana2-official';
+  // 图像模式：保留上次选择；若都没激活则默认 Google(Nano Banana 2)
+activeBrands = {xai:false, anthropic:false, openai:false, google:!!activeBrands['google'], mj:!!activeBrands['mj']};
+if(!activeBrands.google && !activeBrands.mj){
+  activeBrands.google = true;
+}
+if(!brandSelection['google']) brandSelection['google'] = 'nanbanana2-official';
+if(!brandSelection['mj']) brandSelection['mj'] = 'mj-imagine';
     // 显示图像专用卡片，隐藏非图像卡片
     syncImageCards();
     $('aaBrandBar').style.display = 'flex';
@@ -3540,7 +3544,7 @@ function initPersonaDragDrop(){
       $('aaSidebar').classList.remove('hidden'); $('aaGearBtn').classList.add('active');
       return;
     }
-    var act = imageMode ? ['nanbanana2-official'] : getActiveSubmodels();
+    var act = getActiveSubmodels();
     if(!act.length){ alert('请至少选择一个模型。'); return; }
     _bizMode = act.indexOf('grok41-biz-official') !== -1;
     // ✅ 商业版模式:清空当前 chatId,阻止保存到历史
@@ -4620,19 +4624,23 @@ if(debateMode === '2v2'){
   updateModeBadge();
   updateSkillsBtn();
   if(debate && $('aaSkillsWrap')) $('aaSkillsWrap').style.display = 'none';
-  // 图像模式初始化
-  if(imageMode){
-    $('aaBarImageBtn').classList.add('active');
-    $('aaBarChatBtn').classList.remove('active');
-    $('aaBarDebateBtn').classList.remove('active');
-    $('aaBarImageBtn').style.background='rgba(255,255,255,0.1)'; $('aaBarImageBtn').style.color='#e8e8ee';
-    $('aaBarChatBtn').style.background='transparent'; $('aaBarChatBtn').style.color='#6b6b88';
-    $('aaBarDebateBtn').style.background='transparent'; $('aaBarDebateBtn').style.color='#6b6b88';
-    activeBrands = {xai:false, anthropic:false, openai:false, google:true};
-    brandSelection['google'] = 'nanbanana2-official';
-    if($('aaSkillsWrap')) $('aaSkillsWrap').style.display = 'none';
-    syncBrandUI();
+ // 图像模式初始化
+if(imageMode){
+  $('aaBarImageBtn').classList.add('active');
+  $('aaBarChatBtn').classList.remove('active');
+  $('aaBarDebateBtn').classList.remove('active');
+  $('aaBarImageBtn').style.background='rgba(255,255,255,0.1)'; $('aaBarImageBtn').style.color='#e8e8ee';
+  $('aaBarChatBtn').style.background='transparent'; $('aaBarChatBtn').style.color='#6b6b88';
+  $('aaBarDebateBtn').style.background='transparent'; $('aaBarDebateBtn').style.color='#6b6b88';
+  activeBrands = {xai:false, anthropic:false, openai:false, google:!!activeBrands['google'], mj:!!activeBrands['mj']};
+  if(!activeBrands.google && !activeBrands.mj){
+    activeBrands.google = true;
   }
+  if(!brandSelection['google']) brandSelection['google'] = 'nanbanana2-official';
+  if(!brandSelection['mj']) brandSelection['mj'] = 'mj-imagine';
+  if($('aaSkillsWrap')) $('aaSkillsWrap').style.display = 'none';
+  syncBrandUI();
+}
 
   // 判断是否已登录
   if(!_passHash || !sessionStorage.getItem('ai-arena-user')){
