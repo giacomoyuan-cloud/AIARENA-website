@@ -184,7 +184,7 @@
   #ai-arena-app .aa-msg-round { font-size: 9px; color: #555; }
   #ai-arena-app .aa-msg-body {
     margin-left: 13px; padding: 12px 16px; border-radius: 14px;
-    font-size: 13px; line-height: 1.75; color: #c8c8dd;
+    font-size: 16px; line-height: 1.75; color: #c8c8dd;
     white-space: pre-wrap; word-break: break-word; font-weight: 300; letter-spacing: 0.01em;
   }
   #ai-arena-app .aa-msg-body strong { color: #e8e8ee; font-weight: 600; }
@@ -533,7 +533,7 @@
   }
   #ai-arena-app .aa-topic {
     flex: 1; background: transparent; border: none; padding: 6px 4px;
-    color: #e8e8ee; font-size: 15px; font-family: 'Sora', sans-serif;
+    color: #e8e8ee; font-size: 17px; font-family: 'Sora', sans-serif;
     resize: none; line-height: 1.5; -webkit-appearance: none; appearance: none; overflow: hidden;
     min-height: 28px; max-height: 220px; height: auto;
   }
@@ -1861,7 +1861,7 @@ var TEAM_COLORS = {
       } else {
         if(inList){ html += '</ul>'; inList = false; }
         if(escaped.trim() === ''){ html += '<br>'; }
-        else { html += '<p style="margin:6px 0;">'+escaped+'</p>'; }
+        else { html += '<p style="margin:6px 0;font-size:16px;">'+escaped+'</p>'; }
       }
     }
     if(inList) html += '</ul>';
