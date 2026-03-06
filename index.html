@@ -4697,6 +4697,7 @@ if(debateMode === '2v2'){
       $('aaSendBtn').disabled = isSwap ? !(swapSrcImg && swapTgtImg) : !$('aaTopic').value.trim();
     });
   });
+    window._aaMjAction = function(taskId, customId){
     if(aaRunning){ alert('请等待当前任务完成'); return; }
     if(!getPass()){ alert('请先登录'); return; }
     aaRunning = true; abortF = false;
