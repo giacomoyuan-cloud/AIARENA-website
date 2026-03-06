@@ -1664,7 +1664,7 @@ var TEAM_COLORS = {
       } else if(debate){
         activeBrands[b] = !activeBrands[b];
       } else {
-        activeBrands = {xai:false, anthropic:false, openai:false, google:false};
+        activeBrands = {xai:false, anthropic:false, openai:false, google:false, mj:false};
         activeBrands[b] = true;
       }
       syncBrandUI();
@@ -4006,37 +4006,7 @@ if(debateMode === '2v2'){
     if(googleCard) googleCard.style.display = imageMode ? '' : '';
     var mjCard = $('aaMjCard');
     if(mjCard) mjCard.style.display = imageMode ? '' : 'none';
-    // 注册MJ卡片点击（避免重复注册用flag）
-    if(imageMode && mjCard && !mjCard._clickBound){
-      mjCard._clickBound = true;
-      mjCard.querySelector('.aa-card-head').addEventListener('click', function(e){
-        e.stopPropagation();
-        var drop = $('aaDrop-mj');
-        var wasOpen = drop.classList.contains('open');
-        document.querySelectorAll('#ai-arena-app .aa-card-dropdown').forEach(function(d){ d.classList.remove('open'); });
-        activeBrands = {xai:false, anthropic:false, openai:false, google:false, mj:true};
-        syncBrandUI(); saveState();
-        if(!wasOpen){
-          drop.style.visibility = 'hidden';
-          drop.classList.add('open');
-          positionDropdown(mjCard, drop);
-          drop.style.visibility = '';
-        }
-      });
-      document.querySelectorAll('#aaDrop-mj .aa-drop-item').forEach(function(item){
-        if(item._mjBound) return;
-        item._mjBound = true;
-        item.addEventListener('click', function(e){
-          e.stopPropagation();
-          brandSelection['mj'] = item.dataset.sub;
-          $('aaDrop-mj').classList.remove('open');
-          var subLabel = $('aaCardSub-mj');
-          if(subLabel){ var info = SUBS[item.dataset.sub]; subLabel.textContent = info ? info.name : item.dataset.sub; }
-          activeBrands = {xai:false, anthropic:false, openai:false, google:false, mj:true};
-          syncBrandUI(); saveState();
-        });
-      });
-    }
+    
   }
 
 // === Drag reorder brand cards ===
