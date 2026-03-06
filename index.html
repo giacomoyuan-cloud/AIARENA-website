@@ -3506,7 +3506,10 @@ function initPersonaDragDrop(){
             var taskId = mjButtonsData.taskId;
             h += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;">';
             mjButtonsData.buttons.forEach(function(btn){
-              var label = btn.label || '↺';
+              var MJ_LABEL_MAP = {'Upscale (Subtle)':'精细放大','Upscale (Creative)':'创意放大','Vary (Subtle)':'微调变体','Vary (Strong)':'大幅变体','Vary (Region)':'局部重绘','Zoom Out 2x':'扩图 2x','Zoom Out 1.5x':'扩图 1.5x','Custom Zoom':'自定义扩图'};
+var MJ_HIDDEN = ['Animate (High motion)','Animate (Low motion)'];
+if(MJ_HIDDEN.indexOf(btn.label) !== -1) return;
+var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_left') !== -1 ? '← 左扩' : btn.customId.indexOf('pan_right') !== -1 ? '→ 右扩' : btn.customId.indexOf('pan_up') !== -1 ? '↑ 上扩' : btn.customId.indexOf('pan_down') !== -1 ? '↓ 下扩' : btn.customId.indexOf('reroll') !== -1 ? '↺ 重新生成' : '?');
               // 只显示常用操作：U1-U4（放大）和 V1-V4（变体）以及常见操作
               h += '<button onclick="window._aaMjAction(\''+esc(taskId)+'\',\''+esc(btn.customId)+'\')" style="padding:5px 10px;border-radius:8px;background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.25);color:#38bdf8;font-size:11px;cursor:pointer;font-family:\'Sora\',sans-serif;transition:all 0.15s;">'+esc(label)+'</button>';
             });
