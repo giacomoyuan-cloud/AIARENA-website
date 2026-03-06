@@ -2085,11 +2085,9 @@ var TEAM_COLORS = {
         Promise.all(promises).then(function(results){
           var text = results.join('\n');
           if(!text.trim()){ alert('PDF 无法提取文字（可能是扫描件）'); return; }
-          var text = result.value;
-        if(!text.trim()){ alert('Word 文件内容为空'); return; }
-        sentTexts.push('[文件: '+file.name+']\n' + text);
-        renderTextPreviews();
-        $('aaSendBtn').disabled = aaRunning;
+          sentTexts.push('[文件: '+file.name+']\n' + text);
+          renderTextPreviews();
+          $('aaSendBtn').disabled = aaRunning;
         });
       }).catch(function(err){ alert('PDF 解析失败：' + err.message); });
     };
@@ -2920,9 +2918,11 @@ if(!activeBrands.google && !activeBrands.mj){
   activeBrands.google = true;
 }
 if(!brandSelection['google']) brandSelection['google'] = 'nanbanana2-official';
-if(!brandSelection['mj']) brandSelection['mj'] = 'mj-imagine';
-    // 显示图像专用卡片，隐藏非图像卡片
-    syncImageCards();
+      if(!brandSelection['mj']) brandSelection['mj'] = 'mj-imagine';
+      var _gLabelBtn = document.getElementById('aaCardSub-google');
+      if(_gLabelBtn) _gLabelBtn.textContent = 'Nano Banana 2';
+      // 显示图像专用卡片，隐藏非图像卡片
+      syncImageCards();
     $('aaBrandBar').style.display = 'flex';
     $('aaBrandBarCollapsed').style.display = 'none';
     syncImageCards();
@@ -4637,6 +4637,8 @@ if(imageMode){
   brandSelection['google'] = 'nanbanana2-official';
       if(!brandSelection['mj']) brandSelection['mj'] = 'mj-imagine';
       if($('aaSkillsWrap')) $('aaSkillsWrap').style.display = 'none';
+      var _gLabel = document.getElementById('aaCardSub-google');
+      if(_gLabel) _gLabel.textContent = 'Nano Banana 2';
       syncBrandUI();
     }
 
