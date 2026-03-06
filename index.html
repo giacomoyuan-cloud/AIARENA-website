@@ -3506,7 +3506,7 @@ function initPersonaDragDrop(){
             var taskId = mjButtonsData.taskId;
             h += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;">';
             mjButtonsData.buttons.forEach(function(btn){
-              var label = (btn.emoji ? btn.emoji+' ' : '') + (btn.label || btn.customId);
+              var label = btn.label || '↺';
               // 只显示常用操作：U1-U4（放大）和 V1-V4（变体）以及常见操作
               h += '<button onclick="window._aaMjAction(\''+esc(taskId)+'\',\''+esc(btn.customId)+'\')" style="padding:5px 10px;border-radius:8px;background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.25);color:#38bdf8;font-size:11px;cursor:pointer;font-family:\'Sora\',sans-serif;transition:all 0.15s;">'+esc(label)+'</button>';
             });
