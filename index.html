@@ -2793,7 +2793,8 @@ btn.classList.add('copied');
   // === Input handling ===
   $('aaTopic').addEventListener('input', function(){
     this.style.height = 'auto'; this.style.height = Math.min(this.scrollHeight, 220) + 'px';
-    $('aaSendBtn').disabled = (!this.value.trim() && !sentImgs.length && !sentTexts.length) || aaRunning;
+    $('aaSendBtn').disabled = (!this.value.trim() && !sentImgs.length && !sentTexts.length);
+    if(aaRunning) $('aaSendBtn').disabled = true;
   });
   $('aaTopic').addEventListener('keydown', function(e){
     if(e.key === 'Enter' && !e.shiftKey && !aaRunning && window.innerWidth > 768){
@@ -3532,7 +3533,7 @@ function initPersonaDragDrop(){
   // === Main start ===
   function aaStart(){
     var topic = $('aaTopic').value.trim();
-    if(!topic && !sentImg && !sentTexts.length) return;
+    if(!topic && !sentImgs.length && !sentTexts.length) return;
     if(!currentChatId) currentChatId = genChatId();
     if(!getPass() || !$('aaUsername').value.trim()){
       alert('请先输入用户名和密码！');
