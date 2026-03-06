@@ -1574,9 +1574,13 @@ var TEAM_COLORS = {
     ['xai','anthropic','openai','google','mj'].forEach(function(b){
       var label = $('aaCardSub-'+b);
       if(label){
-        var sub = brandSelection[b];
-        var info = SUBS[sub];
-        label.textContent = info ? info.name : '';
+        if(b === 'google' && imageMode){
+          label.textContent = 'Nano Banana 2';
+        } else {
+          var sub = brandSelection[b];
+          var info = SUBS[sub];
+          label.textContent = info ? info.name : '';
+        }
       }
     });
     // Update card dots based on current selection's health
