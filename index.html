@@ -3482,6 +3482,8 @@ function initPersonaDragDrop(){
         // 提取所有 [MJ_IMAGE]...[/MJ_IMAGE] 链接
         var mjImgUrls = [];
         var mjButtonsData = msg.mjButtons || null;
+        var cleanText = (msg.text || '')
+          .replace(/\[MJ_IMAGE\]([\s\S]*?)\[\/MJ_IMAGE\]/g, function(match, url){ mjImgUrls.push(url); return ''; })
           .replace(/\[MJ_BUTTONS\]([\s\S]*?)\[\/MJ_BUTTONS\]/g, function(match, json){
             try { mjButtonsData = JSON.parse(json); } catch(e){}
             return '';
