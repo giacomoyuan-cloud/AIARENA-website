@@ -4578,7 +4578,7 @@ if(debateMode === '2v2'){
     if(!videoMode && brandSelection['kling'] === 'kling25-i2v'){
       activeBrands['kling'] = false;
     }
-    var show = imageMode;
+    var show = imageMode && !(activeBrands['mj'] && !activeBrands['google']);
     $('aaNbOptions').style.display = show ? 'block' : 'none';
     $('aaNbRefArea').style.display = 'none';
     if(videoMode){
