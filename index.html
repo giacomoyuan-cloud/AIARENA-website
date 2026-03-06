@@ -1663,11 +1663,13 @@ var TEAM_COLORS = {
       document.querySelectorAll('#ai-arena-app .aa-card-dropdown').forEach(function(d){ d.classList.remove('open'); });
       if(!wasOpen){
         drop.style.visibility = 'hidden';
-        drop.classList.add('open');
+      drop.classList.add('open');
+      requestAnimationFrame(function(){
         positionDropdown(card, drop);
         drop.style.visibility = '';
-      }
-      if(debate && debateMode === '2v2'){
+      });
+    }
+    if(debate && debateMode === '2v2'){
         // 2v2 mode: click does nothing, drag only
         syncBrandUI(); saveState(); return;
       } else if(debate){
