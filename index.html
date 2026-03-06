@@ -1545,6 +1545,10 @@ var TEAM_COLORS = {
       result.push(brandSelection['mj'] || 'mj-imagine');
       return result;
     }
+    if(imageMode && activeBrands['mj']){
+      result.push(brandSelection['mj'] || 'mj-imagine');
+      return result;
+    }
     if(imageMode && activeBrands['google']){
       result.push(brandSelection['google'] || 'nanbanana2-official');
       return result;
