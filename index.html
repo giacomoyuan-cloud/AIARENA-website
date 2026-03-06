@@ -2085,9 +2085,11 @@ var TEAM_COLORS = {
         Promise.all(promises).then(function(results){
           var text = results.join('\n');
           if(!text.trim()){ alert('PDF 无法提取文字（可能是扫描件）'); return; }
-          sentTexts.push('[文件: '+file.name+']\n' + text);
-          renderTextPreviews();
-          $('aaSendBtn').disabled = false;
+          var text = result.value;
+        if(!text.trim()){ alert('Word 文件内容为空'); return; }
+        sentTexts.push('[文件: '+file.name+']\n' + text);
+        renderTextPreviews();
+        $('aaSendBtn').disabled = aaRunning;
         });
       }).catch(function(err){ alert('PDF 解析失败：' + err.message); });
     };
@@ -2101,7 +2103,7 @@ var TEAM_COLORS = {
         if(!text.trim()){ alert('Word 文件内容为空'); return; }
         sentTexts.push('[文件: '+file.name+']\n' + text);
         renderTextPreviews();
-        $('aaSendBtn').disabled = false;
+        $('aaSendBtn').disabled = aaRunning;
       }).catch(function(err){ alert('Word 解析失败：' + err.message); });
     };
     reader.readAsArrayBuffer(file);
@@ -2142,9 +2144,9 @@ var TEAM_COLORS = {
     var text = (e.clipboardData || e.originalEvent.clipboardData).getData('text');
     if(text && text.length > 500){
       e.preventDefault();
-      sentTexts.push(text);
-      renderTextPreviews();
-      $('aaSendBtn').disabled = false;
+     sentTexts.push(text);
+        renderTextPreviews();
+        $('aaSendBtn').disabled = aaRunning;
     }
   });
 
