@@ -1392,16 +1392,18 @@ var TEAM_COLORS = {
 
   function renderPoolBar(barEl, poolId){
     if(!poolId){ barEl.style.display='none'; return; }
-    var budget = getPoolBudget(poolId);
+    var topups = JSON.parse(localStorage.getItem('aa-pool-topups') || '{}');
+    var totalTopup = (topups[poolId] || []).reduce(function(a,b){ return a+b.amount; }, 0);
     var spent = getPoolSpent(poolId);
-    if(budget <= 0){ barEl.style.display='none'; return; }
-    var pct = Math.min(spent / budget, 1);
-    var remaining = Math.max(budget - spent, 0);
+    if(totalTopup <= 0){ barEl.style.display='none'; return; }
+    var pct = Math.min(spent / totalTopup, 1);
+    var remaining = Math.max(totalTopup - spent, 0);
+    var budget = totalTopup;
     var color = pct < 0.6 ? '#22c55e' : pct < 0.85 ? '#f59e0b' : '#ef4444';
     barEl.style.display = 'block';
     barEl.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">'
       +'<span style="font-size:9px;color:#555;letter-spacing:0.03em;">'+POOL_LABELS[poolId]+'</span>'
-      +'<span style="font-size:9px;color:'+color+';">$'+remaining.toFixed(2)+' / $'+budget.toFixed(2)+'</span>'
+      +'<span style="font-size:9px;color:'+color+';">$'+remaining.toFixed(5)+' / $'+budget.toFixed(5)+'</span>'
       +'</div>'
       +'<div style="height:3px;background:rgba(255,255,255,0.08);border-radius:2px;overflow:hidden;">'
       +'<div style="height:100%;width:'+(pct*100)+'%;background:'+color+';border-radius:2px;transition:width 0.4s;"></div>'
@@ -1628,15 +1630,41 @@ var TEAM_COLORS = {
       +'<button id="aaPricesClose" style="width:28px;height:28px;border-radius:8px;border:1px solid '+border+';background:rgba(255,255,255,0.05);color:'+subClr+';font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>'
       +'</div>'
       +'<div style="font-size:11px;color:'+subClr+';margin-bottom:10px;">单价 $/1M tokens，留0表示不计费</div>'
-      +'<div style="font-size:12px;font-weight:600;color:'+textClr+';margin-bottom:8px;margin-top:4px;">池子预算</div>'
+      +'<div style="font-size:12px;font-weight:600;color:'+textClr+';margin-bottom:8px;margin-top:4px;">池子余额</div>'
       +'<div style="margin-bottom:14px;">'
       +Object.keys(POOL_LABELS).map(function(pid){
-        var b = getPoolBudget(pid); var s = getPoolSpent(pid);
-        return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">'
-          +'<span style="flex:1;font-size:11px;color:'+textClr+';white-space:nowrap;">'+POOL_LABELS[pid]+'</span>'
-          +'<input data-pool="'+pid+'" data-ptype="budget" type="number" step="0.01" min="0" value="'+b.toFixed(2)+'" placeholder="预算$" style="width:68px;background:'+inputBg+';border:1px solid '+inputBorder+';border-radius:6px;padding:4px 6px;color:'+textClr+';font-size:11px;font-family:\'Sora\',sans-serif;text-align:right;">'
-          +'<button data-pool="'+pid+'" data-action="reset-spent" style="padding:3px 8px;border-radius:6px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);color:#f87171;font-size:10px;cursor:pointer;font-family:\'Sora\',sans-serif;white-space:nowrap;">重置</button>'
-          +'<span style="font-size:10px;color:'+subClr+';white-space:nowrap;min-width:60px;text-align:right;">已用$'+s.toFixed(3)+'</span>'
+        var topups = JSON.parse(localStorage.getItem('aa-pool-topups') || '{}');
+        var topupList = topups[pid] || [];
+        var totalTopup = topupList.reduce(function(a,b){ return a+b.amount; }, 0);
+        var s = getPoolSpent(pid);
+        var remaining = Math.max(totalTopup - s, 0);
+        return '<div style="background:rgba(255,255,255,0.03);border:1px solid '+border+';border-radius:10px;padding:10px 12px;margin-bottom:10px;">'
+          +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">'
+          +'<span style="font-size:12px;font-weight:600;color:'+textClr+';">'+POOL_LABELS[pid]+'</span>'
+          +'<span style="font-size:11px;color:'+(remaining>0?'#22c55e':subClr)+';font-weight:600;">余额 $'+remaining.toFixed(5)+'</span>'
+          +'</div>'
+          +'<div style="display:flex;gap:6px;margin-bottom:8px;">'
+          +'<div style="flex:1;text-align:center;background:rgba(99,102,241,0.08);border-radius:7px;padding:5px 4px;">'
+          +'<div style="font-size:9px;color:'+subClr+';margin-bottom:2px;">累计充值</div>'
+          +'<div style="font-size:11px;color:#a5b4fc;font-weight:600;">$'+totalTopup.toFixed(5)+'</div>'
+          +'</div>'
+          +'<div style="flex:1;text-align:center;background:rgba(239,68,68,0.06);border-radius:7px;padding:5px 4px;">'
+          +'<div style="font-size:9px;color:'+subClr+';margin-bottom:2px;">已消耗</div>'
+          +'<div style="font-size:11px;color:#f87171;font-weight:600;">$'+s.toFixed(5)+'</div>'
+          +'</div>'
+          +'</div>'
+          +'<div style="display:flex;gap:6px;align-items:center;">'
+          +'<input data-pool="'+pid+'" data-ptype="topup-amount" type="number" step="0.01" min="0" placeholder="充值金额 $" style="flex:1;background:'+inputBg+';border:1px solid '+inputBorder+';border-radius:6px;padding:4px 8px;color:'+textClr+';font-size:11px;font-family:\'Sora\',sans-serif;text-align:right;">'
+          +'<button data-pool="'+pid+'" data-action="do-topup" style="padding:4px 10px;border-radius:6px;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.3);color:#22c55e;font-size:11px;font-weight:600;cursor:pointer;font-family:\'Sora\',sans-serif;white-space:nowrap;">+ 充值</button>'
+          +'<button data-pool="'+pid+'" data-action="reset-spent" style="padding:4px 10px;border-radius:6px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);color:#f87171;font-size:11px;cursor:pointer;font-family:\'Sora\',sans-serif;white-space:nowrap;">重置用量</button>'
+          +'</div>'
+          +(topupList.length > 0 ? '<div style="margin-top:8px;border-top:1px solid '+border+';padding-top:6px;">'
+          +topupList.slice(-3).reverse().map(function(t){
+            return '<div style="display:flex;justify-content:space-between;font-size:9px;color:'+subClr+';padding:2px 0;">'
+              +'<span>'+t.date+'</span><span style="color:#a5b4fc;">+$'+t.amount.toFixed(2)+'</span></div>';
+          }).join('')
+          +(topupList.length > 3 ? '<div style="font-size:9px;color:'+subClr+';text-align:right;">...共'+topupList.length+'笔</div>' : '')
+          +'</div>' : '')
           +'</div>';
       }).join('')
       +'</div>'
@@ -1676,14 +1704,31 @@ var TEAM_COLORS = {
       setTimeout(function(){ btn.textContent = '保存单价'; }, 1500);
     });
     panel.addEventListener('click', function(e){
-      var btn = e.target.closest('[data-action="reset-spent"]');
+      var btn = e.target.closest('[data-action]');
       if(!btn) return;
       var pid = btn.dataset.pool;
-      var spent = JSON.parse(localStorage.getItem('aa-pool-spent') || '{}');
-      spent[pid] = 0;
-      localStorage.setItem('aa-pool-spent', JSON.stringify(spent));
-      renderAllPoolBars();
-      btn.nextElementSibling.textContent = '已用$0.000';
+      var action = btn.dataset.action;
+      if(action === 'reset-spent'){
+        var spent = JSON.parse(localStorage.getItem('aa-pool-spent') || '{}');
+        spent[pid] = 0;
+        localStorage.setItem('aa-pool-spent', JSON.stringify(spent));
+        renderAllPoolBars();
+        document.body.removeChild(overlay);
+        showPricesPanel();
+      } else if(action === 'do-topup'){
+        var inp = panel.querySelector('input[data-pool="'+pid+'"][data-ptype="topup-amount"]');
+        var amount = parseFloat(inp ? inp.value : 0);
+        if(!amount || amount <= 0){ inp.style.borderColor='#ef4444'; setTimeout(function(){ inp.style.borderColor=''; },1000); return; }
+        var topups = JSON.parse(localStorage.getItem('aa-pool-topups') || '{}');
+        if(!topups[pid]) topups[pid] = [];
+        var now = new Date();
+        var dateStr = now.getFullYear()+'/'+(now.getMonth()+1)+'/'+ now.getDate();
+        topups[pid].push({amount: amount, date: dateStr});
+        localStorage.setItem('aa-pool-topups', JSON.stringify(topups));
+        renderAllPoolBars();
+        document.body.removeChild(overlay);
+        showPricesPanel();
+      }
     });
     // 加载用量
     var pass = getPass(); var user = ($('aaUsername').value || '').trim();
