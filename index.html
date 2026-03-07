@@ -4429,6 +4429,21 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
                 if(_nbPool) addPoolSpent(_nbPool, _nbCost);
                 msgObj.usageStr = nbImageSize + ' · $' + _nbCost.toFixed(3);
               }
+              var MJ_PRICES = {
+                'mj-imagine':   0.00,
+                'mj-describe':  0.00,
+                'mj-variation': 0.00,
+                'mj-upscale':   0.00,
+                'mj-blend':     0.00,
+                'mj-zoom':      0.00,
+                'swap-face':    0.00
+              };
+              if(MJ_PRICES[sub] !== undefined){
+                var _mjCost = MJ_PRICES[sub];
+                var _mjPool = getSubPool(sub);
+                if(_mjPool && _mjCost > 0) addPoolSpent(_mjPool, _mjCost);
+                msgObj.usageStr = (SUBS[sub] ? SUBS[sub].name : sub) + (_mjCost > 0 ? ' · $' + _mjCost.toFixed(4) : '');
+              }
               if(firstChunk){ firstChunk=false; hideThink(sub); msgs.push(msgObj); }
               render(); return;
             }
@@ -5178,7 +5193,28 @@ if(debateMode === '2v2'){
     var msgObj = {uid:uid, submodel:'mj-imagine', brand:'mj', name:'MJ 操作', text:'', color:brandInfo.color};
     var firstChunk = true;
     callWorkerStream('mj-imagine', '', null, null,
-      function(chunk){ if(firstChunk){ firstChunk=false; hideThink('mj-imagine'); msgs.push(msgObj); render(); } msgObj.text += chunk; liveUpdate(uid, msgObj.text); },
+      function(chunk){
+      if(chunk.indexOf('\x00IMG\x00') === 0){
+        var _mjAP = chunk.split('\x00');
+        msgObj.imgData = _mjAP[2]; msgObj.imgMime = _mjAP[4] || 'image/png';
+        var MJ_ACTION_PRICES = {
+          'mj-imagine':   0.00,
+          'mj-describe':  0.00,
+          'mj-variation': 0.00,
+          'mj-upscale':   0.00,
+          'mj-blend':     0.00,
+          'mj-zoom':      0.00,
+          'swap-face':    0.00
+        };
+        var _mjActSub = brandSelection['mj'] || 'mj-imagine';
+        var _mjActCost = MJ_ACTION_PRICES[_mjActSub] !== undefined ? MJ_ACTION_PRICES[_mjActSub] : 0;
+        var _mjActPool = getSubPool('mj-imagine');
+        if(_mjActPool && _mjActCost > 0) addPoolSpent(_mjActPool, _mjActCost);
+        msgObj.usageStr = (SUBS[_mjActSub] ? SUBS[_mjActSub].name : _mjActSub) + (_mjActCost > 0 ? ' · $' + _mjActCost.toFixed(4) : '');
+        if(firstChunk){ firstChunk=false; hideThink('mj-imagine'); msgs.push(msgObj); }
+        render(); return;
+      }
+      if(firstChunk){ firstChunk=false; hideThink('mj-imagine'); msgs.push(msgObj); render(); } msgObj.text += chunk; liveUpdate(uid, msgObj.text); },
       function(){ if(firstChunk) hideThink('mj-imagine'); finalizeMsg(uid, msgObj.text, false); render(); finishMjAction(); },
       function(err){ if(firstChunk){ hideThink('mj-imagine'); msgObj.text=err.message; msgObj.isError=true; msgs.push(msgObj); render(); } finishMjAction(); },
       function(name){ msgObj.name = name; },
