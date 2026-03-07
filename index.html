@@ -684,10 +684,12 @@
   #ai-arena-app.light-mode .aa-pass-popup { background: rgba(245,240,235,0.97) !important; border-color: rgba(0,0,0,0.1) !important; box-shadow: 0 8px 32px rgba(0,0,0,0.1) !important; }
   #ai-arena-app.light-mode .aa-key-input { background: rgba(255,255,255,0.9) !important; border-color: rgba(0,0,0,0.12) !important; color: #2a2a35 !important; }
   #ai-arena-app.light-mode .aa-key-input::placeholder { color: #9090a8 !important; }
-  #ai-arena-app.light-mode .aa-msg-body { color: #2a2a35 !important; }
-  #ai-arena-app.light-mode .aa-msg-body p, #ai-arena-app.light-mode .aa-msg-body li { color: #2a2a35 !important; }
-  #ai-arena-app.light-mode .aa-msg-body strong { color: #1a1a28 !important; }
-  #ai-arena-app.light-mode .aa-msg-body em { color: #4a4a60 !important; }
+  #ai-arena-app.light-mode .aa-msg-body { color: #1a1a28 !important; }
+  #ai-arena-app.light-mode .aa-msg-body p, #ai-arena-app.light-mode .aa-msg-body li { color: #1a1a28 !important; }
+  #ai-arena-app.light-mode .aa-msg-body strong { color: #0a0a15 !important; }
+  #ai-arena-app.light-mode .aa-msg-body em { color: #2a2a40 !important; }
+  #ai-arena-app.light-mode .aa-msg-body code:not(.aa-code-wrap code) { background: rgba(0,0,0,0.08) !important; color: #3a3a55 !important; }
+  #ai-arena-app.light-mode .aa-msg-body td, #ai-arena-app.light-mode .aa-msg-body th { color: #1a1a28 !important; }
   #ai-arena-app.light-mode .aa-msg-body.user { background: transparent !important; border-color: transparent !important; color: #2a2a35 !important; box-shadow: none !important; }
   #ai-arena-app.light-mode .aa-msg-body.ai-bubble { background: transparent !important; border-color: transparent !important; box-shadow: none !important; }
   #ai-arena-app.light-mode .aa-msg-round { color: #9090a8 !important; }
@@ -1795,18 +1797,19 @@ var TEAM_COLORS = {
         var hCells = headerRow.trim().split('|');
         if(hCells[0] !== undefined && hCells[0].trim() === '') hCells.shift();
         if(hCells[hCells.length-1] !== undefined && hCells[hCells.length-1].trim() === '') hCells.pop();
+        var _isLight = document.getElementById('ai-arena-app') && document.getElementById('ai-arena-app').classList.contains('light-mode');
         var thtml = '<div style="overflow-x:auto;margin:10px 0;"><table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr>';
         hCells.forEach(function(h){
-          thtml += '<th style="padding:7px 12px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.15);color:#e8e8ee;font-weight:600;white-space:nowrap;">'+esc(h.trim())+'</th>';
+          thtml += '<th style="padding:7px 12px;text-align:left;border-bottom:1px solid '+(_isLight?'rgba(0,0,0,0.15)':'rgba(255,255,255,0.15)')+';color:'+(_isLight?'#1a1a28':'#e8e8ee')+';font-weight:600;white-space:nowrap;">'+esc(h.trim())+'</th>';
         });
         thtml += '</tr></thead><tbody>';
         tableRows.forEach(function(row, ri){
           var cells = row.trim().split('|');
           if(cells[0] !== undefined && cells[0].trim() === '') cells.shift();
           if(cells[cells.length-1] !== undefined && cells[cells.length-1].trim() === '') cells.pop();
-          thtml += '<tr style="background:'+(ri%2===0?'rgba(255,255,255,0.02)':'rgba(255,255,255,0.04)')+';">';
+          thtml += '<tr style="background:'+(_isLight?(ri%2===0?'rgba(0,0,0,0.02)':'rgba(0,0,0,0.04)'):(ri%2===0?'rgba(255,255,255,0.02)':'rgba(255,255,255,0.04)'))+';">';
           cells.forEach(function(c){
-            thtml += '<td style="padding:6px 12px;border-bottom:1px solid rgba(255,255,255,0.06);color:#c8c8dd;">'+esc(c.trim())+'</td>';
+            thtml += '<td style="padding:6px 12px;border-bottom:1px solid '+(_isLight?'rgba(0,0,0,0.08)':'rgba(255,255,255,0.06)')+';color:'+(_isLight?'#1a1a28':'#c8c8dd')+';">'+esc(c.trim())+'</td>';
           });
           thtml += '</tr>';
         });
