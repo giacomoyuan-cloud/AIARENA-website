@@ -964,6 +964,7 @@
         </div>
         <div class="aa-brand-card" data-brand="mj" id="aaMjCard" style="display:none;">
           <div class="aa-card-head" style="--bc:#38bdf8;--bcbg:rgba(56,189,248,0.1);--bcglow:rgba(56,189,248,0.15);"><span class="aa-card-brand">MJ</span><span class="aa-card-sub" id="aaCardSub-mj">生图</span><span class="aa-card-dot" id="aaCardDot-mj"></span></div>
+          <div id="aaPoolBar-mj" style="padding:3px 6px 4px;"></div>
         </div>
         <div id="aaJudgeCard" style="flex-shrink:0;display:none;">
           <div id="aaJudgeHead" class="aa-card-head" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);transition:all 0.2s;">
@@ -1388,15 +1389,14 @@ var TEAM_COLORS = {
   function getSubPool(sub){ return POOL_MAP[sub] || null; }
 
   function renderAllPoolBars(){
-    // 对每个品牌卡片，找到当前选中submodel对应的pool，渲染横条
     ['xai','anthropic','openai','google','mj'].forEach(function(brand){
       var bar = document.getElementById('aaPoolBar-'+brand);
       if(!bar) return;
       var sub = brandSelection[brand];
       var pool = getSubPool(sub);
+      bar.style.display = 'block';
       renderPoolBar(bar, pool);
     });
-    // kling单独处理
     var klingBar = document.getElementById('aaPoolBar-kling');
     if(klingBar) renderPoolBar(klingBar, getSubPool('kling25-i2v'));
   }
