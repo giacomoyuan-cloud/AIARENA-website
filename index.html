@@ -1774,7 +1774,7 @@ var TEAM_COLORS = {
       var inp = document.getElementById('aa-ti-'+pid+'-'+idx);
       if(!inp) return;
       var newAmt = parseFloat(inp.value);
-      if(!newAmt || newAmt <= 0){ inp.style.borderColor='#ef4444'; return; }
+      if(isNaN(newAmt)){ inp.style.borderColor='#ef4444'; return; }
       var topups = JSON.parse(localStorage.getItem('aa-pool-topups') || '{}');
       if(!topups[pid] || topups[pid][idx] === undefined){ return; }
       topups[pid][idx].amount = newAmt;
