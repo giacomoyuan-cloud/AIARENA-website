@@ -4270,7 +4270,7 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
             }
             if(chunk.indexOf('\x00USAGE\x00') === 0){
               try {
-                var usageData = JSON.parse(chunk.slice(8));
+                var usageData = JSON.parse(chunk.slice(9));
                 msgObj.usage = usageData;
                 var prices = JSON.parse(localStorage.getItem('aa-model-prices') || '{}');
                 var subKey = msgObj.submodel || sub;
