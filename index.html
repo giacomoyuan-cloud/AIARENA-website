@@ -4906,42 +4906,40 @@ if(imageMode){
 
   window._aaMjSplit = function(key){
     var src = (window._aaImgClickStore||{})[key]; if(!src) return;
-    var isLight = document.getElementById('ai-arena-app').classList.contains('light-mode');
     var overlay = document.createElement('div');
     overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:999999;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;cursor:pointer;padding:16px;box-sizing:border-box;';
     var grid = document.createElement('div');
-    grid.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:8px;max-width:92vw;max-height:92vh;cursor:default;';
+    grid.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:6px;width:min(92vw,92vh);cursor:default;';
     grid.addEventListener('click', function(e){ e.stopPropagation(); });
-    var img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = function(){
-      var hw = Math.floor(img.naturalWidth / 2);
-      var hh = Math.floor(img.naturalHeight / 2);
-      var positions = [{x:0,y:0},{x:hw,y:0},{x:0,y:hh},{x:hw,y:hh}];
-      positions.forEach(function(pos, i){
-        var canvas = document.createElement('canvas');
-        canvas.width = hw; canvas.height = hh;
-        canvas.getContext('2d').drawImage(img, pos.x, pos.y, hw, hh, 0, 0, hw, hh);
-        var dataUrl = canvas.toDataURL('image/jpeg', 0.95);
-        var wrap = document.createElement('div');
-        wrap.style.cssText = 'position:relative;';
-        var tile = document.createElement('img');
-        tile.src = dataUrl;
-        tile.style.cssText = 'width:100%;height:auto;border-radius:8px;display:block;cursor:zoom-in;';
-        var num = document.createElement('div');
-        num.style.cssText = 'position:absolute;top:8px;left:8px;width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,0.55);color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;pointer-events:none;';
-        num.textContent = i+1;
-        var dlBtn = document.createElement('a');
-        dlBtn.href = dataUrl; dlBtn.download = 'mj-'+(i+1)+'.jpg';
-        dlBtn.style.cssText = 'display:inline-block;margin-top:4px;padding:4px 10px;border-radius:6px;background:rgba(56,189,248,0.15);border:1px solid rgba(56,189,248,0.3);color:#38bdf8;font-size:10px;font-weight:600;text-decoration:none;';
-        dlBtn.textContent = '下载 '+(i+1);
-        (function(d){ tile.addEventListener('click', function(){ window._aaLightbox(d); }); })(dataUrl);
-        wrap.appendChild(tile); wrap.appendChild(num);
-        grid.appendChild(wrap);
-        grid.insertAdjacentElement('beforeend', dlBtn);
-      });
-    };
-    img.src = src;
+    var positions = [
+      {x:0,   y:0},
+      {x:50,  y:0},
+      {x:0,   y:50},
+      {x:50,  y:50}
+    ];
+    positions.forEach(function(pos, i){
+      var wrap = document.createElement('div');
+      wrap.style.cssText = 'position:relative;aspect-ratio:1/1;overflow:hidden;border-radius:8px;cursor:zoom-in;';
+      var tile = document.createElement('div');
+      tile.style.cssText = 'width:200%;height:200%;background-image:url('+src+');background-size:cover;background-position:'+pos.x+'% '+pos.y+'%;position:absolute;top:0;left:0;transform:translate(-'+pos.x+'%,-'+pos.y+'%);';
+      // 修正：直接用background-position百分比，不需要transform
+      tile.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;background-image:url('+src+');background-size:200% 200%;background-position:'+pos.x+'% '+pos.y+'%;';
+      var num = document.createElement('div');
+      num.style.cssText = 'position:absolute;top:6px;left:6px;width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,0.55);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:1;';
+      num.textContent = i+1;
+      (function(p){ wrap.addEventListener('click', function(){
+        var lb = document.createElement('div');
+        lb.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999999;background:rgba(0,0,0,0.95);display:flex;align-items:center;justify-content:center;cursor:zoom-out;';
+        var zoomed = document.createElement('div');
+        zoomed.style.cssText = 'width:min(92vw,92vh);height:min(92vw,92vh);background-image:url('+src+');background-size:200% 200%;background-position:'+p.x+'% '+p.y+'%;border-radius:10px;';
+        lb.appendChild(zoomed);
+        lb.addEventListener('click', function(){ document.body.removeChild(lb); });
+        document.body.appendChild(lb);
+      }); })(pos);
+      wrap.appendChild(tile);
+      wrap.appendChild(num);
+      grid.appendChild(wrap);
+    });
     overlay.appendChild(grid);
     overlay.addEventListener('click', function(){ document.body.removeChild(overlay); });
     document.body.appendChild(overlay);
