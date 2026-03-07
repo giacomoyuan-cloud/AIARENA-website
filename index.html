@@ -1592,7 +1592,7 @@ var TEAM_COLORS = {
   function openHistory(){ $('aaHistoryPanel').classList.add('open'); $('aaHistoryOverlay').classList.add('open'); loadChatList(); }
   function closeHistory(){ $('aaHistoryPanel').classList.remove('open'); $('aaHistoryOverlay').classList.remove('open'); }
 
-  function showPricesPanel(){
+  async function showPricesPanel(){
     closeHistory();
     var isLight = document.getElementById('ai-arena-app').classList.contains('light-mode');
     var bg = isLight ? 'rgba(245,240,235,0.99)' : 'rgba(14,20,38,0.98)';
@@ -1614,7 +1614,21 @@ var TEAM_COLORS = {
       'gemini3-proxy':'G-3.ai','gemini31-proxy':'G-3.1.ai','nanbanana2-official':'NB-2',
       'mj-imagine':'MJ 生图','mj-describe':'MJ 风格分析','swap-face':'MJ 换脸'
     };
+    var _mpUser2 = sessionStorage.getItem('ai-arena-user') || '';
+    var _mpPass2 = sessionStorage.getItem('ai-arena-hash') || '';
     var prices = JSON.parse(localStorage.getItem('aa-model-prices') || '{}');
+    if (_mpUser2 && _mpPass2) {
+      try {
+        var _mpRes2 = await fetch(WORKER + '/model-prices?user=' + encodeURIComponent(_mpUser2) + '&pass=' + encodeURIComponent(_mpPass2));
+        if (_mpRes2.ok) {
+          var _mpJson2 = await _mpRes2.json();
+          if (_mpJson2.prices && Object.keys(_mpJson2.prices).length > 0) {
+            prices = _mpJson2.prices;
+            localStorage.setItem('aa-model-prices', JSON.stringify(prices));
+          }
+        }
+      } catch(e) {}
+    }
     var priceRows = Object.keys(MODEL_LABELS).map(function(k){
       var p = prices[k] || {input:0,output:0};
       return '<tr>'
@@ -1693,6 +1707,17 @@ var TEAM_COLORS = {
         saved[m][t] = parseFloat(inp.value) || 0;
       });
       localStorage.setItem('aa-model-prices', JSON.stringify(saved));
+      try {
+        var _mpUser = sessionStorage.getItem('ai-arena-user') || '';
+        var _mpPass = sessionStorage.getItem('ai-arena-hash') || '';
+        if (_mpUser && _mpPass) {
+          fetch(WORKER + '/model-prices', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: _mpUser, password: _mpPass, prices: saved })
+          }).catch(function(){});
+        }
+      } catch(e) {}
       var budgets = JSON.parse(localStorage.getItem('aa-pool-budgets') || '{}');
       panel.querySelectorAll('input[data-pool][data-ptype="budget"]').forEach(function(inp){
         budgets[inp.dataset.pool] = parseFloat(inp.value) || 0;
