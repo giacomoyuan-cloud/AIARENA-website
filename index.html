@@ -1903,7 +1903,7 @@ var TEAM_COLORS = {
     s = s.replace(/\*([^\*\n]+?)\*/g, '<em style="color:#c8c8dd;font-style:italic;">$1</em>');
     s = s.replace(/`([^`]+)`/g, '<code style="background:rgba(255,255,255,0.08);padding:1px 5px;border-radius:4px;font-size:12px;font-family:\'Courier New\',monospace;color:#d4a5ff;">$1</code>');
     var _linkColor = _lightMode ? '#1a3fa8' : '#93c5fd';
-    s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g, function(match, text, url){ try{ var domain = new URL(url).hostname.replace(/^www\./,''); return '<a href="'+url+'" target="_blank" rel="noopener" style="color:'+_linkColor+';font-size:11px;text-decoration:none;opacity:0.85;">('+domain+')</a>'; }catch(e){ return ''; } });
+    s = s.replace(/\[+([^\]]+)\]+\((https?:\/\/[^\)]+)\)/g, function(match, text, url){ try{ var domain = new URL(url).hostname.replace(/^www\./,''); return '<a href="'+url+'" target="_blank" rel="noopener" style="color:'+_linkColor+';font-size:11px;text-decoration:none;opacity:0.85;">('+domain+')</a>'; }catch(e){ return ''; } });
     s = s.replace(/(?<![="'(])https?:\/\/[^\s\)\]<"]+/g, function(url){ try{ var domain = new URL(url).hostname.replace(/^www\./,''); return '<a href="'+url+'" target="_blank" rel="noopener" style="color:'+_linkColor+';font-size:11px;text-decoration:none;opacity:0.85;">('+domain+')</a>'; }catch(e){ return ''; } });
     return s;
   }
@@ -2003,7 +2003,7 @@ var TEAM_COLORS = {
     sentTexts.forEach(function(t, idx){
       var card = document.createElement('div');
       card.style.cssText = 'position:relative;display:inline-flex;align-items:flex-start;gap:8px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:10px;padding:10px 12px;max-width:200px;';
-      card.innerHTML = '<div style="flex:1;min-width:0;"><div style="font-size:11px;color:#9090b0;line-height:1.5;word-break:break-all;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;">'+esc(t.slice(0,100))+'</div><div style="font-size:10px;color:#555;margin-top:4px;">PASTED · '+t.length+' 字符</div></div>'
+      card.innerHTML = '<div style="flex:1;min-width:0;cursor:pointer;" onclick="window._aaTextPreview('+idx+')"><div style="font-size:11px;color:#9090b0;line-height:1.5;word-break:break-all;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;">'+esc(t.slice(0,100))+'</div><div style="font-size:10px;color:#555;margin-top:4px;">PASTED · '+t.length+' 字符</div></div>'
         +'<button data-idx="'+idx+'" style="flex-shrink:0;width:16px;height:16px;border-radius:50%;border:none;background:#ef4444;color:#fff;font-size:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>';
       card.querySelector('button').addEventListener('click', function(){
         sentTexts.splice(idx, 1);
@@ -2014,6 +2014,7 @@ var TEAM_COLORS = {
     });
   }
   function renderImgPreviews(){
+    if(!aaRunning) $('aaSendBtn').disabled = (!$('aaTopic').value.trim() && !sentImgs.length && !sentTexts.length);
     var container = $('aaImgPreview');
     container.innerHTML = '';
     if(!sentImgs.length){ container.style.display = 'none'; return; }
@@ -2026,7 +2027,8 @@ var TEAM_COLORS = {
       wrap.style.cssText = 'position:relative;display:inline-block;';
       var thumb = document.createElement('img');
       thumb.src = img.preview;
-      thumb.style.cssText = 'width:60px;height:60px;object-fit:cover;border-radius:8px;border:1px solid rgba(255,255,255,0.1);display:block;';
+      thumb.style.cssText = 'width:60px;height:60px;object-fit:cover;border-radius:8px;border:1px solid rgba(255,255,255,0.1);display:block;cursor:pointer;';
+      thumb.addEventListener('click', function(){ window._aaLightbox(img.preview); });
       var rm = document.createElement('button');
       rm.textContent = '✕';
       rm.style.cssText = 'position:absolute;top:-5px;right:-5px;width:16px;height:16px;border-radius:50%;border:none;background:#ef4444;color:#fff;font-size:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;';
@@ -2155,7 +2157,7 @@ var TEAM_COLORS = {
         var compressed = canvas.toDataURL('image/jpeg', 0.8);
         if(sentImgs.length >= 10){ alert('最多一次上传10张图片'); return; }
         sentImgs.push({data: compressed.split(',')[1], mime: 'image/jpeg', preview: compressed});
-        $('aaSendBtn').disabled = false; renderImgPreviews();
+        if(!aaRunning) $('aaSendBtn').disabled = false; renderImgPreviews();
       };
       img.src = e.target.result;
     };
@@ -2828,8 +2830,7 @@ btn.classList.add('copied');
   // === Input handling ===
   $('aaTopic').addEventListener('input', function(){
     this.style.height = 'auto'; this.style.height = Math.min(this.scrollHeight, 220) + 'px';
-    $('aaSendBtn').disabled = (!this.value.trim() && !sentImgs.length && !sentTexts.length);
-    if(aaRunning) $('aaSendBtn').disabled = true;
+    $('aaSendBtn').disabled = (!this.value.trim() && !sentImgs.length && !sentTexts.length) || aaRunning;
   });
   $('aaTopic').addEventListener('keydown', function(e){
     if(e.key === 'Enter' && !e.shiftKey && !aaRunning && window.innerWidth > 768){
@@ -4868,6 +4869,28 @@ if(imageMode){
   }
   checkStatus();
   setInterval(checkStatus, 30000);
+
+  window._aaLightbox = function(src){
+    var overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:999999;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;cursor:zoom-out;';
+    overlay.innerHTML = '<img src="'+src+'" style="max-width:92vw;max-height:92vh;border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,0.6);">';
+    overlay.addEventListener('click', function(){ document.body.removeChild(overlay); });
+    document.body.appendChild(overlay);
+  };
+
+  window._aaTextPreview = function(idx){
+    var text = sentTexts[idx]; if(!text) return;
+    var overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:999999;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;cursor:pointer;padding:24px;box-sizing:border-box;';
+    var box = document.createElement('div');
+    box.style.cssText = 'background:#1a1f35;border:1px solid rgba(255,255,255,0.12);border-radius:14px;padding:20px 24px;max-width:680px;width:100%;max-height:80vh;overflow-y:auto;cursor:default;scrollbar-width:none;';
+    box.innerHTML = '<div style="font-size:10px;color:#555;margin-bottom:10px;letter-spacing:0.05em;">PASTED TEXT · '+text.length+' 字符</div>'
+      +'<div style="font-size:13px;color:#c8c8dd;line-height:1.8;white-space:pre-wrap;word-break:break-word;">'+text.replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</div>';
+    box.addEventListener('click', function(e){ e.stopPropagation(); });
+    overlay.appendChild(box);
+    overlay.addEventListener('click', function(){ document.body.removeChild(overlay); });
+    document.body.appendChild(overlay);
+  };
 })();
 </script>
 
