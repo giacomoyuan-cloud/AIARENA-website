@@ -1408,17 +1408,12 @@ var TEAM_COLORS = {
     var totalTopup = (topups[poolId] || []).reduce(function(a,b){ return a+b.amount; }, 0);
     var spent = getPoolSpent(poolId);
     if(totalTopup <= 0){ barEl.style.display='none'; return; }
-    var pct = Math.min(spent / totalTopup, 1);
     var remaining = Math.max(totalTopup - spent, 0);
-    var budget = totalTopup;
-    var color = pct < 0.6 ? '#22c55e' : pct < 0.85 ? '#f59e0b' : '#ef4444';
+    var fillPct = Math.min(remaining / totalTopup, 1);
+    var healthColor = barEl.dataset.healthy === '1' ? '#22c55e' : (barEl.dataset.healthy === '0' ? '#ef4444' : '#555');
     barEl.style.display = 'block';
-    barEl.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">'
-      +'<span style="font-size:9px;color:#555;letter-spacing:0.03em;">'+POOL_LABELS[poolId]+'</span>'
-      +'<span style="font-size:9px;color:'+color+';">$'+remaining.toFixed(5)+' / $'+budget.toFixed(5)+'</span>'
-      +'</div>'
-      +'<div style="height:3px;background:rgba(255,255,255,0.08);border-radius:2px;overflow:hidden;">'
-      +'<div style="height:100%;width:'+(pct*100)+'%;background:'+color+';border-radius:2px;transition:width 0.4s;"></div>'
+    barEl.innerHTML = '<div style="height:3px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;margin-top:2px;">'
+      +'<div style="height:100%;width:'+(fillPct*100)+'%;background:'+healthColor+';border-radius:2px;transition:width 0.4s,background 0.4s;"></div>'
       +'</div>';
   }
 
@@ -5382,6 +5377,28 @@ if(imageMode){
       dot.style.background = ok ? '#22c55e' : '#ef4444';
       dot.style.boxShadow = ok ? '0 0 5px rgba(34,197,94,0.7)' : '0 0 5px rgba(239,68,68,0.7)';
     });
+    var healthVal = ok ? '1' : '0';
+    var poolMap = {
+      'official-xai': 'xai-official',
+      'official-anthropic': 'anthropic-official',
+      'official-openai': 'openai-official',
+      'official-google': 'google-official',
+      'proxy': 'ai-proxy',
+      'aipro': 'aipro'
+    };
+    var poolId = poolMap[selector];
+    if(poolId){
+      ['xai','anthropic','openai','google','mj'].forEach(function(brand){
+        var bar = document.getElementById('aaPoolBar-'+brand);
+        if(!bar) return;
+        var sub = brandSelection[brand];
+        var barPool = getSubPool(sub);
+        if(barPool === poolId){
+          bar.dataset.healthy = healthVal;
+          renderPoolBar(bar, poolId);
+        }
+      });
+    }
   }
   function checkStatus(){
     fetch(WORKER, { method: 'GET' })
