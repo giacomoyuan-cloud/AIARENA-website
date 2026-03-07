@@ -1756,9 +1756,6 @@ var TEAM_COLORS = {
         if(topupData && !topupData.error){
           localStorage.setItem('aa-pool-topups', JSON.stringify(topupData));
           renderAllPoolBars();
-          // 重新渲染面板池子区（刷新余额显示）
-          var existing = document.getElementById('aaPricesOverlay');
-          if(existing){ document.body.removeChild(existing); showPricesPanel(); }
         }
       }).catch(function(){});
     // 加载用量
