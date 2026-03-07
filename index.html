@@ -5375,6 +5375,7 @@ if(imageMode){
       'official-openai': 'openai-official',
       'official-google': 'google-official',
       'proxy': 'ai-proxy',
+      'mj-pool': 'mj',
       'aipro': 'aipro'
     };
     var poolId = poolMap[selector];
@@ -5401,6 +5402,7 @@ if(imageMode){
         setHealthDots('official-google', data.google);
         setHealthDots('official-geminiclaude', data.anthropic);
         setHealthDots('proxy', data.proxy);
+        setHealthDots('mj-pool', data.proxy);
         syncBrandUI();
       })
       .catch(function(){
