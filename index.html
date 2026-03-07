@@ -2616,7 +2616,7 @@ var TEAM_COLORS = {
               if(obj.r && onReasoning) onReasoning(obj.r);
               if(obj.img && onChunk) onChunk('\x00IMG\x00'+obj.img+'\x00MIME\x00'+(obj.mime||'image/png'));
               if(obj.mjButtons) onChunk('\x00MJB\x00'+JSON.stringify(obj.mjButtons));
-              if(obj.usage && onChunk) onChunk('\x00USAGE\x00'+JSON.stringify(obj.usage));
+              if(obj.usage && onChunk) onChunk('%%USAGE%%'+JSON.stringify(obj.usage));
             } catch(e){}
           }
           pump();
@@ -4268,7 +4268,7 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
               if(firstChunk){ firstChunk=false; hideThink(sub); msgs.push(msgObj); }
               render(); return;
             }
-            if(chunk.indexOf('\x00USAGE\x00') === 0){
+            if(chunk.indexOf('%%USAGE%%') === 0){
               try {
                 var usageData = JSON.parse(chunk.slice(9));
                 msgObj.usage = usageData;
