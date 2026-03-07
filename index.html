@@ -1654,18 +1654,13 @@ var TEAM_COLORS = {
     var _noOutputKeys = ['nb2-512px','nb2-1K','nb2-2K','nb2-4K','mj-imagine','mj-describe','mj-variation','mj-upscale'];
     var PRICE_GROUPS = [
       {label:'xAI', pool:'xai-official', keys:['grok41-official','grok41-biz-official','grok420-multiagent']},
-      {label:'xAI Proxy', pool:'ai-proxy', keys:['grok41-proxy']},
-      {label:'Anthropic aipro', pool:'aipro', keys:['sonnet-thinking','opus-thinking']},
       {label:'Anthropic LY', pool:'ly', keys:['sonnet46-lanyi','opus46-lanyi','opus46-thinking-lanyi']},
-      {label:'Anthropic Proxy', pool:'ai-proxy', keys:['sonnet46-proxy','opus46-proxy']},
       {label:'OpenAI Official', pool:'openai-official', keys:['gpt52-official','gpt4o-official','codex-official']},
-      {label:'OpenAI Proxy', pool:'ai-proxy', keys:['gpt52-proxy','gpt54-proxy','gpt4o-proxy','codex-proxy']},
       {label:'Google Official', pool:'google-official', keys:['gemini31-official','gemini3-official']},
-      {label:'Google aipro', pool:'aipro', keys:['gemini31high-official']},
-      {label:'Google Proxy', pool:'ai-proxy', keys:['gemini3-proxy','gemini31-proxy']},
       {label:'Nano Banana 2', pool:'google-official', keys:['nb2-512px','nb2-1K','nb2-2K','nb2-4K']},
       {label:'Midjourney', pool:'mj', keys:['mj-imagine','mj-describe','mj-variation','mj-upscale']},
-      {label:'Kling', pool:'ai-proxy', keys:['kling25-i2v']},
+      {label:'AI Pro .aipro', pool:'aipro', keys:['sonnet-thinking','opus-thinking','gemini31high-official']},
+      {label:'AI Proxy .ai', pool:'ai-proxy', keys:['grok41-proxy','sonnet46-proxy','opus46-proxy','gpt52-proxy','gpt54-proxy','gpt4o-proxy','codex-proxy','gemini3-proxy','gemini31-proxy','kling25-i2v']},
     ];
     var _noOutputKeys = ['nb2-512px','nb2-1K','nb2-2K','nb2-4K','mj-imagine','mj-describe','mj-variation','mj-upscale','kling25-i2v'];
     var priceRows = PRICE_GROUPS.map(function(group){
