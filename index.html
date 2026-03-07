@@ -1645,7 +1645,7 @@ var TEAM_COLORS = {
         if (_mpRes2.ok) {
           var _mpJson2 = await _mpRes2.json();
           if (_mpJson2.prices && Object.keys(_mpJson2.prices).length > 0) {
-            prices = _mpJson2.prices;
+            prices = Object.assign({}, prices, _mpJson2.prices);
             localStorage.setItem('aa-model-prices', JSON.stringify(prices));
           }
         }
