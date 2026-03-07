@@ -2866,6 +2866,11 @@ var TEAM_COLORS = {
           msgObj.imgData = parts2[2]; msgObj.imgMime = parts2[4] || 'image/png';
           window._aaImgStore[uid] = {data: msgObj.imgData, mime: msgObj.imgMime};
           window._aaPromptStore[uid] = {prompt: entry.prompt};
+          var _nbPrices2 = {'512px':0.045,'1K':0.067,'2K':0.101,'4K':0.151};
+          var _nbCost2 = _nbPrices2[size] || 0.067;
+          var _nbPool2 = getSubPool('nanbanana2-official');
+          if(_nbPool2) addPoolSpent(_nbPool2, _nbCost2);
+          msgObj.usageStr = size + ' · $' + _nbCost2.toFixed(3);
           if(firstChunk){ firstChunk=false; hideThink('nanbanana2-official'); msgs.push(msgObj); }
           render(); return;
         }
@@ -4417,6 +4422,13 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
               msgObj.imgData = parts2[2]; msgObj.imgMime = parts2[4] || 'image/png';
               window._aaImgStore[uid] = {data: msgObj.imgData, mime: msgObj.imgMime};
               window._aaPromptStore[uid] = {prompt: topic};
+              if(sub === 'nanbanana2-official'){
+                var _nbPrices = {'512px':0.045,'1K':0.067,'2K':0.101,'4K':0.151};
+                var _nbCost = _nbPrices[nbImageSize] || 0.067;
+                var _nbPool = getSubPool('nanbanana2-official');
+                if(_nbPool) addPoolSpent(_nbPool, _nbCost);
+                msgObj.usageStr = nbImageSize + ' · $' + _nbCost.toFixed(3);
+              }
               if(firstChunk){ firstChunk=false; hideThink(sub); msgs.push(msgObj); }
               render(); return;
             }
