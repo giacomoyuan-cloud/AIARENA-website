@@ -4426,6 +4426,13 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
               msgObj.imgData = parts2[2]; msgObj.imgMime = parts2[4] || 'image/png';
               window._aaImgStore[uid] = {data: msgObj.imgData, mime: msgObj.imgMime};
               window._aaPromptStore[uid] = {prompt: topic};
+              if(sub === 'kling25-i2v'){
+                var _klingSavedPrices = JSON.parse(localStorage.getItem('aa-model-prices') || '{}');
+                var _klingCost = (_klingSavedPrices['kling25-i2v'] && _klingSavedPrices['kling25-i2v'].input) ? _klingSavedPrices['kling25-i2v'].input : 0;
+                var _klingPool = getSubPool('kling25-i2v');
+                if(_klingPool && _klingCost > 0) addPoolSpent(_klingPool, _klingCost);
+                msgObj.usageStr = 'Kling V2.5' + (_klingCost > 0 ? ' · $' + _klingCost.toFixed(4) : '');
+              }
               if(sub === 'nanbanana2-official'){
                 var _nbSavedP = JSON.parse(localStorage.getItem('aa-model-prices') || '{}');
                 var _nbSizeKey = 'nb2-' + nbImageSize;
