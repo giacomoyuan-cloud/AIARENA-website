@@ -4904,6 +4904,35 @@ if(imageMode){
   checkStatus();
   setInterval(checkStatus, 30000);
 
+  // 全页面拖拽上传图片
+  var _dragMask = null;
+  document.addEventListener('dragenter', function(e){
+    if(!e.dataTransfer || !e.dataTransfer.types || e.dataTransfer.types.indexOf('Files') === -1) return;
+    e.preventDefault();
+    if(_dragMask) return;
+    _dragMask = document.createElement('div');
+    _dragMask.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:99999;background:rgba(56,189,248,0.08);border:2px dashed rgba(56,189,248,0.5);box-sizing:border-box;display:flex;align-items:center;justify-content:center;pointer-events:none;';
+    _dragMask.innerHTML = '<div style="color:#38bdf8;font-size:18px;font-weight:600;font-family:\'Sora\',sans-serif;background:rgba(0,0,0,0.4);padding:16px 32px;border-radius:14px;">拖放图片上传</div>';
+    document.body.appendChild(_dragMask);
+  });
+  document.addEventListener('dragleave', function(e){
+    if(e.relatedTarget) return;
+    if(_dragMask){ document.body.removeChild(_dragMask); _dragMask = null; }
+  });
+  document.addEventListener('dragover', function(e){ e.preventDefault(); });
+  document.addEventListener('drop', function(e){
+    e.preventDefault();
+    if(_dragMask){ document.body.removeChild(_dragMask); _dragMask = null; }
+    var files = e.dataTransfer && e.dataTransfer.files;
+    if(!files || !files.length) return;
+    for(var i=0; i<files.length; i++){
+      (function(file){
+        if(!file.type.startsWith('image/')) return;
+        handleImageFile(file);
+      })(files[i]);
+    }
+  });
+
   
 
   window._aaLightboxText = function(text){
