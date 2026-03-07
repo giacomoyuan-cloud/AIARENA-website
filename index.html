@@ -948,15 +948,19 @@
       <div class="aa-brand-bar" id="aaBrandBar">
         <div class="aa-brand-card" data-brand="xai">
           <div class="aa-card-head"><span class="aa-card-brand">xAI</span><span class="aa-card-sub" id="aaCardSub-xai">Grok4.1</span><span class="aa-card-dot" id="aaCardDot-xai"></span><span class="aa-team-label" id="aaTeam-xai"></span></div>
+          <div id="aaPoolBar-xai" style="display:none;padding:3px 6px 4px;"></div>
         </div>
         <div class="aa-brand-card" data-brand="openai">
           <div class="aa-card-head"><span class="aa-card-brand">OpenAI</span><span class="aa-card-sub" id="aaCardSub-openai">G-5.2</span><span class="aa-card-dot" id="aaCardDot-openai"></span><span class="aa-team-label" id="aaTeam-openai"></span></div>
+          <div id="aaPoolBar-openai" style="display:none;padding:3px 6px 4px;"></div>
         </div>
         <div class="aa-brand-card" data-brand="google">
           <div class="aa-card-head"><span class="aa-card-brand">Google</span><span class="aa-card-sub" id="aaCardSub-google">G-3.1</span><span class="aa-card-dot" id="aaCardDot-google"></span><span class="aa-team-label" id="aaTeam-google"></span></div>
+          <div id="aaPoolBar-google" style="display:none;padding:3px 6px 4px;"></div>
         </div>
        <div class="aa-brand-card" data-brand="anthropic">
           <div class="aa-card-head"><span class="aa-card-brand">Anthropic</span><span class="aa-card-sub" id="aaCardSub-anthropic">S-4.6</span><span class="aa-card-dot" id="aaCardDot-anthropic"></span><span class="aa-team-label" id="aaTeam-anthropic"></span></div>
+          <div id="aaPoolBar-anthropic" style="display:none;padding:3px 6px 4px;"></div>
         </div>
         <div class="aa-brand-card" data-brand="mj" id="aaMjCard" style="display:none;">
           <div class="aa-card-head" style="--bc:#38bdf8;--bcbg:rgba(56,189,248,0.1);--bcglow:rgba(56,189,248,0.15);"><span class="aa-card-brand">MJ</span><span class="aa-card-sub" id="aaCardSub-mj">生图</span><span class="aa-card-dot" id="aaCardDot-mj"></span></div>
@@ -1336,6 +1340,73 @@ var TEAM_COLORS = {
   var _incognitoMode = false;
   var judgeModel = 'none';
 
+  var POOL_MAP = {
+    'grok41-official':'xai-official','grok41-biz-official':'xai-official','grok420-multiagent':'xai-official',
+    'sonnet-thinking':'aipro','opus-thinking':'aipro','gemini31high-official':'aipro',
+    'gpt52-official':'openai-official','gpt4o-official':'openai-official','codex-official':'openai-official',
+    'gemini3-official':'google-official','gemini31-official':'google-official','nanbanana2-official':'google-official',
+    'sonnet46-lanyi':'ly','opus46-lanyi':'ly','opus46-thinking-lanyi':'ly',
+    'grok41-proxy':'ai-proxy','sonnet46-proxy':'ai-proxy','opus46-proxy':'ai-proxy',
+    'gpt52-proxy':'ai-proxy','gpt54-proxy':'ai-proxy','gpt4o-proxy':'ai-proxy','codex-proxy':'ai-proxy',
+    'gemini3-proxy':'ai-proxy','gemini31-proxy':'ai-proxy','kling25-i2v':'ai-proxy',
+    'mj-imagine':'mj','mj-describe':'mj','mj-blend':'mj','mj-variation':'mj',
+    'mj-upscale':'mj','mj-zoom':'mj','swap-face':'mj'
+  };
+  var POOL_LABELS = {
+    'xai-official':'xAI Official','openai-official':'OpenAI Official',
+    'google-official':'Google Official','aipro':'AI Pro',
+    'ly':'蓝奕 LY','ai-proxy':'AI Proxy','mj':'Midjourney'
+  };
+
+  function getPoolBudget(poolId){
+    var budgets = JSON.parse(localStorage.getItem('aa-pool-budgets') || '{}');
+    return budgets[poolId] || 0;
+  }
+  function getPoolSpent(poolId){
+    var spent = JSON.parse(localStorage.getItem('aa-pool-spent') || '{}');
+    return spent[poolId] || 0;
+  }
+  function addPoolSpent(poolId, amount){
+    if(!poolId || !amount) return;
+    var spent = JSON.parse(localStorage.getItem('aa-pool-spent') || '{}');
+    spent[poolId] = (spent[poolId] || 0) + amount;
+    localStorage.setItem('aa-pool-spent', JSON.stringify(spent));
+    renderAllPoolBars();
+  }
+  function getSubPool(sub){ return POOL_MAP[sub] || null; }
+
+  function renderAllPoolBars(){
+    // 对每个品牌卡片，找到当前选中submodel对应的pool，渲染横条
+    ['xai','anthropic','openai','google','mj'].forEach(function(brand){
+      var bar = document.getElementById('aaPoolBar-'+brand);
+      if(!bar) return;
+      var sub = brandSelection[brand];
+      var pool = getSubPool(sub);
+      renderPoolBar(bar, pool);
+    });
+    // kling单独处理
+    var klingBar = document.getElementById('aaPoolBar-kling');
+    if(klingBar) renderPoolBar(klingBar, getSubPool('kling25-i2v'));
+  }
+
+  function renderPoolBar(barEl, poolId){
+    if(!poolId){ barEl.style.display='none'; return; }
+    var budget = getPoolBudget(poolId);
+    var spent = getPoolSpent(poolId);
+    if(budget <= 0){ barEl.style.display='none'; return; }
+    var pct = Math.min(spent / budget, 1);
+    var remaining = Math.max(budget - spent, 0);
+    var color = pct < 0.6 ? '#22c55e' : pct < 0.85 ? '#f59e0b' : '#ef4444';
+    barEl.style.display = 'block';
+    barEl.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">'
+      +'<span style="font-size:9px;color:#555;letter-spacing:0.03em;">'+POOL_LABELS[poolId]+'</span>'
+      +'<span style="font-size:9px;color:'+color+';">$'+remaining.toFixed(2)+' / $'+budget.toFixed(2)+'</span>'
+      +'</div>'
+      +'<div style="height:3px;background:rgba(255,255,255,0.08);border-radius:2px;overflow:hidden;">'
+      +'<div style="height:100%;width:'+(pct*100)+'%;background:'+color+';border-radius:2px;transition:width 0.4s;"></div>'
+      +'</div>';
+  }
+
   function syncJudgeUI(){
     var area = $('aaJudgeCard');
     if(!area) return;
@@ -1556,6 +1627,18 @@ var TEAM_COLORS = {
       +'<button id="aaPricesClose" style="width:28px;height:28px;border-radius:8px;border:1px solid '+border+';background:rgba(255,255,255,0.05);color:'+subClr+';font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>'
       +'</div>'
       +'<div style="font-size:11px;color:'+subClr+';margin-bottom:10px;">单价 $/1M tokens，留0表示不计费</div>'
+      +'<div style="font-size:12px;font-weight:600;color:'+textClr+';margin-bottom:8px;margin-top:4px;">池子预算</div>'
+      +'<div style="margin-bottom:14px;">'
+      +Object.keys(POOL_LABELS).map(function(pid){
+        var b = getPoolBudget(pid); var s = getPoolSpent(pid);
+        return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">'
+          +'<span style="flex:1;font-size:11px;color:'+textClr+';white-space:nowrap;">'+POOL_LABELS[pid]+'</span>'
+          +'<input data-pool="'+pid+'" data-ptype="budget" type="number" step="0.01" min="0" value="'+b.toFixed(2)+'" placeholder="预算$" style="width:68px;background:'+inputBg+';border:1px solid '+inputBorder+';border-radius:6px;padding:4px 6px;color:'+textClr+';font-size:11px;font-family:\'Sora\',sans-serif;text-align:right;">'
+          +'<button data-pool="'+pid+'" data-action="reset-spent" style="padding:3px 8px;border-radius:6px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);color:#f87171;font-size:10px;cursor:pointer;font-family:\'Sora\',sans-serif;white-space:nowrap;">重置</button>'
+          +'<span style="font-size:10px;color:'+subClr+';white-space:nowrap;min-width:60px;text-align:right;">已用$'+s.toFixed(3)+'</span>'
+          +'</div>';
+      }).join('')
+      +'</div>'
       +'<div style="overflow-x:auto;margin-bottom:14px;">'
       +'<table style="width:100%;border-collapse:collapse;">'
       +'<thead><tr>'
@@ -1581,9 +1664,25 @@ var TEAM_COLORS = {
         saved[m][t] = parseFloat(inp.value) || 0;
       });
       localStorage.setItem('aa-model-prices', JSON.stringify(saved));
+      var budgets = JSON.parse(localStorage.getItem('aa-pool-budgets') || '{}');
+      panel.querySelectorAll('input[data-pool][data-ptype="budget"]').forEach(function(inp){
+        budgets[inp.dataset.pool] = parseFloat(inp.value) || 0;
+      });
+      localStorage.setItem('aa-pool-budgets', JSON.stringify(budgets));
+      renderAllPoolBars();
       var btn = panel.querySelector('#aaPricesSave');
       btn.textContent = '✓ 已保存';
       setTimeout(function(){ btn.textContent = '保存单价'; }, 1500);
+    });
+    panel.addEventListener('click', function(e){
+      var btn = e.target.closest('[data-action="reset-spent"]');
+      if(!btn) return;
+      var pid = btn.dataset.pool;
+      var spent = JSON.parse(localStorage.getItem('aa-pool-spent') || '{}');
+      spent[pid] = 0;
+      localStorage.setItem('aa-pool-spent', JSON.stringify(spent));
+      renderAllPoolBars();
+      btn.nextElementSibling.textContent = '已用$0.000';
     });
     // 加载用量
     var pass = getPass(); var user = ($('aaUsername').value || '').trim();
@@ -4179,6 +4278,7 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
                 var cost = (usageData.input / 1000000) * p.input + (usageData.output / 1000000) * p.output;
                 msgObj.usageCost = cost;
                 msgObj.usageStr = 'in:' + usageData.input + ' out:' + usageData.output + (cost > 0 ? ' · $' + cost.toFixed(4) : '');
+                if(cost > 0){ var _pool = getSubPool(msgObj.submodel || sub); if(_pool) addPoolSpent(_pool, cost); }
                 var el = document.querySelector('[data-uid="'+uid+'"]');
                 if(el){
                   var existing = el.querySelector('.aa-usage-tag');
@@ -4959,7 +5059,7 @@ if(debateMode === '2v2'){
     updateNbEditBanner();
   }
   var _origSyncBrandUI = syncBrandUI;
-  syncBrandUI = function(){ _origSyncBrandUI(); syncNbOptions(); syncJudgeUI(); };
+  syncBrandUI = function(){ _origSyncBrandUI(); syncNbOptions(); syncJudgeUI(); renderAllPoolBars(); };
   loadState();
   if(debate){
     $('aaBarDebateBtn').classList.add('active'); $('aaBarChatBtn').classList.remove('active');
