@@ -3529,7 +3529,7 @@ function initPersonaDragDrop(){
               var _mjKey = 'mj_'+msg.uid+'_'+idx; window._aaImgClickStore = window._aaImgClickStore||{}; window._aaImgClickStore[_mjKey] = url;
               h += '<img src="'+esc(url)+'" onclick="window._aaLightbox(window._aaImgClickStore[\''+_mjKey+'\'])" style="max-width:100%;border-radius:10px;display:block;border:1px solid rgba(255,255,255,0.1);cursor:pointer;" crossorigin="anonymous">';
               
-              h += '<div style="position:absolute;top:8px;left:8px;width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,0.55);color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;pointer-events:none;">'+(idx+1)+'</div>';
+              
               h += '<a href="'+esc(url)+'" download target="_blank" style="display:inline-block;margin-top:6px;padding:5px 12px;border-radius:8px;background:rgba(56,189,248,0.15);border:1px solid rgba(56,189,248,0.3);color:#38bdf8;font-size:11px;font-weight:600;text-decoration:none;">下载图片</a>';
               h += '</div>';
             });
