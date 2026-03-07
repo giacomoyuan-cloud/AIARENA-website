@@ -5397,6 +5397,7 @@ if(imageMode){
         setHealthDots('official-geminiclaude', data.anthropic);
         setHealthDots('proxy', data.proxy);
         setHealthDots('mj-pool', data.proxy);
+setHealthDots('aipro', data.aipro !== undefined ? data.aipro : data.proxy);
         syncBrandUI();
       })
       .catch(function(){
