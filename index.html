@@ -1693,9 +1693,15 @@ var TEAM_COLORS = {
           +'<button data-pool="'+pid+'" data-action="reset-spent" style="padding:4px 10px;border-radius:6px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);color:#f87171;font-size:11px;cursor:pointer;font-family:\'Sora\',sans-serif;white-space:nowrap;">重置用量</button>'
           +'</div>'
           +(topupList.length > 0 ? '<div style="margin-top:8px;border-top:1px solid '+border+';padding-top:6px;">'
-          +topupList.slice(-3).reverse().map(function(t){
-            return '<div style="display:flex;justify-content:space-between;font-size:9px;color:'+subClr+';padding:2px 0;">'
-              +'<span>'+t.date+'</span><span style="color:#a5b4fc;">+$'+t.amount.toFixed(2)+'</span></div>';
+          +topupList.slice(-3).reverse().map(function(t, ri){
+            var actualIdx = topupList.length - 1 - ri;
+            return '<div id="aa-tr-'+pid+'-'+actualIdx+'" style="display:flex;justify-content:space-between;align-items:center;font-size:9px;color:'+subClr+';padding:2px 0;">'
+              +'<span>'+t.date+'</span>'
+              +'<span style="display:flex;align-items:center;gap:4px;">'
+              +'<span id="aa-ta-'+pid+'-'+actualIdx+'" style="color:#a5b4fc;">+$'+t.amount.toFixed(2)+'</span>'
+              +'<button onclick="window._aaTPEdit(\''+pid+'\','+actualIdx+','+t.amount+')" style="background:none;border:none;color:#555;font-size:10px;cursor:pointer;padding:0 2px;line-height:1;">✎</button>'
+              +'</span>'
+              +'</div>';
           }).join('')
           +(topupList.length > 3 ? '<div style="font-size:9px;color:'+subClr+';text-align:right;">...共'+topupList.length+'笔</div>' : '')
           +'</div>' : '')
@@ -1716,6 +1722,35 @@ var TEAM_COLORS = {
       +'<div style="font-size:12px;font-weight:600;color:'+textClr+';margin-bottom:10px;border-top:1px solid '+border+';padding-top:16px;">累计用量</div>'
       +'<div id="aaPricesUsage" style="font-size:12px;color:'+subClr+';text-align:center;padding:16px 0;">加载中...</div>';
     overlay.appendChild(panel);
+    window._aaTPEdit = function(pid, idx, cur){
+      var el = document.getElementById('aa-ta-'+pid+'-'+idx);
+      if(!el) return;
+      var row = el.parentElement;
+      row.innerHTML = '<input id="aa-ti-'+pid+'-'+idx+'" type="number" step="0.01" value="'+cur+'" style="width:60px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);border-radius:4px;padding:2px 4px;color:#e8e8ee;font-size:9px;font-family:\'Sora\',sans-serif;text-align:right;">'
+        +'<button onclick="window._aaTPConfirm(\''+pid+'\','+idx+')" style="background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);border-radius:4px;padding:1px 5px;color:#86efac;font-size:9px;cursor:pointer;font-family:\'Sora\',sans-serif;margin-left:3px;">✓</button>';
+    };
+    window._aaTPConfirm = function(pid, idx){
+      var inp = document.getElementById('aa-ti-'+pid+'-'+idx);
+      if(!inp) return;
+      var newAmt = parseFloat(inp.value);
+      if(!newAmt || newAmt <= 0){ inp.style.borderColor='#ef4444'; return; }
+      var topups = JSON.parse(localStorage.getItem('aa-pool-topups') || '{}');
+      if(!topups[pid] || topups[pid][idx] === undefined){ return; }
+      topups[pid][idx].amount = newAmt;
+      localStorage.setItem('aa-pool-topups', JSON.stringify(topups));
+      var _u = sessionStorage.getItem('ai-arena-user') || '';
+      var _p = sessionStorage.getItem('ai-arena-hash') || '';
+      if(_u && _p){
+        fetch(WORKER + '/topup-edit', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({username:_u, password:_p, pool:pid, index:idx, amount:newAmt})
+        }).catch(function(){});
+      }
+      var ov = document.getElementById('aaPricesOverlay');
+      if(ov) document.body.removeChild(ov);
+      showPricesPanel();
+    };
     overlay.addEventListener('click', function(e){ if(e.target === overlay){ document.body.removeChild(overlay); } });
     document.body.appendChild(overlay);
     panel.querySelector('#aaPricesClose').addEventListener('click', function(){ document.body.removeChild(overlay); });
