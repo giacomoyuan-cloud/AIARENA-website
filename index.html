@@ -4436,12 +4436,19 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
               try {
                 var usageData = JSON.parse(chunk.slice(9));
                 msgObj.usage = usageData;
-                var prices = JSON.parse(localStorage.getItem('aa-model-prices') || '{}');
-                var subKey = msgObj.submodel || sub;
-                var p = prices[subKey] || {input: 0, output: 0};
-                var cost = (usageData.input / 1000000) * p.input + (usageData.output / 1000000) * p.output;
-                msgObj.usageCost = cost;
-                msgObj.usageStr = 'in:' + usageData.input + ' out:' + usageData.output + (cost > 0 ? ' · $' + cost.toFixed(4) : '');
+                var cost;
+                if(usageData.cost !== undefined){
+                  cost = usageData.cost;
+                  msgObj.usageCost = cost;
+                  msgObj.usageStr = (cost > 0 ? '$' + cost.toFixed(4) : '');
+                } else {
+                  var prices = JSON.parse(localStorage.getItem('aa-model-prices') || '{}');
+                  var subKey = msgObj.submodel || sub;
+                  var p = prices[subKey] || {input: 0, output: 0};
+                  cost = (usageData.input / 1000000) * p.input + (usageData.output / 1000000) * p.output;
+                  msgObj.usageCost = cost;
+                  msgObj.usageStr = 'in:' + usageData.input + ' out:' + usageData.output + (cost > 0 ? ' · $' + cost.toFixed(4) : '');
+                }
                 if(cost > 0){ var _pool = getSubPool(msgObj.submodel || sub); if(_pool) addPoolSpent(_pool, cost); }
                 var el = document.querySelector('[data-uid="'+uid+'"]');
                 if(el){
