@@ -1043,7 +1043,7 @@
         <div class="aa-drop-item" data-sub="gemini31-official"><span class="aa-drop-dot" data-health="official-google"></span>G-3.1-官方</div>
         <div class="aa-drop-item" data-sub="gemini31-proxy"><span class="aa-drop-dot" data-health="proxy"></span>G-3.1-JK</div>
         <div class="aa-drop-item" data-sub="gemini3-proxy"><span class="aa-drop-dot" data-health="proxy"></span>G-3-JK</div>
-        <div class="aa-drop-item" data-sub="gemini31high-official"><span class="aa-drop-dot" data-health="proxy"></span>G-3.1-哈基米</div>
+        <div class="aa-drop-item" data-sub="gemini31high-official"><span class="aa-drop-dot" data-health="hajimi"></span>G-3.1-哈基米</div>
         <div class="aa-drop-item" data-sub="nanbanana2-official" style="display:none;"><span class="aa-drop-dot" data-health="official-google"></span>NB-2</div>
       </div>
       <div class="aa-card-dropdown" id="aaDrop-mj">
@@ -1052,8 +1052,8 @@
         <div class="aa-drop-item" data-sub="swap-face"><span class="aa-drop-dot" data-health="proxy"></span>MJ 换脸</div>
       </div>
       <div class="aa-card-dropdown" id="aaDrop-anthropic">
-        <div class="aa-drop-item selected" data-sub="sonnet-thinking"><span class="aa-drop-dot" data-health="proxy"></span>S-4.6-哈基米</div>
-        <div class="aa-drop-item" data-sub="opus-thinking"><span class="aa-drop-dot" data-health="proxy"></span>O-4.6-哈基米</div>
+        <div class="aa-drop-item selected" data-sub="sonnet-thinking"><span class="aa-drop-dot" data-health="hajimi"></span>S-4.6-哈基米</div>
+        <div class="aa-drop-item" data-sub="opus-thinking"><span class="aa-drop-dot" data-health="hajimi"></span>O-4.6-哈基米</div>
         <div class="aa-drop-item" data-sub="sonnet46-proxy"><span class="aa-drop-dot" data-health="proxy"></span>S-4.6-JK</div>
         <div class="aa-drop-item" data-sub="opus46-proxy"><span class="aa-drop-dot" data-health="proxy"></span>O-4.6-JK</div>
         <div class="aa-drop-item" data-sub="sonnet46-official"><span class="aa-drop-dot" data-health="official-anthropic"></span>S-4.6-官方</div>
@@ -5362,7 +5362,7 @@ if(imageMode){
       'official-google': 'google-official',
       'proxy': 'ai-proxy',
       'mj-pool': 'mj',
-      'aipro': 'aipro'
+      'hajimi': 'aipro'
     };
     var poolId = poolMap[selector];
     if(poolId){
@@ -5389,7 +5389,7 @@ if(imageMode){
         setHealthDots('official-geminiclaude', data.anthropic);
         setHealthDots('proxy', data.proxy);
         setHealthDots('mj-pool', data.proxy);
-        setHealthDots('aipro', data.aipro !== undefined ? data.aipro : data.proxy);
+        setHealthDots('hajimi', data.hajimi !== undefined ? data.hajimi : data.proxy);
         syncBrandUI();
       })
       .catch(function(){
