@@ -3516,6 +3516,7 @@ function initPersonaDragDrop(){
               h += '<div style="position:relative;display:inline-block;">';
               var _mjKey = 'mj_'+msg.uid+'_'+idx; window._aaImgClickStore = window._aaImgClickStore||{}; window._aaImgClickStore[_mjKey] = url;
               h += '<img src="'+esc(url)+'" onclick="window._aaLightbox(window._aaImgClickStore[\''+_mjKey+'\'])" style="max-width:100%;border-radius:10px;display:block;border:1px solid rgba(255,255,255,0.1);cursor:pointer;" crossorigin="anonymous">';
+              h += '<button onclick="window._aaMjSplit(\''+_mjKey+'\')" style="margin-top:8px;padding:6px 14px;border-radius:8px;background:rgba(56,189,248,0.12);border:1px solid rgba(56,189,248,0.3);color:#38bdf8;font-size:11px;font-weight:600;cursor:pointer;font-family:\'Sora\',sans-serif;">切分查看 4 图</button>';
               h += '<div style="position:absolute;top:8px;left:8px;width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,0.55);color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;pointer-events:none;">'+(idx+1)+'</div>';
               h += '<a href="'+esc(url)+'" download target="_blank" style="display:inline-block;margin-top:6px;padding:5px 12px;border-radius:8px;background:rgba(56,189,248,0.15);border:1px solid rgba(56,189,248,0.3);color:#38bdf8;font-size:11px;font-weight:600;text-decoration:none;">下载图片</a>';
               h += '</div>';
@@ -4890,6 +4891,49 @@ if(imageMode){
   }
   checkStatus();
   setInterval(checkStatus, 30000);
+
+  window._aaMjSplit = function(key){
+    var src = (window._aaImgClickStore||{})[key]; if(!src) return;
+    var isLight = document.getElementById('ai-arena-app').classList.contains('light-mode');
+    var overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:999999;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;cursor:pointer;padding:16px;box-sizing:border-box;';
+    var grid = document.createElement('div');
+    grid.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:8px;max-width:92vw;max-height:92vh;cursor:default;';
+    grid.addEventListener('click', function(e){ e.stopPropagation(); });
+    var img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = function(){
+      var hw = Math.floor(img.naturalWidth / 2);
+      var hh = Math.floor(img.naturalHeight / 2);
+      var positions = [{x:0,y:0},{x:hw,y:0},{x:0,y:hh},{x:hw,y:hh}];
+      positions.forEach(function(pos, i){
+        var canvas = document.createElement('canvas');
+        canvas.width = hw; canvas.height = hh;
+        canvas.getContext('2d').drawImage(img, pos.x, pos.y, hw, hh, 0, 0, hw, hh);
+        var dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+        var wrap = document.createElement('div');
+        wrap.style.cssText = 'position:relative;';
+        var tile = document.createElement('img');
+        tile.src = dataUrl;
+        tile.style.cssText = 'width:100%;height:auto;border-radius:8px;display:block;cursor:zoom-in;';
+        var num = document.createElement('div');
+        num.style.cssText = 'position:absolute;top:8px;left:8px;width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,0.55);color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;pointer-events:none;';
+        num.textContent = i+1;
+        var dlBtn = document.createElement('a');
+        dlBtn.href = dataUrl; dlBtn.download = 'mj-'+(i+1)+'.jpg';
+        dlBtn.style.cssText = 'display:inline-block;margin-top:4px;padding:4px 10px;border-radius:6px;background:rgba(56,189,248,0.15);border:1px solid rgba(56,189,248,0.3);color:#38bdf8;font-size:10px;font-weight:600;text-decoration:none;';
+        dlBtn.textContent = '下载 '+(i+1);
+        (function(d){ tile.addEventListener('click', function(){ window._aaLightbox(d); }); })(dataUrl);
+        wrap.appendChild(tile); wrap.appendChild(num);
+        grid.appendChild(wrap);
+        grid.insertAdjacentElement('beforeend', dlBtn);
+      });
+    };
+    img.src = src;
+    overlay.appendChild(grid);
+    overlay.addEventListener('click', function(){ document.body.removeChild(overlay); });
+    document.body.appendChild(overlay);
+  };
 
   window._aaLightboxText = function(text){
     var isLight = document.getElementById('ai-arena-app').classList.contains('light-mode');
