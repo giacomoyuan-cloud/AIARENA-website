@@ -100,8 +100,6 @@
   @keyframes aa-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
   @keyframes aa-claude-think { 0%, 100% { transform: scale(0.7); } 50% { transform: scale(1.15); } }
   @keyframes aa-claude-stream { 0% { transform: rotate(0deg) scale(0.75); } 50% { transform: rotate(180deg) scale(1.15); } 100% { transform: rotate(360deg) scale(0.75); } }
-  @keyframes aa-claude-think { 0%, 100% { transform: scale(0.7); } 50% { transform: scale(1.15); } }
-  @keyframes aa-claude-stream { 0% { transform: rotate(0deg) scale(0.75); } 50% { transform: rotate(180deg) scale(1.15); } 100% { transform: rotate(360deg) scale(0.75); } }
   @keyframes aa-dot-pulse { 0%, 100% { transform: scale(0.5); opacity: 0.3; } 50% { transform: scale(1); opacity: 1; } }
   @keyframes aa-grok-dot { 0%, 75%, 100% { opacity: 0.15; } 12.5% { opacity: 1; } }
   @keyframes aa-slideIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
@@ -397,6 +395,7 @@
   #ai-arena-app .aa-brand-card[data-brand="anthropic"] { --bc: #f59e0b; --bcbg: rgba(245,158,11,0.1); --bcglow: rgba(245,158,11,0.15); }
   #ai-arena-app .aa-brand-card[data-brand="openai"] { --bc: #22c55e; --bcbg: rgba(34,197,94,0.1); --bcglow: rgba(34,197,94,0.15); }
   #ai-arena-app .aa-brand-card[data-brand="google"] { --bc: #60a5fa; --bcbg: rgba(96,165,250,0.1); --bcglow: rgba(96,165,250,0.15); }
+  #ai-arena-app .aa-brand-card[data-brand="mj"] { --bc: #38bdf8; --bcbg: rgba(56,189,248,0.1); --bcglow: rgba(56,189,248,0.15); }
   #ai-arena-app .aa-card-brand {
     font-size: 13px; font-weight: 600; color: #6b6b88; letter-spacing: 0.03em;
   }
@@ -1647,7 +1646,7 @@ var TEAM_COLORS = {
     var PRICE_GROUPS = [
       {label:'xAI官方', pool:'xai-official', keys:['grok41-official','grok41-biz-official','grok420-multiagent']},
     {label:'OpenAI官方', pool:'openai-official', keys:['gpt52-official','gpt-4o-mini-search-preview','codex-official']},
-    {label:'Google官方', pool:'google-official', keys:['gemini31-official','gemini3-official','nb2-512px','nb2-1K','nb2-2K','nb2-4K']},
+    {label:'Google官方', pool:'google-official', keys:['gemini31-official','nb2-512px','nb2-1K','nb2-2K','nb2-4K']},
       {label:'Anthropic官方', pool:'anthropic-official', keys:['sonnet46-official','opus46-official']},
     {label:'Jiekou.ai', pool:'ai-proxy', keys:['grok41-proxy','sonnet46-proxy','opus46-proxy','gpt52-proxy','gpt54-proxy','gpt4o-proxy','codex-proxy','gemini3-proxy','gemini31-proxy','kling25-i2v']},
      {label:'哈基米', pool:'aipro', keys:['sonnet-thinking','opus-thinking','gemini31high-official']}, 
@@ -2418,7 +2417,7 @@ var TEAM_COLORS = {
       card.querySelector('button').addEventListener('click', function(){
         sentTexts.splice(idx, 1);
         renderTextPreviews();
-        $('aaSendBtn').disabled = !$('aaTopic').value.trim() && !sentTexts.length && !sentImg;
+        $('aaSendBtn').disabled = !$('aaTopic').value.trim() && !sentTexts.length && !sentImgs.length;
       });
       container.appendChild(card);
     });
@@ -5042,7 +5041,7 @@ if(debateMode === '2v2'){
       _lastInjectedTemplate = newTemplate;
       textarea.style.height = 'auto';
       textarea.style.height = Math.min(textarea.scrollHeight, 220) + 'px';
-      $('aaSendBtn').disabled = (!textarea.value.trim() && !sentImg && !sentTexts.length) || aaRunning;
+      $('aaSendBtn').disabled = (!textarea.value.trim() && !sentImgs.length && !sentTexts.length) || aaRunning;
     });
   });
 
@@ -5397,7 +5396,7 @@ if(imageMode){
         setHealthDots('official-geminiclaude', data.anthropic);
         setHealthDots('proxy', data.proxy);
         setHealthDots('mj-pool', data.proxy);
-setHealthDots('aipro', data.aipro !== undefined ? data.aipro : data.proxy);
+        setHealthDots('aipro', data.aipro !== undefined ? data.aipro : data.proxy);
         syncBrandUI();
       })
       .catch(function(){
