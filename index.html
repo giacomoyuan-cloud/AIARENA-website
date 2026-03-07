@@ -1631,7 +1631,8 @@ var TEAM_COLORS = {
       'gpt52-official':'G-5.2','gpt4o-official':'G-4o','codex-official':'G-5.3-编程',
       'gpt52-proxy':'G-5.2.ai','gpt54-proxy':'G-5.4.ai','gpt4o-proxy':'G-4o.ai','codex-proxy':'G-5.3-编程.ai',
       'gemini31-official':'G-3.1','gemini3-official':'G-3','gemini31high-official':'G-3.1.aipro',
-      'gemini3-proxy':'G-3.ai','gemini31-proxy':'G-3.1.ai','nanbanana2-official':'NB-2',
+      'gemini3-proxy':'G-3.ai','gemini31-proxy':'G-3.1.ai',
+      'nb2-512px':'NB-2 · 512px','nb2-1K':'NB-2 · 1K','nb2-2K':'NB-2 · 2K','nb2-4K':'NB-2 · 4K',
       'mj-imagine':'MJ 生图','mj-describe':'MJ 风格分析','swap-face':'MJ 换脸'
     };
     var _mpUser2 = sessionStorage.getItem('ai-arena-user') || '';
@@ -1649,12 +1650,14 @@ var TEAM_COLORS = {
         }
       } catch(e) {}
     }
+    var _noOutputKeys = ['nb2-512px','nb2-1K','nb2-2K','nb2-4K','mj-imagine','mj-describe','swap-face','mj-blend','mj-variation','mj-upscale','mj-zoom'];
     var priceRows = Object.keys(MODEL_LABELS).map(function(k){
       var p = prices[k] || {input:0,output:0};
+      var noOut = _noOutputKeys.indexOf(k) !== -1;
       return '<tr>'
         +'<td style="padding:8px 10px;font-size:12px;color:'+textClr+';white-space:nowrap;width:40%;">'+MODEL_LABELS[k]+'</td>'
         +'<td style="padding:8px 6px;width:30%;text-align:right;"><input data-model="'+k+'" data-type="input" type="number" step="0.01" value="'+(p.input||0)+'" style="width:80px;background:'+inputBg+';border:1px solid '+inputBorder+';border-radius:6px;padding:4px 8px;color:'+textClr+';font-size:11px;font-family:\'Sora\',sans-serif;text-align:right;box-sizing:border-box;"></td>'
-        +'<td style="padding:8px 6px;width:30%;text-align:right;"><input data-model="'+k+'" data-type="output" type="number" step="0.01" value="'+(p.output||0)+'" style="width:80px;background:'+inputBg+';border:1px solid '+inputBorder+';border-radius:6px;padding:4px 8px;color:'+textClr+';font-size:11px;font-family:\'Sora\',sans-serif;text-align:right;box-sizing:border-box;"></td>'
+        +'<td style="padding:8px 6px;width:30%;text-align:right;"><input data-model="'+k+'" data-type="output" type="number" step="0.01" value="0" '+(noOut?'disabled ':'')+'style="width:80px;background:'+(noOut?'rgba(255,255,255,0.02)':inputBg)+';border:1px solid '+(noOut?'rgba(255,255,255,0.05)':inputBorder)+';border-radius:6px;padding:4px 8px;color:'+(noOut?'#3a3a55':textClr)+';font-size:11px;font-family:\'Sora\',sans-serif;text-align:right;box-sizing:border-box;'+(noOut?'cursor:not-allowed;':'')+'">'+'</td>'
         +'</tr>';
     }).join('');
     var panel = document.createElement('div');
@@ -2866,11 +2869,12 @@ var TEAM_COLORS = {
           msgObj.imgData = parts2[2]; msgObj.imgMime = parts2[4] || 'image/png';
           window._aaImgStore[uid] = {data: msgObj.imgData, mime: msgObj.imgMime};
           window._aaPromptStore[uid] = {prompt: entry.prompt};
-          var _nbPrices2 = {'512px':0.045,'1K':0.067,'2K':0.101,'4K':0.151};
-          var _nbCost2 = _nbPrices2[size] || 0.067;
+          var _nbSavedP2 = JSON.parse(localStorage.getItem('aa-model-prices') || '{}');
+          var _nbSizeKey2 = 'nb2-' + size;
+          var _nbCost2 = (_nbSavedP2[_nbSizeKey2] && _nbSavedP2[_nbSizeKey2].input) ? _nbSavedP2[_nbSizeKey2].input : 0;
           var _nbPool2 = getSubPool('nanbanana2-official');
-          if(_nbPool2) addPoolSpent(_nbPool2, _nbCost2);
-          msgObj.usageStr = size + ' · $' + _nbCost2.toFixed(3);
+          if(_nbPool2 && _nbCost2 > 0) addPoolSpent(_nbPool2, _nbCost2);
+          msgObj.usageStr = size + (_nbCost2 > 0 ? ' · $' + _nbCost2.toFixed(4) : '');
           if(firstChunk){ firstChunk=false; hideThink('nanbanana2-official'); msgs.push(msgObj); }
           render(); return;
         }
@@ -4423,23 +4427,17 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
               window._aaImgStore[uid] = {data: msgObj.imgData, mime: msgObj.imgMime};
               window._aaPromptStore[uid] = {prompt: topic};
               if(sub === 'nanbanana2-official'){
-                var _nbPrices = {'512px':0.045,'1K':0.067,'2K':0.101,'4K':0.151};
-                var _nbCost = _nbPrices[nbImageSize] || 0.067;
+                var _nbSavedP = JSON.parse(localStorage.getItem('aa-model-prices') || '{}');
+                var _nbSizeKey = 'nb2-' + nbImageSize;
+                var _nbCost = (_nbSavedP[_nbSizeKey] && _nbSavedP[_nbSizeKey].input) ? _nbSavedP[_nbSizeKey].input : 0;
                 var _nbPool = getSubPool('nanbanana2-official');
-                if(_nbPool) addPoolSpent(_nbPool, _nbCost);
-                msgObj.usageStr = nbImageSize + ' · $' + _nbCost.toFixed(3);
+                if(_nbPool && _nbCost > 0) addPoolSpent(_nbPool, _nbCost);
+                msgObj.usageStr = nbImageSize + (_nbCost > 0 ? ' · $' + _nbCost.toFixed(4) : '');
               }
-              var MJ_PRICES = {
-                'mj-imagine':   0.00,
-                'mj-describe':  0.00,
-                'mj-variation': 0.00,
-                'mj-upscale':   0.00,
-                'mj-blend':     0.00,
-                'mj-zoom':      0.00,
-                'swap-face':    0.00
-              };
-              if(MJ_PRICES[sub] !== undefined){
-                var _mjCost = MJ_PRICES[sub];
+              var _mjSavedPrices = JSON.parse(localStorage.getItem('aa-model-prices') || '{}');
+              var _mjSubKeys = ['mj-imagine','mj-describe','mj-variation','mj-upscale','mj-blend','mj-zoom','swap-face'];
+              if(_mjSubKeys.indexOf(sub) !== -1){
+                var _mjCost = (_mjSavedPrices[sub] && _mjSavedPrices[sub].input) ? _mjSavedPrices[sub].input : 0;
                 var _mjPool = getSubPool(sub);
                 if(_mjPool && _mjCost > 0) addPoolSpent(_mjPool, _mjCost);
                 msgObj.usageStr = (SUBS[sub] ? SUBS[sub].name : sub) + (_mjCost > 0 ? ' · $' + _mjCost.toFixed(4) : '');
@@ -5197,17 +5195,9 @@ if(debateMode === '2v2'){
       if(chunk.indexOf('\x00IMG\x00') === 0){
         var _mjAP = chunk.split('\x00');
         msgObj.imgData = _mjAP[2]; msgObj.imgMime = _mjAP[4] || 'image/png';
-        var MJ_ACTION_PRICES = {
-          'mj-imagine':   0.00,
-          'mj-describe':  0.00,
-          'mj-variation': 0.00,
-          'mj-upscale':   0.00,
-          'mj-blend':     0.00,
-          'mj-zoom':      0.00,
-          'swap-face':    0.00
-        };
+        var _mjActSavedPrices = JSON.parse(localStorage.getItem('aa-model-prices') || '{}');
         var _mjActSub = brandSelection['mj'] || 'mj-imagine';
-        var _mjActCost = MJ_ACTION_PRICES[_mjActSub] !== undefined ? MJ_ACTION_PRICES[_mjActSub] : 0;
+        var _mjActCost = (_mjActSavedPrices[_mjActSub] && _mjActSavedPrices[_mjActSub].input) ? _mjActSavedPrices[_mjActSub].input : 0;
         var _mjActPool = getSubPool('mj-imagine');
         if(_mjActPool && _mjActCost > 0) addPoolSpent(_mjActPool, _mjActCost);
         msgObj.usageStr = (SUBS[_mjActSub] ? SUBS[_mjActSub].name : _mjActSub) + (_mjActCost > 0 ? ' · $' + _mjActCost.toFixed(4) : '');
