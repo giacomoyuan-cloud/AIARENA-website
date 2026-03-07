@@ -1373,6 +1373,17 @@ var TEAM_COLORS = {
     spent[poolId] = (spent[poolId] || 0) + amount;
     localStorage.setItem('aa-pool-spent', JSON.stringify(spent));
     renderAllPoolBars();
+    try {
+      var _spUser = sessionStorage.getItem('ai-arena-user') || '';
+      var _spPass = sessionStorage.getItem('ai-arena-hash') || '';
+      if (_spUser && _spPass) {
+        fetch(WORKER + '/pool-spent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: _spUser, password: _spPass, pool: poolId, amount: amount })
+        }).catch(function(){});
+      }
+    } catch(e) {}
   }
   function getSubPool(sub){ return POOL_MAP[sub] || null; }
 
@@ -1784,6 +1795,14 @@ var TEAM_COLORS = {
     // 加载用量
     var pass = getPass(); var user = ($('aaUsername').value || '').trim();
     if(!pass || !user){ document.getElementById('aaPricesUsage').textContent = '请先登录'; return; }
+    fetch(WORKER + '/pool-spent?user='+encodeURIComponent(user)+'&pass='+encodeURIComponent(pass))
+      .then(function(r){ return r.json(); })
+      .then(function(spentData){
+        if(spentData && spentData.spent){
+          localStorage.setItem('aa-pool-spent', JSON.stringify(spentData.spent));
+          renderAllPoolBars();
+        }
+      }).catch(function(){});
     // 加载用量
     fetch(WORKER + '/usage?user='+encodeURIComponent(user)+'&pass='+encodeURIComponent(pass))
       .then(function(r){ return r.json(); })
