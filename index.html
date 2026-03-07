@@ -1594,6 +1594,15 @@ var TEAM_COLORS = {
 
   async function showPricesPanel(){
     closeHistory();
+    var _preUser = ($('aaUsername') ? $('aaUsername').value : '').trim();
+    var _prePass = getPass();
+    if(_preUser && _prePass){
+      try {
+        var _tr = await fetch(WORKER+'/topups?user='+encodeURIComponent(_preUser)+'&pass='+encodeURIComponent(_prePass));
+        var _td = await _tr.json();
+        if(_td && !_td.error) localStorage.setItem('aa-pool-topups', JSON.stringify(_td));
+      } catch(e){}
+    }
     var isLight = document.getElementById('ai-arena-app').classList.contains('light-mode');
     var bg = isLight ? 'rgba(245,240,235,0.99)' : 'rgba(14,20,38,0.98)';
     var border = isLight ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)';
@@ -1772,17 +1781,9 @@ var TEAM_COLORS = {
         });
       }
     });
-    // 加载充值记录
+    // 加载用量
     var pass = getPass(); var user = ($('aaUsername').value || '').trim();
     if(!pass || !user){ document.getElementById('aaPricesUsage').textContent = '请先登录'; return; }
-    fetch(WORKER + '/topups?user='+encodeURIComponent(user)+'&pass='+encodeURIComponent(pass))
-      .then(function(r){ return r.json(); })
-      .then(function(topupData){
-        if(topupData && !topupData.error){
-          localStorage.setItem('aa-pool-topups', JSON.stringify(topupData));
-          renderAllPoolBars();
-        }
-      }).catch(function(){});
     // 加载用量
     fetch(WORKER + '/usage?user='+encodeURIComponent(user)+'&pass='+encodeURIComponent(pass))
       .then(function(r){ return r.json(); })
