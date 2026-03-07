@@ -846,16 +846,16 @@
   商业版模式 — 无痕模式已开启
 </div>
 <div style="flex-shrink:0;position:relative;z-index:2;">
-  <div class="aa-header" style="padding-bottom:4px;">
-    <div class="aa-header-left">
-      <button class="aa-gear-btn" id="aaHistoryBtn" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);font-size:13px;padding:0 10px;">☰</button>
-      <button class="aa-gear-btn" id="aaNewBtn" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);"><span style="background:linear-gradient(135deg,#818cf8,#ec4899);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-weight:600;">新话题</span></button>
+  <div class="aa-header" style="padding-bottom:4px;align-items:center;">
+    <button class="aa-gear-btn" id="aaNewBtn" style="flex:1;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);height:32px;justify-content:center;"><span style="background:linear-gradient(135deg,#818cf8,#ec4899);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-weight:600;">新话题</span></button>
+    <div style="flex:1;display:flex;justify-content:center;gap:6px;">
+      <button class="aa-gear-btn" id="aaScrollTopBtn" style="display:none;font-size:13px;">↑</button>
+      <button class="aa-gear-btn" id="aaScrollBottomBtn" style="display:none;font-size:13px;">↓</button>
     </div>
-    <button class="aa-gear-btn" id="aaScrollTopBtn" style="display:none;font-size:13px;">↑</button>
-    <button class="aa-gear-btn" id="aaScrollBottomBtn" style="display:none;font-size:13px;">↓</button>
-    <button class="aa-gear-btn" id="aaGearBtn">用户</button>
+    <button class="aa-gear-btn" id="aaGearBtn" style="flex:1;height:32px;justify-content:center;">用户</button>
   </div>
-  <div style="display:flex;justify-content:flex-end;gap:6px;padding:0 16px 10px;">
+  <div style="display:flex;justify-content:space-between;padding:0 16px 10px;">
+    <button class="aa-gear-btn" id="aaHistoryBtn" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);font-size:13px;padding:0 10px;">☰</button>
     <button class="aa-gear-btn" id="aaIncognitoBtn" style="font-size:10px;">开启无痕模式</button>
   </div>
 </div>
