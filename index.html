@@ -1719,20 +1719,49 @@ var TEAM_COLORS = {
         var inp = panel.querySelector('input[data-pool="'+pid+'"][data-ptype="topup-amount"]');
         var amount = parseFloat(inp ? inp.value : 0);
         if(!amount || amount <= 0){ inp.style.borderColor='#ef4444'; setTimeout(function(){ inp.style.borderColor=''; },1000); return; }
-        var topups = JSON.parse(localStorage.getItem('aa-pool-topups') || '{}');
-        if(!topups[pid]) topups[pid] = [];
         var now = new Date();
-        var dateStr = now.getFullYear()+'/'+(now.getMonth()+1)+'/'+ now.getDate();
-        topups[pid].push({amount: amount, date: dateStr});
-        localStorage.setItem('aa-pool-topups', JSON.stringify(topups));
-        renderAllPoolBars();
-        document.body.removeChild(overlay);
-        showPricesPanel();
+        var dateStr = now.getFullYear()+'/'+(now.getMonth()+1)+'/'+now.getDate();
+        var pass2 = getPass(); var user2 = ($('aaUsername').value || '').trim();
+        btn.textContent = '保存中...'; btn.disabled = true;
+        fetch(WORKER + '/topup', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({username: user2, password: pass2, pool: pid, amount: amount, date: dateStr})
+        }).then(function(r){ return r.json(); })
+        .then(function(res){
+          if(res.ok){
+            var topups = JSON.parse(localStorage.getItem('aa-pool-topups') || '{}');
+            if(!topups[pid]) topups[pid] = [];
+            topups[pid].push({amount: amount, date: dateStr});
+            localStorage.setItem('aa-pool-topups', JSON.stringify(topups));
+            renderAllPoolBars();
+            document.body.removeChild(overlay);
+            showPricesPanel();
+          } else {
+            btn.textContent = '失败'; btn.disabled = false;
+            setTimeout(function(){ btn.textContent = '+ 充值'; }, 1500);
+          }
+        }).catch(function(){
+          btn.textContent = '网络错误'; btn.disabled = false;
+          setTimeout(function(){ btn.textContent = '+ 充值'; }, 1500);
+        });
       }
     });
-    // 加载用量
+    // 加载充值记录
     var pass = getPass(); var user = ($('aaUsername').value || '').trim();
-    if(!pass || !user){ $('aaPricesUsage').textContent = '请先登录'; return; }
+    if(!pass || !user){ document.getElementById('aaPricesUsage').textContent = '请先登录'; return; }
+    fetch(WORKER + '/topups?user='+encodeURIComponent(user)+'&pass='+encodeURIComponent(pass))
+      .then(function(r){ return r.json(); })
+      .then(function(topupData){
+        if(topupData && !topupData.error){
+          localStorage.setItem('aa-pool-topups', JSON.stringify(topupData));
+          renderAllPoolBars();
+          // 重新渲染面板池子区（刷新余额显示）
+          var existing = document.getElementById('aaPricesOverlay');
+          if(existing){ document.body.removeChild(existing); showPricesPanel(); }
+        }
+      }).catch(function(){});
+    // 加载用量
     fetch(WORKER + '/usage?user='+encodeURIComponent(user)+'&pass='+encodeURIComponent(pass))
       .then(function(r){ return r.json(); })
       .then(function(data){
