@@ -4909,34 +4909,34 @@ if(imageMode){
     var overlay = document.createElement('div');
     overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:999999;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;cursor:pointer;padding:16px;box-sizing:border-box;';
     var grid = document.createElement('div');
-    grid.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:6px;width:min(92vw,92vh);cursor:default;';
+    var size = Math.min(window.innerWidth, window.innerHeight) * 0.88;
+    grid.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:6px;width:'+size+'px;height:'+size+'px;cursor:default;';
     grid.addEventListener('click', function(e){ e.stopPropagation(); });
-    var positions = [
-      {x:0,   y:0},
-      {x:50,  y:0},
-      {x:0,   y:50},
-      {x:50,  y:50}
-    ];
-    positions.forEach(function(pos, i){
+    var quadrants = [{l:0,t:0},{l:50,t:0},{l:0,t:50},{l:50,t:50}];
+    quadrants.forEach(function(q, i){
       var wrap = document.createElement('div');
-      wrap.style.cssText = 'position:relative;aspect-ratio:1/1;overflow:hidden;border-radius:8px;cursor:zoom-in;';
-      var tile = document.createElement('div');
-      tile.style.cssText = 'width:200%;height:200%;background-image:url('+src+');background-size:cover;background-position:'+pos.x+'% '+pos.y+'%;position:absolute;top:0;left:0;transform:translate(-'+pos.x+'%,-'+pos.y+'%);';
-      // 修正：直接用background-position百分比，不需要transform
-      tile.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;background-image:url('+src+');background-size:200% 200%;background-position:'+pos.x+'% '+pos.y+'%;';
+      wrap.style.cssText = 'position:relative;overflow:hidden;border-radius:8px;cursor:zoom-in;';
+      var imgEl = document.createElement('img');
+      imgEl.src = src;
+      imgEl.style.cssText = 'position:absolute;width:200%;height:200%;max-width:none;top:-'+q.t+'%;left:-'+q.l+'%;';
       var num = document.createElement('div');
-      num.style.cssText = 'position:absolute;top:6px;left:6px;width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,0.55);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:1;';
+      num.style.cssText = 'position:absolute;top:6px;left:6px;width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,0.6);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;z-index:2;pointer-events:none;';
       num.textContent = i+1;
-      (function(p){ wrap.addEventListener('click', function(){
+      (function(qq){ wrap.addEventListener('click', function(){
         var lb = document.createElement('div');
-        lb.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999999;background:rgba(0,0,0,0.95);display:flex;align-items:center;justify-content:center;cursor:zoom-out;';
-        var zoomed = document.createElement('div');
-        zoomed.style.cssText = 'width:min(92vw,92vh);height:min(92vw,92vh);background-image:url('+src+');background-size:200% 200%;background-position:'+p.x+'% '+p.y+'%;border-radius:10px;';
-        lb.appendChild(zoomed);
+        lb.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999999;background:rgba(0,0,0,0.95);display:flex;align-items:center;justify-content:center;cursor:zoom-out;padding:16px;box-sizing:border-box;';
+        var zWrap = document.createElement('div');
+        var zSize = Math.min(window.innerWidth, window.innerHeight) * 0.92;
+        zWrap.style.cssText = 'position:relative;width:'+zSize+'px;height:'+zSize+'px;overflow:hidden;border-radius:10px;';
+        var zImg = document.createElement('img');
+        zImg.src = src;
+        zImg.style.cssText = 'position:absolute;width:200%;height:200%;max-width:none;top:-'+qq.t+'%;left:-'+qq.l+'%;';
+        zWrap.appendChild(zImg);
+        lb.appendChild(zWrap);
         lb.addEventListener('click', function(){ document.body.removeChild(lb); });
         document.body.appendChild(lb);
-      }); })(pos);
-      wrap.appendChild(tile);
+      }); })(q);
+      wrap.appendChild(imgEl);
       wrap.appendChild(num);
       grid.appendChild(wrap);
     });
