@@ -3521,7 +3521,15 @@ function initPersonaDragDrop(){
           .trim();
 
         h += '<div class="aa-msg-body '+bodyClass+'" style="'+bodyStyle+'">';
-        if(cleanText) h += renderMd(cleanText);
+        if(cleanText){
+          var _lines = cleanText.split('\n');
+          var _seen = {}, _deduped = [];
+          for(var _li=0; _li<_lines.length; _li++){
+            var _l = _lines[_li].trim();
+            if(_l !== '' && !_seen[_l]){ _deduped.push(_lines[_li]); _seen[_l] = true; }
+          }
+          h += renderMd(_deduped.join('\n'));
+        }
           if(mjImgUrls.length){
             h += '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:'+(cleanText?'10px':'0')+'">';
             mjImgUrls.forEach(function(url, idx){
