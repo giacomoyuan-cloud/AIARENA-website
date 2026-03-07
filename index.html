@@ -3445,8 +3445,10 @@ function initPersonaDragDrop(){
       chatEl.classList.add('empty-state');
       c.innerHTML = '<div id="aaThinkingArea">'+savedThink+'</div>';
       if($('aaWelcome')) $('aaWelcome').style.display = '';
+      chatEl.style.justifyContent = 'center';
       return;
     }
+    chatEl.style.justifyContent = '';
     chatEl.classList.remove('empty-state');
     if($('aaWelcome')) $('aaWelcome').style.display = 'none';
     var h = '';
@@ -4865,6 +4867,7 @@ if(imageMode){
     showMainUI();
     loadChatList();
   }
+  render();
 
   // === Scroll buttons ===
   var msgBox = $('aaMessages');
