@@ -1664,7 +1664,7 @@ var TEAM_COLORS = {
     ];
     var _noOutputKeys = ['nb2-512px','nb2-1K','nb2-2K','nb2-4K','mj-imagine','mj-describe','mj-variation','mj-upscale','kling25-i2v'];
     var priceRows = PRICE_GROUPS.map(function(group){
-      var groupId = 'pg-' + group.pool + '-' + group.label.replace(/\s+/g,'');
+      var groupId = 'pg-' + group.pool + '-' + group.label.replace(/[\s\.]+/g,'');
       var rowsHtml = group.keys.map(function(k){
         var p = prices[k] || {input:0,output:0};
         var noOut = _noOutputKeys.indexOf(k) !== -1;
@@ -1676,7 +1676,7 @@ var TEAM_COLORS = {
             : '<td style="padding:8px 6px;width:30%;text-align:right;"><input data-model="'+k+'" data-type="output" type="number" step="0.01" value="'+(p.output||0)+'" style="width:80px;background:'+inputBg+';border:1px solid '+inputBorder+';border-radius:6px;padding:4px 8px;color:'+textClr+';font-size:11px;font-family:\'Sora\',sans-serif;text-align:right;box-sizing:border-box;"></td>')
           +'</tr>';
       }).join('');
-      var groupId = 'pg-' + group.pool + '-' + group.label.replace(/\s+/g,'');
+      var groupId = 'pg-' + group.pool + '-' + group.label.replace(/[\s\.]+/g,'');
       var rowsHtml = group.keys.map(function(k){
         var p = prices[k] || {input:0,output:0};
         var noOut = _noOutputKeys.indexOf(k) !== -1;
