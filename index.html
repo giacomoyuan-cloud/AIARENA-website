@@ -1039,7 +1039,7 @@
         <div class="aa-drop-item" data-sub="grok420-multiagent"><span class="aa-drop-dot" data-health="official-xai"></span>Grok-4.2-官方</div>
       </div>
       <div class="aa-card-dropdown" id="aaDrop-openai">
-        <div class="aa-drop-item" data-sub="gpt-5-mini"><span class="aa-drop-dot" data-health="official-openai"></span>G-5-官方</div>
+        <div class="aa-drop-item" data-sub="gpt-4o-mini-search-preview"><span class="aa-drop-dot" data-health="official-openai"></span>G-5-官方</div>
         <div class="aa-drop-item selected" data-sub="gpt52-official"><span class="aa-drop-dot" data-health="official-openai"></span>G-5.2-官方</div>
         <div class="aa-drop-item" data-sub="codex-official"><span class="aa-drop-dot" data-health="official-openai"></span>G-5.3-官方</div>
         <div class="aa-drop-item" data-sub="gpt4o-proxy"><span class="aa-drop-dot" data-health="proxy"></span>G-5 Mini-JK</div>
@@ -1188,7 +1188,7 @@
     'opus46-thinking-lanyi': {brand:'anthropic', name:'O-4.6T-蓝移'},
 
     'gpt52-official':        {brand:'openai',    name:'G-5.2-官方'},
-    'gpt-5-mini':        {brand:'openai',    name:'G-5-官方'},
+    'gpt-5-mini':        {brand:'openai',    name:'G-4o-官方'},
     'codex-official':        {brand:'openai',    name:'G-5.3-官方'},
     'gpt52-proxy':           {brand:'openai',    name:'G-5.2-JK'},
     'gpt54-proxy':           {brand:'openai',    name:'G-5.4-JK'},
@@ -1351,7 +1351,7 @@ var TEAM_COLORS = {
     'grok41-official':'xai-official','grok41-biz-official':'xai-official','grok420-multiagent':'xai-official',
     'sonnet46-official':'anthropic-official','opus46-official':'anthropic-official',
     'sonnet-thinking':'aipro','opus-thinking':'aipro','gemini31high-official':'aipro',
-    'gpt52-official':'openai-official','gpt-5-mini':'openai-official','codex-official':'openai-official',
+    'gpt52-official':'openai-official','gpt-4o-mini-search-preview':'openai-official','codex-official':'openai-official',
     'gemini31-official':'google-official','nanbanana2-official':'google-official',
     'sonnet46-lanyi':'ly','opus46-lanyi':'ly','opus46-thinking-lanyi':'ly',
     'grok41-proxy':'ai-proxy','sonnet46-proxy':'ai-proxy','opus46-proxy':'ai-proxy',
@@ -1626,7 +1626,7 @@ var TEAM_COLORS = {
       'sonnet46-official':'S-4.6-官方','opus46-official':'O-4.6-官方',
       'sonnet46-proxy':'S-4.6-JK','opus46-proxy':'O-4.6-JK','sonnet-thinking':'S-4.6-哈基米','opus-thinking':'O-4.6-哈基米',
       'sonnet46-lanyi':'S-4.6-蓝移','opus46-lanyi':'O-4.6-蓝移','opus46-thinking-lanyi':'O-4.6T-蓝移',
-      'gpt52-official':'G-5.2-官方','gpt-5-mini':'G-5-官方','codex-official':'G-5.3-官方',
+      'gpt52-official':'G-5.2-官方','gpt-4o-mini-search-preview':'G-4o-官方','codex-official':'G-5.3-官方',
       'gpt52-proxy':'G-5.2-JK','gpt54-proxy':'G-5.4-JK','gpt4o-proxy':'G-5 Mini-JK','codex-proxy':'G-5.3-JK',
       'gemini31-official':'G-3.1-官方','gemini31high-official':'G-3.1-哈基米',
       'gemini31-proxy':'G-3.1-JK','gemini3-proxy':'G-3-JK',
@@ -1652,7 +1652,7 @@ var TEAM_COLORS = {
     var _noOutputKeys = ['nb2-512px','nb2-1K','nb2-2K','nb2-4K','mj-imagine','mj-describe','mj-variation','mj-upscale'];
     var PRICE_GROUPS = [
       {label:'xAI官方', pool:'xai-official', keys:['grok41-official','grok41-biz-official','grok420-multiagent']},
-    {label:'OpenAI官方', pool:'openai-official', keys:['gpt52-official','gpt-5-mini','codex-official']},
+    {label:'OpenAI官方', pool:'openai-official', keys:['gpt52-official','gpt-4o-mini-search-preview','codex-official']},
     {label:'Google官方', pool:'google-official', keys:['gemini31-official','gemini3-official','nb2-512px','nb2-1K','nb2-2K','nb2-4K']},
       {label:'Anthropic官方', pool:'anthropic-official', keys:['sonnet46-official','opus46-official']},
     {label:'Jiekou.ai', pool:'ai-proxy', keys:['grok41-proxy','sonnet46-proxy','opus46-proxy','gpt52-proxy','gpt54-proxy','gpt4o-proxy','codex-proxy','gemini3-proxy','gemini31-proxy','kling25-i2v']},
