@@ -1386,7 +1386,12 @@ var TEAM_COLORS = {
       if(!bar) return;
       var sub = brandSelection[brand];
       var pool = getSubPool(sub);
+      // 用当前选中子模型对应的 health dot 颜色
+      var dropItem = document.querySelector('#ai-arena-app .aa-drop-item[data-sub="'+sub+'"]');
+      var refDot = dropItem ? dropItem.querySelector('.aa-drop-dot') : null;
+      var healthColor = (refDot && refDot.style.background) ? refDot.style.background : '#555';
       bar.style.display = 'block';
+      bar.dataset.healthColor = healthColor;
       renderPoolBar(bar, pool);
     });
     var klingBar = document.getElementById('aaPoolBar-kling');
@@ -1401,7 +1406,7 @@ var TEAM_COLORS = {
     if(totalTopup <= 0){ barEl.style.display='none'; return; }
     var remaining = Math.max(totalTopup - spent, 0);
     var fillPct = Math.min(remaining / totalTopup, 1);
-    var healthColor = barEl.dataset.healthy === '1' ? '#22c55e' : (barEl.dataset.healthy === '0' ? '#ef4444' : '#555');
+    var healthColor = barEl.dataset.healthColor || (barEl.dataset.healthy === '1' ? '#22c55e' : (barEl.dataset.healthy === '0' ? '#ef4444' : '#555'));
     barEl.style.display = 'block';
     barEl.innerHTML = '<div style="height:3px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;margin-top:2px;">'
       +'<div style="height:100%;width:'+(fillPct*100)+'%;background:'+healthColor+';border-radius:2px;transition:width 0.4s,background 0.4s;"></div>'
