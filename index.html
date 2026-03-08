@@ -2026,18 +2026,17 @@ var TEAM_COLORS = {
         var bar = $('aaBrandBar');
         order.forEach(function(b){ var card = bar.querySelector('[data-brand="'+b+'"]'); if(card) bar.appendChild(card); });
       }
-      var bs = JSON.parse(localStorage.getItem('aa-brand-selection'));
-      if(bs) brandSelection = bs;
-      // 修复：非图像模式下 Google 不能是 nanbanana2
-      if(!imageMode && (brandSelection['google'] === 'nanbanana2-official' || brandSelection['google'] === 'nanbanana2-custom')){
-        brandSelection['google'] = 'gemini31-official';
-      }
-      // 图像模式下 Google 强制是 nanbanana2
-      if(imageMode){ brandSelection['google'] = 'nanbanana2-official'; }
+      // 强制固定子模型选择，每次刷新都重置
+      brandSelection = {
+        xai: 'grok41-official',
+        openai: 'gpt-4o-mini-search-preview',
+        google: 'gemini3-proxy',
+        anthropic: 'sonnet-thinking',
+        mj: 'mj-imagine'
+      };
       if(!imageMode){ activeBrands['mj'] = false; }
-      if(brandSelection['mj'] === undefined) brandSelection['mj'] = 'mj-imagine';
       var ab = JSON.parse(localStorage.getItem('aa-active-brands'));
-    if(ab){ activeBrands = ab; if(activeBrands.kling === undefined) activeBrands.kling = false; }
+      if(ab){ activeBrands = ab; if(activeBrands.kling === undefined) activeBrands.kling = false; }
       var sd = localStorage.getItem('aa-mode-debate');
       if(sd === '1') debate = true;
       var dm = localStorage.getItem('aa-debate-mode');
