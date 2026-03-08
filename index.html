@@ -1925,7 +1925,7 @@ var TEAM_COLORS = {
           +'</tr></tfoot>'
           +'</table></div>';
       })
-      .catch(function(){ var el=document.getElementById('aaPricesUsage'); if(el) el.textContent='加载失败，请检查网络'; });
+      .catch(function(err){ console.error('Usage render error:', err); var el=document.getElementById('aaPricesUsage'); if(el) el.textContent='加载失败：'+err.message; });
   }
 
   // Track which brand is expanded and which submodel is selected per brand
