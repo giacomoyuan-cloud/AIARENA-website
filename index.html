@@ -1862,13 +1862,14 @@ var TEAM_COLORS = {
       .then(function(data){
         var usageEl = document.getElementById('aaPricesUsage');
         if(!usageEl) return;
-        if(!data || !data.models || !Object.keys(data.models).length){
+        var models = data.models || data;
+        if(!models || typeof models !== 'object' || !Object.keys(models).length || models.error){
           usageEl.innerHTML = '<span style="color:'+subClr+';">暂无记录</span>'; return;
         }
         var prices2 = JSON.parse(localStorage.getItem('aa-model-prices') || '{}');
         var totalCost = 0;
-        var rows = Object.keys(data.models).map(function(k){
-          var m = data.models[k];
+        var rows = Object.keys(models).map(function(k){
+          var m = models[k];
           var label = MODEL_LABELS[k] || k;
           var p2 = prices2[k] || {input:0,output:0};
           var cost2 = ((m.input||0)/1000000)*p2.input + ((m.output||0)/1000000)*p2.output;
