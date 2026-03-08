@@ -2737,7 +2737,7 @@ var TEAM_COLORS = {
   $('aaGearBtn').addEventListener('click', function(e){ e.stopPropagation(); $('aaSidebar').classList.toggle('hidden'); });
   
   $('aaIncognitoBtn').addEventListener('click', function(){
-    if(_bizMode){ return; }
+    if(_bizMode || brandSelection['xai'] === 'grok41-biz-official') { return; }
     _incognitoMode = !_incognitoMode;
     var btn = $('aaIncognitoBtn');
     if(_incognitoMode){
