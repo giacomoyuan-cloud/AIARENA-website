@@ -1864,65 +1864,121 @@ var TEAM_COLORS = {
       .then(function(data){
         var usageEl = document.getElementById('aaPricesUsage');
         if(!usageEl) return;
-        var models = data.models || data;
+       var models = data.models || data;
         if(!models || typeof models !== 'object' || !Object.keys(models).length || models.error){
           usageEl.innerHTML = '<span style="color:'+subClr+';">暂无记录</span>'; return;
         }
         var prices2 = JSON.parse(localStorage.getItem('aa-model-prices') || '{}');
-        var totalCost = 0;
         var USAGE_KEY_MAP = {
           'claude-opus-4-6':'opus46-official','claude-sonnet-4-6':'sonnet46-official',
           'gemini3-official':'gemini3-proxy'
         };
         var _isAdmin = user.toLowerCase() === 'oakleyyuen';
+
+        // Step 1: Parse into {userName: {frontendKey: {input,output,calls}}}
         var byUser = {};
         Object.keys(models).forEach(function(k){
           var m = models[k];
+          if(!m || typeof m !== 'object') return;
           var userMatch = k.match(/^usage:user:([^:]+):/);
           var globalMatch = k.match(/^usage:global:/);
-          var userName = userMatch ? userMatch[1] : (globalMatch ? '_global' : '_self');
+          if(globalMatch) return; // skip global, we only want per-user
+          var userName = userMatch ? userMatch[1] : '_unknown';
           var cleanKey = k.replace(/^usage:(user:[^:]+|global):/, '');
           var frontendKey = USAGE_KEY_MAP[cleanKey] || cleanKey;
           if(!byUser[userName]) byUser[userName] = {};
           byUser[userName][frontendKey] = m;
         });
-        var allRows = [];
-        var userNames = Object.keys(byUser).sort();
-        userNames.forEach(function(uname){
-          if(_isAdmin && userNames.length > 1){
-            allRows.push('<tr><td colspan="4" style="padding:10px;font-size:13px;font-weight:700;color:#f59e0b;border-top:2px solid '+border+';letter-spacing:0.02em;">👤 '+esc(uname)+'</td></tr>');
-          }
+
+        // Step 2: Build nested structure: user → pool → models with costs
+        var USAGE_POOL_MAP = {
+          'grok41-official':'xai-official','grok41-biz-official':'xai-official','grok420-multiagent':'xai-official',
+          'sonnet46-official':'anthropic-official','opus46-official':'anthropic-official',
+          'sonnet-thinking':'aipro','opus-thinking':'aipro','gemini31high-official':'aipro',
+          'gpt52-official':'openai-official','gpt-4o-mini-search-preview':'openai-official','codex-official':'openai-official',
+          'gemini31-official':'google-official','nanbanana2-official':'google-official',
+          'grok41-proxy':'ai-proxy','sonnet46-proxy':'ai-proxy','opus46-proxy':'ai-proxy',
+          'gpt52-proxy':'ai-proxy','gpt54-proxy':'ai-proxy','gpt4o-proxy':'ai-proxy','codex-proxy':'ai-proxy',
+          'gemini31-proxy':'ai-proxy','gemini3-proxy':'ai-proxy','kling25-i2v':'ai-proxy',
+          'mj-imagine':'mj','mj-describe':'mj','mj-blend':'mj','mj-variation':'mj',
+          'mj-upscale':'mj','mj-zoom':'mj','swap-face':'mj'
+        };
+        var USAGE_POOL_LABELS = {
+          'xai-official':'xAI 官方','anthropic-official':'Anthropic 官方','openai-official':'OpenAI 官方',
+          'google-official':'Google 官方','ai-proxy':'Jiekou.ai','aipro':'哈基米','mj':'Patrovia'
+        };
+
+        var grandTotal = 0;
+        var userOrder = ['oakleyyuen'];
+        Object.keys(byUser).sort().forEach(function(u){ if(u !== 'oakleyyuen') userOrder.push(u); });
+
+        var usageHtml = '';
+        userOrder.forEach(function(uname){
+          if(!byUser[uname]) return;
           var userModels = byUser[uname];
-          Object.keys(userModels).forEach(function(frontendKey){
-            var m = userModels[frontendKey];
-            var label = MODEL_LABELS[frontendKey] || frontendKey;
-            var p2 = prices2[frontendKey] || {input:0,output:0};
-            var cost2 = ((m.input||0)/1000000)*p2.input + ((m.output||0)/1000000)*p2.output;
-            totalCost += cost2;
-            allRows.push('<tr>'
-              +'<td style="padding:6px 10px;font-size:11px;color:'+textClr+';white-space:nowrap;">'+label+'</td>'
-              +'<td style="padding:6px 6px;font-size:11px;color:'+subClr+';text-align:right;">'+(m.input||0).toLocaleString()+'</td>'
-              +'<td style="padding:6px 6px;font-size:11px;color:'+subClr+';text-align:right;">'+(m.output||0).toLocaleString()+'</td>'
-              +'<td style="padding:6px 6px;font-size:11px;color:#a5b4fc;text-align:right;">$'+cost2.toFixed(4)+'</td>'
-              +'</tr>');
+          var userTotal = 0;
+          // Group by pool
+          var pools = {};
+          Object.keys(userModels).forEach(function(fk){
+            var m = userModels[fk];
+            var poolId = USAGE_POOL_MAP[fk] || 'other';
+            if(!pools[poolId]) pools[poolId] = {models:{}, total:0};
+            var p2 = prices2[fk] || {input:0,output:0};
+            var cost = ((m.input||0)/1000000)*p2.input + ((m.output||0)/1000000)*p2.output;
+            pools[poolId].models[fk] = {input:m.input||0, output:m.output||0, calls:m.calls||0, cost:cost};
+            pools[poolId].total += cost;
+            userTotal += cost;
           });
+          grandTotal += userTotal;
+
+          var uid = 'uu-'+uname.replace(/[^a-z0-9]/gi,'');
+          var isDefault = uname === 'oakleyyuen';
+          usageHtml += '<div style="margin-bottom:12px;border:1px solid '+border+';border-radius:10px;overflow:hidden;">';
+          // User header
+          usageHtml += '<div onclick="(function(){var b=document.getElementById(\''+uid+'\');b.style.display=b.style.display===\'none\'?\'block\':\'none\';})()" style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;cursor:pointer;background:rgba(255,255,255,0.03);">'
+            +'<span style="font-size:13px;font-weight:700;color:'+textClr+';">👤 '+esc(uname)+'</span>'
+            +'<span style="font-size:12px;font-weight:600;color:#f59e0b;">$'+userTotal.toFixed(4)+'</span>'
+            +'</div>';
+          // User body (collapsible)
+          usageHtml += '<div id="'+uid+'" style="display:'+(isDefault?'block':'none')+';padding:0 8px 8px;">';
+
+          // Pool groups
+          var poolOrder = ['xai-official','openai-official','google-official','anthropic-official','ai-proxy','aipro','mj','other'];
+          poolOrder.forEach(function(pid){
+            if(!pools[pid]) return;
+            var pool = pools[pid];
+            var poolLabel = USAGE_POOL_LABELS[pid] || pid;
+            var ppid = uid+'-'+pid.replace(/[^a-z0-9]/gi,'');
+            usageHtml += '<div style="margin-top:6px;">';
+            usageHtml += '<div onclick="(function(){var b=document.getElementById(\''+ppid+'\');b.style.display=b.style.display===\'none\'?\'block\':\'none\';var a=document.getElementById(\''+ppid+'-a\');if(a)a.textContent=b.style.display===\'none\'?\'▶\':\'▼\';})()" style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;cursor:pointer;background:rgba(255,255,255,0.04);border-radius:7px;">'
+              +'<span style="font-size:11px;font-weight:600;color:'+textClr+';"><span id="'+ppid+'-a" style="font-size:9px;color:#555;margin-right:6px;">▶</span>'+esc(poolLabel)+'</span>'
+              +'<span style="font-size:11px;color:#a5b4fc;font-weight:600;">$'+pool.total.toFixed(4)+'</span>'
+              +'</div>';
+            // Model rows (collapsible)
+            usageHtml += '<div id="'+ppid+'" style="display:none;">';
+            usageHtml += '<table style="width:100%;border-collapse:collapse;margin-top:4px;">';
+            Object.keys(pool.models).forEach(function(fk){
+              var mm = pool.models[fk];
+              var label = MODEL_LABELS[fk] || fk;
+              usageHtml += '<tr>'
+                +'<td style="padding:4px 10px 4px 24px;font-size:11px;color:'+textClr+';white-space:nowrap;">'+label+'</td>'
+                +'<td style="padding:4px 6px;font-size:11px;color:'+subClr+';text-align:right;">'+mm.input.toLocaleString()+'</td>'
+                +'<td style="padding:4px 6px;font-size:11px;color:'+subClr+';text-align:right;">'+mm.output.toLocaleString()+'</td>'
+                +'<td style="padding:4px 6px;font-size:11px;color:#a5b4fc;text-align:right;">$'+mm.cost.toFixed(4)+'</td>'
+                +'</tr>';
+            });
+            usageHtml += '</table></div></div>';
+          });
+          usageHtml += '</div></div>';
         });
-        var rows = allRows;
-          rows = rows.join('');
-        usageEl.innerHTML = '<div style="overflow-x:auto;">'
-          +'<table style="width:100%;border-collapse:collapse;">'
-          +'<thead><tr>'
-          +'<th style="padding:5px 10px;font-size:10px;color:'+subClr+';text-align:left;letter-spacing:0.04em;">模型</th>'
-          +'<th style="padding:5px 6px;font-size:10px;color:'+subClr+';text-align:right;letter-spacing:0.04em;">输入</th>'
-          +'<th style="padding:5px 6px;font-size:10px;color:'+subClr+';text-align:right;letter-spacing:0.04em;">输出</th>'
-          +'<th style="padding:5px 6px;font-size:10px;color:'+subClr+';text-align:right;letter-spacing:0.04em;">费用</th>'
-          +'</tr></thead>'
-          +'<tbody>'+rows+'</tbody>'
-          +'<tfoot><tr>'
-          +'<td colspan="3" style="padding:8px 10px;font-size:11px;font-weight:600;color:'+textClr+';border-top:1px solid '+border+';">总计</td>'
-          +'<td style="padding:8px 6px;font-size:12px;font-weight:700;color:#f59e0b;text-align:right;border-top:1px solid '+border+';">$'+totalCost.toFixed(4)+'</td>'
-          +'</tr></tfoot>'
-          +'</table></div>';
+
+        // Grand total
+        usageHtml += '<div style="display:flex;justify-content:space-between;padding:10px 14px;border-top:2px solid '+border+';margin-top:8px;">'
+          +'<span style="font-size:13px;font-weight:700;color:'+textClr+';">总计</span>'
+          +'<span style="font-size:14px;font-weight:700;color:#f59e0b;">$'+grandTotal.toFixed(4)+'</span>'
+          +'</div>';
+
+        usageEl.innerHTML = usageHtml;
       })
       .catch(function(err){ console.error('Usage render error:', err); var el=document.getElementById('aaPricesUsage'); if(el) el.textContent='加载失败：'+err.message; });
   }
