@@ -1868,10 +1868,16 @@ var TEAM_COLORS = {
         }
         var prices2 = JSON.parse(localStorage.getItem('aa-model-prices') || '{}');
         var totalCost = 0;
+        var USAGE_KEY_MAP = {
+          'claude-opus-4-6':'opus46-official','claude-sonnet-4-6':'sonnet46-official',
+          'gemini3-official':'gemini3-proxy'
+        };
         var rows = Object.keys(models).map(function(k){
           var m = models[k];
-          var label = MODEL_LABELS[k] || k;
-          var p2 = prices2[k] || {input:0,output:0};
+          var cleanKey = k.replace(/^usage:user:[^:]+:/, '');
+          var frontendKey = USAGE_KEY_MAP[cleanKey] || cleanKey;
+          var label = MODEL_LABELS[frontendKey] || MODEL_LABELS[cleanKey] || cleanKey;
+          var p2 = prices2[frontendKey] || prices2[cleanKey] || {input:0,output:0};
           var cost2 = ((m.input||0)/1000000)*p2.input + ((m.output||0)/1000000)*p2.output;
           totalCost += cost2;
           return '<tr>'
