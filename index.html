@@ -1272,7 +1272,9 @@ var TEAM_COLORS = {
       plain = rawText.replace(/[\s\S]*?```/g,'[代码]').replace(/\*\*(.+?)\*\*/g,'$1').replace(/^#{1,4}\s+/gm,'').trim();
       plain = plain.slice(0, 300) + (plain.length > 300 ? '...' : '');
     }
-    var author = msg.isUser ? ($('aaUsername').value.trim() || '用户') : (msg.name || 'AI');
+    var _qName = ($('aaUsername').value.trim() || '用户').toLowerCase();
+    var _qDisplayNames = {'oakleyyuen':'Oakley Suen','doctor.wang':'Doctor.Wang','zty007007990':'Zty'};
+    var author = msg.isUser ? (_qDisplayNames[_qName] || $('aaUsername').value.trim() || '用户') : (msg.name || 'AI');
     setQuote(author, plain, msg.color || '#818cf8');
   };
   var nbImageSize = '1K';
@@ -4157,7 +4159,9 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
     btn.textContent = '■'; btn.className = 'aa-send stop'; btn.disabled = false;
     btn.onclick = function(){ abortF = true; hideThink(); finish(); };
     $('aaSidebar').classList.add('hidden'); $('aaGearBtn').classList.remove('active');
-    var userName = $('aaUsername').value.trim() || '用户';
+    var _rawName = $('aaUsername').value.trim() || '用户';
+    var CHAT_DISPLAY_NAMES = {'oakleyyuen':'Oakley Suen','doctor.wang':'Doctor.Wang','zty007007990':'Zty'};
+    var userName = CHAT_DISPLAY_NAMES[_rawName.toLowerCase()] || _rawName;
     var _isSwap = brandSelection['mj'] === 'swap-face' && imageMode && activeBrands['mj'];
     var _swapImgs = _isSwap && swapSrcImg && swapTgtImg ? [swapSrcImg, swapTgtImg] : null;
     var _imgs = _swapImgs || sentImgs.slice(), _img = _imgs.length ? _imgs[0].data : null, _imgMime = _imgs.length ? _imgs[0].mime : null, _texts = sentTexts.slice();
