@@ -3977,10 +3977,8 @@ function initPersonaDragDrop(){
         if(msg.text && msg.text.indexOf('[img]') !== -1){ if(msg.imgSrcs && msg.imgSrcs.length){ h += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;">'; msg.imgSrcs.forEach(function(src, si){ var storeKey = 'msgimg_'+msg.uid+'_'+si; window._aaImgClickStore = window._aaImgClickStore||{}; window._aaImgClickStore[storeKey]=src; h += '<img src="'+src+'" onclick="window._aaLightbox(window._aaImgClickStore[\''+storeKey+'\'])" style="width:70px;height:70px;object-fit:cover;border-radius:8px;border:1px solid rgba(255,255,255,0.1);cursor:pointer;">'; }); h += '</div>'; } else if(msg.imgSrc){ var storeKey0 = 'msgimg_'+msg.uid+'_0'; window._aaImgClickStore = window._aaImgClickStore||{}; window._aaImgClickStore[storeKey0]=msg.imgSrc; h += '<img src="'+msg.imgSrc+'" onclick="window._aaLightbox(window._aaImgClickStore[\''+storeKey0+'\'])" style="width:100px;height:100px;object-fit:cover;border-radius:8px;margin-top:6px;display:block;border:1px solid rgba(255,255,255,0.1);cursor:pointer;">'; } }
         h += '</div>';
       h += '<div style="display:flex;gap:6px;margin-top:5px;">'
-
-          +'<button onclick="window._aaStartEditMsg(\''+msg.uid+'\')" style="padding:3px 10px;border-radius:7px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:#6b6b88;font-size:11px;font-weight:500;cursor:pointer;font-family:\'Sora\',sans-serif;letter-spacing:0.02em;">编辑</button>'
-          +'<button onmousedown="window._aaStoreSelection()" onclick="window._aaQuoteMsg(\''+msg.uid+'\')" style="padding:3px 10px;border-radius:7px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:#6b6b88;font-size:11px;font-weight:500;cursor:pointer;font-family:\'Sora\',sans-serif;letter-spacing:0.02em;">引用</button>'
-
+          +'<button onclick="window._aaStartEditMsg(\''+msg.uid+'\')" style="padding:3px 10px;border-radius:7px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.08);color:#a0a0b8;font-size:11px;font-weight:500;cursor:pointer;font-family:\'Sora\',sans-serif;letter-spacing:0.02em;">编辑</button>'
+          +'<button onmousedown="window._aaStoreSelection()" onclick="window._aaQuoteMsg(\''+msg.uid+'\')" style="padding:3px 10px;border-radius:7px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.08);color:#a0a0b8;font-size:11px;font-weight:500;cursor:pointer;font-family:\'Sora\',sans-serif;letter-spacing:0.02em;">引用</button>'
           +'</div>';
       } else if(msg.videoUrl){
         h += '<div class="aa-msg-body ai-bubble" style="border-color:'+brandInfo.border+';padding:12px;">';
@@ -4046,7 +4044,7 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
         h += '</div>';
 
         if(msg.usageStr) h += '<div class="aa-usage-tag" style="font-size:10px;color:#555;margin-top:4px;margin-left:13px;letter-spacing:0.02em;font-family:\'Sora\',sans-serif;">'+esc(msg.usageStr)+'</div>';
-        h += '<button class="aa-msg-quote-btn" onmousedown="window._aaStoreSelection()" onclick="window._aaQuoteMsg(\''+msg.uid+'\')">引用</button>';
+        h += '<button onmousedown="window._aaStoreSelection()" onclick="window._aaQuoteMsg(\''+msg.uid+'\')" style="padding:3px 10px;border-radius:7px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.08);color:#a0a0b8;font-size:11px;font-weight:500;cursor:pointer;font-family:\'Sora\',sans-serif;letter-spacing:0.02em;">引用</button>';
 
       }
 
