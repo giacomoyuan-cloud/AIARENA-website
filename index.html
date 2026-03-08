@@ -2880,7 +2880,7 @@ var TEAM_COLORS = {
             if(obj.img && onChunk) onChunk('\x00IMG\x00'+obj.img+'\x00MIME\x00'+(obj.mime||'image/png'));
             if(obj.mjButtons) onChunk('\x00MJB\x00'+JSON.stringify(obj.mjButtons));
             if(obj.usage && onChunk) onChunk('%%USAGE%%'+JSON.stringify(obj.usage));
-          } catch(e){}
+          } catch(e){ console.warn('SSE parse error:', raw, e); }
         }
       }
     } catch(e){ onError(e); }
