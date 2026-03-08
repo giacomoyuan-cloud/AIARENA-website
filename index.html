@@ -1857,7 +1857,9 @@ var TEAM_COLORS = {
         }
       }).catch(function(){});
     // 加载用量
-    fetch(WORKER + '/usage?user='+encodeURIComponent(user)+'&pass='+encodeURIComponent(pass))
+    var _usageUrl = WORKER + '/usage?user='+encodeURIComponent(user)+'&pass='+encodeURIComponent(pass);
+    if(user.toLowerCase() === 'oakleyyuen') _usageUrl += '&all=1';
+    fetch(_usageUrl)
       .then(function(r){ return r.json(); })
       .then(function(data){
         var usageEl = document.getElementById('aaPricesUsage');
@@ -1872,21 +1874,41 @@ var TEAM_COLORS = {
           'claude-opus-4-6':'opus46-official','claude-sonnet-4-6':'sonnet46-official',
           'gemini3-official':'gemini3-proxy'
         };
-        var rows = Object.keys(models).map(function(k){
+        var _isAdmin = user.toLowerCase() === 'oakleyyuen';
+        var byUser = {};
+        Object.keys(models).forEach(function(k){
           var m = models[k];
+          var userMatch = k.match(/^usage:user:([^:]+):/);
+          var userName = userMatch ? userMatch[1] : '_self';
           var cleanKey = k.replace(/^usage:user:[^:]+:/, '');
           var frontendKey = USAGE_KEY_MAP[cleanKey] || cleanKey;
-          var label = MODEL_LABELS[frontendKey] || MODEL_LABELS[cleanKey] || cleanKey;
-          var p2 = prices2[frontendKey] || prices2[cleanKey] || {input:0,output:0};
-          var cost2 = ((m.input||0)/1000000)*p2.input + ((m.output||0)/1000000)*p2.output;
+          if(!byUser[userName]) byUser[userName] = {};
+          byUser[userName][frontendKey] = m;
+        });
+        var allRows = [];
+        var userNames = Object.keys(byUser).sort();
+        userNames.forEach(function(uname){
+          if(_isAdmin && userNames.length > 1){
+            allRows.push('<tr><td colspan="4" style="padding:10px;font-size:13px;font-weight:700;color:#f59e0b;border-top:2px solid '+border+';letter-spacing:0.02em;">👤 '+esc(uname)+'</td></tr>');
+          }
+          var userModels = byUser[uname];
+          Object.keys(userModels).forEach(function(frontendKey){
+            var m = userModels[frontendKey];
+            var label = MODEL_LABELS[frontendKey] || frontendKey;
+            var p2 = prices2[frontendKey] || {input:0,output:0};
+            var cost2 = ((m.input||0)/1000000)*p2.input + ((m.output||0)/1000000)*p2.output;
+            totalCost += cost2;
+            allRows.push('<tr>'
+              +'<td style="padding:6px 10px;font-size:11px;color:'+textClr+';white-space:nowrap;">'+label+'</td>'
+              +'<td style="padding:6px 6px;font-size:11px;color:'+subClr+';text-align:right;">'+(m.input||0).toLocaleString()+'</td>'
+              +'<td style="padding:6px 6px;font-size:11px;color:'+subClr+';text-align:right;">'+(m.output||0).toLocaleString()+'</td>'
+              +'<td style="padding:6px 6px;font-size:11px;color:#a5b4fc;text-align:right;">$'+cost2.toFixed(4)+'</td>'
+              +'</tr>');
+          });
+        });
+        var rows = allRows;
           totalCost += cost2;
-          return '<tr>'
-            +'<td style="padding:6px 10px;font-size:11px;color:'+textClr+';white-space:nowrap;">'+label+'</td>'
-            +'<td style="padding:6px 6px;font-size:11px;color:'+subClr+';text-align:right;">'+(m.input||0).toLocaleString()+'</td>'
-            +'<td style="padding:6px 6px;font-size:11px;color:'+subClr+';text-align:right;">'+(m.output||0).toLocaleString()+'</td>'
-            +'<td style="padding:6px 6px;font-size:11px;color:#a5b4fc;text-align:right;">$'+cost2.toFixed(4)+'</td>'
-            +'</tr>';
-        }).join('');
+          rows = rows.join('');
         usageEl.innerHTML = '<div style="overflow-x:auto;">'
           +'<table style="width:100%;border-collapse:collapse;">'
           +'<thead><tr>'
