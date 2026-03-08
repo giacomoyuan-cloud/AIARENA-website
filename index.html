@@ -1879,8 +1879,9 @@ var TEAM_COLORS = {
         Object.keys(models).forEach(function(k){
           var m = models[k];
           var userMatch = k.match(/^usage:user:([^:]+):/);
-          var userName = userMatch ? userMatch[1] : '_self';
-          var cleanKey = k.replace(/^usage:user:[^:]+:/, '');
+          var globalMatch = k.match(/^usage:global:/);
+          var userName = userMatch ? userMatch[1] : (globalMatch ? '_global' : '_self');
+          var cleanKey = k.replace(/^usage:(user:[^:]+|global):/, '');
           var frontendKey = USAGE_KEY_MAP[cleanKey] || cleanKey;
           if(!byUser[userName]) byUser[userName] = {};
           byUser[userName][frontendKey] = m;
