@@ -2856,34 +2856,35 @@ var TEAM_COLORS = {
           throw new Error('HTTP ' + res.status + '：' + msg);
         });
       }
-      var reader = res.body.getReader();
-      var decoder = new TextDecoder();
-      var buf = '';
-      function pump(){
+    var reader = res.body.getReader();
+  var decoder = new TextDecoder();
+  var buf = '';
+  (async function pump(){
+    try {
+      while(true){
         if(abortF){ reader.cancel(); onDone(); return; }
-        reader.read().then(function(result){
-          if(result.done){ onDone(); return; }
-          buf += decoder.decode(result.value, {stream: true});
-          var lines = buf.split('\n'); buf = lines.pop();
-          for(var i = 0; i < lines.length; i++){
-            var line = lines[i];
-            if(!line.startsWith('data: ')) continue;
-            var raw = line.slice(6).trim();
-            if(raw === '[DONE]'){ onDone(); return; }
-            try{
-              var obj = JSON.parse(raw);
-              if(obj.modelName && onModelName) onModelName(obj.modelName);
-              if(obj.t) onChunk(obj.t);
-              if(obj.r && onReasoning) onReasoning(obj.r);
-              if(obj.img && onChunk) onChunk('\x00IMG\x00'+obj.img+'\x00MIME\x00'+(obj.mime||'image/png'));
-              if(obj.mjButtons) onChunk('\x00MJB\x00'+JSON.stringify(obj.mjButtons));
-              if(obj.usage && onChunk) onChunk('%%USAGE%%'+JSON.stringify(obj.usage));
-            } catch(e){}
-          }
-          pump();
-        }).catch(function(e){ onError(e); });
+        var result = await reader.read();
+        if(result.done){ onDone(); return; }
+        buf += decoder.decode(result.value, {stream: true});
+        var lines = buf.split('\n'); buf = lines.pop();
+        for(var i = 0; i < lines.length; i++){
+          var line = lines[i];
+          if(!line.startsWith('data: ')) continue;
+          var raw = line.slice(6).trim();
+          if(raw === '[DONE]'){ onDone(); return; }
+          try{
+            var obj = JSON.parse(raw);
+            if(obj.modelName && onModelName) onModelName(obj.modelName);
+            if(obj.t) onChunk(obj.t);
+            if(obj.r && onReasoning) onReasoning(obj.r);
+            if(obj.img && onChunk) onChunk('\x00IMG\x00'+obj.img+'\x00MIME\x00'+(obj.mime||'image/png'));
+            if(obj.mjButtons) onChunk('\x00MJB\x00'+JSON.stringify(obj.mjButtons));
+            if(obj.usage && onChunk) onChunk('%%USAGE%%'+JSON.stringify(obj.usage));
+          } catch(e){}
+        }
       }
-      pump();
+    } catch(e){ onError(e); }
+  })();
     }).catch(onError);
   }
 
