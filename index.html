@@ -2904,8 +2904,15 @@ var TEAM_COLORS = {
     var body = el.querySelector('.aa-msg-body');
     if(body){
       var _liveText = (text || '').replace(/\[MJ_IMAGE\]([\s\S]*?)\[\/MJ_IMAGE\]/g, '').replace(/\[MJ_BUTTONS\]([\s\S]*?)\[\/MJ_BUTTONS\]/g, '').replace(/\[KLING_VIDEO\]([\s\S]*?)\[\/KLING_VIDEO\]/g, '').trim();
-      if(_liveText) body.innerHTML = renderMd(_liveText) + '<span style="display:inline-block;width:2px;height:13px;background:#888;margin-left:2px;vertical-align:middle;animation:aa-pulse 0.8s infinite;"></span>';
+      if(!body._renderTimer){
+    body._renderTimer = setTimeout(function(){
+      body._renderTimer = null;
+      var __text = (body._pendingText || '');
+      if(__text) body.innerHTML = renderMd(__text) + '<span style="display:inline-block;width:2px;height:13px;background:#888;margin-left:2px;vertical-align:middle;animation:aa-pulse 0.8s infinite;"></span>';
       else body.innerHTML = '<span style="display:inline-block;width:2px;height:13px;background:#888;margin-left:2px;vertical-align:middle;animation:aa-pulse 0.8s infinite;"></span>';
+    }, 50);
+  }
+  body._pendingText = _liveText;
     }
     if(!userScrolledUp) c.scrollTop = c.scrollHeight;
   }
