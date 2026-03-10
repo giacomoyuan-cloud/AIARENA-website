@@ -4505,7 +4505,7 @@ function build2v2Prompt(topic, history, speakerInfo, rnd){
       act.forEach(function(sub){
         var info = SUBS[sub]; var brandInfo = BRANDS[info.brand];
         showThink(sub);
-        var history = msgs.filter(function(m){ return !m.isError; }).map(function(m){ return (m.isUser?'User':m.name)+': '+m.text; }).join('\n');
+        var history = msgs.filter(function(m){ return !m.isError; }).map(function(m){ return (m.isUser?'[Human]':m.name)+': '+m.text; }).join('\n');
 var uid = newUid();
 var msgObj = {uid:uid, submodel:sub, brand:info.brand, name:info.name, text:'', color:brandInfo.color};
 var firstChunk = true;
@@ -4531,8 +4531,8 @@ var memText = (_bizMode || _incognitoMode || imageMode) ? '' : (_cachedMemory ||
 var _topicWithStyle = (sub === 'nanbanana2-official' && _nbStylePrefix) ? _nbStylePrefix + topic : topic;
 var _topicForPrompt = _topicWithStyle.replace(' [img]', _imgs.length ? '（已附图'+_imgs.length+'张）' : '');
 var fullPrompt = _bizMode
-  ? (history ? history + '\n\nUser: ' + _topicForPrompt : _topicForPrompt)
-  : (memText ? '【关于这个用户的已知信息】\n' + memText + '\n\n---\n\n' : '') + sysPrompt + '\n\n' + history + '\n\nUser: ' + _topicForPrompt;
+  ? (history ? history + '\n\n[Human]: ' + _topicForPrompt : _topicForPrompt)
+  : (memText ? '【关于这个用户的已知信息】\n' + memText + '\n\n---\n\n' : '') + sysPrompt + '\n\n' + history + '\n\n[Human]: ' + _topicForPrompt;
 callWorkerStream(sub, fullPrompt, _img, _imgMime,
           function(chunk){
             if(chunk.indexOf('\x00MJB\x00') === 0){
