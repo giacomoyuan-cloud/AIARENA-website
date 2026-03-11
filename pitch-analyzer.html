@@ -310,10 +310,9 @@ const HARM = [
 // 钢琴采样引擎
 // ═══════════════════════════════════════════
 const SBASE='https://pub-eff7391c158f464ab640187f9465d705.r2.dev/acoustic_grand_piano-mp3/';
-const FLAT_NAMES={1:'Bb',3:'Db',6:'Gb',8:'Ab',10:'Bb'};
-const NAT_NAMES={0:'C',2:'D',4:'E',5:'F',7:'G',9:'A',11:'B'};
+const SNAMES=['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
 const sCache={};
-function midiFile(m){const pc=((m%12)+12)%12;const oct=Math.floor(m/12)-1;const name=NAT_NAMES[pc]!==undefined?NAT_NAMES[pc]:({1:'Bb',3:'Db',6:'Gb',8:'Ab',10:'Bb'}[pc]);return name+oct;}
+function midiFile(m){return SNAMES[((m%12)+12)%12]+(Math.floor(m/12)-1);}
 async function preloadAll(ctx){
   const mids=new Set();
   MELODY.forEach(n=>mids.add(n.n));
