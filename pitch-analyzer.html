@@ -121,6 +121,24 @@ h1{font-size:22px;letter-spacing:.5em;color:#f1f5f9;margin-bottom:4px;text-align
   </div>
 </div>
 
+<div id="screen-tap" class="screen">
+  <h1>单 句 练 习</h1>
+  <div class="sub">点击任意字 · 听钢琴音高</div>
+  <div class="hpbox">
+    <div class="hpicon">👆</div>
+    <div class="hptext">
+      <strong>点击歌词跟着唱</strong>
+      点哪个字，钢琴就弹那个字的音高，跟着模仿演唱。
+    </div>
+  </div>
+  <div id="tap-lyrics" style="width:100%;background:#13131a;border:1px solid #1e293b;border-radius:12px;padding:16px;display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:12px"></div>
+  <div id="tap-info" style="width:100%;background:#13131a;border:1px solid #1e293b;border-radius:10px;padding:14px;text-align:center;margin-bottom:12px;min-height:60px">
+    <div id="tap-char" style="font-size:48px;font-weight:900;color:#334155;line-height:1">—</div>
+    <div id="tap-note-name" style="font-size:11px;color:#64748b;margin-top:6px;letter-spacing:.2em">点击歌词开始</div>
+  </div>
+  <button class="btn ghost" id="btn-tap-home">← &nbsp; 返回首页</button>
+</div>
+
 <div id="screen-countdown" class="screen">
   <h1>前 奏</h1>
   <div class="sub">听钢琴，准备好后跟唱</div>
@@ -907,13 +925,17 @@ document.getElementById('s-rhythm').textContent=rhythmScore+'分';
 // 事件
 // ═══════════════════════════════════════════
 document.getElementById('btn-start-perf').addEventListener('click',()=>doStart('performance'));
-document.getElementById('btn-start-prac').addEventListener('click',()=>doStart('practice'));
+document.getElementById('btn-start-prac').addEventListener('click',()=>doStartTap());
+document.getElementById('btn-tap-home').addEventListener('click',()=>{
+  if(tapPiano) tapPiano.releaseAll();
+  showScreen('setup');
+});
 document.getElementById('btn-stop').addEventListener('click',stopRecording);
 document.getElementById('btn-retry').addEventListener('click',()=>{
   if(audioCtx){audioCtx.close();audioCtx=null;}
   analyser=null; stream=null;
   noteResults=[];noteIdx=0;
-  doStart();
+  doStart('performance');
 });
 document.getElementById('btn-home').addEventListener('click',()=>{
   if(audioCtx){audioCtx.close();audioCtx=null;}
@@ -921,6 +943,44 @@ document.getElementById('btn-home').addEventListener('click',()=>{
   noteResults=[];noteIdx=0;
   showScreen('setup');
 });
+
+let tapPiano=null;
+
+async function doStartTap(){
+  await loadSong("songs/yuerge.json");
+  if(!MELODY||MELODY.length===0){alert("歌曲数据加载失败");return;}
+  await Tone.start();
+  if(!tapPiano){
+    tapPiano=new Tone.Sampler({
+      urls:{"A0":"A0.mp3","A1":"A1.mp3","A2":"A2.mp3","A3":"A3.mp3","A4":"A4.mp3","A5":"A5.mp3","A6":"A6.mp3","A7":"A7.mp3","C1":"C1.mp3","C2":"C2.mp3","C3":"C3.mp3","C4":"C4.mp3","C5":"C5.mp3","C6":"C6.mp3","C7":"C7.mp3","D#1":"Eb1.mp3","D#2":"Eb2.mp3","D#3":"Eb3.mp3","D#4":"Eb4.mp3","D#5":"Eb5.mp3","D#6":"Eb6.mp3","D#7":"Eb7.mp3","F#1":"Gb1.mp3","F#2":"Gb2.mp3","F#3":"Gb3.mp3","F#4":"Gb4.mp3","F#5":"Gb5.mp3","F#6":"Gb6.mp3","F#7":"Gb7.mp3"},
+      release:1,
+      baseUrl:"https://piano.pickandcase.com/acoustic_grand_piano-mp3/"
+    }).toDestination();
+    await tapPiano.loaded;
+  }
+  const container=document.getElementById('tap-lyrics');
+  container.innerHTML='';
+  MELODY.forEach((note,i)=>{
+    const btn=document.createElement('button');
+    btn.textContent=note.l;
+    btn.style.cssText='background:#1e293b;color:#94a3b8;border:1px solid #334155;border-radius:8px;padding:10px 14px;font-size:20px;font-weight:900;cursor:pointer;font-family:inherit;transition:all .1s';
+    btn.addEventListener('click',()=>{
+      tapPiano.releaseAll();
+      tapPiano.triggerAttackRelease(midiToName(note.n),'4n',undefined,0.8);
+      document.getElementById('tap-char').textContent=note.l;
+      document.getElementById('tap-char').style.color='#4ade80';
+      document.getElementById('tap-note-name').textContent=midiToName(note.n)+' · MIDI '+note.n;
+      document.querySelectorAll('#tap-lyrics button').forEach(b=>b.style.background='#1e293b');
+      btn.style.background='#166534';
+      setTimeout(()=>{
+        document.getElementById('tap-char').style.color='#334155';
+        btn.style.background='#1e293b';
+      },600);
+    });
+    container.appendChild(btn);
+  });
+  showScreen('tap');
+}
 </script>
 </body>
 </html>
