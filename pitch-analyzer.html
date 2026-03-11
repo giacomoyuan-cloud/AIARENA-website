@@ -195,6 +195,14 @@ const BPM = 68;
 const BEAT = 60000 / BPM; 
 
 const MELODY = [
+ // ═══════════════════════════════════════════
+// 旋律数据 (纯手工 XML 修正版，包含完整反复和尾声！)
+// ═══════════════════════════════════════════
+const BPM = 68;
+const BEAT = 60000 / BPM; 
+
+const MELODY = [
+  // --- 第一段 ---
   { l:'今', n:74, expStart:24732, dur:773 },
   { l:'夕', n:74, expStart:25505, dur:386 },
   { l:'何', n:67, expStart:25891, dur:386 },
@@ -235,6 +243,8 @@ const MELODY = [
   { l:'知', n:69, expStart:51009, dur:773 },
   { l:'王', n:71, expStart:51782, dur:773 },
   { l:'子', n:74, expStart:52555, dur:1159 },
+  
+  // --- 副歌 (第一遍) ---
   { l:'山', n:71, expStart:53714, dur:386 },
   { l:'有', n:74, expStart:54100, dur:1546 },
   { l:'木', n:69, expStart:55646, dur:773 },
@@ -262,7 +272,46 @@ const MELODY = [
   { l:'兮', n:62, expStart:70331, dur:386 },
   { l:'君', n:64, expStart:70717, dur:386 },
   { l:'不', n:67, expStart:71103, dur:3091 },
-  { l:'知', n:76, expStart:74195, dur:1159 }
+  { l:'知', n:76, expStart:74195, dur:1159 }, // (1. 结尾)
+
+  // --- 反复段 (跳回第25小节，严丝合缝计算得出！) ---
+  { l:'山', n:71, expStart:96994, dur:386 },
+  { l:'有', n:74, expStart:97380, dur:1546 },
+  { l:'木', n:69, expStart:98926, dur:773 },
+  { l:'兮', n:69, expStart:99699, dur:386 },
+  { l:'木', n:71, expStart:100085, dur:386 },
+  { l:'有', n:74, expStart:100472, dur:386 },
+  { l:'枝', n:71, expStart:100858, dur:386 },
+  { l:'心', n:69, expStart:101245, dur:386 },
+  { l:'悦', n:67, expStart:101631, dur:386 },
+  { l:'君', n:64, expStart:102018, dur:3091 },
+  { l:'兮', n:69, expStart:105109, dur:386 },
+  { l:'君', n:71, expStart:105496, dur:386 },
+  { l:'不', n:64, expStart:105882, dur:386 },
+  { l:'知', n:67, expStart:106268, dur:386 },
+  { l:'山', n:62, expStart:106655, dur:1546 },
+  { l:'有', n:69, expStart:108201, dur:386 },
+  { l:'木', n:71, expStart:108587, dur:386 },
+  { l:'兮', n:74, expStart:108973, dur:386 },
+  { l:'木', n:76, expStart:109360, dur:386 },
+  { l:'有', n:71, expStart:109746, dur:1546 },
+  { l:'枝', n:69, expStart:111292, dur:773 },
+  { l:'心', n:71, expStart:112065, dur:386 },
+  { l:'悦', n:67, expStart:112451, dur:386 },
+  { l:'君', n:64, expStart:112838, dur:773 },
+  { l:'兮', n:62, expStart:113611, dur:386 },
+  { l:'君', n:64, expStart:113997, dur:386 },
+  { l:'不', n:67, expStart:114383, dur:3091 },
+  
+  // --- 尾声 (2. 结尾 Coda，第39小节起) ---
+  { l:'知', n:76, expStart:117475, dur:3091 },
+  { l:'心', n:76, expStart:120566, dur:773 },
+  { l:'悦', n:74, expStart:121339, dur:1159 },
+  { l:'君', n:72, expStart:122498, dur:386 },
+  { l:'兮', n:69, expStart:122884, dur:773 },
+  { l:'君', n:71, expStart:123657, dur:1546 },
+  { l:'不', n:67, expStart:125203, dur:1546 },
+  { l:'知', n:69, expStart:126748, dur:3091 }
 ];
 
 
