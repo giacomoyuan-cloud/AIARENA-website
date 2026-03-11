@@ -85,7 +85,7 @@ h1{font-size:22px;letter-spacing:.5em;color:#f1f5f9;margin-bottom:4px;text-align
 
 <div id="screen-setup" class="screen active">
   <h1>越 人 歌</h1>
-  <div class="sub">钢琴引导 · 音准 · 节奏 智能1分析</div>
+  <div class="sub">钢琴引导 · 音准 · 节奏 智能分析</div>
   <div class="hpbox">
     <div class="hpicon">🎧</div>
     <div class="hptext">
@@ -375,9 +375,8 @@ function stopPianoScheduler(){
 // ═══════════════════════════════════════════
 // 主流程
 // ═══════════════════════════════════════════
-// ═══════════════════════════════════════════
-// 主流程
-// ═══════════════════════════════════════════
+let isRecordingPhase = false; // 记录是否已经进入正式录制阶段
+
 async function doStart(){
   try{
     stream=await navigator.mediaDevices.getUserMedia({audio:true,echoCancellation:false,noiseSuppression:false});
@@ -391,48 +390,60 @@ async function doStart(){
   noteResults=MELODY.map((_,i)=>({idx:i,centsArr:[],actualDur:0,started:false}));
   noteIdx=0; timeOnNote=0;
 
-  // 直接进入录制界面（先是前奏阶段）
+  // 直接进入录制界面
   showScreen('recording');
-  document.getElementById('rec-sub').textContent='🎹 前奏中';
+  document.getElementById('rec-sub').textContent='🎹 伴奏缓冲加载中...'; 
   document.getElementById('big-lyric').textContent='♪';
   document.getElementById('big-lyric').className='';
   document.getElementById('pitch-row').style.visibility='hidden';
 
-  const ctx=audioCtx;
-  const bps=60/BPM;
-  
-  // 这里换成了我们刚才确认的精确前奏时间 22.08秒！
-  const introDurSec = 22.08; 
-  const introMs = introDurSec * 1000;
+  isRecordingPhase = false;
 
-  // 启动滚动钢琴调度
+  // 开始加载并播放音乐
   startPianoScheduler();
 
-  // 倒计时调整为以节拍绝对时间驱动
-  setTimeout(()=>{document.getElementById('big-lyric').textContent='3';}, introMs - BEAT*3);
-  setTimeout(()=>{document.getElementById('big-lyric').textContent='2';}, introMs - BEAT*2);
-  setTimeout(()=>{document.getElementById('big-lyric').textContent='1';}, introMs - BEAT);
-  setTimeout(()=>{
-    document.getElementById('rec-sub').textContent='● 录制中';
-    document.getElementById('pitch-row').style.visibility='visible';
-    startRecording();
-  }, introMs);
-}
-
-function startRecording(){
-  showScreen('recording');
-  recordingStart=performance.now();
-  noteIdx=0; timeOnNote=0; noteActualStart=0;
+  // 直接启动循环，不要用 setTimeout 等待了
   raf=requestAnimationFrame(recordLoop);
 }
 
-// ═══════════════════════════════════════════
-// 录制循环 + 音符跟随算法
-// ═══════════════════════════════════════════
+// 录制循环 + 音符跟随算法 (完全基于音频实际进度)
 function recordLoop(){
-  if(!analyser) return;
-  const elapsed=performance.now()-recordingStart;
-  globalElapsed=elapsed;
+  if(!analyser || !pianoAudio) {
+    raf=requestAnimationFrame(recordLoop);
+    return;
+  }
+
+  // 【核心杀手锏】：直接读取音频的绝对物理播放时间，无视任何网络延迟卡顿！
+  const ct = pianoAudio.currentTime;
+  
+  // 通过你上次的测试结果，我们推算出了音频文件最精准的开口时间
+  const VOCAL_START_TIME = 22.08; 
+
+  // 阶段1：前奏与倒计时阶段 (音乐还没走到 22.08 秒)
+  if (ct < VOCAL_START_TIME) {
+    const remain = VOCAL_START_TIME - ct;
+    const bl = document.getElementById('big-lyric');
+    
+    // 动态显示 3、2、1 倒数，完全卡着伴奏的拍子走
+    if (remain <= BEAT*1/1000 && remain > 0) bl.textContent = '1';
+    else if (remain <= BEAT*2/1000) bl.textContent = '2';
+    else if (remain <= BEAT*3/1000) bl.textContent = '3';
+    else bl.textContent = '♪';
+    
+    raf=requestAnimationFrame(recordLoop);
+    return;
+  }
+
+  // 阶段2：正式录制与打分阶段 (音乐过了 22.08 秒)
+  if (!isRecordingPhase) {
+    isRecordingPhase = true;
+    document.getElementById('rec-sub').textContent='● 录制中';
+    document.getElementById('pitch-row').style.visibility='visible';
+  }
+
+  // 绝对零误差计算：音乐当前的真实时间 - 第一句开口时间
+  const elapsed = (ct - VOCAL_START_TIME) * 1000;
+  globalElapsed = elapsed;
 
   const buf=new Float32Array(analyser.fftSize);
   analyser.getFloatTimeDomainData(buf);
@@ -445,13 +456,91 @@ function recordLoop(){
   const cents=freq>0? 1200*Math.log2(freq/expectedFreq) : null;
   const absCents=cents!==null?Math.abs(cents):999;
 
-  // 收集音准数据
   if(cents!==null){
     noteResults[noteIdx].centsArr.push(cents);
-    if(!noteResults[noteIdx].started){
-      noteResults[noteIdx].started=true;
+    if(!noteResults[noteIdx].started) noteResults[noteIdx].started=true;
+  }
+
+  const nextNote = MELODY[noteIdx+1];
+  if(nextNote && elapsed >= nextNote.expStart){
+    noteResults[noteIdx].actualDur = elapsed - current.expStart;
+    noteIdx++;
+    if(noteIdx>=MELODY.length){
+      stopRecording(); return;
     }
   }
+
+  // ── UI更新 ──
+  const bigLyric=document.getElementById('big-lyric');
+  const pitchNote=document.getElementById('pitch-note');
+  const pitchCents=document.getElementById('pitch-cents');
+  const meterFill=document.getElementById('meter-fill');
+
+  bigLyric.textContent=current.l;
+
+  if(cents!==null){
+    const clamped=Math.max(-50,Math.min(50,cents));
+    const pct=50+clamped;
+    const col=absCents<10?'#4ade80':absCents<25?'#fbbf24':'#f87171';
+    meterFill.style.left=Math.min(50,pct)+'%';
+    meterFill.style.width=Math.abs(pct-50)+'%';
+    meterFill.style.background=col;
+    bigLyric.className=absCents<10?'good':absCents<25?'warn':'bad';
+    pitchNote.textContent=midiToName(Math.round(69+12*Math.log2(freq/440)));
+    pitchNote.style.color=col;
+    pitchCents.textContent=(cents>0?'+':'')+Math.round(cents)+'¢';
+    pitchCents.style.color=col;
+  } else {
+    bigLyric.className='';
+    bigLyric.style.color='#334155';
+    meterFill.style.width='0%';
+    pitchNote.textContent='—'; pitchNote.style.color='#334155';
+    pitchCents.textContent='等待声音'; pitchCents.style.color='#334155';
+  }
+  if(freq>0) bigLyric.style.color='';
+
+  const pctProg=Math.round(noteIdx/MELODY.length*100);
+  document.getElementById('prog-fill').style.width=pctProg+'%';
+  document.getElementById('r-progress').textContent=pctProg+'%';
+
+  const beatPos=Math.floor(elapsed/BEAT)%4;
+  for(let i=0;i<4;i++) document.getElementById('bd'+i).className='bd'+(i===beatPos?' on':'');
+
+  const done=noteResults.slice(0,noteIdx).filter(r=>r.centsArr.length>=2);
+  if(done.length>0){
+    const avgAbsCents=done.reduce((s,r)=>{
+      const avg=r.centsArr.reduce((a,b)=>a+Math.abs(b),0)/r.centsArr.length;
+      return s+avg;
+    },0)/done.length;
+    const ps=Math.round(Math.max(0,100-avgAbsCents*1.8));
+    document.getElementById('r-pitch').textContent=ps;
+
+    const rhythmDone=done.filter(r=>r.actualDur>0);
+    if(rhythmDone.length>0){
+      const avgRhythm=rhythmDone.reduce((s,r)=>{
+        const exp=MELODY[r.idx]?MELODY[r.idx].dur:BEAT;
+        const ratio=Math.min(r.actualDur,exp*2)/exp;
+        return s+Math.max(0,1-Math.abs(ratio-1));
+      },0)/rhythmDone.length;
+      document.getElementById('r-rhythm').textContent=Math.round(avgRhythm*100);
+    }
+  }
+
+  MELODY.forEach((_,i)=>{
+    const el=document.getElementById('lc-'+i);
+    if(!el) return;
+    if(i===noteIdx) el.className='lc now';
+    else if(i<noteIdx){
+      const r=noteResults[i];
+      if(r.centsArr.length>=2){
+        const avg=r.centsArr.reduce((a,b)=>a+Math.abs(b),0)/r.centsArr.length;
+        el.className=avg<10?'lc dg':avg<25?'lc dw':'lc db';
+      } else { el.className='lc dw'; }
+    } else { el.className='lc'; }
+  });
+
+  raf=requestAnimationFrame(recordLoop);
+}
 
   // ── 音符推进判定（用绝对时间，不累积误差）──
   const nextNote = MELODY[noteIdx+1];
