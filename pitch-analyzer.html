@@ -496,14 +496,10 @@ function recordLoop(){
     }
   }
 
-  // ── 音符推进判定 ──
-  // 条件: 音高匹配(±150¢) 且已唱足够久，或超时
-  const minTime=current.dur*0.25;
-  const maxTime=current.dur*2.2;
-  const pitchMatch=absCents<150 && freq>0;
+  // ── 音符推进判定（跟着MP3时间走）──
+  const timeBasedAdvance = timeOnNote > current.dur * 0.85;
 
-  if((pitchMatch && timeOnNote>minTime) || timeOnNote>maxTime){
-    // 记录当前音符实际时长
+  if(timeBasedAdvance){
     noteResults[noteIdx].actualDur=timeOnNote;
     noteIdx++;
     noteActualStart=elapsed;
