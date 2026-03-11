@@ -2,6 +2,7 @@
   "title": "越人歌",
   "bpm": 68,
   "vocalStart": 24732,
+  "mp3": "https://pub-eff7391c158f464ab640187f9465d705.r2.dev/yueren.mp3",
   "melody": [
     {"l":"今","n":74,"expStart":24732,"dur":773,"s":0},
     {"l":"夕","n":74,"expStart":25505,"dur":386,"s":0},
