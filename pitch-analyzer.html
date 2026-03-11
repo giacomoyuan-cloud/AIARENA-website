@@ -418,12 +418,12 @@ function recordLoop() {
     const clamped = Math.max(-50, Math.min(50, cents));
     const pct = 50 + clamped; // 0-100
 
-    if(abs < 25) {
+    if(abs < 10) {
       bigLyric.className = 'good';
       meterFill.style.background = '#4ade80';
       pitchStatus.style.color = '#4ade80';
       pitchStatus.textContent = `✓ 准确  ${cents > 0 ? '+' : ''}${Math.round(cents)}¢`;
-    } else if(abs < 50) {
+    } else if(abs < 25) {
       bigLyric.className = 'warn';
       meterFill.style.background = '#fbbf24';
       pitchStatus.style.color = '#fbbf24';
@@ -497,7 +497,7 @@ function analyzeRecording() {
     const centsArr = valid.map(r => 1200 * Math.log2(r.freq / tf));
     const avg = centsArr.reduce((a, b) => a + b, 0) / centsArr.length;
     const abs = Math.abs(avg);
-    return { ...note, status: abs < 25 ? 'good' : abs < 50 ? 'slight' : 'bad', avgCents: Math.round(avg), i };
+    return { ...note, status: abs < 10 ? 'good' : abs < 25 ? 'slight' : 'bad', avgCents: Math.round(avg), i };
   });
 }
 
