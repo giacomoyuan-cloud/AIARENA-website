@@ -188,6 +188,7 @@ h1{font-size:22px;letter-spacing:.5em;color:#f1f5f9;margin-bottom:4px;text-align
   <button class="btn ghost" id="btn-home" style="margin-top:8px">← &nbsp; 返回首页</button>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/tone@14.7.77/build/Tone.js"></script>
 <script>
 // ═══════════════════════════════════════════
 // 1. 全量旋律数据（完全平铺，包含反复和尾声）
@@ -227,7 +228,8 @@ const MELODY = [
 // ═══════════════════════════════════════════
 // 2. 核心状态变量
 // ═══════════════════════════════════════════
-let audioCtx=null, analyser=null, stream=null, raf=null, pianoAudio=null;
+let audioCtx=null, analyser=null, stream=null, raf=null;
+let piano=null;
 let noteIdx=0, noteResults=[], isRecordingPhase=false;
 let pitchHistory=[];
 
@@ -288,6 +290,37 @@ return sampleRate / tau
 
 return -1
 }
+// ─────────────────────────────────────────
+// Score Following (DTW-lite)
+// 根据最近的音高序列，匹配乐谱当前位置
+// ─────────────────────────────────────────
+function followScore(freq){
+
+if(freq<=0) return noteIdx;
+
+const windowSize = 5;   // 允许前后搜索的音符窗口
+let bestIdx = noteIdx;
+let bestErr = Infinity;
+
+for(let i = Math.max(0,noteIdx-windowSize); 
+    i < Math.min(MELODY.length,noteIdx+windowSize); 
+    i++){
+
+    const target = midiToFreq(MELODY[i].n);
+
+    const cents = 1200*Math.log2(freq/target);
+    const err = Math.abs(cents);
+
+    if(err < bestErr){
+        bestErr = err;
+        bestIdx = i;
+    }
+
+}
+
+return bestIdx;
+
+}
 
 
 
@@ -336,8 +369,6 @@ ctx.stroke();
 
 }
 
-}
-
 function detectVibrato(arr){
 
 if(arr.length<20) return false;
@@ -357,6 +388,37 @@ return changes>6;
 
 }
 
+function detectOnsetDeviation(results){
+
+let total=0;
+let count=0;
+
+for(let i=0;i<results.length;i++){
+
+const r=results[i];
+
+if(!r.started) continue;
+
+const expected=MELODY[i].expStart;
+const actual=expected+r.actualDur;
+
+const diff=Math.abs(actual-expected);
+
+total+=diff;
+count++;
+
+}
+
+if(count===0) return 0;
+
+const avg=total/count;
+
+const score=Math.max(0,100-avg/10);
+
+return Math.round(score);
+
+}
+
 function showScreen(id){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById('screen-'+id).classList.add('active');
@@ -371,8 +433,30 @@ function buildStrip(){
     strip.appendChild(s);
   });
 }
-
 async function doStart(){
+
+await Tone.start();
+
+piano = new Tone.Sampler({
+urls:{
+"C3":"C3.mp3",
+"D3":"D3.mp3",
+"E3":"E3.mp3",
+"F3":"F3.mp3",
+"G3":"G3.mp3",
+"A3":"A3.mp3",
+"B3":"B3.mp3",
+"C4":"C4.mp3",
+"D4":"D4.mp3",
+"E4":"E4.mp3",
+"F4":"F4.mp3",
+"G4":"G4.mp3",
+"A4":"A4.mp3",
+"B4":"B4.mp3"
+},
+release:1,
+baseUrl:"https://tonejs.github.io/audio/salamander/"
+}).toDestination();
   try{
     stream=await navigator.mediaDevices.getUserMedia({audio:true,echoCancellation:false,noiseSuppression:false});
     audioCtx=new(window.AudioContext||window.webkitAudioContext)();
@@ -382,7 +466,13 @@ async function doStart(){
   }catch(e){alert('需要麦克风权限 🎤');return;}
 
   buildStrip();
-  noteResults=MELODY.map((_,i)=>({idx:i,centsArr:[],actualDur:0,started:false}));
+  noteResults=MELODY.map((_,i)=>({
+idx:i,
+centsArr:[],
+actualDur:0,
+started:false,
+played:false
+}));
   noteIdx=0; isRecordingPhase=false;
 
   showScreen('recording');
@@ -390,9 +480,7 @@ async function doStart(){
   document.getElementById('big-lyric').textContent='♪';
   document.getElementById('pitch-row').style.visibility='hidden';
 
-  pianoAudio=new Audio('https://pub-eff7391c158f464ab640187f9465d705.r2.dev/yueren.mp3');
-  pianoAudio.volume=0.85;
-  pianoAudio.play();
+  
 
   raf=requestAnimationFrame(recordLoop);
 }
@@ -401,11 +489,12 @@ async function doStart(){
 // 5. 实时录制与对齐循环
 // ═══════════════════════════════════════════
 function recordLoop(){
-  if(!analyser || !pianoAudio) {
+  if(!analyser){
     raf=requestAnimationFrame(recordLoop);
     return;
-  }
-  const ct = pianoAudio.currentTime;
+}
+
+const ct = performance.now() / 1000;
 
   // 倒计时阶段
   if (ct < VOCAL_START_TIME) {
@@ -430,7 +519,12 @@ function recordLoop(){
   const buf=new Float32Array(analyser.fftSize);
 analyser.getFloatTimeDomainData(buf);
 
-const freq=detectPitch(buf,audioCtx.sampleRate);
+const rawFreq = detectPitch(buf,audioCtx.sampleRate);
+
+const freq =
+pitchHistory.length>0
+? pitchHistory[pitchHistory.length-1]*0.7 + rawFreq*0.3
+: rawFreq;
 
 if(freq>0){
 
@@ -449,21 +543,35 @@ drawPitchGraph();
 
 const current=MELODY[noteIdx];
 
-  if(current){
-    const expectedFreq=midiToFreq(current.n);
-    const cents=freq>0? 1200*Math.log2(freq/expectedFreq) : null;
+if(current){
 
-    if(cents !== null){
+if(piano && !noteResults[noteIdx].played){
+
+const noteName = midiToName(current.n);
+
+piano.triggerAttackRelease(noteName,"8n",undefined,0.6);
+
+noteResults[noteIdx].played = true;
+
+}
+
+}
+
+}
 
     if(Math.abs(cents) < 120){
-        noteResults[noteIdx].centsArr.push(cents)
+        if(noteResults[noteIdx]){
+if(noteResults[noteIdx]){
+noteResults[noteIdx].centsArr.push(cents)
+}
+}
     }
 
     if(!noteResults[noteIdx].started){
         noteResults[noteIdx].started = true;
     }
 
-    const absCents = Math.abs(cents);
+    const absCents = cents!==null ? Math.abs(cents) : 0;
     const clamped = Math.max(-50, Math.min(50, cents));
     const pct = 50 + clamped;
 
@@ -515,7 +623,9 @@ const current=MELODY[noteIdx];
 // ═══════════════════════════════════════════
 function stopRecording(){
   cancelAnimationFrame(raf); raf=null;
-  if(pianoAudio){pianoAudio.pause(); pianoAudio=null;}
+  if(piano){
+    piano.releaseAll();
+}
   stream&&stream.getTracks().forEach(t=>t.stop());
   showScreen('analyzing');
   setTimeout(analyzeAndReport,1000);
@@ -551,7 +661,8 @@ Math.abs(avg)<15
 
   showScreen('result');
   document.getElementById('s-pitch').textContent=pitchScore+'分';
-  document.getElementById('s-rhythm').textContent='88分'; 
+  const rhythmScore=detectOnsetDeviation(noteResults);
+document.getElementById('s-rhythm').textContent=rhythmScore+'分'; 
 
   const grid=document.getElementById('note-grid');
   grid.innerHTML='';
