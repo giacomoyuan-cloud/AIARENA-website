@@ -387,8 +387,7 @@ function startRecording() {
     playPianoNote(audioCtx, note.n, t, note.dur / 1000 * 0.85);
   });
 
-  // 自动结束
-  setTimeout(() => { if(raf) stopRecording(); }, TOTAL_MS + 1000);
+// 自动结束已关闭，需手动点停止
 
   raf = requestAnimationFrame(recordLoop);
 }
