@@ -111,7 +111,8 @@ h1{font-size:22px;letter-spacing:.5em;color:#f1f5f9;margin-bottom:4px;text-align
       心悦君兮君不知 ×2
     </div>
   </div>
-  <button class="btn primary" id="btn-start">🎹 &nbsp; 开始演唱</button>
+  <button class="btn primary" id="btn-start-perf">🎵 &nbsp; 跟伴奏演唱</button>
+<button class="btn secondary" id="btn-start-prac" style="background:#1e3a5f;color:#bae6fd;margin-top:8px">🎹 &nbsp; 逐字练习模式</button>
 </div>
 
 <div id="screen-countdown" class="screen">
@@ -210,6 +211,20 @@ let piano=null;
 let noteIdx=0, noteResults=[], isRecordingPhase=false;
 let pitchHistory=[];
 let matchStreak=0, matchTarget=-1;
+let currentMode='practice'; // 'practice' | 'performance'
+let pianoAudio=null;
+const PIANO_MP3='https://pub-eff7391c158f464ab640187f9465d705.r2.dev/yueren.mp3';
+const VOCAL_START_SEC=24.732;
+const BEAT=60000/68;
+
+function startPianoMP3(){
+  pianoAudio=new Audio(PIANO_MP3);
+  pianoAudio.volume=0.85;
+  pianoAudio.play();
+}
+function stopPianoMP3(){
+  if(pianoAudio){pianoAudio.pause();pianoAudio.currentTime=0;pianoAudio=null;}
+}
 
 const NOTES_NAMES=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 function midiToFreq(m){return 440*Math.pow(2,(m-69)/12);}
@@ -499,12 +514,34 @@ VOCAL_START_TIME = data.vocalStart;
 MELODY = data.melody;
 
 }
-async function doStart(){
+async function doStart(mode){
+currentMode = mode;
 await loadSong("songs/yuerge.json")
 
 if(!MELODY || MELODY.length===0){
 alert("歌曲数据加载失败");
 return;
+}
+
+if(currentMode==='performance'){
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({audio:true,echoCancellation:false,noiseSuppression:false});
+    audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+    analyser=audioCtx.createAnalyser();
+    analyser.fftSize=2048;analyser.smoothingTimeConstant=0;
+    audioCtx.createMediaStreamSource(stream).connect(analyser);
+  }catch(e){alert('需要麦克风权限 🎤');return;}
+  buildStrip();
+  noteResults=MELODY.map((_,i)=>({idx:i,centsArr:[],actualStart:null,actualDur:0,started:false,played:false}));
+  noteIdx=0;isRecordingPhase=false;pitchHistory=[];matchStreak=0;matchTarget=-1;
+  showScreen('recording');
+  document.getElementById('rec-sub').textContent='🎵 伴奏加载中...';
+  document.getElementById('big-lyric').textContent='♪';
+  document.getElementById('big-lyric').className='';
+  document.getElementById('pitch-row').style.visibility='hidden';
+  startPianoMP3();
+  raf=requestAnimationFrame(recordLoop);
+  return;
 }
 
 await Tone.start();
@@ -581,12 +618,73 @@ played:false
 // 5. 实时录制与对齐循环
 // ═══════════════════════════════════════════
 function recordLoop(){
+if(!analyser){raf=requestAnimationFrame(recordLoop);return;}
 
-if(!analyser){
-raf=requestAnimationFrame(recordLoop);
-return;
+// ── 演唱模式：用MP3时间轴驱动 ──
+if(currentMode==='performance'){
+  if(!pianoAudio){raf=requestAnimationFrame(recordLoop);return;}
+  const ct=pianoAudio.currentTime;
+  if(ct < VOCAL_START_SEC){
+    const remain=VOCAL_START_SEC-ct;
+    const bl=document.getElementById('big-lyric');
+    if(remain<=BEAT*1/1000) bl.textContent='1';
+    else if(remain<=BEAT*2/1000) bl.textContent='2';
+    else if(remain<=BEAT*3/1000) bl.textContent='3';
+    else bl.textContent='♪';
+    raf=requestAnimationFrame(recordLoop);
+    return;
+  }
+  if(!isRecordingPhase){
+    isRecordingPhase=true;
+    document.getElementById('rec-sub').textContent='● 录制中';
+    document.getElementById('pitch-row').style.visibility='visible';
+  }
+  const elapsed=ct*1000;
+  const buf=new Float32Array(analyser.fftSize);
+  analyser.getFloatTimeDomainData(buf);
+  const freq=detectPitch(buf,audioCtx.sampleRate);
+  const current=MELODY[noteIdx];
+  if(!current){stopRecording();return;}
+  const expectedFreq=midiToFreq(current.n);
+  const cents=freq>0?1200*Math.log2(freq/expectedFreq):null;
+  if(cents!==null){
+    if(Math.abs(cents)<120) noteResults[noteIdx].centsArr.push(cents);
+    if(!noteResults[noteIdx].started){noteResults[noteIdx].started=true;noteResults[noteIdx].actualStart=elapsed;}
+  }
+  const nextNote=MELODY[noteIdx+1];
+  if(nextNote&&elapsed>=nextNote.expStart){
+    noteResults[noteIdx].actualDur=elapsed-current.expStart;
+    noteIdx++;
+    if(noteIdx>=MELODY.length){stopRecording();return;}
+  }
+  // UI
+  const bl=document.getElementById('big-lyric');
+  bl.textContent=current.l;
+  if(cents!==null){
+    const absCents=Math.abs(cents);
+    const clamped=Math.max(-50,Math.min(50,cents));
+    const pct=50+clamped;
+    const col=absCents<10?'#4ade80':absCents<25?'#fbbf24':'#f87171';
+    const mf=document.getElementById('meter-fill');
+    mf.style.left=Math.min(50,pct)+'%';mf.style.width=Math.abs(pct-50)+'%';mf.style.background=col;
+    bl.className=absCents<10?'good':absCents<25?'warn':'bad';
+    document.getElementById('pitch-note').textContent=midiToName(Math.round(69+12*Math.log2(freq/440)));
+    document.getElementById('pitch-cents').textContent=(cents>0?'+':'')+Math.round(cents)+'¢';
+  } else {
+    bl.className='';document.getElementById('meter-fill').style.width='0%';
+    document.getElementById('pitch-note').textContent='—';
+    document.getElementById('pitch-cents').textContent='等待声音';
+  }
+  document.getElementById('prog-fill').style.width=Math.round(noteIdx/MELODY.length*100)+'%';
+  document.getElementById('r-progress').textContent=Math.round(noteIdx/MELODY.length*100)+'%';
+  const beatPos=Math.floor(elapsed/BEAT)%4;
+  for(let i=0;i<4;i++) document.getElementById('bd'+i).className='bd'+(i===beatPos?' on':'');
+  MELODY.forEach((_,i)=>{const el=document.getElementById('lc-'+i);if(el) el.className=i===noteIdx?'lc now':'lc';});
+  raf=requestAnimationFrame(recordLoop);
+  return;
 }
 
+// ── 练习模式（原有逻辑继续往下走）──
 const ct = audioCtx.currentTime;
 const elapsed = ct*1000;
 
@@ -722,9 +820,8 @@ raf=requestAnimationFrame(recordLoop);
 // ═══════════════════════════════════════════
 function stopRecording(){
   cancelAnimationFrame(raf); raf=null;
-  if(piano){
-    piano.releaseAll();
-}
+  if(piano) piano.releaseAll();
+  stopPianoMP3();
   stream&&stream.getTracks().forEach(t=>t.stop());
   showScreen('analyzing');
   setTimeout(analyzeAndReport,1000);
@@ -803,7 +900,8 @@ document.getElementById('s-rhythm').textContent=rhythmScore+'分';
 // ═══════════════════════════════════════════
 // 事件
 // ═══════════════════════════════════════════
-document.getElementById('btn-start').addEventListener('click',doStart);
+document.getElementById('btn-start-perf').addEventListener('click',()=>doStart('performance'));
+document.getElementById('btn-start-prac').addEventListener('click',()=>doStart('practice'));
 document.getElementById('btn-stop').addEventListener('click',stopRecording);
 document.getElementById('btn-retry').addEventListener('click',()=>{
   if(audioCtx){audioCtx.close();audioCtx=null;}
