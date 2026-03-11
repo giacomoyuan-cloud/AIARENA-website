@@ -225,6 +225,7 @@ let currentSong = null;
 let BPM = 68;
 let BEAT = 60000 / BPM;
 let VOCAL_START_TIME = 0;
+let VOCAL_START_SEC = 24.732;
 let MELODY = [];
 
 // ═══════════════════════════════════════════
@@ -238,8 +239,7 @@ let matchStreak=0, matchTarget=-1;
 let currentMode='practice'; // 'practice' | 'performance'
 let pianoAudio=null;
 const PIANO_MP3='https://pub-eff7391c158f464ab640187f9465d705.r2.dev/yueren.mp3';
-const VOCAL_START_SEC=24.732;
-const BEAT=60000/68;
+let VOCAL_START_SEC=24.732;
 
 function startPianoMP3(){
   pianoAudio=new Audio(PIANO_MP3);
@@ -535,6 +535,7 @@ currentSong = data;
 BPM = data.bpm;
 BEAT = 60000 / BPM;
 VOCAL_START_TIME = data.vocalStart;
+VOCAL_START_SEC = data.vocalStart / 1000;
 MELODY = data.melody;
 
 }
