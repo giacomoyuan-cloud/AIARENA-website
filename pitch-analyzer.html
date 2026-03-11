@@ -125,6 +125,7 @@ h1{font-size:22px;letter-spacing:.5em;color:#f1f5f9;margin-bottom:4px;text-align
   <h1>越 人 歌</h1>
   <div class="sub" id="rec-sub">● 录制中</div>
   <div id="big-lyric-wrap">
+    <canvas id="pitch-graph" width="440" height="120" style="margin-top:10px;background:#0b0b11;border:1px solid #1e293b;border-radius:6px"></canvas>
     <div id="big-lyric">—</div>
     <div id="pitch-row">
       <div id="pitch-note" style="color:#334155">—</div>
@@ -228,6 +229,7 @@ const MELODY = [
 // ═══════════════════════════════════════════
 let audioCtx=null, analyser=null, stream=null, raf=null, pianoAudio=null;
 let noteIdx=0, noteResults=[], isRecordingPhase=false;
+let pitchHistory=[];
 
 const NOTES_NAMES=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 function midiToFreq(m){return 440*Math.pow(2,(m-69)/12);}
@@ -285,31 +287,61 @@ return sampleRate / tau
 }
 
 return -1
-
-}const N=buf.length;let rms=0;
-  for(let i=0;i<N;i++)rms+=buf[i]*buf[i];
-  rms=Math.sqrt(rms/N);if(rms<0.015)return -1;
-  let s=0,e=N-1;
-  for(let i=0;i<N/2;i++){if(Math.abs(buf[i])<0.2){s=i;break;}}
-  for(let i=1;i<N/2;i++){if(Math.abs(buf[N-i])<0.2){e=N-i;break;}}
-  const b=buf.slice(s,e);const M=b.length;if(M<20)return -1;
-  const c=new Float32Array(M);
-  for(let i=0;i<M;i++)for(let j=0;j<M-i;j++)c[i]+=b[j]*b[j+i];
-  let d=0;while(d<M-1&&c[d]>c[d+1])d++;
-  let maxV=-1,maxP=-1;
-  for(let i=d;i<M;i++)if(c[i]>maxV){maxV=c[i];maxP=i;}
-  if(maxP<=0)return -1;
-  if(maxP<M-1){
-    const av=(c[maxP-1]+c[maxP+1]-2*c[maxP])/2;
-    const bv=(c[maxP+1]-c[maxP-1])/2;
-    return sr/(av?maxP-bv/(2*av):maxP);
-  }
-  return sr/maxP;
 }
+
+
 
 // ═══════════════════════════════════════════
 // 4. UI 流程控制
 // ═══════════════════════════════════════════
+function drawPitchGraph(){
+
+const canvas=document.getElementById('pitch-graph');
+if(!canvas) return;
+
+const ctx=canvas.getContext('2d');
+
+ctx.clearRect(0,0,canvas.width,canvas.height);
+
+ctx.strokeStyle="#3b82f6";
+ctx.lineWidth=2;
+
+ctx.beginPath();
+
+for(let i=0;i<pitchHistory.length;i++){
+
+const x=i*(canvas.width/pitchHistory.length);
+
+const y=canvas.height-(pitchHistory[i]/1000)*canvas.height;
+
+if(i===0) ctx.moveTo(x,y);
+else ctx.lineTo(x,y);
+
+}
+
+ctx.stroke();
+
+}
+
+function detectVibrato(arr){
+
+if(arr.length<20) return false;
+
+let changes=0;
+
+for(let i=2;i<arr.length;i++){
+
+const d1=arr[i]-arr[i-1];
+const d2=arr[i-1]-arr[i-2];
+
+if(d1*d2<0) changes++;
+
+}
+
+return changes>6;
+
+}
+
 function showScreen(id){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById('screen-'+id).classList.add('active');
@@ -381,9 +413,17 @@ function recordLoop(){
 
   const elapsed = ct * 1000;
   const buf=new Float32Array(analyser.fftSize);
-  analyser.getFloatTimeDomainData(buf);
-  const freq=detectPitch(buf,audioCtx.sampleRate);
-  const current=MELODY[noteIdx];
+analyser.getFloatTimeDomainData(buf);
+
+const freq=detectPitch(buf,audioCtx.sampleRate);
+
+if(freq>0){
+pitchHistory.push(freq);
+if(pitchHistory.length>200) pitchHistory.shift();
+drawPitchGraph();
+}
+
+const current=MELODY[noteIdx];
 
   if(current){
     const expectedFreq=midiToFreq(current.n);
@@ -463,12 +503,21 @@ function analyzeAndReport(){
     if(!r||r.centsArr.length<2) return{...note,status:'missed',avgCents:null};
     const sorted=[...r.centsArr].sort((a,b)=>a-b)
 
+const hasVibrato = detectVibrato(r.centsArr);
+
 const mid=Math.floor(sorted.length/2)
 
 const avg=sorted.length%2
 ? sorted[mid]
 : (sorted[mid-1]+sorted[mid])/2
-    return{...note,status:Math.abs(avg)<15?'good':Math.abs(avg)<30?'slight':'bad',avgCents:Math.round(avg)};
+    return{...note,status:
+Math.abs(avg)<15
+?'good'
+:hasVibrato
+?'good'
+:Math.abs(avg)<30
+?'slight'
+:'bad',avgCents:Math.round(avg)};
   });
 
   const pitchScore=Math.round(pitchResults.reduce((s,r)=>{
