@@ -236,8 +236,57 @@ function midiToName(m){return NOTES_NAMES[((m%12)+12)%12]+Math.floor((m+12)/12-1
 // ═══════════════════════════════════════════
 // 3. 音频处理算法
 // ═══════════════════════════════════════════
-function autoCorrelate(buf,sr){
-  const N=buf.length;let rms=0;
+function detectPitch(buffer, sampleRate){
+
+const threshold = 0.1
+const tauMax = buffer.length / 2
+
+let diff = new Float32Array(tauMax)
+
+for(let tau=1;tau<tauMax;tau++){
+
+let sum = 0
+
+for(let i=0;i<tauMax;i++){
+
+let d = buffer[i] - buffer[i+tau]
+sum += d*d
+
+}
+
+diff[tau] = sum
+
+}
+
+let cmnd = new Float32Array(tauMax)
+
+cmnd[0] = 1
+
+let running = 0
+
+for(let tau=1;tau<tauMax;tau++){
+
+running += diff[tau]
+
+cmnd[tau] = diff[tau] * tau / running
+
+}
+
+for(let tau=2;tau<tauMax;tau++){
+
+if(cmnd[tau] < threshold){
+
+while(tau+1 < tauMax && cmnd[tau+1] < cmnd[tau]) tau++
+
+return sampleRate / tau
+
+}
+
+}
+
+return -1
+
+}const N=buf.length;let rms=0;
   for(let i=0;i<N;i++)rms+=buf[i]*buf[i];
   rms=Math.sqrt(rms/N);if(rms<0.015)return -1;
   let s=0,e=N-1;
@@ -333,32 +382,40 @@ function recordLoop(){
   const elapsed = ct * 1000;
   const buf=new Float32Array(analyser.fftSize);
   analyser.getFloatTimeDomainData(buf);
-  const freq=autoCorrelate(buf,audioCtx.sampleRate);
+  const freq=detectPitch(buf,audioCtx.sampleRate);
   const current=MELODY[noteIdx];
 
   if(current){
     const expectedFreq=midiToFreq(current.n);
     const cents=freq>0? 1200*Math.log2(freq/expectedFreq) : null;
 
-    if(cents!==null){
-      noteResults[noteIdx].centsArr.push(cents);
-      if(!noteResults[noteIdx].started) noteResults[noteIdx].started=true;
+    if(cents !== null){
+
+    if(Math.abs(cents) < 120){
+        noteResults[noteIdx].centsArr.push(cents)
     }
 
-    // 翻页逻辑
-    const nextNote = MELODY[noteIdx+1];
-    if(nextNote && elapsed >= nextNote.expStart){
-      noteResults[noteIdx].actualDur = elapsed - current.expStart;
-      noteIdx++;
-    } else if (!nextNote && elapsed >= current.expStart + current.dur + 2000) {
-      stopRecording(); return;
+    if(!noteResults[noteIdx].started){
+        noteResults[noteIdx].started = true;
     }
 
-    // UI 实时反馈
-    const bigLyric=document.getElementById('big-lyric');
-    bigLyric.textContent=current.l;
+    const absCents = Math.abs(cents);
+    const clamped = Math.max(-50, Math.min(50, cents));
+    const pct = 50 + clamped;
+
     const meterFill = document.getElementById('meter-fill');
-    if(cents!==null){
+
+    const col = absCents < 15
+        ? '#4ade80'
+        : absCents < 30
+        ? '#fbbf24'
+        : '#f87171';
+
+    meterFill.style.width = Math.abs(pct - 50) + '%';
+    meterFill.style.left = Math.min(50, pct) + '%';
+    meterFill.style.background = col;
+
+}
       const absCents=Math.abs(cents);
       const clamped=Math.max(-50,Math.min(50,cents));
       const pct=50+clamped;
@@ -404,7 +461,13 @@ function analyzeAndReport(){
   const pitchResults=MELODY.map((note,i)=>{
     const r=noteResults[i];
     if(!r||r.centsArr.length<2) return{...note,status:'missed',avgCents:null};
-    const avg=r.centsArr.reduce((a,b)=>a+b,0)/r.centsArr.length;
+    const sorted=[...r.centsArr].sort((a,b)=>a-b)
+
+const mid=Math.floor(sorted.length/2)
+
+const avg=sorted.length%2
+? sorted[mid]
+: (sorted[mid-1]+sorted[mid])/2
     return{...note,status:Math.abs(avg)<15?'good':Math.abs(avg)<30?'slight':'bad',avgCents:Math.round(avg)};
   });
 
