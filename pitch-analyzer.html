@@ -193,37 +193,14 @@ h1{font-size:22px;letter-spacing:.5em;color:#f1f5f9;margin-bottom:4px;text-align
 // ═══════════════════════════════════════════
 // 1. 全量旋律数据（完全平铺，包含反复和尾声）
 // ═══════════════════════════════════════════
-const BPM = 68;
-const BEAT = 60000 / BPM;
-const VOCAL_START_TIME = 24.732; 
 
-const MELODY = [
-  // --- 第一段：主歌 (Section 0) ---
-  {l:'今',n:74,expStart:24732,dur:773, s:0},{l:'夕',n:74,expStart:25505,dur:386, s:0},{l:'何',n:67,expStart:25891,dur:386, s:0},{l:'夕',n:69,expStart:26277,dur:773, s:0},{l:'兮',n:71,expStart:27050,dur:773, s:0},
-  {l:'塞',n:74,expStart:27823,dur:1159,s:0},{l:'舟',n:71,expStart:28982,dur:386, s:0},{l:'中',n:74,expStart:29369,dur:1546,s:0},{l:'流',n:69,expStart:30915,dur:773, s:0},
-  {l:'今',n:69,expStart:31687,dur:386, s:0},{l:'日',n:71,expStart:32074,dur:386, s:0},{l:'何',n:67,expStart:32460,dur:386, s:0},{l:'日',n:69,expStart:32847,dur:386, s:0},{l:'兮',n:64,expStart:33233,dur:386, s:0},
-  {l:'得',n:67,expStart:33620,dur:386, s:0},{l:'与',n:62,expStart:34006,dur:3091,s:0},{l:'王',n:64,expStart:37097,dur:773, s:0},{l:'子',n:64,expStart:37870,dur:386, s:0},{l:'同',n:67,expStart:38257,dur:386, s:0},
-  {l:'舟',n:69,expStart:38643,dur:386, s:0},{l:'蒙',n:71,expStart:39030,dur:386, s:0},{l:'羞',n:74,expStart:39416,dur:386, s:0},{l:'被',n:76,expStart:39802,dur:386, s:0},{l:'好',n:71,expStart:40189,dur:1159,s:0},
-  {l:'兮',n:69,expStart:41348,dur:386, s:0},{l:'不',n:67,expStart:41735,dur:1546,s:0},{l:'訾',n:69,expStart:43280,dur:386, s:0},{l:'诟',n:69,expStart:43667,dur:386, s:0},{l:'耻',n:69,expStart:44053,dur:386, s:0},
-  {l:'心',n:67,expStart:44440,dur:386, s:0},{l:'几',n:64,expStart:44826,dur:773, s:0},{l:'烦',n:67,expStart:45599,dur:386, s:0},{l:'而',n:71,expStart:45985,dur:386, s:0},{l:'不',n:69,expStart:46372,dur:3091,s:0},
-  {l:'绝',n:74,expStart:49463,dur:773, s:0},{l:'兮',n:74,expStart:50236,dur:386, s:0},{l:'得',n:67,expStart:50623,dur:386, s:0},{l:'知',n:69,expStart:51009,dur:773, s:0},{l:'王',n:71,expStart:51782,dur:773, s:0},{l:'子',n:74,expStart:52555,dur:1159,s:0},
 
-  // --- 第二段：副歌首遍 (Section 1) ---
-  {l:'山',n:71,expStart:53714,dur:386, s:1},{l:'有',n:74,expStart:54100,dur:1546,s:1},{l:'木',n:69,expStart:55646,dur:773, s:1},{l:'兮',n:69,expStart:56419,dur:386, s:1},{l:'木',n:71,expStart:56805,dur:386, s:1},{l:'有',n:74,expStart:57192,dur:386, s:1},{l:'枝',n:71,expStart:57578,dur:386, s:1},
-  {l:'心',n:69,expStart:57965,dur:386, s:1},{l:'悦',n:67,expStart:58351,dur:386, s:1},{l:'君',n:64,expStart:58738,dur:3091,s:1},{l:'兮',n:69,expStart:61829,dur:386, s:1},{l:'君',n:71,expStart:62216,dur:386, s:1},{l:'不',n:64,expStart:62602,dur:386, s:1},{l:'知',n:67,expStart:62988,dur:386, s:1},
-  {l:'山',n:62,expStart:63375,dur:1546,s:1},{l:'有',n:69,expStart:64921,dur:386, s:1},{l:'木',n:71,expStart:65307,dur:386, s:1},{l:'兮',n:74,expStart:65693,dur:386, s:1},{l:'木',n:76,expStart:66080,dur:386, s:1},{l:'有',n:71,expStart:66466,dur:1546,s:1},{l:'枝',n:69,expStart:68012,dur:773, s:1},
-  {l:'心',n:71,expStart:68785,dur:386, s:1},{l:'悦',n:67,expStart:69171,dur:386, s:1},{l:'君',n:64,expStart:69558,dur:773, s:1},{l:'兮',n:62,expStart:70331,dur:386, s:1},{l:'君',n:64,expStart:70717,dur:386, s:1},{l:'不',n:67,expStart:71103,dur:3091,s:1},{l:'知',n:76,expStart:74195,dur:1159,s:1},
+let currentSong = SONGS.yueRenGe;
 
-  // --- 第三段：副歌重复 (Section 2) ---
-  {l:'山',n:71,expStart:96994,dur:386, s:2},{l:'有',n:74,expStart:97380,dur:1546,s:2},{l:'木',n:69,expStart:98926,dur:773, s:2},{l:'兮',n:69,expStart:99699,dur:386, s:2},{l:'木',n:71,expStart:100085,dur:386, s:2},{l:'有',n:74,expStart:100472,dur:386, s:2},{l:'枝',n:71,expStart:100858,dur:386, s:2},
-  {l:'心',n:69,expStart:101245,dur:386, s:2},{l:'悦',n:67,expStart:101631,dur:386, s:2},{l:'君',n:64,expStart:102018,dur:3091,s:2},{l:'兮',n:69,expStart:105109,dur:386, s:2},{l:'君',n:71,expStart:105496,dur:386, s:2},{l:'不',n:64,expStart:105882,dur:386, s:2},{l:'知',n:67,expStart:106268,dur:386, s:2},
-  {l:'山',n:62,expStart:106655,dur:1546,s:2},{l:'有',n:69,expStart:108201,dur:386, s:2},{l:'木',n:71,expStart:108587,dur:386, s:2},{l:'兮',n:74,expStart:108973,dur:386, s:2},{l:'木',n:76,expStart:109360,dur:386, s:2},{l:'有',n:71,expStart:109746,dur:1546,s:2},{l:'枝',n:69,expStart:111292,dur:773, s:2},
-  {l:'心',n:71,expStart:112065,dur:386, s:2},{l:'悦',n:67,expStart:112451,dur:386, s:2},{l:'君',n:64,expStart:112838,dur:773, s:2},{l:'兮',n:62,expStart:113611,dur:386, s:2},{l:'君',n:64,expStart:113997,dur:386, s:2},{l:'不',n:67,expStart:114383,dur:3091,s:2},
-  
-  // --- 第四段：尾声 (Section 3) ---
-  {l:'知',n:76,expStart:117475,dur:3091,s:3},
-  {l:'心',n:76,expStart:120566,dur:773, s:3},{l:'悦',n:74,expStart:121339,dur:1159,s:3},{l:'君',n:72,expStart:122498,dur:386, s:3},{l:'兮',n:69,expStart:122884,dur:773, s:3},{l:'君',n:71,expStart:123657,dur:1546,s:3},{l:'不',n:67,expStart:125203,dur:1546,s:3},{l:'知',n:69,expStart:126748,dur:3091,s:3}
-];
+let BPM = currentSong.bpm;
+let BEAT = 60000 / BPM;
+let VOCAL_START_TIME = currentSong.vocalStart;
+let MELODY = currentSong.melody;
 
 // ═══════════════════════════════════════════
 // 2. 核心状态变量
@@ -384,7 +361,81 @@ if(d1*d2<0) changes++;
 
 }
 
+
 return changes>6;
+
+}
+function vibratoQuality(centsArr){
+
+if(!centsArr || centsArr.length < 40) return null;
+
+// 去掉异常值
+const filtered = centsArr.filter(c=>Math.abs(c)<200);
+
+if(filtered.length < 30) return null;
+
+// 寻找峰值
+let peaks=[];
+for(let i=2;i<filtered.length-2;i++){
+
+if(
+filtered[i] > filtered[i-1] &&
+filtered[i] > filtered[i+1] &&
+filtered[i] > filtered[i-2] &&
+filtered[i] > filtered[i+2]
+){
+peaks.push(i);
+}
+
+}
+
+if(peaks.length < 3) return null;
+
+// 周期
+let periods=[];
+for(let i=1;i<peaks.length;i++){
+periods.push(peaks[i]-peaks[i-1]);
+}
+
+const avgPeriod = periods.reduce((a,b)=>a+b)/periods.length;
+
+// raf≈60fps
+const freq = 60/avgPeriod;
+
+// 深度（用百分位避免异常值）
+const sorted=[...filtered].sort((a,b)=>a-b);
+const depth = sorted[Math.floor(sorted.length*0.9)] - sorted[Math.floor(sorted.length*0.1)];
+
+// 周期稳定度
+const variance = periods
+.map(p=>Math.abs(p-avgPeriod))
+.reduce((a,b)=>a+b)/periods.length;
+
+// 对称性
+const mean = filtered.reduce((a,b)=>a+b)/filtered.length;
+const upper = filtered.filter(c=>c>mean);
+const lower = filtered.filter(c=>c<mean);
+
+const sym = Math.abs(
+(upper.reduce((a,b)=>a+b,0)/upper.length) -
+(lower.reduce((a,b)=>a+b,0)/lower.length)
+);
+
+// 评分
+let score = 100;
+
+if(freq<4.5 || freq>7) score -= 25;
+if(depth<25 || depth>150) score -= 25;
+if(variance>6) score -= 20;
+if(sym>30) score -= 15;
+
+return {
+rate:freq.toFixed(2),
+extent:depth.toFixed(1),
+stability:(100-variance*4).toFixed(0),
+symmetry:(100-sym).toFixed(0),
+score:Math.max(score,0)
+};
 
 }
 
@@ -425,6 +476,35 @@ function showScreen(id){
 }
 
 function buildStrip(){
+
+if(!MELODY || MELODY.length===0) return;
+
+const strip=document.getElementById('lyrics-strip');
+strip.innerHTML='';
+
+MELODY.forEach((n,i)=>{
+const s=document.createElement('span');
+s.className='lc';
+s.id='lc-'+i;
+s.textContent=n.l;
+strip.appendChild(s);
+});
+
+}
+  async function loadSong(url){
+
+const res = await fetch(url)
+
+const data = await res.json()
+
+currentSong = data
+
+BPM = data.bpm
+BEAT = 60000 / BPM
+VOCAL_START_TIME = data.vocalStart
+MELODY = data.melody
+
+}
   const strip=document.getElementById('lyrics-strip');
   strip.innerHTML='';
   MELODY.forEach((n,i)=>{
@@ -434,6 +514,7 @@ function buildStrip(){
   });
 }
 async function doStart(){
+await loadSong("songs/yuerge.json")
 
 await Tone.start();
 
@@ -489,34 +570,16 @@ played:false
 // 5. 实时录制与对齐循环
 // ═══════════════════════════════════════════
 function recordLoop(){
-  if(!analyser){
-    raf=requestAnimationFrame(recordLoop);
-    return;
+
+if(!analyser){
+raf=requestAnimationFrame(recordLoop);
+return;
 }
 
-const ct = performance.now() / 1000;
+const ct = audioCtx.currentTime;
+const elapsed = ct*1000;
 
-  // 倒计时阶段
-  if (ct < VOCAL_START_TIME) {
-    const remain = VOCAL_START_TIME - ct;
-    const bl = document.getElementById('big-lyric');
-    if (remain <= BEAT*1/1000 && remain > 0) bl.textContent = '1';
-    else if (remain <= BEAT*2/1000) bl.textContent = '2';
-    else if (remain <= BEAT*3/1000) bl.textContent = '3';
-    else bl.textContent = '♪';
-    raf=requestAnimationFrame(recordLoop);
-    return;
-  }
-
-  // 录制阶段初始化
-  if (!isRecordingPhase) {
-    isRecordingPhase = true;
-    document.getElementById('rec-sub').textContent='● 录制中';
-    document.getElementById('pitch-row').style.visibility='visible';
-  }
-
-  const elapsed = ct * 1000;
-  const buf=new Float32Array(analyser.fftSize);
+const buf=new Float32Array(analyser.fftSize);
 analyser.getFloatTimeDomainData(buf);
 
 const rawFreq = detectPitch(buf,audioCtx.sampleRate);
@@ -528,17 +591,18 @@ pitchHistory.length>0
 
 if(freq>0){
 
-const smooth =
-pitchHistory.length>0
-? pitchHistory[pitchHistory.length-1]*0.7 + freq*0.3
-: freq;
-
-pitchHistory.push(smooth);
+pitchHistory.push(freq);
 
 if(pitchHistory.length>200) pitchHistory.shift();
 
 drawPitchGraph();
 
+}
+
+const newIdx = followScore(freq);
+
+if(Math.abs(newIdx - noteIdx) <= 2){
+noteIdx = newIdx;
 }
 
 const current=MELODY[noteIdx];
@@ -555,67 +619,75 @@ noteResults[noteIdx].played = true;
 
 }
 
-}
+const expectedFreq=midiToFreq(current.n);
 
-}
+const cents=freq>0?1200*Math.log2(freq/expectedFreq):null;
 
-    if(Math.abs(cents) < 120){
-        if(noteResults[noteIdx]){
+if(cents!==null){
+
+if(Math.abs(cents)<120){
+
 if(noteResults[noteIdx]){
-noteResults[noteIdx].centsArr.push(cents)
+noteResults[noteIdx].centsArr.push(cents);
 }
-}
-    }
-
-    if(!noteResults[noteIdx].started){
-        noteResults[noteIdx].started = true;
-    }
-
-    const absCents = cents!==null ? Math.abs(cents) : 0;
-    const clamped = Math.max(-50, Math.min(50, cents));
-    const pct = 50 + clamped;
-
-    const meterFill = document.getElementById('meter-fill');
-
-    const col = absCents < 15
-        ? '#4ade80'
-        : absCents < 30
-        ? '#fbbf24'
-        : '#f87171';
-
-    meterFill.style.width = Math.abs(pct - 50) + '%';
-    meterFill.style.left = Math.min(50, pct) + '%';
-    meterFill.style.background = col;
 
 }
-      const absCents=Math.abs(cents);
-      const clamped=Math.max(-50,Math.min(50,cents));
-      const pct=50+clamped;
-      const col=absCents<15?'#4ade80':absCents<30?'#fbbf24':'#f87171';
-      meterFill.style.width=Math.abs(pct-50)+'%';
-      meterFill.style.left=Math.min(50,pct)+'%';
-      meterFill.style.background=col;
-      bigLyric.className=absCents<15?'good':absCents<30?'warn':'bad';
-      document.getElementById('pitch-note').textContent=midiToName(Math.round(69+12*Math.log2(freq/440)));
-      document.getElementById('pitch-cents').textContent=(cents>0?'+':'')+Math.round(cents)+'¢';
-    } else {
-      meterFill.style.width = '0%';
-    }
-  }
 
-  // 进度与小灯
-  document.getElementById('prog-fill').style.width=Math.round(noteIdx/MELODY.length*100)+'%';
-  document.getElementById('r-progress').textContent=Math.round(noteIdx/MELODY.length*100)+'%';
-  const beatPos=Math.floor(elapsed/BEAT)%4;
-  for(let i=0;i<4;i++) document.getElementById('bd'+i).className='bd'+(i===beatPos?' on':'');
+if(!noteResults[noteIdx].started){
 
-  // 歌词条高亮
-  MELODY.forEach((_,i)=>{
-    const el=document.getElementById('lc-'+i);
-    if(el) el.className = (i===noteIdx) ? 'lc now' : 'lc';
-  });
+noteResults[noteIdx].started=true;
 
-  raf=requestAnimationFrame(recordLoop);
+}
+
+const absCents=Math.abs(cents);
+
+const clamped=Math.max(-50,Math.min(50,cents));
+
+const pct=50+clamped;
+
+const meterFill=document.getElementById('meter-fill');
+
+const col=
+absCents<15
+?'#4ade80'
+:absCents<30
+?'#fbbf24'
+:'#f87171';
+
+meterFill.style.width=Math.abs(pct-50)+'%';
+meterFill.style.left=Math.min(50,pct)+'%';
+meterFill.style.background=col;
+
+document.getElementById('pitch-note').textContent=midiToName(Math.round(69+12*Math.log2(freq/440)));
+
+document.getElementById('pitch-cents').textContent=(cents>0?'+':'')+Math.round(cents)+'¢';
+
+}
+
+}
+
+document.getElementById('prog-fill').style.width=Math.round(noteIdx/MELODY.length*100)+'%';
+
+document.getElementById('r-progress').textContent=Math.round(noteIdx/MELODY.length*100)+'%';
+
+const beatPos=Math.floor(elapsed/BEAT)%4;
+
+for(let i=0;i<4;i++){
+
+document.getElementById('bd'+i).className='bd'+(i===beatPos?' on':'');
+
+}
+
+MELODY.forEach((_,i)=>{
+
+const el=document.getElementById('lc-'+i);
+
+if(el) el.className=(i===noteIdx)?'lc now':'lc';
+
+});
+
+raf=requestAnimationFrame(recordLoop);
+
 }
 
 // ═══════════════════════════════════════════
@@ -637,22 +709,28 @@ function analyzeAndReport(){
     if(!r||r.centsArr.length<2) return{...note,status:'missed',avgCents:null};
     const sorted=[...r.centsArr].sort((a,b)=>a-b)
 
-const hasVibrato = detectVibrato(r.centsArr);
+const vib = vibratoQuality(r.centsArr);
 
 const mid=Math.floor(sorted.length/2)
 
 const avg=sorted.length%2
 ? sorted[mid]
 : (sorted[mid-1]+sorted[mid])/2
-    return{...note,status:
+   return{
+...note,
+vibrato:vib,
+status:
 Math.abs(avg)<15
 ?'good'
-:hasVibrato
+:(vib && vib.score>70)
 ?'good'
 :Math.abs(avg)<30
 ?'slight'
-:'bad',avgCents:Math.round(avg)};
-  });
+:'bad',
+avgCents:Math.round(avg)
+};
+
+});
 
   const pitchScore=Math.round(pitchResults.reduce((s,r)=>{
     if(r.status==='missed') return s;
@@ -697,9 +775,7 @@ document.getElementById('s-rhythm').textContent=rhythmScore+'分';
 // ═══════════════════════════════════════════
 // 7. 事件绑定
 // ═══════════════════════════════════════════
-document.getElementById('btn-start').addEventListener('click',doStart);
-document.getElementById('btn-stop').addEventListener('click',stopRecording);
-document.getElementById('btn-retry').addEventListener('click',()=>location.reload());
+
 // ═══════════════════════════════════════════
 // 事件
 // ═══════════════════════════════════════════
