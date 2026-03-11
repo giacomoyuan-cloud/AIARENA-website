@@ -32,13 +32,12 @@ h1{font-size:22px;letter-spacing:.5em;color:#f1f5f9;margin-bottom:4px;text-align
 #load-bar{height:100%;background:linear-gradient(to right,#3b82f6,#8b5cf6);width:0%;transition:width .3s}
 #load-msg{font-size:11px;color:#64748b;text-align:center;margin-top:8px;letter-spacing:.15em;min-height:18px}
 
-/* countdown */
-#cd-num{font-size:160px;font-weight:900;color:#f1f5f9;margin:16px 0;line-height:1;text-align:center;transition:all .08s}
-#cd-num.pulse{color:#4ade80;text-shadow:0 0 80px #4ade8055}
-#cd-msg{font-size:11px;color:#64748b;letter-spacing:.3em;text-align:center;min-height:20px}
-
 /* recording */
-#big-lyric-wrap{width:100%;background:#13131a;border:1px solid #1e293b;border-radius:12px;padding:20px 16px;text-align:center;margin-bottom:12px}
+#big-lyric-wrap{width:100%;background:#13131a;border:1px solid #1e293b;border-radius:12px;padding:20px 16px;text-align:center;margin-bottom:12px;position:relative}
+#countdown-overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:12px;background:#13131a;z-index:5;transition:opacity .3s}
+#countdown-overlay.hidden{opacity:0;pointer-events:none}
+#cd-big{font-size:64px;font-weight:900;color:#f1f5f9;line-height:1}
+#cd-small{font-size:11px;color:#64748b;letter-spacing:.3em;margin-top:8px}
 #big-lyric{font-size:80px;font-weight:900;line-height:1;min-height:90px;display:flex;align-items:center;justify-content:center;transition:color .08s,text-shadow .08s;color:#334155}
 #big-lyric.good{color:#4ade80;text-shadow:0 0 40px #4ade8055}
 #big-lyric.warn{color:#fbbf24;text-shadow:0 0 30px #fbbf2444}
@@ -52,9 +51,6 @@ h1{font-size:22px;letter-spacing:.5em;color:#f1f5f9;margin-bottom:4px;text-align
 #meter-lbl{display:flex;justify-content:space-between;font-size:9px;color:#475569;margin-bottom:14px;padding:0 2px}
 #prog-wrap{width:100%;height:4px;background:#1e293b;border-radius:2px;overflow:hidden;margin-bottom:12px}
 #prog-fill{height:100%;background:linear-gradient(to right,#3b82f6,#8b5cf6);width:0%;transition:width .2s}
-#beat-row{display:flex;gap:10px;justify-content:center;margin-bottom:12px}
-.bd{width:10px;height:10px;border-radius:50%;background:#1e293b;transition:all .05s}
-.bd.on{background:#f1f5f9;box-shadow:0 0 10px rgba(241,245,249,.5)}
 #rhythm-row{display:flex;justify-content:space-between;width:100%;background:#13131a;border:1px solid #1e293b;border-radius:8px;padding:10px 16px;margin-bottom:12px}
 .rstat{text-align:center}
 .rstat-val{font-size:18px;font-weight:900;color:#94a3b8}
@@ -103,7 +99,7 @@ h1{font-size:22px;letter-spacing:.5em;color:#f1f5f9;margin-bottom:4px;text-align
     <div class="info-row"><span class="info-key">曲目</span><span class="info-val">越人歌</span></div>
     <div class="info-row"><span class="info-key">节拍</span><span class="info-val">68 BPM · 4/4 拍</span></div>
     <div class="info-row"><span class="info-key">调式</span><span class="info-val">G 大调</span></div>
-    <div class="info-row"><span class="info-key">钢琴前奏</span><span class="info-val">4 小节（准备好再唱）</span></div>
+    <div class="info-row"><span class="info-key">前奏</span><span class="info-val">4 小节钢琴前奏</span></div>
   </div>
   <div class="card">
     <div class="card-title">演唱歌词</div>
@@ -121,19 +117,16 @@ h1{font-size:22px;letter-spacing:.5em;color:#f1f5f9;margin-bottom:4px;text-align
   <div id="load-msg"></div>
 </div>
 
-<!-- COUNTDOWN -->
-<div id="screen-countdown" class="screen">
-  <h1>前 奏</h1>
-  <div class="sub">听钢琴，准备好后跟唱</div>
-  <div id="cd-num">♪</div>
-  <div id="cd-msg">钢琴前奏中...</div>
-</div>
-
 <!-- RECORDING -->
 <div id="screen-recording" class="screen">
   <h1>越 人 歌</h1>
-  <div class="sub">● 录制中</div>
+  <div class="sub" id="rec-sub">钢琴前奏中...</div>
   <div id="big-lyric-wrap">
+    <!-- 倒计时覆盖层 -->
+    <div id="countdown-overlay">
+      <div id="cd-big">♪</div>
+      <div id="cd-small">钢琴前奏，准备好后跟唱</div>
+    </div>
     <div id="big-lyric">—</div>
     <div id="pitch-row">
       <div id="pitch-note">—</div>
@@ -143,10 +136,6 @@ h1{font-size:22px;letter-spacing:.5em;color:#f1f5f9;margin-bottom:4px;text-align
   <div id="meter-wrap"><div id="meter-c"></div><div id="meter-fill"></div></div>
   <div id="meter-lbl"><span>♭ 偏低</span><span>准</span><span>偏高 ♯</span></div>
   <div id="prog-wrap"><div id="prog-fill"></div></div>
-  <div id="beat-row">
-    <div class="bd" id="bd0"></div><div class="bd" id="bd1"></div>
-    <div class="bd" id="bd2"></div><div class="bd" id="bd3"></div>
-  </div>
   <div id="rhythm-row">
     <div class="rstat"><div class="rstat-val" id="r-pitch">—</div><div class="rstat-lbl">音准分</div></div>
     <div class="rstat"><div class="rstat-val" id="r-rhythm">—</div><div class="rstat-lbl">节奏分</div></div>
@@ -199,12 +188,10 @@ h1{font-size:22px;letter-spacing:.5em;color:#f1f5f9;margin-bottom:4px;text-align
 </div>
 
 <script>
-// ═══════════════════════════════════════════
-// 旋律 + 和声数据
-// ═══════════════════════════════════════════
 const BPM = 68;
-const BEAT = 60000 / BPM;
+const BEAT = 60000 / BPM; // ms
 
+// 人声旋律
 const MELODY = [
   {l:'今',n:74,b:1},{l:'夕',n:72,b:1},{l:'何',n:71,b:1},{l:'夕',n:69,b:1},
   {l:'兮',n:67,b:2},
@@ -232,74 +219,57 @@ const MELODY = [
   {l:'兮',n:71,b:1},{l:'君',n:69,b:1},{l:'不',n:71,b:1},{l:'知',n:67,b:8},
 ];
 let acc=0;
-MELODY.forEach(n=>{n.dur=n.b*BEAT;n.expStart=acc;acc+=n.dur;});
-const TOTAL_MS=acc;
+MELODY.forEach(n=>{n.dur=n.b*BEAT; n.expStart=acc; acc+=n.dur;});
+const TOTAL_BEATS = MELODY.reduce((s,n)=>s+n.b, 0);
 
-// 和声 [起始拍offset, 持续拍, 低音, [和弦音...]]
-// 起始拍从0=人声第一拍, 负数=前奏
-const HARM_CHORDS=[
-  [-16,2,43,[55,59,62,67]],[-14,2,50,[54,57,62,66]],
-  [-12,2,40,[52,55,59,64]],[-10,2,48,[48,52,55,60]],
-  [-8,2,43,[55,59,62,67]], [-6,2,50,[54,57,62,66]],
-  [-4,2,45,[52,57,60,64]], [-2,2,50,[54,57,62,66]],
-  [0,2,43,[55,59,62,67]],  [2,2,50,[54,57,62,66]],
-  [4,2,45,[52,57,60,64]],  [6,2,50,[54,57,62,66]],
-  [8,2,45,[52,57,60,64]],  [10,2,50,[54,57,62,66]],
-  [12,2,43,[55,59,62,67]], [14,4,43,[55,59,62,67]],
-  [18,2,43,[55,59,62,67]], [20,2,50,[54,57,62,66]],
-  [22,2,45,[52,57,60,64]], [24,2,50,[54,57,62,66]],
-  [26,2,40,[52,55,59,64]], [28,2,50,[54,57,62,66]],
-  [30,2,43,[55,59,62,67]], [32,4,43,[55,59,62,67]],
-  [36,2,43,[55,59,62,67]], [38,2,50,[54,57,62,66]],
-  [40,2,40,[52,55,59,64]], [42,2,43,[55,59,62,67]],
-  [44,2,48,[48,52,55,60]], [46,2,50,[54,57,62,66]],
-  [48,4,43,[55,59,62,67]],
-  [52,2,43,[55,59,62,67]], [54,2,48,[48,52,55,60]],
-  [56,2,43,[55,59,62,67]], [58,2,50,[54,57,62,66]],
-  [60,2,45,[52,57,60,64]], [62,2,50,[54,57,62,66]],
-  [64,4,43,[55,59,62,67]],
-  [68,2,43,[55,59,62,67]], [70,2,48,[48,52,55,60]],
-  [72,2,50,[54,57,62,66]], [74,2,43,[55,59,62,67]],
-  [76,2,40,[52,55,59,64]], [78,2,48,[48,52,55,60]],
-  [80,2,50,[54,57,62,66]], [82,4,43,[55,59,62,67]],
-  [86,2,43,[55,59,62,67]], [88,2,48,[48,52,55,60]],
-  [90,2,50,[54,57,62,66]], [92,2,43,[55,59,62,67]],
-  [94,2,40,[52,55,59,64]], [96,2,48,[48,52,55,60]],
-  [98,2,50,[54,57,62,66]], [100,4,43,[55,59,62,67]],
+// 和弦方案 [起始拍(人声第1拍=0), 持续拍, 低音MIDI, 和弦音数组]
+const CHORDS = [
+  // 前奏(负数拍)
+  [-16,4,43,[55,59,62,67]],[-12,4,50,[54,57,62,66]],
+  [-8,4,43,[55,59,62,67]], [-4,4,50,[54,57,62,66]],
+  // 今夕何夕兮 塞舟中流
+  [0,4,43,[55,59,62,67]],[4,4,50,[54,57,62,66]],
+  [8,4,45,[52,57,60,64]],[12,6,43,[55,59,62,67]],
+  // 今日何日兮 得与王子同舟
+  [18,4,43,[55,59,62,67]],[22,4,50,[54,57,62,66]],
+  [26,4,40,[52,55,59,64]],[30,6,43,[55,59,62,67]],
+  // 蒙羞被好兮 不訾诟耻
+  [36,4,43,[55,59,62,67]],[40,4,40,[52,55,59,64]],
+  [44,4,48,[48,52,55,60]],[48,4,43,[55,59,62,67]],
+  // 心几烦而不绝兮 得知王子
+  [52,4,43,[55,59,62,67]],[56,4,48,[48,52,55,60]],
+  [60,4,50,[54,57,62,66]],[64,4,43,[55,59,62,67]],
+  // 山有木兮木有枝 心悦君兮君不知 x1
+  [68,4,43,[55,59,62,67]],[72,4,50,[54,57,62,66]],
+  [76,4,40,[52,55,59,64]],[80,6,43,[55,59,62,67]],
+  // 山有木兮木有枝 心悦君兮君不知 x2
+  [86,4,43,[55,59,62,67]],[90,4,50,[54,57,62,66]],
+  [94,4,40,[52,55,59,64]],[98,6,43,[55,59,62,67]],
+  // 尾声
   [104,4,43,[55,59,62,67]],
-  [108,2,48,[48,52,55,60]], [110,2,50,[54,57,62,66]],
-  [112,2,40,[52,55,59,64]], [114,8,43,[55,59,62,67]],
+  [108,4,48,[48,52,55,60]],[112,4,40,[52,55,59,64]],
+  [116,10,43,[55,59,62,67]],
 ];
 
-// ═══════════════════════════════════════════
 // 工具
-// ═══════════════════════════════════════════
 const NOTE_NAMES=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 function midiToFreq(m){return 440*Math.pow(2,(m-69)/12);}
-function midiToToneNote(m){
-  const oct=Math.floor(m/12)-1;
-  const name=NOTE_NAMES[m%12];
-  return name+oct;
-}
-function midiToDisplayName(m){
-  return NOTE_NAMES[((m%12)+12)%12]+Math.floor((m+12)/12-1);
-}
+function midiToTone(m){return NOTE_NAMES[((m%12)+12)%12]+Math.floor(m/12-1);}
+function midiToDisplay(m){return NOTE_NAMES[((m%12)+12)%12]+Math.floor((m+12)/12-1);}
 
 function autoCorrelate(buf,sr){
-  const N=buf.length;
-  let rms=0;
+  const N=buf.length; let rms=0;
   for(let i=0;i<N;i++) rms+=buf[i]*buf[i];
   rms=Math.sqrt(rms/N);
   if(rms<0.015) return -1;
   let s=0,e=N-1;
   for(let i=0;i<N/2;i++){if(Math.abs(buf[i])<0.2){s=i;break;}}
   for(let i=1;i<N/2;i++){if(Math.abs(buf[N-i])<0.2){e=N-i;break;}}
-  const b=buf.slice(s,e);const M=b.length;
+  const b=buf.slice(s,e); const M=b.length;
   if(M<20) return -1;
   const c=new Float32Array(M);
   for(let i=0;i<M;i++) for(let j=0;j<M-i;j++) c[i]+=b[j]*b[j+i];
-  let d=0;
-  while(d<M-1&&c[d]>c[d+1])d++;
+  let d=0; while(d<M-1&&c[d]>c[d+1])d++;
   let maxV=-1,maxP=-1;
   for(let i=d;i<M;i++) if(c[i]>maxV){maxV=c[i];maxP=i;}
   if(maxP<=0) return -1;
@@ -316,16 +286,12 @@ function showScreen(id){
   document.getElementById('screen-'+id).classList.add('active');
 }
 
-// ═══════════════════════════════════════════
-// 钢琴采样器 (Salamander Grand Piano)
-// ═══════════════════════════════════════════
-let piano=null;
-let pianoLoaded=false;
-
-const SALAMANDER_BASE='https://gleitz.github.io/midi-js-soundfonts/MusyngKite/acoustic_grand_piano-mp3/';
-
-// Tone.js Sampler urls - 关键音高采样
-const PIANO_URLS={
+// ═══════════════════════════════════
+// 钢琴加载
+// ═══════════════════════════════════
+let piano=null, pianoLoaded=false;
+const SBASE='https://gleitz.github.io/midi-js-soundfonts/MusyngKite/acoustic_grand_piano-mp3/';
+const SURLS={
   'A0':'A0.mp3','C1':'C1.mp3','D#1':'Ds1.mp3','F#1':'Fs1.mp3',
   'A1':'A1.mp3','C2':'C2.mp3','D#2':'Ds2.mp3','F#2':'Fs2.mp3',
   'A2':'A2.mp3','C3':'C3.mp3','D#3':'Ds3.mp3','F#3':'Fs3.mp3',
@@ -341,126 +307,108 @@ async function loadPiano(){
   const loadWrap=document.getElementById('load-bar-wrap');
   const loadBar=document.getElementById('load-bar');
   const loadMsg=document.getElementById('load-msg');
-
-  btn.disabled=true;
-  btn.textContent='加载中...';
+  btn.disabled=true; btn.textContent='加载中...';
   loadWrap.style.display='block';
   loadMsg.textContent='正在加载钢琴音色...';
-
   await Tone.start();
-
   return new Promise((resolve,reject)=>{
-    let progress=0;
-    const fakeProgress=setInterval(()=>{
-      progress=Math.min(progress+3,88);
-      loadBar.style.width=progress+'%';
-    },200);
-
+    let p=0;
+    const fake=setInterval(()=>{p=Math.min(p+2,88);loadBar.style.width=p+'%';},200);
     piano=new Tone.Sampler({
-      urls:PIANO_URLS,
-      baseUrl:SALAMANDER_BASE,
-      release:1.2,
+      urls:SURLS, baseUrl:SBASE, release:1.4,
       onload:()=>{
-        clearInterval(fakeProgress);
-        loadBar.style.width='100%';
-        loadMsg.textContent='✓ 钢琴已就绪';
+        clearInterval(fake); loadBar.style.width='100%';
+        loadMsg.textContent='✓ 准备就绪';
         pianoLoaded=true;
         setTimeout(()=>{
-          loadWrap.style.display='none';
-          loadMsg.textContent='';
-          btn.disabled=false;
-          btn.textContent='🎹  开始演唱';
-        },600);
+          loadWrap.style.display='none'; loadMsg.textContent='';
+          btn.disabled=false; btn.textContent='🎹  开始演唱';
+        },500);
         resolve();
       },
-      onerror:(e)=>{
-        clearInterval(fakeProgress);
-        loadMsg.textContent='加载失败，请检查网络连接';
-        btn.disabled=false;
-        btn.textContent='🎹  重试';
-        reject(e);
+      onerror:()=>{
+        clearInterval(fake);
+        loadMsg.textContent='加载失败，请检查网络';
+        btn.disabled=false; btn.textContent='重试';
+        reject();
       }
     }).toDestination();
   });
 }
 
-// ═══════════════════════════════════════════
-// 调度钢琴 (Tone.js Transport)
-// ═══════════════════════════════════════════
-function schedulePiano(vocalOffsetBeats){
-  const bps=60/BPM;
-  Tone.Transport.bpm.value=BPM;
+// ═══════════════════════════════════
+// 用 setTimeout 调度所有钢琴音符
+// 这样不依赖 Tone.Transport，不会截断
+// ═══════════════════════════════════
+let pianoTimers=[];
 
-  // 旋律线
+function scheduleAllPiano(startMs){
+  // 清除旧定时器
+  pianoTimers.forEach(t=>clearTimeout(t));
+  pianoTimers=[];
+
+  const bpms=BEAT; // ms per beat
+
+  // 旋律线 (人声)
   MELODY.forEach(note=>{
-    const beatOffset=vocalOffsetBeats+note.expStart/BEAT;
-    Tone.Transport.schedule(time=>{
-      piano.triggerAttackRelease(
-        midiToToneNote(note.n),
-        note.dur/1000*0.82,
-        time,
-        0.7
-      );
-    }, beatOffset*bps+'s');
+    const ms=startMs+note.expStart;
+    const delay=ms-performance.now();
+    if(delay<-500) return; // 已过期跳过
+    const t=setTimeout(()=>{
+      try{ piano.triggerAttackRelease(midiToTone(note.n), note.dur/1000*0.8, Tone.now(), 0.65); }catch(e){}
+    }, Math.max(0,delay));
+    pianoTimers.push(t);
   });
 
-  // 和声 + 低音
-  HARM_CHORDS.forEach(([sb,durB,bassM,chordMs])=>{
-    const startBeat=vocalOffsetBeats+sb;
-    const durSec=durB*bps;
+  // 和弦 + 低音
+  CHORDS.forEach(([sb,durB,bassM,chordMs])=>{
+    const chordStartMs=startMs+(sb*bpms);
+    for(let beat=0;beat<durB;beat++){
+      const beatMs=chordStartMs+beat*bpms;
+      const delay=beatMs-performance.now();
+      if(delay<-300) continue;
 
-    // 低音 每小节
-    for(let beat=0;beat<durB;beat+=4){
-      const t=(startBeat+beat)*bps+'s';
-      Tone.Transport.schedule(time=>{
-        piano.triggerAttackRelease(midiToToneNote(bassM),bps*1.5,time,0.55);
-      },t);
-    }
-
-    // 和弦内音 每拍2,3,4
-    for(let beat=1;beat<durB;beat++){
-      if(beat%4===0) continue;
-      const t=(startBeat+beat)*bps+'s';
-      Tone.Transport.schedule(time=>{
-        chordMs.forEach((m,i)=>{
-          piano.triggerAttackRelease(
-            midiToToneNote(m),
-            bps*0.65,
-            time+i*0.008,
-            0.28
-          );
-        });
-      },t);
+      if(beat%4===0){
+        // 低音 第1拍
+        const t=setTimeout(()=>{
+          try{ piano.triggerAttackRelease(midiToTone(bassM), bpms/1000*1.6, Tone.now(), 0.5); }catch(e){}
+        },Math.max(0,delay));
+        pianoTimers.push(t);
+      } else {
+        // 和弦内音 2,3,4拍
+        const t=setTimeout(()=>{
+          chordMs.forEach((m,i)=>{
+            try{ piano.triggerAttackRelease(midiToTone(m), bpms/1000*0.6, Tone.now()+i*0.007, 0.25); }catch(e){}
+          });
+        },Math.max(0,delay));
+        pianoTimers.push(t);
+      }
     }
   });
 }
 
-// ═══════════════════════════════════════════
+// ═══════════════════════════════════
 // 状态
-// ═══════════════════════════════════════════
+// ═══════════════════════════════════
 let webAudioCtx=null,analyser=null,stream=null,raf=null;
-let noteIdx=0,noteActualStart=0,timeOnNote=0;
-let noteResults=[];
-let recordingStart=0;
+let noteIdx=0,noteActualStart=0,timeOnNote=0,noteResults=[];
+let recordingStart=0, vocalActive=false;
 
 function buildStrip(){
   const strip=document.getElementById('lyrics-strip');
   strip.innerHTML='';
   MELODY.forEach((n,i)=>{
     const s=document.createElement('span');
-    s.className='lc';s.id='lc-'+i;s.textContent=n.l;
+    s.className='lc'; s.id='lc-'+i; s.textContent=n.l;
     strip.appendChild(s);
   });
 }
 
-// ═══════════════════════════════════════════
+// ═══════════════════════════════════
 // 主流程
-// ═══════════════════════════════════════════
+// ═══════════════════════════════════
 document.getElementById('btn-start').addEventListener('click',async()=>{
-  if(!pianoLoaded){
-    await loadPiano();
-    return;
-  }
+  if(!pianoLoaded){ await loadPiano(); return; }
   await doStart();
 });
 
@@ -473,51 +421,47 @@ async function doStart(){
     webAudioCtx.createMediaStreamSource(stream).connect(analyser);
   }catch(e){alert('需要麦克风权限 🎤');return;}
 
-  showScreen('countdown');
+  showScreen('recording');
   buildStrip();
   noteResults=MELODY.map((_,i)=>({idx:i,centsArr:[],actualDur:0}));
-  noteIdx=0; timeOnNote=0;
+  noteIdx=0; timeOnNote=0; vocalActive=false;
+  document.getElementById('rec-sub').textContent='钢琴前奏中...';
 
   const INTRO_BEATS=16;
-  const bps=60/BPM;
+  const introMs=INTRO_BEATS*BEAT;
+  const now=performance.now();
+  const vocalStartMs=now+introMs;
 
-  Tone.Transport.stop();
-  Tone.Transport.cancel();
-  schedulePiano(INTRO_BEATS);
-  Tone.Transport.start();
+  // 调度所有钢琴 (前奏从now开始，人声段从vocalStartMs开始)
+  scheduleAllPiano(vocalStartMs);
 
-  const cdEl=document.getElementById('cd-num');
-  const cdMsg=document.getElementById('cd-msg');
-  let bar=INTRO_BEATS;
+  // 前奏倒计时UI (3,2,1,开唱)
+  const overlay=document.getElementById('countdown-overlay');
+  const cdBig=document.getElementById('cd-big');
+  const cdSmall=document.getElementById('cd-small');
+  overlay.classList.remove('hidden');
+  cdBig.textContent='♪';
+  cdSmall.textContent='钢琴前奏，准备好后跟唱';
 
-  function cdTick(){
-    bar--;
-    cdEl.classList.add('pulse');
-    setTimeout(()=>cdEl.classList.remove('pulse'),80);
-    if(bar<=0){
-      startRecording();
-    } else {
-      cdEl.textContent=4-((INTRO_BEATS-bar-1)%4);
-      cdMsg.textContent='前奏第 '+Math.ceil((INTRO_BEATS-bar)/4)+' / 4 小节';
-      setTimeout(cdTick,BEAT);
-    }
-  }
-  cdEl.textContent='4';
-  setTimeout(cdTick,BEAT);
+  // 最后3拍显示 3 2 1
+  setTimeout(()=>{ cdBig.textContent='3'; cdSmall.textContent='准备...'; }, introMs-3*BEAT);
+  setTimeout(()=>{ cdBig.textContent='2'; }, introMs-2*BEAT);
+  setTimeout(()=>{ cdBig.textContent='1'; }, introMs-BEAT);
+  setTimeout(()=>{
+    overlay.classList.add('hidden');
+    document.getElementById('rec-sub').textContent='● 录制中';
+    vocalActive=true;
+    recordingStart=performance.now();
+    noteActualStart=0;
+    raf=requestAnimationFrame(recordLoop);
+  }, introMs);
 }
 
-function startRecording(){
-  showScreen('recording');
-  recordingStart=performance.now();
-  noteIdx=0; noteActualStart=0; timeOnNote=0;
-  raf=requestAnimationFrame(recordLoop);
-}
-
-// ═══════════════════════════════════════════
-// 录制 + 音符跟随
-// ═══════════════════════════════════════════
+// ═══════════════════════════════════
+// 录制循环 + 音符跟随
+// ═══════════════════════════════════
 function recordLoop(){
-  if(!analyser) return;
+  if(!analyser||!vocalActive) return;
   const elapsed=performance.now()-recordingStart;
   const buf=new Float32Array(analyser.fftSize);
   analyser.getFloatTimeDomainData(buf);
@@ -537,9 +481,7 @@ function recordLoop(){
   const maxTime=current.dur*2.2;
   if((absCents<150&&freq>0&&timeOnNote>minTime)||timeOnNote>maxTime){
     noteResults[noteIdx].actualDur=timeOnNote;
-    noteIdx++;
-    noteActualStart=elapsed;
-    timeOnNote=0;
+    noteIdx++; noteActualStart=elapsed; timeOnNote=0;
     if(noteIdx>=MELODY.length){stopRecording();return;}
   }
 
@@ -560,26 +502,20 @@ function recordLoop(){
     meterFill.style.width=Math.abs(pct-50)+'%';
     meterFill.style.background=col;
     bigLyric.className=absCents<10?'good':absCents<25?'warn':'bad';
-    pitchNote.textContent=midiToDisplayName(Math.round(69+12*Math.log2(freq/440)));
+    pitchNote.textContent=midiToDisplay(Math.round(69+12*Math.log2(freq/440)));
     pitchNote.style.color=col;
     pitchCents.textContent=(cents>0?'+':'')+Math.round(cents)+'¢';
     pitchCents.style.color=col;
   } else {
-    bigLyric.className='';
-    bigLyric.style.color='#334155';
+    bigLyric.className=''; bigLyric.style.color='#334155';
     meterFill.style.width='0%';
     pitchNote.textContent='—'; pitchNote.style.color='#334155';
     pitchCents.textContent='等待声音'; pitchCents.style.color='#334155';
   }
 
-  // 进度
   const pctProg=Math.round(noteIdx/MELODY.length*100);
   document.getElementById('prog-fill').style.width=pctProg+'%';
   document.getElementById('r-progress').textContent=pctProg+'%';
-
-  // 节拍
-  const beatPos=Math.floor(elapsed/BEAT)%4;
-  for(let i=0;i<4;i++) document.getElementById('bd'+i).className='bd'+(i===beatPos?' on':'');
 
   // 实时估分
   const done=noteResults.slice(0,noteIdx).filter(r=>r.centsArr.length>=2);
@@ -589,18 +525,17 @@ function recordLoop(){
       return s+(avg<10?100:avg<25?70:avg<50?40:10);
     },0)/done.length);
     document.getElementById('r-pitch').textContent=ps;
-    const rhythmDone=done.filter(r=>r.actualDur>0);
-    if(rhythmDone.length>0){
-      const rs=Math.round(rhythmDone.reduce((s,r)=>{
+    const rd=done.filter(r=>r.actualDur>0);
+    if(rd.length>0){
+      const rs=Math.round(rd.reduce((s,r)=>{
         const exp=MELODY[r.idx]?MELODY[r.idx].dur:BEAT;
         const dev=Math.abs(r.actualDur/exp-1);
         return s+(dev<0.2?100:dev<0.4?70:dev<0.6?40:10);
-      },0)/rhythmDone.length);
+      },0)/rd.length);
       document.getElementById('r-rhythm').textContent=rs;
     }
   }
 
-  // 歌词
   MELODY.forEach((_,i)=>{
     const el=document.getElementById('lc-'+i);
     if(!el) return;
@@ -618,16 +553,16 @@ function recordLoop(){
 }
 
 function stopRecording(){
-  cancelAnimationFrame(raf); raf=null;
+  cancelAnimationFrame(raf); raf=null; vocalActive=false;
+  pianoTimers.forEach(t=>clearTimeout(t)); pianoTimers=[];
   stream&&stream.getTracks().forEach(t=>t.stop());
-  Tone.Transport.stop();
   showScreen('analyzing');
   setTimeout(analyzeAndReport,600);
 }
 
-// ═══════════════════════════════════════════
-// 分析 + 报告
-// ═══════════════════════════════════════════
+// ═══════════════════════════════════
+// 分析
+// ═══════════════════════════════════
 function analyzeAndReport(){
   const pitchResults=MELODY.map((note,i)=>{
     const r=noteResults[i];
@@ -674,7 +609,7 @@ function analyzeAndReport(){
   pitchResults.forEach(r=>{
     const cell=document.createElement('div');cell.className='nc';
     const bar=document.createElement('div');
-    bar.className='nb '+r.status;bar.textContent=r.l;
+    bar.className='nb '+r.status; bar.textContent=r.l;
     bar.title=r.avgCents!=null?(r.avgCents>0?'+':'')+r.avgCents+'¢':'未检测';
     const lbl=document.createElement('div');lbl.className='nl';
     lbl.textContent=r.avgCents!=null?(r.avgCents>0?'+':'')+r.avgCents:'—';
@@ -721,19 +656,18 @@ function analyzeAndReport(){
   });
 }
 
-// ═══════════════════════════════════════════
-// 其他事件
-// ═══════════════════════════════════════════
+// 事件
 document.getElementById('btn-stop').addEventListener('click',stopRecording);
 document.getElementById('btn-retry').addEventListener('click',async()=>{
   if(webAudioCtx){webAudioCtx.close();webAudioCtx=null;}
   analyser=null;stream=null;noteResults=[];noteIdx=0;
+  document.getElementById('countdown-overlay').classList.remove('hidden');
   await doStart();
 });
 document.getElementById('btn-home').addEventListener('click',()=>{
   if(webAudioCtx){webAudioCtx.close();webAudioCtx=null;}
-  Tone.Transport.stop();Tone.Transport.cancel();
-  analyser=null;stream=null;noteResults=[];noteIdx=0;
+  pianoTimers.forEach(t=>clearTimeout(t));pianoTimers=[];
+  analyser=null;stream=null;noteResults=[];noteIdx=0;vocalActive=false;
   showScreen('setup');
 });
 </script>
