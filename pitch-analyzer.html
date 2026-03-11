@@ -306,9 +306,10 @@ const HARM = [
 // 钢琴采样引擎
 // ═══════════════════════════════════════════
 const SBASE='https://pub-eff7391c158f464ab640187f9465d705.r2.dev/acoustic_grand_piano-mp3/';
-const SNAMES=['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
+const SHARP_NAMES={1:'Cs',3:'Ds',6:'Fs',8:'Gs',10:'As'};
+const NAT_NAMES={0:'C',2:'D',4:'E',5:'F',7:'G',9:'A',11:'B'};
 const sCache={};
-function midiFile(m){return SNAMES[((m%12)+12)%12]+(Math.floor(m/12)-1);}
+function midiFile(m){const pc=((m%12)+12)%12;const oct=Math.floor(m/12)-1;return(NAT_NAMES[pc]||SHARP_NAMES[pc])+oct;}
 async function preloadAll(ctx){
   const mids=new Set();
   MELODY.forEach(n=>mids.add(n.n));
@@ -475,8 +476,6 @@ async function doStart(){
   document.getElementById('rec-sub').textContent='🎹 前奏中';
   document.getElementById('big-lyric').textContent='♪';
   document.getElementById('big-lyric').className='';
-  document.getElementById('intro-hint').textContent='聆听钢琴，准备跟唱';
-  document.getElementById('intro-hint').style.opacity='1';
   document.getElementById('pitch-row').style.visibility='hidden';
 
   const ctx=audioCtx;
@@ -490,11 +489,10 @@ async function doStart(){
 
   // 前奏最后3拍倒计时提示
   const introMs=introDurSec*1000;
-  setTimeout(()=>{document.getElementById('intro-hint').textContent='3';},introMs-BEAT*3);
-  setTimeout(()=>{document.getElementById('intro-hint').textContent='2';},introMs-BEAT*2);
-  setTimeout(()=>{document.getElementById('intro-hint').textContent='1';},introMs-BEAT);
+  setTimeout(()=>{document.getElementById('big-lyric').textContent='3';},introMs-BEAT*3);
+  setTimeout(()=>{document.getElementById('big-lyric').textContent='2';},introMs-BEAT*2);
+  setTimeout(()=>{document.getElementById('big-lyric').textContent='1';},introMs-BEAT);
   setTimeout(()=>{
-    document.getElementById('intro-hint').style.opacity='0';
     document.getElementById('rec-sub').textContent='● 录制中';
     document.getElementById('pitch-row').style.visibility='visible';
     startRecording();
