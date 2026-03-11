@@ -331,6 +331,7 @@ ctx.strokeStyle="#3b82f6";
 ctx.lineWidth=2;
 ctx.beginPath();
 
+if(pitchHistory.length>1){
 for(let i=0;i<pitchHistory.length;i++){
 
 const x=i*(canvas.width/pitchHistory.length);
@@ -450,8 +451,8 @@ const r=results[i];
 
 if(!r.started) continue;
 
-const expected=MELODY[i].expStart;
-const actual=expected+r.actualDur;
+const expected=VOCAL_START_TIME + MELODY[i].expStart;
+const actual=r.actualStart;
 
 const diff=Math.abs(actual-expected);
 
@@ -508,6 +509,11 @@ MELODY = data.melody;
 async function doStart(){
 await loadSong("songs/yuerge.json")
 
+if(!MELODY || MELODY.length===0){
+alert("歌曲数据加载失败");
+return;
+}
+
 await Tone.start();
 
 piano = new Tone.Sampler({
@@ -547,6 +553,7 @@ started:false,
 played:false
 }));
   noteIdx=0; isRecordingPhase=false;
+  pitchHistory=[];
 
   showScreen('recording');
   document.getElementById('rec-sub').textContent='🎹 伴奏加载中...';
@@ -593,7 +600,7 @@ drawPitchGraph();
 
 const newIdx = followScore(freq);
 
-if(Math.abs(newIdx - noteIdx) <= 2){
+if(newIdx > noteIdx && newIdx - noteIdx <= 2){
 noteIdx = newIdx;
 }
 
