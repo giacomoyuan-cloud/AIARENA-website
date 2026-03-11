@@ -388,7 +388,7 @@ function autoCorrelate(buf,sr){
 }
 
 let audioCtx=null,analyser=null,stream=null,raf=null;
-let noteIdx=0,timeOnNote=0,noteResults=[],noteActualStart=0,globalElapsed=0,recordingStart=0;
+let noteIdx=0,noteResults=[],globalElapsed=0,recordingStart=0;
 
 function showScreen(id){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
@@ -486,8 +486,6 @@ function recordLoop(){
   const cents=freq>0? 1200*Math.log2(freq/expectedFreq) : null;
   const absCents=cents!==null?Math.abs(cents):999;
 
-  timeOnNote=elapsed-noteActualStart;
-
   // 收集音准数据
   if(cents!==null){
     noteResults[noteIdx].centsArr.push(cents);
@@ -496,14 +494,11 @@ function recordLoop(){
     }
   }
 
-  // ── 音符推进判定（跟着MP3时间走）──
-  const timeBasedAdvance = timeOnNote > current.dur * 0.85;
-
-  if(timeBasedAdvance){
-    noteResults[noteIdx].actualDur=timeOnNote;
+  // ── 音符推进判定（用绝对时间，不累积误差）──
+  const nextNote = MELODY[noteIdx+1];
+  if(nextNote && elapsed >= nextNote.expStart){
+    noteResults[noteIdx].actualDur = elapsed - current.expStart;
     noteIdx++;
-    noteActualStart=elapsed;
-    timeOnNote=0;
     if(noteIdx>=MELODY.length){
       stopRecording(); return;
     }
