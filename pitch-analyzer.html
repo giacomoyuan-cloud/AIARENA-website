@@ -303,6 +303,43 @@ const HARM = [
 ];
 
 // ═══════════════════════════════════════════
+// 钢琴采样引擎
+// ═══════════════════════════════════════════
+const SBASE='https://pub-eff7391c158f464ab640187f9465d705.r2.dev/acoustic_grand_piano-mp3/';
+const SNAMES=['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
+const sCache={};
+function midiFile(m){return SNAMES[((m%12)+12)%12]+(Math.floor(m/12)-1);}
+async function preloadAll(ctx){
+  const mids=new Set();
+  MELODY.forEach(n=>mids.add(n.n));
+  HARM.forEach(([,,b,cs])=>{mids.add(b);cs.forEach(c=>mids.add(c));});
+  const loads=[...mids].map(async m=>{
+    const names=[midiFile(m)];
+    const alt=midiFile(m).replace('Db','Cs').replace('Eb','Ds').replace('Gb','Fs').replace('Ab','Gs').replace('Bb','As');
+    if(alt!==names[0]) names.push(alt);
+    for(const n of names){
+      try{
+        const r=await fetch(SBASE+n+'.mp3');
+        if(!r.ok) continue;
+        sCache[m]=await ctx.decodeAudioData(await r.arrayBuffer());
+        return;
+      }catch(e){}
+    }
+  });
+  await Promise.allSettled(loads);
+}
+function playPiano(ctx,midi,t,dur,vol){
+  const buf=sCache[midi]; if(!buf) return;
+  const src=ctx.createBufferSource(); src.buffer=buf;
+  const g=ctx.createGain();
+  g.gain.setValueAtTime(vol||0.28,t);
+  g.gain.setValueAtTime(vol||0.28,t+Math.max(0.05,dur*0.8));
+  g.gain.exponentialRampToValueAtTime(0.001,t+dur+0.08);
+  src.connect(g); g.connect(ctx.destination);
+  src.start(t); src.stop(t+dur+0.15);
+}
+
+// ═══════════════════════════════════════════
 // 音频工具
 // ═══════════════════════════════════════════
 const NOTES_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
@@ -335,54 +372,7 @@ function autoCorrelate(buf,sr){
   return sr/maxP;
 }
 
-// 钢琴音色合成
-let reverbNode=null;
-function getReverbNode(ctx){
-  if(reverbNode) return reverbNode;
-  const conv=ctx.createConvolver();
-  const len=ctx.sampleRate*0.8;
-  const buf=ctx.createBuffer(2,len,ctx.sampleRate);
-  for(let ch=0;ch<2;ch++){
-    const d=buf.getChannelData(ch);
-    for(let i=0;i<len;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/len,2.5)*0.4;
-  }
-  conv.buffer=buf;
-  reverbNode=conv;
-  conv.connect(ctx.destination);
-  return conv;
-}
-
-function playPiano(ctx,midi,t,dur,vol=0.28){
-  const freq=midiToFreq(midi);
-  const rev=getReverbNode(ctx);
-  const g=ctx.createGain();
-  g.connect(ctx.destination);
-  g.connect(rev);
-  const harmonics=[[1,'triangle',0.55],[2,'sine',0.22],[3,'sine',0.1],[4,'sine',0.06],[6,'sine',0.03]];
-  harmonics.forEach(([h,type,a])=>{
-    const o=ctx.createOscillator();
-    o.type=type; o.frequency.value=freq*h;
-    const hg=ctx.createGain(); hg.gain.value=a*vol;
-    o.connect(hg); hg.connect(g);
-    o.start(t); o.stop(t+dur+0.2);
-  });
-  g.gain.setValueAtTime(0,t);
-  g.gain.linearRampToValueAtTime(vol,t+0.012);
-  g.gain.exponentialRampToValueAtTime(vol*0.6,t+0.06);
-  g.gain.setValueAtTime(vol*0.6,t+dur*0.75);
-  g.gain.exponentialRampToValueAtTime(0.001,t+dur+0.18);
-}
-
-function playClick(ctx,t,strong){
-  try{
-    const o=ctx.createOscillator(),g=ctx.createGain();
-    o.connect(g); g.connect(ctx.destination);
-    o.frequency.value=strong?1100:720;
-    g.gain.setValueAtTime(strong?0.3:0.18,t);
-    g.gain.exponentialRampToValueAtTime(0.001,t+0.05);
-    o.start(t); o.stop(t+0.06);
-  }catch(e){}
-}
+// (采样钢琴已在上方定义)
 
 // ═══════════════════════════════════════════
 // 状态
@@ -413,39 +403,49 @@ function buildStrip(){
 // ═══════════════════════════════════════════
 // 调度钢琴音符 (前奏+旋律+和声+低音)
 // ═══════════════════════════════════════════
-function schedulePiano(ctx, vocalStartTime){
+let pianoTimer=null;
+let pianoScheduledTo=-Infinity;
+function startPianoScheduler(ctx, vocalStartTime){
   const bps=60/BPM;
+  const LOOK=4;
+  pianoScheduledTo=-Infinity;
 
-  // 旋律 (人声旋律线，偏亮)
+  // 预计算所有音符的绝对时间
+  const allNotes=[];
   MELODY.forEach(note=>{
-    const t=vocalStartTime+(note.expStart/1000);
-    playPiano(ctx,note.n,t,note.dur/1000*0.8,0.22);
+    allNotes.push({midi:note.n, t:vocalStartTime+(note.expStart/1000), dur:note.dur/1000*0.8, vol:0.22});
   });
-
-  // 和声块 + 低音
   HARM.forEach(([sb,eb,bassM,chordMs])=>{
     const startT=vocalStartTime+(sb*bps);
     const durBeats=eb-sb;
-    const durSec=durBeats*bps;
-
-    // 低音 - 每小节第1拍
     for(let beat=0;beat<durBeats;beat+=4){
-      const t=startT+beat*bps;
-      playPiano(ctx,bassM,t,bps*1.6,0.2);
+      allNotes.push({midi:bassM, t:startT+beat*bps, dur:bps*1.6, vol:0.2});
     }
-
-    // 和弦 - 每拍2,3,4
     for(let beat=1;beat<durBeats;beat++){
-      const t=startT+beat*bps;
-      const beatInMeasure=beat%4;
-      if(beatInMeasure!==0){
+      if(beat%4!==0){
         chordMs.forEach((m,i)=>{
-          playPiano(ctx,m,t+i*0.006,bps*0.75,0.1);
+          allNotes.push({midi:m, t:startT+beat*bps+i*0.006, dur:bps*0.75, vol:0.1});
         });
       }
     }
   });
+  allNotes.sort((a,b)=>a.t-b.t);
+
+  let ptr=0;
+  function tick(){
+    const now=ctx.currentTime;
+    const until=now+LOOK;
+    while(ptr<allNotes.length && allNotes[ptr].t<until){
+      const n=allNotes[ptr];
+      if(n.t>=now-0.1) playPiano(ctx,n.midi,n.t,n.dur,n.vol);
+      ptr++;
+    }
+    if(ptr>=allNotes.length){clearInterval(pianoTimer);pianoTimer=null;}
+  }
+  tick();
+  pianoTimer=setInterval(tick,500);
 }
+function stopPianoScheduler(){if(pianoTimer){clearInterval(pianoTimer);pianoTimer=null;}}
 
 // ═══════════════════════════════════════════
 // 主流程
@@ -459,43 +459,46 @@ async function doStart(){
     audioCtx.createMediaStreamSource(stream).connect(analyser);
   }catch(e){alert('需要麦克风权限 🎤');return;}
 
-  showScreen('countdown');
+  // 加载采样
+  document.getElementById('btn-start').textContent='加载钢琴音色中...';
+  document.getElementById('btn-start').disabled=true;
+  await preloadAll(audioCtx);
+  document.getElementById('btn-start').textContent='🎹   开始演唱';
+  document.getElementById('btn-start').disabled=false;
+
   buildStrip();
   noteResults=MELODY.map((_,i)=>({idx:i,centsArr:[],actualDur:0,started:false}));
   noteIdx=0; timeOnNote=0;
 
+  // 直接进入录制界面（先是前奏阶段）
+  showScreen('recording');
+  document.getElementById('rec-sub').textContent='🎹 前奏中';
+  document.getElementById('big-lyric').textContent='♪';
+  document.getElementById('big-lyric').className='';
+  document.getElementById('intro-hint').textContent='聆听钢琴，准备跟唱';
+  document.getElementById('intro-hint').style.opacity='1';
+  document.getElementById('pitch-row').style.visibility='hidden';
+
   const ctx=audioCtx;
-  const now=ctx.currentTime;
   const bps=60/BPM;
-  const INTRO_BEATS=16; // 4小节
+  const INTRO_BEATS=16;
   const introDurSec=INTRO_BEATS*bps;
+  const vocalStartTime=ctx.currentTime+introDurSec;
 
-  // 调度节拍器(前奏期间)
-  for(let i=0;i<INTRO_BEATS;i++) playClick(ctx,now+i*bps,i%4===0);
+  // 启动滚动钢琴调度
+  startPianoScheduler(ctx, vocalStartTime);
 
-  // 调度所有钢琴音符
-  const vocalStartTime=now+introDurSec;
-  schedulePiano(ctx,vocalStartTime);
-
-  // 前奏倒计时UI
-  const cdEl=document.getElementById('cd-num');
-  const cdMsg=document.getElementById('cd-msg');
-  let bar=INTRO_BEATS;
-  function cdTick(){
-    bar--;
-    cdEl.classList.add('pulse');
-    setTimeout(()=>cdEl.classList.remove('pulse'),80);
-    if(bar<=0){
-      startRecording();
-    } else {
-      const measure=Math.floor(bar/4)+1;
-      cdEl.textContent=4-((INTRO_BEATS-bar-1)%4);
-      cdMsg.textContent=`第 ${Math.ceil((INTRO_BEATS-bar)/4)} / 4 小节`;
-      setTimeout(cdTick,BEAT);
-    }
-  }
-  cdEl.textContent='4';
-  setTimeout(cdTick,BEAT);
+  // 前奏最后3拍倒计时提示
+  const introMs=introDurSec*1000;
+  setTimeout(()=>{document.getElementById('intro-hint').textContent='3';},introMs-BEAT*3);
+  setTimeout(()=>{document.getElementById('intro-hint').textContent='2';},introMs-BEAT*2);
+  setTimeout(()=>{document.getElementById('intro-hint').textContent='1';},introMs-BEAT);
+  setTimeout(()=>{
+    document.getElementById('intro-hint').style.opacity='0';
+    document.getElementById('rec-sub').textContent='● 录制中';
+    document.getElementById('pitch-row').style.visibility='visible';
+    startRecording();
+  },introMs);
 }
 
 function startRecording(){
@@ -630,6 +633,7 @@ function recordLoop(){
 
 function stopRecording(){
   cancelAnimationFrame(raf); raf=null;
+  stopPianoScheduler();
   stream&&stream.getTracks().forEach(t=>t.stop());
   showScreen('analyzing');
   setTimeout(analyzeAndReport,600);
