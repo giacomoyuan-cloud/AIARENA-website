@@ -6,52 +6,86 @@
 <title>越人歌 · 音准分析</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:#050508;color:#e2e8f0;font-family:'Courier New',monospace;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:28px 16px;overflow-x:hidden}
-body::after{content:'';position:fixed;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.07) 2px,rgba(0,0,0,0.07) 4px);z-index:10}
-.screen{display:none;width:100%;max-width:500px;flex-direction:column;align-items:center}
+body{background:#0a0a0f;color:#f1f5f9;font-family:'Courier New',monospace;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:28px 16px 40px;overflow-x:hidden}
+.screen{display:none;width:100%;max-width:480px;flex-direction:column;align-items:center}
 .screen.active{display:flex}
-h1{font-size:20px;letter-spacing:.4em;color:#94a3b8;margin-bottom:4px;text-align:center}
-.sub{font-size:9px;color:#334155;letter-spacing:.4em;margin-bottom:28px;text-align:center}
-.card{background:#07070d;border:1px solid #0f172a;border-radius:12px;padding:18px;width:100%;margin-bottom:14px}
-.btn{padding:12px 0;border-radius:40px;border:1px solid #334155;background:#0d1117;color:#94a3b8;font-size:12px;font-weight:700;cursor:pointer;letter-spacing:.3em;font-family:'Courier New',monospace;transition:all .2s;width:100%;margin-top:8px}
-.btn.primary{border-color:#166534;background:#052e16;color:#4ade80}
-.btn.danger{border-color:#7f1d1d;background:#1c0a0a;color:#f87171}
-.btn:active{opacity:.7}
+h1{font-size:22px;letter-spacing:.5em;color:#f1f5f9;margin-bottom:4px;text-align:center;font-weight:900}
+.sub{font-size:10px;color:#64748b;letter-spacing:.4em;margin-bottom:28px;text-align:center}
+.card{background:#13131a;border:1px solid #1e293b;border-radius:12px;padding:18px;width:100%;margin-bottom:14px}
+.card-title{font-size:10px;color:#94a3b8;letter-spacing:.3em;margin-bottom:12px;font-weight:700}
+.btn{padding:14px 0;border-radius:40px;border:none;font-size:13px;font-weight:700;cursor:pointer;letter-spacing:.3em;font-family:'Courier New',monospace;transition:all .15s;width:100%;margin-top:6px}
+.btn.primary{background:#166534;color:#bbf7d0}
+.btn.primary:hover{background:#15803d}
+.btn.danger{background:#7f1d1d;color:#fecaca}
+.btn.danger:hover{background:#991b1b}
+.btn.ghost{background:#1e293b;color:#94a3b8}
+.btn.ghost:hover{background:#273548}
+.btn:active{opacity:.8;transform:scale(.98)}
+
+/* setup */
+.info-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #1e293b;font-size:13px}
+.info-row:last-child{border-bottom:none}
+.info-key{color:#64748b}
+.info-val{color:#f1f5f9;font-weight:700}
+.headphone-box{background:#0f2027;border:1px solid #0e7490;border-radius:10px;padding:14px 18px;display:flex;align-items:center;gap:12px;margin-bottom:14px;width:100%}
+.headphone-icon{font-size:28px;flex-shrink:0}
+.headphone-text{font-size:12px;color:#7dd3fc;line-height:1.8}
+.headphone-text strong{color:#e0f2fe;display:block;font-size:13px;margin-bottom:2px}
 
 /* countdown */
-#countdown-num{font-size:140px;font-weight:900;color:#1e293b;margin:30px 0;line-height:1;transition:all .1s}
-#countdown-num.pulse{color:#4ade80;text-shadow:0 0 60px #4ade8044}
+#countdown-num{font-size:160px;font-weight:900;color:#f1f5f9;margin:20px 0;line-height:1;transition:all .08s;text-shadow:0 0 60px rgba(241,245,249,.15)}
+#countdown-num.pulse{color:#4ade80;text-shadow:0 0 80px #4ade8055}
+#countdown-msg{font-size:11px;color:#64748b;letter-spacing:.3em;text-align:center}
 
 /* recording */
-#big-lyric{font-size:96px;text-align:center;font-weight:900;color:#4ade80;text-shadow:0 0 40px #4ade8066;margin:16px 0;min-height:108px;display:flex;align-items:center;justify-content:center;transition:color .08s,text-shadow .08s;line-height:1}
+#big-lyric-wrap{width:100%;background:#13131a;border:1px solid #1e293b;border-radius:12px;padding:20px;text-align:center;margin-bottom:14px}
+#big-lyric{font-size:88px;font-weight:900;color:#f1f5f9;line-height:1;min-height:96px;display:flex;align-items:center;justify-content:center;transition:color .08s,text-shadow .08s}
+#big-lyric.good{color:#4ade80;text-shadow:0 0 40px #4ade8055}
 #big-lyric.warn{color:#fbbf24;text-shadow:0 0 30px #fbbf2444}
 #big-lyric.bad{color:#f87171;text-shadow:0 0 30px #f8717144}
-#big-lyric.silent{color:#1e293b;text-shadow:none}
-#cents-bar{width:100%;height:4px;background:#0d1117;border-radius:2px;margin-bottom:4px;overflow:hidden;position:relative}
-#cents-fill{position:absolute;top:0;height:100%;border-radius:2px;transition:all .08s;background:#4ade80}
-#cents-label{font-size:11px;color:#475569;letter-spacing:.15em;text-align:center;min-height:18px;margin-bottom:14px}
-#prog-wrap{width:100%;height:3px;background:#0d1117;border-radius:2px;margin-bottom:18px;overflow:hidden}
-#prog-fill{height:100%;background:linear-gradient(to right,#1d4ed8,#7c3aed);width:0%;transition:width .1s}
-#lyrics-strip{display:flex;flex-wrap:wrap;gap:6px 8px;justify-content:center;padding:14px;background:#07070d;border-radius:8px;width:100%;margin-bottom:14px;border:1px solid #0d1117}
-.lc{font-size:17px;padding:3px 5px;border-radius:4px;color:#1e293b;transition:all .15s;cursor:default}
-.lc.now{color:#e2e8f0;background:#0f172a;font-size:20px;font-weight:700}
-.lc.done{color:#0f172a}
-#beat-indicator{display:flex;gap:8px;justify-content:center;margin-bottom:14px}
-.beat-dot{width:8px;height:8px;border-radius:50%;background:#0f172a;transition:background .05s}
-.beat-dot.on{background:#4ade80;box-shadow:0 0 8px #4ade80}
+#pitch-status{font-size:13px;font-weight:700;margin-top:10px;min-height:20px;letter-spacing:.1em;color:#94a3b8}
+
+#meter-wrap{width:100%;height:10px;background:#1e293b;border-radius:5px;overflow:hidden;position:relative;margin-bottom:4px}
+#meter-center{position:absolute;left:50%;top:0;width:2px;height:100%;background:#334155;transform:translateX(-50%)}
+#meter-fill{position:absolute;top:0;height:100%;border-radius:5px;transition:all .08s}
+#meter-labels{display:flex;justify-content:space-between;font-size:9px;color:#475569;margin-bottom:16px;padding:0 2px}
+
+#prog-wrap{width:100%;height:4px;background:#1e293b;border-radius:2px;overflow:hidden;margin-bottom:14px}
+#prog-fill{height:100%;background:linear-gradient(to right,#3b82f6,#8b5cf6);width:0%;transition:width .15s}
+
+#beat-row{display:flex;gap:10px;justify-content:center;margin-bottom:14px}
+.beat-dot{width:10px;height:10px;border-radius:50%;background:#1e293b;transition:all .05s}
+.beat-dot.on{background:#f1f5f9;box-shadow:0 0 10px rgba(241,245,249,.5)}
+
+#lyrics-strip{display:flex;flex-wrap:wrap;gap:5px 6px;padding:14px;background:#13131a;border:1px solid #1e293b;border-radius:10px;width:100%;margin-bottom:14px;justify-content:center}
+.lc{font-size:16px;padding:4px 6px;border-radius:4px;color:#334155;transition:all .12s;font-weight:700}
+.lc.now{color:#f1f5f9;background:#1e293b;font-size:20px;scale:1.1}
+.lc.done-good{color:#166534}
+.lc.done-warn{color:#92400e}
+.lc.done-bad{color:#7f1d1d}
+
+/* analyzing */
+.analyzing-wrap{text-align:center;padding:40px 0}
+.analyzing-dots{font-size:32px;letter-spacing:.3em;color:#334155;animation:blink 1.2s infinite}
+@keyframes blink{0%,100%{opacity:.3}50%{opacity:1}}
 
 /* result */
-.note-grid{display:flex;flex-wrap:wrap;gap:5px;width:100%;margin:10px 0}
-.nc{display:flex;flex-direction:column;align-items:center;gap:2px}
-.nb{width:34px;height:34px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;cursor:help}
-.nb.good{background:#052e16;color:#4ade80}
-.nb.slight{background:#422006;color:#fb923c}
-.nb.bad{background:#1c0a0a;color:#f87171}
-.nb.missed{background:#0f172a;color:#334155}
-.nl{font-size:9px;color:#334155}
-#ai-report{background:#07070d;border:1px solid #0f172a;border-radius:10px;padding:18px;width:100%;white-space:pre-wrap;font-size:13px;line-height:1.9;color:#94a3b8;margin-top:8px;min-height:60px}
-.legend{display:flex;gap:14px;font-size:10px;color:#475569;margin-top:8px}
-#score-big{font-size:64px;font-weight:900;text-align:center;margin:8px 0;letter-spacing:-.03em}
+#score-display{text-align:center;padding:20px 0}
+#score-num{font-size:80px;font-weight:900;line-height:1;transition:color .3s}
+#score-label{font-size:11px;color:#64748b;letter-spacing:.3em;margin-top:4px}
+.note-grid{display:flex;flex-wrap:wrap;gap:6px;width:100%}
+.nc{display:flex;flex-direction:column;align-items:center;gap:3px}
+.nb{width:36px;height:36px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:900;cursor:help;transition:transform .1s}
+.nb:hover{transform:scale(1.15)}
+.nb.good{background:#052e16;color:#4ade80;border:1px solid #166534}
+.nb.slight{background:#2d1a00;color:#fbbf24;border:1px solid #92400e}
+.nb.bad{background:#1c0000;color:#f87171;border:1px solid #7f1d1d}
+.nb.missed{background:#0f172a;color:#475569;border:1px solid #1e293b}
+.nl{font-size:9px;color:#64748b;font-weight:700}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:#64748b;margin-top:10px}
+.legend span{display:flex;align-items:center;gap:4px}
+
+#ai-report{background:#13131a;border:1px solid #1e293b;border-radius:10px;padding:18px;width:100%;font-size:13px;line-height:2;color:#cbd5e1;margin-top:0;min-height:80px;white-space:pre-wrap}
 </style>
 </head>
 <body>
@@ -59,62 +93,85 @@ h1{font-size:20px;letter-spacing:.4em;color:#94a3b8;margin-bottom:4px;text-align
 <!-- SETUP -->
 <div id="screen-setup" class="screen active">
   <h1>越 人 歌</h1>
-  <div class="sub">音准 · 节奏 智能分析</div>
-  <div class="card">
-    <div style="font-size:11px;color:#475569;line-height:2;letter-spacing:.05em">
-      节拍：<span style="color:#94a3b8">68 BPM</span> &nbsp;|&nbsp; 调式：<span style="color:#94a3b8">G 大调</span><br>
-      系统会有 4 拍节拍器引导您进入<br>
-      演唱时请跟随节拍，唱完后 AI 自动出分析报告
+  <div class="sub">钢琴引导 · 音准智能分析</div>
+
+  <div class="headphone-box">
+    <div class="headphone-icon">🎧</div>
+    <div class="headphone-text">
+      <strong>请先戴上耳机</strong>
+      钢琴伴奏通过耳机播放，避免被麦克风录入，确保音准分析准确。
     </div>
   </div>
+
   <div class="card">
-    <div style="font-size:10px;color:#334155;letter-spacing:.2em;margin-bottom:10px">演唱内容</div>
-    <div style="font-size:13px;color:#475569;line-height:2.2">
+    <div class="card-title">曲目信息</div>
+    <div class="info-row"><span class="info-key">曲目</span><span class="info-val">越人歌</span></div>
+    <div class="info-row"><span class="info-key">节拍</span><span class="info-val">68 BPM · 4/4拍</span></div>
+    <div class="info-row"><span class="info-key">调式</span><span class="info-val">G 大调</span></div>
+    <div class="info-row"><span class="info-key">时长</span><span class="info-val">约 2 分钟</span></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">演唱内容</div>
+    <div style="font-size:14px;color:#cbd5e1;line-height:2.4;text-align:center">
       今夕何夕兮 塞舟中流<br>
       今日何日兮 得与王子同舟<br>
       蒙羞被好兮 不訾诟耻<br>
       心几烦而不绝兮 得知王子<br>
       山有木兮木有枝<br>
-      心悦君兮君不知 ×2<br>
-      <span style="color:#334155">（尾声）心悦君兮君不知</span>
+      心悦君兮君不知 ×2
     </div>
   </div>
-  <button class="btn primary" id="btn-start">● &nbsp;&nbsp;开始演唱</button>
+
+  <button class="btn primary" id="btn-start">🎹 &nbsp; 开始演唱</button>
 </div>
 
 <!-- COUNTDOWN -->
 <div id="screen-countdown" class="screen">
-  <h1>越 人 歌</h1>
-  <div class="sub">准备好了吗</div>
+  <h1>准 备</h1>
+  <div class="sub">听节拍，跟着进入</div>
   <div id="countdown-num">4</div>
-  <div style="font-size:10px;color:#1e293b;letter-spacing:.3em">跟随节拍进入</div>
+  <div id="countdown-msg">钢琴节拍器引导中...</div>
 </div>
 
 <!-- RECORDING -->
 <div id="screen-recording" class="screen">
   <h1>越 人 歌</h1>
-  <div class="sub">● REC</div>
-  <div id="big-lyric" class="silent">—</div>
-  <div id="cents-bar"><div id="cents-fill"></div></div>
-  <div id="cents-label">&nbsp;</div>
+  <div class="sub" id="rec-sub">● 录制中</div>
+
+  <div id="big-lyric-wrap">
+    <div id="big-lyric">—</div>
+    <div id="pitch-status">&nbsp;</div>
+  </div>
+
+  <div id="meter-wrap">
+    <div id="meter-center"></div>
+    <div id="meter-fill"></div>
+  </div>
+  <div id="meter-labels"><span>♭ 偏低</span><span>准</span><span>偏高 ♯</span></div>
+
   <div id="prog-wrap"><div id="prog-fill"></div></div>
-  <div id="beat-indicator">
+
+  <div id="beat-row">
     <div class="beat-dot" id="bd0"></div>
     <div class="beat-dot" id="bd1"></div>
     <div class="beat-dot" id="bd2"></div>
     <div class="beat-dot" id="bd3"></div>
   </div>
+
   <div id="lyrics-strip"></div>
-  <button class="btn danger" id="btn-stop">■ &nbsp;&nbsp;停止录制</button>
+  <button class="btn danger" id="btn-stop">■ &nbsp; 停止录制</button>
 </div>
 
 <!-- ANALYZING -->
 <div id="screen-analyzing" class="screen">
   <h1>分 析 中</h1>
-  <div class="sub">请稍候</div>
-  <div style="font-size:12px;color:#1e293b;letter-spacing:.25em;margin-top:40px;text-align:center;line-height:2.5">
-    AI 正在分析您的演唱<br>
-    音准偏差 · 节奏稳定性 · 改进建议
+  <div class="sub">AI 正在处理您的演唱</div>
+  <div class="analyzing-wrap">
+    <div class="analyzing-dots">● ● ●</div>
+    <div style="font-size:12px;color:#64748b;letter-spacing:.2em;margin-top:24px;line-height:2.5">
+      音准偏差计算中<br>节奏稳定性分析中<br>生成改进建议中
+    </div>
   </div>
 </div>
 
@@ -122,70 +179,74 @@ h1{font-size:20px;letter-spacing:.4em;color:#94a3b8;margin-bottom:4px;text-align
 <div id="screen-result" class="screen">
   <h1>分 析 报 告</h1>
   <div class="sub">越人歌</div>
+
   <div class="card">
-    <div id="score-big">—</div>
-    <div style="font-size:9px;color:#334155;letter-spacing:.3em;text-align:center">综合得分</div>
+    <div id="score-display">
+      <div id="score-num">—</div>
+      <div id="score-label">综合得分</div>
+    </div>
   </div>
+
   <div class="card">
-    <div style="font-size:10px;color:#334155;letter-spacing:.3em;margin-bottom:10px">逐字音准</div>
+    <div class="card-title">逐字音准 &nbsp;<span style="font-size:9px;color:#475569;font-weight:400">（悬停查看偏差值）</span></div>
     <div id="note-grid" class="note-grid"></div>
     <div class="legend">
       <span><span style="color:#4ade80">■</span> 准确</span>
-      <span><span style="color:#fb923c">■</span> 轻微偏差</span>
+      <span><span style="color:#fbbf24">■</span> 轻微偏差</span>
       <span><span style="color:#f87171">■</span> 跑调</span>
-      <span><span style="color:#334155">■</span> 未检测</span>
+      <span><span style="color:#475569">■</span> 未检测</span>
     </div>
   </div>
-  <div id="ai-report">生成中...</div>
-  <button class="btn primary" id="btn-retry" style="margin-top:14px">↺ &nbsp;&nbsp;重新演唱</button>
+
+  <div class="card">
+    <div class="card-title">AI 分析报告</div>
+    <div id="ai-report">生成中...</div>
+  </div>
+
+  <button class="btn primary" id="btn-retry">↺ &nbsp; 重新演唱</button>
+  <button class="btn ghost" id="btn-home" style="margin-top:8px">← &nbsp; 返回首页</button>
 </div>
 
 <script>
-// ─── 人声旋律数据（越人歌 · G大调） ───
-// MIDI: G4=67 A4=69 B4=71 C5=72 D5=74 E5=76 F#4=66
+const NOTES_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 const BPM = 68;
-const BEAT = 60000 / BPM; // ~882ms per beat
+const BEAT = 60000 / BPM;
 
+// 越人歌人声旋律 (MIDI音高: G4=67 A4=69 B4=71 C5=72 D5=74 E5=76)
 const melody = [
-  // 今夕何夕兮 塞舟中流
   {l:'今',n:74,b:1},{l:'夕',n:72,b:1},{l:'何',n:71,b:1},{l:'夕',n:69,b:1},
   {l:'兮',n:67,b:2},
   {l:'塞',n:69,b:1},{l:'舟',n:71,b:1},{l:'中',n:69,b:2},{l:'流',n:67,b:4},
-  // 今日何日兮 得与王子同舟
   {l:'今',n:74,b:1},{l:'日',n:72,b:1},{l:'何',n:71,b:1},{l:'日',n:69,b:1},
   {l:'兮',n:67,b:2},
   {l:'得',n:69,b:1},{l:'与',n:71,b:1},{l:'王',n:72,b:1},
   {l:'子',n:71,b:0.5},{l:'同',n:69,b:0.5},{l:'舟',n:67,b:4},
-  // 蒙羞被好兮 不訾诟耻
   {l:'蒙',n:74,b:1},{l:'羞',n:76,b:1},{l:'被',n:74,b:1},{l:'好',n:72,b:1},
   {l:'兮',n:71,b:2},
   {l:'不',n:71,b:1},{l:'訾',n:69,b:1},{l:'诟',n:67,b:1},{l:'耻',n:69,b:4},
-  // 心几烦而不绝兮 得知王子
   {l:'心',n:74,b:1},{l:'几',n:76,b:1},{l:'烦',n:74,b:1},{l:'而',n:72,b:1},
   {l:'不',n:71,b:1},{l:'绝',n:69,b:1},{l:'兮',n:67,b:2},
   {l:'得',n:69,b:1},{l:'知',n:71,b:1},{l:'王',n:72,b:1},{l:'子',n:74,b:4},
-  // 山有木兮木有枝 心悦君兮君不知 ×1
   {l:'山',n:67,b:1.5},{l:'有',n:69,b:0.5},{l:'木',n:71,b:1},{l:'兮',n:72,b:1},
   {l:'木',n:71,b:1},{l:'有',n:69,b:0.5},{l:'枝',n:67,b:1.5},
   {l:'心',n:67,b:1},{l:'悦',n:69,b:1},{l:'君',n:71,b:1},{l:'兮',n:72,b:1},
   {l:'君',n:71,b:1},{l:'不',n:69,b:1},{l:'知',n:67,b:4},
-  // 山有木兮木有枝 心悦君兮君不知 ×2
   {l:'山',n:67,b:1.5},{l:'有',n:69,b:0.5},{l:'木',n:71,b:1},{l:'兮',n:72,b:1},
   {l:'木',n:71,b:1},{l:'有',n:69,b:0.5},{l:'枝',n:67,b:1.5},
   {l:'心',n:67,b:1},{l:'悦',n:69,b:1},{l:'君',n:71,b:1},{l:'兮',n:72,b:1},
   {l:'君',n:71,b:1},{l:'不',n:69,b:1},{l:'知',n:67,b:4},
-  // 尾声
   {l:'知',n:67,b:4},
   {l:'心',n:72,b:1.5},{l:'悦',n:74,b:0.5},{l:'君',n:72,b:2},
   {l:'兮',n:71,b:1},{l:'君',n:69,b:1},{l:'不',n:71,b:1},{l:'知',n:67,b:8},
 ];
 
-// 预算时间戳
 let t = 0;
 melody.forEach(n => { n.start = t; n.dur = n.b * BEAT; t += n.dur; });
 const TOTAL_MS = t;
 
 // ─── 音频工具 ───
+function midiToFreq(m) { return 440 * Math.pow(2, (m - 69) / 12); }
+
 function autoCorrelate(buf, sr) {
   const N = buf.length;
   let rms = 0;
@@ -206,23 +267,49 @@ function autoCorrelate(buf, sr) {
   for(let i = d; i < M; i++) if(c[i] > maxV){ maxV = c[i]; maxP = i; }
   if(maxP <= 0) return -1;
   if(maxP < M-1) {
-    const a = (c[maxP-1]+c[maxP+1]-2*c[maxP])/2;
+    const av = (c[maxP-1]+c[maxP+1]-2*c[maxP])/2;
     const bv = (c[maxP+1]-c[maxP-1])/2;
-    const T0 = a ? maxP - bv/(2*a) : maxP;
+    const T0 = av ? maxP - bv/(2*av) : maxP;
     return sr/T0;
   }
   return sr/maxP;
 }
 
-function midiToFreq(m) { return 440 * Math.pow(2, (m-69)/12); }
+// 钢琴音色合成
+function playPianoNote(ctx, midi, startTime, duration) {
+  const freq = midiToFreq(midi);
+  const g = ctx.createGain();
+  g.connect(ctx.destination);
+
+  // 基频 + 泛音模拟钢琴
+  [1, 2, 3, 4, 5].forEach((harm, i) => {
+    const osc = ctx.createOscillator();
+    osc.type = i === 0 ? 'triangle' : 'sine';
+    osc.frequency.value = freq * harm;
+    const hg = ctx.createGain();
+    hg.gain.value = [0.6, 0.25, 0.12, 0.06, 0.03][i];
+    osc.connect(hg);
+    hg.connect(g);
+    osc.start(startTime);
+    osc.stop(startTime + duration + 0.1);
+  });
+
+  // ADSR包络
+  const dur = duration;
+  g.gain.setValueAtTime(0, startTime);
+  g.gain.linearRampToValueAtTime(0.35, startTime + 0.01);
+  g.gain.exponentialRampToValueAtTime(0.18, startTime + 0.08);
+  g.gain.setValueAtTime(0.18, startTime + dur * 0.7);
+  g.gain.exponentialRampToValueAtTime(0.001, startTime + dur + 0.15);
+}
 
 function playClick(ctx, time, strong) {
   try {
     const o = ctx.createOscillator(), g = ctx.createGain();
     o.connect(g); g.connect(ctx.destination);
-    o.frequency.value = strong ? 1000 : 700;
-    g.gain.setValueAtTime(strong ? 0.4 : 0.25, time);
-    g.gain.exponentialRampToValueAtTime(0.001, time + 0.06);
+    o.frequency.value = strong ? 1100 : 750;
+    g.gain.setValueAtTime(strong ? 0.35 : 0.2, time);
+    g.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
     o.start(time); o.stop(time + 0.06);
   } catch(e) {}
 }
@@ -230,12 +317,10 @@ function playClick(ctx, time, strong) {
 // ─── 状态 ───
 let audioCtx = null, analyser = null, stream = null, raf = null;
 let recordings = [], startTime = 0;
-let beatIdx = 0, lastBeatTime = 0;
 
-// ─── 工具 ───
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.getElementById('screen-'+id).classList.add('active');
+  document.getElementById('screen-' + id).classList.add('active');
 }
 
 function buildLyricsStrip() {
@@ -253,7 +338,7 @@ function buildLyricsStrip() {
 // ─── 主流程 ───
 async function doStart() {
   try {
-    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true, echoCancellation: false, noiseSuppression: false });
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     analyser = audioCtx.createAnalyser();
     analyser.fftSize = 2048;
@@ -267,9 +352,10 @@ async function doStart() {
   buildLyricsStrip();
   recordings = [];
 
+  // 4拍节拍器 + 钢琴预备
   const now = audioCtx.currentTime;
   const bps = 60 / BPM;
-  for(let i = 0; i < 4; i++) playClick(audioCtx, now + i*bps, i === 0);
+  for(let i = 0; i < 4; i++) playClick(audioCtx, now + i * bps, i === 0);
 
   const cdEl = document.getElementById('countdown-num');
   let beat = 4;
@@ -277,10 +363,14 @@ async function doStart() {
 
   const tick = () => {
     cdEl.classList.add('pulse');
-    setTimeout(() => cdEl.classList.remove('pulse'), 80);
+    setTimeout(() => cdEl.classList.remove('pulse'), 100);
     beat--;
-    if(beat <= 0) { startRecording(); }
-    else { cdEl.textContent = beat; setTimeout(tick, BEAT); }
+    if(beat <= 0) {
+      startRecording();
+    } else {
+      cdEl.textContent = beat;
+      setTimeout(tick, BEAT);
+    }
   };
   setTimeout(tick, BEAT);
 }
@@ -288,16 +378,17 @@ async function doStart() {
 function startRecording() {
   showScreen('recording');
   startTime = performance.now();
-  beatIdx = 0;
 
-  // 调度全曲节拍器
+  // 调度全曲钢琴旋律
   const base = audioCtx.currentTime;
-  const totalBeats = Math.ceil(TOTAL_MS / BEAT) + 2;
   const bps = 60 / BPM;
-  for(let i = 0; i < totalBeats; i++) playClick(audioCtx, base + i*bps, i%4===0);
+  melody.forEach(note => {
+    const t = base + (note.start / 1000);
+    playPianoNote(audioCtx, note.n, t, note.dur / 1000 * 0.85);
+  });
 
   // 自动结束
-  setTimeout(() => { if(raf) stopRecording(); }, TOTAL_MS + 1500);
+  setTimeout(() => { if(raf) stopRecording(); }, TOTAL_MS + 1000);
 
   raf = requestAnimationFrame(recordLoop);
 }
@@ -310,62 +401,80 @@ function recordLoop() {
   const freq = autoCorrelate(buf, audioCtx.sampleRate);
   recordings.push({ time: elapsed, freq: freq > 0 ? freq : -1 });
 
-  // 当前音符
   let idx = melody.findIndex(n => elapsed >= n.start && elapsed < n.start + n.dur);
-  if(idx < 0) idx = melody.length - 1;
-  const note = melody[idx];
+  if(idx < 0) idx = elapsed < melody[0].start ? 0 : melody.length - 1;
+  const note = melody[Math.max(0, idx)];
 
-  // 大字符
+  // 大字
   const bigLyric = document.getElementById('big-lyric');
-  const centsLabel = document.getElementById('cents-label');
-  const centsFill = document.getElementById('cents-fill');
-
+  const pitchStatus = document.getElementById('pitch-status');
+  const meterFill = document.getElementById('meter-fill');
   bigLyric.textContent = note ? note.l : '—';
 
   if(freq > 0 && note) {
     const targetFreq = midiToFreq(note.n);
     const cents = 1200 * Math.log2(freq / targetFreq);
     const abs = Math.abs(cents);
-    // Cents bar (center = 50%, ±50¢ = full bar)
-    const pct = 50 + Math.max(-50, Math.min(50, cents));
-    const col = abs < 25 ? '#4ade80' : abs < 50 ? '#fbbf24' : '#f87171';
-    centsFill.style.left = Math.min(50, pct) + '%';
-    centsFill.style.width = Math.abs(pct - 50) + '%';
-    centsFill.style.background = col;
+    const clamped = Math.max(-50, Math.min(50, cents));
+    const pct = 50 + clamped; // 0-100
 
     if(abs < 25) {
-      bigLyric.className = '';
-      centsLabel.innerHTML = `<span style="color:#4ade80">✓ 准确 &nbsp;${cents>0?'+':''}${Math.round(cents)}¢</span>`;
+      bigLyric.className = 'good';
+      meterFill.style.background = '#4ade80';
+      pitchStatus.style.color = '#4ade80';
+      pitchStatus.textContent = `✓ 准确  ${cents > 0 ? '+' : ''}${Math.round(cents)}¢`;
     } else if(abs < 50) {
       bigLyric.className = 'warn';
-      centsLabel.innerHTML = `<span style="color:#fbbf24">${cents>0?'偏高':'偏低'} ${Math.round(abs)}¢</span>`;
+      meterFill.style.background = '#fbbf24';
+      pitchStatus.style.color = '#fbbf24';
+      pitchStatus.textContent = `${cents > 0 ? '偏高' : '偏低'}  ${Math.round(abs)}¢`;
     } else {
       bigLyric.className = 'bad';
-      centsLabel.innerHTML = `<span style="color:#f87171">${cents>0?'严重偏高':'严重偏低'} ${Math.round(abs)}¢</span>`;
+      meterFill.style.background = '#f87171';
+      pitchStatus.style.color = '#f87171';
+      pitchStatus.textContent = `严重${cents > 0 ? '偏高' : '偏低'}  ${Math.round(abs)}¢`;
     }
+
+    const left = Math.min(50, pct);
+    const width = Math.abs(pct - 50);
+    meterFill.style.left = left + '%';
+    meterFill.style.width = width + '%';
   } else {
-    bigLyric.className = 'silent';
-    centsFill.style.width = '0%';
-    centsLabel.innerHTML = '<span style="color:#1e293b">等待声音...</span>';
+    bigLyric.className = '';
+    bigLyric.style.color = '#1e293b';
+    meterFill.style.width = '0%';
+    pitchStatus.style.color = '#475569';
+    pitchStatus.textContent = '等待声音...';
   }
+  if(freq > 0) bigLyric.style.color = '';
 
   // 进度
-  const pct = Math.min(elapsed / TOTAL_MS * 100, 100);
-  document.getElementById('prog-fill').style.width = pct + '%';
+  document.getElementById('prog-fill').style.width = Math.min(elapsed / TOTAL_MS * 100, 100) + '%';
 
   // 节拍点
   const currentBeat = Math.floor(elapsed / BEAT) % 4;
-  for(let i = 0; i < 4; i++) {
-    document.getElementById('bd'+i).className = 'beat-dot' + (i === currentBeat ? ' on' : '');
-  }
+  for(let i = 0; i < 4; i++)
+    document.getElementById('bd' + i).className = 'beat-dot' + (i === currentBeat ? ' on' : '');
 
-  // 歌词高亮
-  melody.forEach((_, i) => {
-    const el = document.getElementById('lc-'+i);
+  // 歌词
+  melody.forEach((mn, i) => {
+    const el = document.getElementById('lc-' + i);
     if(!el) return;
-    if(i === idx) el.className = 'lc now';
-    else if(melody[i].start + melody[i].dur < elapsed) el.className = 'lc done';
-    else el.className = 'lc';
+    if(i === idx) {
+      el.className = 'lc now';
+    } else if(mn.start + mn.dur < elapsed) {
+      // 已唱完的字染色
+      const rec = recordings.filter(r => r.time >= mn.start && r.time < mn.start + mn.dur && r.freq > 0);
+      if(rec.length >= 2) {
+        const tf = midiToFreq(mn.n);
+        const avg = rec.reduce((s, r) => s + Math.abs(1200 * Math.log2(r.freq / tf)), 0) / rec.length;
+        el.className = avg < 25 ? 'lc done-good' : avg < 50 ? 'lc done-warn' : 'lc done-bad';
+      } else {
+        el.className = 'lc done-warn';
+      }
+    } else {
+      el.className = 'lc';
+    }
   });
 
   raf = requestAnimationFrame(recordLoop);
@@ -375,7 +484,7 @@ function stopRecording() {
   cancelAnimationFrame(raf); raf = null;
   stream && stream.getTracks().forEach(t => t.stop());
   showScreen('analyzing');
-  setTimeout(analyzeAndReport, 400);
+  setTimeout(analyzeAndReport, 500);
 }
 
 // ─── 分析 ───
@@ -383,20 +492,17 @@ function analyzeRecording() {
   return melody.map((note, i) => {
     const win = recordings.filter(r => r.time >= note.start && r.time < note.start + note.dur);
     const valid = win.filter(r => r.freq > 0);
-    if(valid.length < 3) return { ...note, status:'missed', avgCents:null, i };
-    const targetFreq = midiToFreq(note.n);
-    const centsArr = valid.map(r => 1200 * Math.log2(r.freq / targetFreq));
-    const avg = centsArr.reduce((a,b) => a+b, 0) / centsArr.length;
+    if(valid.length < 3) return { ...note, status: 'missed', avgCents: null, i };
+    const tf = midiToFreq(note.n);
+    const centsArr = valid.map(r => 1200 * Math.log2(r.freq / tf));
+    const avg = centsArr.reduce((a, b) => a + b, 0) / centsArr.length;
     const abs = Math.abs(avg);
-    const status = abs < 25 ? 'good' : abs < 50 ? 'slight' : 'bad';
-    return { ...note, status, avgCents: Math.round(avg), i };
+    return { ...note, status: abs < 25 ? 'good' : abs < 50 ? 'slight' : 'bad', avgCents: Math.round(avg), i };
   });
 }
 
 async function analyzeAndReport() {
   const results = analyzeRecording();
-
-  // 评分
   const good = results.filter(r => r.status === 'good').length;
   const slight = results.filter(r => r.status === 'slight').length;
   const bad = results.filter(r => r.status === 'bad').length;
@@ -404,8 +510,8 @@ async function analyzeAndReport() {
   const total = results.length;
   const score = Math.round((good + slight * 0.5) / total * 100);
 
-  // 评分颜色
-  const scoreEl = document.getElementById('score-big');
+  // 得分显示
+  const scoreEl = document.getElementById('score-num');
   scoreEl.textContent = score + '分';
   scoreEl.style.color = score >= 80 ? '#4ade80' : score >= 60 ? '#fbbf24' : '#f87171';
 
@@ -413,49 +519,42 @@ async function analyzeAndReport() {
   const grid = document.getElementById('note-grid');
   grid.innerHTML = '';
   results.forEach(r => {
-    const cell = document.createElement('div');
-    cell.className = 'nc';
+    const cell = document.createElement('div'); cell.className = 'nc';
     const bar = document.createElement('div');
     bar.className = 'nb ' + r.status;
     bar.textContent = r.l;
     bar.title = r.avgCents != null ? (r.avgCents > 0 ? '+' : '') + r.avgCents + '¢' : '未检测';
-    const lbl = document.createElement('div');
-    lbl.className = 'nl';
+    const lbl = document.createElement('div'); lbl.className = 'nl';
     lbl.textContent = r.avgCents != null ? (r.avgCents > 0 ? '+' : '') + r.avgCents : '—';
     cell.appendChild(bar); cell.appendChild(lbl);
     grid.appendChild(cell);
   });
 
-  // 问题音节
   const problems = results
-    .filter(r => r.status === 'bad' || r.status === 'slight')
-    .map(r => `"${r.l}"(${r.avgCents>0?'偏高':'偏低'}${Math.abs(r.avgCents)}¢)`)
+    .filter(r => r.status === 'bad')
+    .map(r => `"${r.l}"(${r.avgCents > 0 ? '偏高' : '偏低'}${Math.abs(r.avgCents)}¢)`)
     .join('、');
 
   showScreen('result');
 
   // AI报告
   const reportEl = document.getElementById('ai-report');
-  reportEl.textContent = '正在生成分析报告...';
+  reportEl.textContent = '正在生成...';
 
-  const prompt = `你是一位专业声乐老师，正在给学生分析演唱《越人歌》的音准情况。
+  const prompt = `你是一位专业声乐老师，正在给学生分析演唱《越人歌》的情况。
 
-数据摘要：
-- 总音符：${total} 个
-- 准确（±25音分）：${good} 个
-- 轻微偏差（25-50音分）：${slight} 个
-- 明显跑调（>50音分）：${bad} 个
-- 未检测到声音：${missed} 个
+演唱数据：
+- 总音符 ${total} 个，准确 ${good} 个，轻微偏差 ${slight} 个，明显跑调 ${bad} 个，未检测 ${missed} 个
 - 综合得分：${score} 分
-- 有问题的音节：${problems || '无明显问题'}
+- 明显跑调音节：${problems || '无'}
 
-请用中文给出分析报告，包含：
-1. 两三句总体评价（自然带出得分）
-2. 指出具体问题在哪些地方（如果有）
-3. 三条实际可操作的改进建议
-4. 一句鼓励的话收尾
+请用中文写分析报告，包含：
+1. 整体评价（自然带出得分）
+2. 具体问题音节指出（如有）
+3. 三条可操作的改进建议
+4. 一句鼓励收尾
 
-要求：语气像老师和学生说话，温暖但专业，不要用markdown格式，不要分点用数字标注，直接自然地分段写。`;
+语气像老师跟学生说话，温暖专业，不用markdown，不用数字编号，直接分段写。`;
 
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -471,8 +570,7 @@ async function analyzeAndReport() {
     const text = data.content.map(c => c.text || '').join('');
     reportEl.textContent = text || '分析完成，请查看上方逐字评分。';
   } catch(e) {
-    // 离线备用报告
-    reportEl.textContent = `本次演唱得分 ${score} 分，共检测 ${total} 个音符，其中 ${good} 个准确，${slight} 个轻微偏差，${bad} 个明显跑调。${problems ? '\n\n需要注意的音节：' + problems + '。' : ''}\n\n建议配合钢琴或伴奏练习，注意气息支撑，跑调部分可以单独放慢练习。加油！`;
+    reportEl.textContent = `本次演唱得分 ${score} 分，共 ${total} 个音符，其中 ${good} 个准确，${slight} 个轻微偏差，${bad} 个明显跑调。${problems ? '\n\n需要注意的音节：' + problems : ''}\n\n建议戴耳机跟着钢琴逐句练习，注意气息稳定，跑调的字可以单独放慢反复练。加油！`;
   }
 }
 
@@ -480,9 +578,14 @@ async function analyzeAndReport() {
 document.getElementById('btn-start').addEventListener('click', doStart);
 document.getElementById('btn-stop').addEventListener('click', stopRecording);
 document.getElementById('btn-retry').addEventListener('click', () => {
-  if(audioCtx) audioCtx.close();
-  audioCtx = null; analyser = null; stream = null;
-  recordings = []; startTime = 0;
+  if(audioCtx){ audioCtx.close(); audioCtx = null; }
+  analyser = null; stream = null; recordings = []; startTime = 0;
+  showScreen('recording');
+  doStart();
+});
+document.getElementById('btn-home').addEventListener('click', () => {
+  if(audioCtx){ audioCtx.close(); audioCtx = null; }
+  analyser = null; stream = null; recordings = []; startTime = 0;
   showScreen('setup');
 });
 </script>
