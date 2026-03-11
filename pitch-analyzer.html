@@ -85,7 +85,7 @@ h1{font-size:22px;letter-spacing:.5em;color:#f1f5f9;margin-bottom:4px;text-align
 
 <div id="screen-setup" class="screen active">
   <h1>越 人 歌</h1>
-  <div class="sub">钢琴引导 · 音准 · 节奏 智能2分析</div>
+  <div class="sub">钢琴引导 · 音准 · 节奏 智能分析</div>
   <div class="hpbox">
     <div class="hpicon">🎧</div>
     <div class="hptext">
@@ -309,150 +309,16 @@ const HARM = [
 // ═══════════════════════════════════════════
 // 钢琴采样引擎
 // ═══════════════════════════════════════════
-const SBASE='https://pub-eff7391c158f464ab640187f9465d705.r2.dev/acoustic_grand_piano-mp3/';
-const SNAMES=['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
-const sCache={};
-function midiFile(m){return SNAMES[((m%12)+12)%12]+(Math.floor(m/12)-1);}
-async function preloadAll(ctx){
-  const mids=new Set();
-  MELODY.forEach(n=>mids.add(n.n));
-  HARM.forEach(([,,b,cs])=>{mids.add(b);cs.forEach(c=>mids.add(c));});
-  const loads=[...mids].map(async m=>{
-    const names=[midiFile(m)];
-    const alt=midiFile(m).replace('Db','Cs').replace('Eb','Ds').replace('Gb','Fs').replace('Ab','Gs').replace('Bb','As');
-    if(alt!==names[0]) names.push(alt);
-    for(const n of names){
-      try{
-        const r=await fetch(SBASE+n+'.mp3');
-        if(!r.ok) continue;
-        sCache[m]=await ctx.decodeAudioData(await r.arrayBuffer());
-        return;
-      }catch(e){}
-    }
-  });
-  await Promise.allSettled(loads);
-}
-const activeSources=[];
-function playPiano(ctx,midi,t,dur,vol){
-  const buf=sCache[midi]; if(!buf) return;
-  const src=ctx.createBufferSource(); src.buffer=buf;
-  const g=ctx.createGain();
-  g.gain.setValueAtTime(vol||0.28,t);
-  g.gain.setValueAtTime(vol||0.28,t+Math.max(0.05,dur*0.8));
-  g.gain.exponentialRampToValueAtTime(0.001,t+dur+0.08);
-  src.connect(g); g.connect(ctx.destination);
-  src.start(t); src.stop(t+dur+0.15);
-  activeSources.push(src);
-  src.onended=()=>{const i=activeSources.indexOf(src);if(i>-1)activeSources.splice(i,1);};
-}
-
-// ═══════════════════════════════════════════
-// 音频工具
-// ═══════════════════════════════════════════
-const NOTES_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
-function midiToFreq(m){ return 440*Math.pow(2,(m-69)/12); }
-function midiToName(m){ return NOTES_NAMES[((m%12)+12)%12]+Math.floor((m+12)/12-1); }
-
-function autoCorrelate(buf,sr){
-  const N=buf.length;
-  let rms=0;
-  for(let i=0;i<N;i++) rms+=buf[i]*buf[i];
-  rms=Math.sqrt(rms/N);
-  if(rms<0.015) return -1;
-  let s=0,e=N-1;
-  for(let i=0;i<N/2;i++){if(Math.abs(buf[i])<0.2){s=i;break;}}
-  for(let i=1;i<N/2;i++){if(Math.abs(buf[N-i])<0.2){e=N-i;break;}}
-  const b=buf.slice(s,e); const M=b.length;
-  if(M<20) return -1;
-  const c=new Float32Array(M);
-  for(let i=0;i<M;i++) for(let j=0;j<M-i;j++) c[i]+=b[j]*b[j+i];
-  let d=0;
-  while(d<M-1&&c[d]>c[d+1])d++;
-  let maxV=-1,maxP=-1;
-  for(let i=d;i<M;i++) if(c[i]>maxV){maxV=c[i];maxP=i;}
-  if(maxP<=0) return -1;
-  if(maxP<M-1){
-    const av=(c[maxP-1]+c[maxP+1]-2*c[maxP])/2;
-    const bv=(c[maxP+1]-c[maxP-1])/2;
-    return sr/(av?maxP-bv/(2*av):maxP);
-  }
-  return sr/maxP;
-}
-
-// (采样钢琴已在上方定义)
-
-// ═══════════════════════════════════════════
-// 状态
-// ═══════════════════════════════════════════
-let audioCtx=null,analyser=null,stream=null,raf=null;
-// 音符跟随器状态
-let noteIdx=0, noteStartTime=0, timeOnNote=0;
-let noteResults=[]; // {idx, cents[], durations}
-let noteActualStart=0; // 当前音符实际开始时间(ms elapsed)
-let globalElapsed=0;
-let recordingStart=0;
-
-function showScreen(id){
-  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
-  document.getElementById('screen-'+id).classList.add('active');
-}
-
-function buildStrip(){
-  const strip=document.getElementById('lyrics-strip');
-  strip.innerHTML='';
-  MELODY.forEach((n,i)=>{
-    const s=document.createElement('span');
-    s.className='lc'; s.id='lc-'+i; s.textContent=n.l;
-    strip.appendChild(s);
-  });
-}
-
-// ═══════════════════════════════════════════
-// 调度钢琴音符 (前奏+旋律+和声+低音)
-// ═══════════════════════════════════════════
-let pianoTimer=null;
-let pianoScheduledTo=-Infinity;
-function startPianoScheduler(ctx, vocalStartTime){
-  const bps=60/BPM;
-  const LOOK=4;
-  pianoScheduledTo=-Infinity;
-
-  // 预计算所有音符的绝对时间
-  const allNotes=[];
-  MELODY.forEach(note=>{
-    allNotes.push({midi:note.n, t:vocalStartTime+(note.expStart/1000), dur:note.dur/1000*0.8, vol:0.22});
-  });
-  HARM.forEach(([sb,eb,bassM,chordMs])=>{
-    const startT=vocalStartTime+(sb*bps);
-    const durBeats=eb-sb;
-    for(let beat=0;beat<durBeats;beat+=4){
-      allNotes.push({midi:bassM, t:startT+beat*bps, dur:bps*1.6, vol:0.2});
-    }
-    for(let beat=1;beat<durBeats;beat++){
-      if(beat%4!==0){
-        chordMs.forEach((m,i)=>{
-          allNotes.push({midi:m, t:startT+beat*bps+i*0.006, dur:bps*0.75, vol:0.1});
-        });
-      }
-    }
-  });
-  allNotes.sort((a,b)=>a.t-b.t);
-
-  let ptr=0;
-  function tick(){
-    const now=ctx.currentTime;
-    const until=now+LOOK;
-    while(ptr<allNotes.length && allNotes[ptr].t<until){
-      const n=allNotes[ptr];
-      if(n.t>=now-0.1) playPiano(ctx,n.midi,n.t,n.dur,n.vol);
-      ptr++;
-    }
-    if(ptr>=allNotes.length){clearInterval(pianoTimer);pianoTimer=null;}
-  }
-  tick();
-  pianoTimer=setInterval(tick,500);
+const PIANO_MP3='https://pub-eff7391c158f464ab640187f9465d705.r2.dev/yueren.mp3';
+let pianoAudio=null;
+function startPianoScheduler(){
+  pianoAudio=new Audio(PIANO_MP3);
+  pianoAudio.volume=0.85;
+  pianoAudio.play();
 }
 function stopPianoScheduler(){
+  if(pianoAudio){pianoAudio.pause();pianoAudio.currentTime=0;pianoAudio=null;}
+}function stopPianoScheduler(){
   if(pianoTimer){clearInterval(pianoTimer);pianoTimer=null;}
   activeSources.forEach(s=>{try{s.stop();}catch(e){}});
   activeSources.length=0;
@@ -471,11 +337,7 @@ async function doStart(){
   }catch(e){alert('需要麦克风权限 🎤');return;}
 
   // 加载采样
-  document.getElementById('btn-start').textContent='加载钢琴音色中...';
-  document.getElementById('btn-start').disabled=true;
-  await preloadAll(audioCtx);
-  document.getElementById('btn-start').textContent='🎹   开始演唱';
-  document.getElementById('btn-start').disabled=false;
+  
 
   buildStrip();
   noteResults=MELODY.map((_,i)=>({idx:i,centsArr:[],actualDur:0,started:false}));
@@ -490,12 +352,10 @@ async function doStart(){
 
   const ctx=audioCtx;
   const bps=60/BPM;
-  const INTRO_BEATS=32;
-  const introDurSec=INTRO_BEATS*bps;
-  const vocalStartTime=ctx.currentTime+introDurSec;
+  const introDurSec=24;
 
   // 启动滚动钢琴调度
-  startPianoScheduler(ctx, vocalStartTime);
+  startPianoScheduler();
 
   // 前奏最后3拍倒计时提示
   const introMs=introDurSec*1000;
