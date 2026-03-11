@@ -652,7 +652,12 @@ function analyzeAndReport(){
   const slight=pitchResults.filter(r=>r.status==='slight').length;
   const bad=pitchResults.filter(r=>r.status==='bad').length;
   const missed=pitchResults.filter(r=>r.status==='missed').length;
-  const pitchScore=Math.round((good+slight*0.5)/MELODY.length*100);
+  const pitchScore=Math.round(pitchResults.reduce((s,r)=>{
+  if(r.status==='missed') return s;
+  const abs=Math.abs(r.avgCents||0);
+  const sc=abs<10?100:abs<25?70:abs<50?40:10;
+  return s+sc;
+},0)/MELODY.length);
 
   // 节奏分析
   const rhythmResults=noteResults.filter(r=>r.actualDur>0&&r.idx<MELODY.length).map(r=>{
@@ -661,10 +666,11 @@ function analyzeAndReport(){
     const dev=Math.abs(ratio-1);
     return{idx:r.idx,ratio,dev,status:dev<0.2?'good':dev<0.4?'slight':'bad'};
   });
-  const rgood=rhythmResults.filter(r=>r.status==='good').length;
-  const rslight=rhythmResults.filter(r=>r.status==='slight').length;
   const rhythmScore=rhythmResults.length>0
-    ?Math.round((rgood+rslight*0.5)/rhythmResults.length*100):0;
+  ?Math.round(rhythmResults.reduce((s,r)=>{
+    const sc=r.dev<0.2?100:r.dev<0.4?70:r.dev<0.6?40:10;
+    return s+sc;
+  },0)/rhythmResults.length):0;
 
   // 节奏问题音节
   const slowNotes=rhythmResults.filter(r=>r.ratio>1.35).map(r=>`"${MELODY[r.idx].l}"(偏慢${Math.round((r.ratio-1)*100)}%)`);
