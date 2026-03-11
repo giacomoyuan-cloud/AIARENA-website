@@ -332,6 +332,7 @@ async function preloadAll(ctx){
   });
   await Promise.allSettled(loads);
 }
+const activeSources=[];
 function playPiano(ctx,midi,t,dur,vol){
   const buf=sCache[midi]; if(!buf) return;
   const src=ctx.createBufferSource(); src.buffer=buf;
@@ -341,6 +342,8 @@ function playPiano(ctx,midi,t,dur,vol){
   g.gain.exponentialRampToValueAtTime(0.001,t+dur+0.08);
   src.connect(g); g.connect(ctx.destination);
   src.start(t); src.stop(t+dur+0.15);
+  activeSources.push(src);
+  src.onended=()=>{const i=activeSources.indexOf(src);if(i>-1)activeSources.splice(i,1);};
 }
 
 // ═══════════════════════════════════════════
@@ -449,7 +452,11 @@ function startPianoScheduler(ctx, vocalStartTime){
   tick();
   pianoTimer=setInterval(tick,500);
 }
-function stopPianoScheduler(){if(pianoTimer){clearInterval(pianoTimer);pianoTimer=null;}}
+function stopPianoScheduler(){
+  if(pianoTimer){clearInterval(pianoTimer);pianoTimer=null;}
+  activeSources.forEach(s=>{try{s.stop();}catch(e){}});
+  activeSources.length=0;
+}
 
 // ═══════════════════════════════════════════
 // 主流程
