@@ -443,34 +443,25 @@ score:Math.max(score,0)
 }
 
 function detectOnsetDeviation(results){
-
-let total=0;
-let count=0;
-
-for(let i=0;i<results.length;i++){
-
-const r=results[i];
-
-if(!r.started) continue;
-
-const expected=VOCAL_START_TIME + MELODY[i].expStart;
-const actual=r.actualStart;
-
-const diff=Math.abs(actual-expected);
-
-total+=diff;
-count++;
-
-}
-
-if(count===0) return 0;
-
-const avg=total/count;
-
-const score=Math.max(0,100-avg/10);
-
-return Math.round(score);
-
+  const firstStarted = results.find(r=>r.started);
+  if(!firstStarted) return 0;
+  const firstActual = firstStarted.actualStart;
+  const firstExpected = MELODY[results.indexOf(firstStarted)].expStart;
+  let total=0;
+  let count=0;
+  for(let i=0;i<results.length;i++){
+    const r=results[i];
+    if(!r.started) continue;
+    const expectedOffset = MELODY[i].expStart - firstExpected;
+    const actualOffset = r.actualStart - firstActual;
+    const diff = Math.abs(actualOffset - expectedOffset);
+    total+=diff;
+    count++;
+  }
+  if(count===0) return 0;
+  const avg=total/count;
+  const score=Math.max(0,100-avg/10);
+  return Math.round(score);
 }
 
 function showScreen(id){
