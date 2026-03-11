@@ -188,130 +188,37 @@ h1{font-size:22px;letter-spacing:.5em;color:#f1f5f9;margin-bottom:4px;text-align
 </div>
 
 <script>
-// ═══════════════════════════════════════════
-// 旋律数据 (直接从真实 MIDI/MP3 物理提取，零误差)
-// ═══════════════════════════════════════════
-const BPM = 68;
-const BEAT = 60000 / BPM; 
-
 const MELODY = [
- // ═══════════════════════════════════════════
-// 旋律数据 (纯手工 XML 修正版，包含完整反复和尾声！)
-// ═══════════════════════════════════════════
-const BPM = 68;
-const BEAT = 60000 / BPM; 
+  // === 第一部分：起唱 (24.7秒 - 52.5秒) ===
+  {l:'今',n:74,expStart:24732,dur:773},{l:'夕',n:74,expStart:25505,dur:386},{l:'何',n:67,expStart:25891,dur:386},{l:'夕',n:69,expStart:26277,dur:773},{l:'兮',n:71,expStart:27050,dur:773},
+  {l:'塞',n:74,expStart:27823,dur:1159},{l:'舟',n:71,expStart:28982,dur:386},{l:'中',n:74,expStart:29369,dur:1546},{l:'流',n:69,expStart:30915,dur:773},
+  {l:'今',n:69,expStart:31687,dur:386},{l:'日',n:71,expStart:32074,dur:386},{l:'何',n:67,expStart:32460,dur:386},{l:'日',n:69,expStart:32847,dur:386},{l:'兮',n:64,expStart:33233,dur:386},
+  {l:'得',n:67,expStart:33620,dur:386},{l:'与',n:62,expStart:34006,dur:3091},{l:'王',n:64,expStart:37097,dur:773},{l:'子',n:64,expStart:37870,dur:386},{l:'同',n:67,expStart:38257,dur:386},
+  {l:'舟',n:69,expStart:38643,dur:386},{l:'蒙',n:71,expStart:39030,dur:386},{l:'羞',n:74,expStart:39416,dur:386},{l:'被',n:76,expStart:39802,dur:386},{l:'好',n:71,expStart:40189,dur:1159},
+  {l:'兮',n:69,expStart:41348,dur:386},{l:'不',n:67,expStart:41735,dur:1546},{l:'訾',n:69,expStart:43280,dur:386},{l:'诟',n:69,expStart:43667,dur:386},{l:'耻',n:69,expStart:44053,dur:386},
+  {l:'心',n:67,expStart:44440,dur:386},{l:'几',n:64,expStart:44826,dur:773},{l:'烦',n:67,expStart:45599,dur:386},{l:'而',n:71,expStart:45985,dur:386},{l:'不',n:69,expStart:46372,dur:3091},
+  {l:'绝',n:74,expStart:49463,dur:773},{l:'兮',n:74,expStart:50236,dur:386},{l:'得',n:67,expStart:50623,dur:386},{l:'知',n:69,expStart:51009,dur:773},{l:'王',n:71,expStart:51782,dur:773},{l:'子',n:74,expStart:52555,dur:1159},
 
-const MELODY = [
-  // --- 第一段 ---
-  { l:'今', n:74, expStart:24732, dur:773 },
-  { l:'夕', n:74, expStart:25505, dur:386 },
-  { l:'何', n:67, expStart:25891, dur:386 },
-  { l:'夕', n:69, expStart:26277, dur:773 },
-  { l:'兮', n:71, expStart:27050, dur:773 },
-  { l:'塞', n:74, expStart:27823, dur:1159 },
-  { l:'舟', n:71, expStart:28982, dur:386 },
-  { l:'中', n:74, expStart:29369, dur:1546 },
-  { l:'流', n:69, expStart:30915, dur:773 },
-  { l:'今', n:69, expStart:31687, dur:386 },
-  { l:'日', n:71, expStart:32074, dur:386 },
-  { l:'何', n:67, expStart:32460, dur:386 },
-  { l:'日', n:69, expStart:32847, dur:386 },
-  { l:'兮', n:64, expStart:33233, dur:386 },
-  { l:'得', n:67, expStart:33620, dur:386 },
-  { l:'与', n:62, expStart:34006, dur:3091 },
-  { l:'王', n:64, expStart:37097, dur:773 },
-  { l:'子', n:64, expStart:37870, dur:386 },
-  { l:'同', n:67, expStart:38257, dur:386 },
-  { l:'舟', n:69, expStart:38643, dur:386 },
-  { l:'蒙', n:71, expStart:39030, dur:386 },
-  { l:'羞', n:74, expStart:39416, dur:386 },
-  { l:'被', n:76, expStart:39802, dur:386 },
-  { l:'好', n:71, expStart:40189, dur:1159 },
-  { l:'兮', n:69, expStart:41348, dur:386 },
-  { l:'不', n:67, expStart:41735, dur:1546 },
-  { l:'訾', n:69, expStart:43280, dur:386 },
-  { l:'诟', n:69, expStart:43667, dur:386 },
-  { l:'耻', n:69, expStart:44053, dur:386 },
-  { l:'心', n:67, expStart:44440, dur:386 },
-  { l:'几', n:64, expStart:44826, dur:773 },
-  { l:'烦', n:67, expStart:45599, dur:386 },
-  { l:'而', n:71, expStart:45985, dur:386 },
-  { l:'不', n:69, expStart:46372, dur:3091 },
-  { l:'绝', n:74, expStart:49463, dur:773 },
-  { l:'兮', n:74, expStart:50236, dur:386 },
-  { l:'得', n:67, expStart:50623, dur:386 },
-  { l:'知', n:69, expStart:51009, dur:773 },
-  { l:'王', n:71, expStart:51782, dur:773 },
-  { l:'子', n:74, expStart:52555, dur:1159 },
-  
-  // --- 副歌 (第一遍) ---
-  { l:'山', n:71, expStart:53714, dur:386 },
-  { l:'有', n:74, expStart:54100, dur:1546 },
-  { l:'木', n:69, expStart:55646, dur:773 },
-  { l:'兮', n:69, expStart:56419, dur:386 },
-  { l:'木', n:71, expStart:56805, dur:386 },
-  { l:'有', n:74, expStart:57192, dur:386 },
-  { l:'枝', n:71, expStart:57578, dur:386 },
-  { l:'心', n:69, expStart:57965, dur:386 },
-  { l:'悦', n:67, expStart:58351, dur:386 },
-  { l:'君', n:64, expStart:58738, dur:3091 },
-  { l:'兮', n:69, expStart:61829, dur:386 },
-  { l:'君', n:71, expStart:62216, dur:386 },
-  { l:'不', n:64, expStart:62602, dur:386 },
-  { l:'知', n:67, expStart:62988, dur:386 },
-  { l:'山', n:62, expStart:63375, dur:1546 },
-  { l:'有', n:69, expStart:64921, dur:386 },
-  { l:'木', n:71, expStart:65307, dur:386 },
-  { l:'兮', n:74, expStart:65693, dur:386 },
-  { l:'木', n:76, expStart:66080, dur:386 },
-  { l:'有', n:71, expStart:66466, dur:1546 },
-  { l:'枝', n:69, expStart:68012, dur:773 },
-  { l:'心', n:71, expStart:68785, dur:386 },
-  { l:'悦', n:67, expStart:69171, dur:386 },
-  { l:'君', n:64, expStart:69558, dur:773 },
-  { l:'兮', n:62, expStart:70331, dur:386 },
-  { l:'君', n:64, expStart:70717, dur:386 },
-  { l:'不', n:67, expStart:71103, dur:3091 },
-  { l:'知', n:76, expStart:74195, dur:1159 }, // (1. 结尾)
+  // === 第二部分：副歌第一遍 (53.7秒 - 71.1秒) ===
+  {l:'山',n:71,expStart:53714,dur:386},{l:'有',n:74,expStart:54100,dur:1546},{l:'木',n:69,expStart:55646,dur:773},{l:'兮',n:69,expStart:56419,dur:386},{l:'木',n:71,expStart:56805,dur:386},{l:'有',n:74,expStart:57192,dur:386},{l:'枝',n:71,expStart:57578,dur:386},
+  {l:'心',n:69,expStart:57965,dur:386},{l:'悦',n:67,expStart:58351,dur:386},{l:'君',n:64,expStart:58738,dur:3091},{l:'兮',n:69,expStart:61829,dur:386},{l:'君',n:71,expStart:62216,dur:386},{l:'不',n:64,expStart:62602,dur:386},{l:'知',n:67,expStart:62988,dur:386},
 
-  // --- 反复段 (跳回第25小节，严丝合缝计算得出！) ---
-  { l:'山', n:71, expStart:96994, dur:386 },
-  { l:'有', n:74, expStart:97380, dur:1546 },
-  { l:'木', n:69, expStart:98926, dur:773 },
-  { l:'兮', n:69, expStart:99699, dur:386 },
-  { l:'木', n:71, expStart:100085, dur:386 },
-  { l:'有', n:74, expStart:100472, dur:386 },
-  { l:'枝', n:71, expStart:100858, dur:386 },
-  { l:'心', n:69, expStart:101245, dur:386 },
-  { l:'悦', n:67, expStart:101631, dur:386 },
-  { l:'君', n:64, expStart:102018, dur:3091 },
-  { l:'兮', n:69, expStart:105109, dur:386 },
-  { l:'君', n:71, expStart:105496, dur:386 },
-  { l:'不', n:64, expStart:105882, dur:386 },
-  { l:'知', n:67, expStart:106268, dur:386 },
-  { l:'山', n:62, expStart:106655, dur:1546 },
-  { l:'有', n:69, expStart:108201, dur:386 },
-  { l:'木', n:71, expStart:108587, dur:386 },
-  { l:'兮', n:74, expStart:108973, dur:386 },
-  { l:'木', n:76, expStart:109360, dur:386 },
-  { l:'有', n:71, expStart:109746, dur:1546 },
-  { l:'枝', n:69, expStart:111292, dur:773 },
-  { l:'心', n:71, expStart:112065, dur:386 },
-  { l:'悦', n:67, expStart:112451, dur:386 },
-  { l:'君', n:64, expStart:112838, dur:773 },
-  { l:'兮', n:62, expStart:113611, dur:386 },
-  { l:'君', n:64, expStart:113997, dur:386 },
-  { l:'不', n:67, expStart:114383, dur:3091 },
-  
-  // --- 尾声 (2. 结尾 Coda，第39小节起) ---
-  { l:'知', n:76, expStart:117475, dur:3091 },
-  { l:'心', n:76, expStart:120566, dur:773 },
-  { l:'悦', n:74, expStart:121339, dur:1159 },
-  { l:'君', n:72, expStart:122498, dur:386 },
-  { l:'兮', n:69, expStart:122884, dur:773 },
-  { l:'君', n:71, expStart:123657, dur:1546 },
-  { l:'不', n:67, expStart:125203, dur:1546 },
-  { l:'知', n:69, expStart:126748, dur:3091 }
+  // === 第三部分：反复段 (63.3秒 - 74.1秒) ===
+  {l:'山',n:62,expStart:63375,dur:1546},{l:'有',n:69,expStart:64921,dur:386},{l:'木',n:71,expStart:65307,dur:386},{l:'兮',n:74,expStart:65693,dur:386},{l:'木',n:76,expStart:66080,dur:386},{l:'有',n:71,expStart:66466,dur:1546},{l:'枝',n:69,expStart:68012,dur:773},
+  {l:'心',n:71,expStart:68785,dur:386},{l:'悦',n:67,expStart:69171,dur:386},{l:'君',n:64,expStart:69558,dur:773},{l:'兮',n:62,expStart:70331,dur:386},{l:'君',n:64,expStart:70717,dur:386},{l:'不',n:67,expStart:71103,dur:3091},{l:'知',n:76,expStart:74195,dur:1159},
+
+  // === 第四部分：间奏 (跳过钢琴 solo，直接定位到 2分28秒的尾声) ===
+  {l:'心',n:74,expStart:148390,dur:1159},
+  {l:'悦',n:71,expStart:149549,dur:386},
+  {l:'君',n:74,expStart:149936,dur:773},
+  {l:'兮',n:76,expStart:150708,dur:773},
+  {l:'君',n:76,expStart:151481,dur:3091},
+  {l:'不',n:69,expStart:154573,dur:386},
+  {l:'知',n:71,expStart:154959,dur:386},
+  {l:'知',n:67,expStart:155346,dur:386},
+  {l:'知',n:64,expStart:155732,dur:386},
+  {l:'知',n:62,expStart:156119,dur:1546},
+  {l:'知',n:64,expStart:157664,dur:2319}
 ];
 
 
