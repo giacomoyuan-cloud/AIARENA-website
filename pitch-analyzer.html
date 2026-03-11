@@ -84,7 +84,7 @@ h1{font-size:22px;letter-spacing:.5em;color:#f1f5f9;margin-bottom:4px;text-align
 <body>
 
 <div id="screen-setup" class="screen active">
-  <h1>越 人 歌</h1>
+  <h1>音 准 训 练</h1>
   <div class="sub">钢琴引导 · 音准 · 节奏 智能分析</div>
   <div class="hpbox">
     <div class="hpicon">🎧</div>
@@ -94,25 +94,31 @@ h1{font-size:22px;letter-spacing:.5em;color:#f1f5f9;margin-bottom:4px;text-align
     </div>
   </div>
   <div class="card">
-    <div class="card-title">曲目信息</div>
-    <div class="info-row"><span class="info-key">曲目</span><span class="info-val">越人歌</span></div>
-    <div class="info-row"><span class="info-key">节拍</span><span class="info-val">68 BPM · 4/4 拍</span></div>
-    <div class="info-row"><span class="info-key">调式</span><span class="info-val">G 大调</span></div>
-    <div class="info-row"><span class="info-key">钢琴前奏</span><span class="info-val">4 小节（请准备好）</span></div>
-  </div>
-  <div class="card">
-    <div class="card-title">演唱歌词</div>
-    <div style="font-size:14px;color:#cbd5e1;line-height:2.6;text-align:center">
-      今夕何夕兮 &nbsp;塞舟中流<br>
-      今日何日兮 &nbsp;得与王子同舟<br>
-      蒙羞被好兮 &nbsp;不訾诟耻<br>
-      心几烦而不绝兮 &nbsp;得知王子<br>
-      山有木兮木有枝<br>
-      心悦君兮君不知 ×2
+    <div class="card-title">选择曲目</div>
+    <div class="info-row">
+      <span class="info-key">曲目</span>
+      <select id="song-select" style="background:#1e293b;color:#f1f5f9;border:none;font-family:'Courier New',monospace;font-size:13px;font-weight:700;padding:4px 8px;border-radius:6px;cursor:pointer">
+        <option value="yuerge">越人歌</option>
+      </select>
     </div>
   </div>
-  <button class="btn primary" id="btn-start-perf">🎵 &nbsp; 跟伴奏演唱</button>
-<button class="btn secondary" id="btn-start-prac" style="background:#1e3a5f;color:#bae6fd;margin-top:8px">🎹 &nbsp; 逐字练习模式</button>
+  <div class="card">
+    <div class="card-title">选择模式</div>
+    <div class="info-row">
+      <div>
+        <div style="color:#f1f5f9;font-size:13px;font-weight:700;margin-bottom:4px">🎵 演唱模式</div>
+        <div style="color:#64748b;font-size:11px;line-height:1.7">完整伴奏播放，跟着唱<br>评分：音准 + 节奏感</div>
+      </div>
+      <button class="btn primary" id="btn-start-perf" style="width:auto;padding:10px 20px;margin:0;font-size:11px">开始</button>
+    </div>
+    <div class="info-row" style="border-bottom:none">
+      <div>
+        <div style="color:#f1f5f9;font-size:13px;font-weight:700;margin-bottom:4px">🎹 单句练习</div>
+        <div style="color:#64748b;font-size:11px;line-height:1.7">钢琴逐字引导，唱对才前进<br>评分：仅音准</div>
+      </div>
+      <button id="btn-start-prac" style="width:auto;padding:10px 20px;margin:0;font-size:11px;background:#1e3a5f;color:#bae6fd;border-radius:40px;border:none;font-weight:700;cursor:pointer;font-family:'Courier New',monospace">开始</button>
+    </div>
+  </div>
 </div>
 
 <div id="screen-countdown" class="screen">
