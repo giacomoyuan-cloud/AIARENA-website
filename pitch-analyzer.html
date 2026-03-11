@@ -708,13 +708,13 @@ document.getElementById('btn-start').addEventListener('click',doStart);
 document.getElementById('btn-stop').addEventListener('click',stopRecording);
 document.getElementById('btn-retry').addEventListener('click',()=>{
   if(audioCtx){audioCtx.close();audioCtx=null;}
-  reverbNode=null; analyser=null; stream=null;
+  analyser=null; stream=null;
   noteResults=[];noteIdx=0;
   doStart();
 });
 document.getElementById('btn-home').addEventListener('click',()=>{
   if(audioCtx){audioCtx.close();audioCtx=null;}
-  reverbNode=null; analyser=null; stream=null;
+  analyser=null; stream=null;
   noteResults=[];noteIdx=0;
   showScreen('setup');
 });
