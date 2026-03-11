@@ -265,14 +265,7 @@ const MELODY = [
   { l:'知', n:76, expStart:74195, dur:1159 }
 ];
 
-// 自动换算为毫秒级的 expStart (绝对时间) 和 dur (持续时间)
-const MELODY = rawMelody.map(item => ({
-  l: item[0],
-  n: item[1],
-  b: item[3],
-  expStart: Math.round(item[2] * BEAT), 
-  dur: Math.round(item[3] * BEAT)
-}));
+
 
 // ═══════════════════════════════════════════
 // 和声方案 (和弦块) - 每块: [起始拍, 结束拍, 低音MIDI, 和弦音[]]
