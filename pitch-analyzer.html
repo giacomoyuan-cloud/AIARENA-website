@@ -928,7 +928,11 @@ document.getElementById('s-rhythm').textContent=rhythmScore+'分';
 document.getElementById('btn-start-perf').addEventListener('click',()=>doStart('performance'));
 document.getElementById('btn-start-prac').addEventListener('click',()=>doStartTap());
 document.getElementById('btn-tap-home').addEventListener('click',()=>{
+  if(tapRaf){cancelAnimationFrame(tapRaf);tapRaf=null;}
   if(tapPiano) tapPiano.releaseAll();
+  if(tapStream) tapStream.getTracks().forEach(t=>t.stop());
+  if(tapAudioCtx){tapAudioCtx.close();tapAudioCtx=null;}
+  tapAnalyser=null; tapStream=null;
   showScreen('setup');
 });
 document.getElementById('btn-stop').addEventListener('click',stopRecording);
@@ -947,6 +951,10 @@ document.getElementById('btn-home').addEventListener('click',()=>{
 
 let tapPiano=null;
 
+let tapRaf=null;
+let tapAudioCtx=null, tapAnalyser=null, tapStream=null;
+let tapPitchHistory=[], tapMatchStreak=0, tapMatchTarget=-1;
+
 async function doStartTap(){
   await loadSong("songs/yuerge.json");
   if(!MELODY||MELODY.length===0){alert("歌曲数据加载失败");return;}
@@ -959,28 +967,90 @@ async function doStartTap(){
     }).toDestination();
     await tapPiano.loaded;
   }
+  try{
+    tapStream=await navigator.mediaDevices.getUserMedia({audio:true,echoCancellation:false,noiseSuppression:false});
+    tapAudioCtx=new(window.AudioContext||window.webkitAudioContext)();
+    tapAnalyser=tapAudioCtx.createAnalyser();
+    tapAnalyser.fftSize=2048; tapAnalyser.smoothingTimeConstant=0;
+    tapAudioCtx.createMediaStreamSource(tapStream).connect(tapAnalyser);
+  }catch(e){alert('需要麦克风权限 🎤');return;}
+
+  noteIdx=0; tapPitchHistory=[]; tapMatchStreak=0; tapMatchTarget=-1;
+
   const container=document.getElementById('tap-lyrics');
   container.innerHTML='';
   MELODY.forEach((note,i)=>{
     const btn=document.createElement('button');
     btn.textContent=note.l;
+    btn.id='tap-btn-'+i;
     btn.style.cssText='background:#1e293b;color:#94a3b8;border:1px solid #334155;border-radius:8px;padding:10px 14px;font-size:20px;font-weight:900;cursor:pointer;font-family:inherit;transition:all .1s';
     btn.addEventListener('click',()=>{
+      noteIdx=i;
+      tapMatchStreak=0; tapMatchTarget=-1; tapPitchHistory=[];
       tapPiano.releaseAll();
       tapPiano.triggerAttackRelease(midiToName(note.n),'4n',undefined,0.8);
-      document.getElementById('tap-char').textContent=note.l;
-      document.getElementById('tap-char').style.color='#4ade80';
-      document.getElementById('tap-note-name').textContent=midiToName(note.n)+' · MIDI '+note.n;
       document.querySelectorAll('#tap-lyrics button').forEach(b=>b.style.background='#1e293b');
-      btn.style.background='#166534';
-      setTimeout(()=>{
-        document.getElementById('tap-char').style.color='#334155';
-        btn.style.background='#1e293b';
-      },600);
+      btn.style.background='#1e3a5f';
     });
     container.appendChild(btn);
   });
+
   showScreen('tap');
+  if(tapRaf) cancelAnimationFrame(tapRaf);
+  tapRaf=requestAnimationFrame(tapLoop);
+}
+
+function tapLoop(){
+  if(!tapAnalyser){tapRaf=requestAnimationFrame(tapLoop);return;}
+  const buf=new Float32Array(tapAnalyser.fftSize);
+  tapAnalyser.getFloatTimeDomainData(buf);
+  const rawFreq=detectPitch(buf,tapAudioCtx.sampleRate);
+  const freq=tapPitchHistory.length>0
+    ?tapPitchHistory[tapPitchHistory.length-1]*0.7+rawFreq*0.3
+    :rawFreq;
+  if(freq>0){tapPitchHistory.push(freq);if(tapPitchHistory.length>200)tapPitchHistory.shift();}
+
+  // score following
+  const candidate=followScore(freq);
+  if(candidate>noteIdx&&candidate-noteIdx<=2){
+    if(candidate===tapMatchTarget){
+      tapMatchStreak++;
+      if(tapMatchStreak>=3){
+        noteIdx=candidate;
+        tapMatchStreak=0; tapMatchTarget=-1;
+        tapPiano.releaseAll();
+        tapPiano.triggerAttackRelease(midiToName(MELODY[noteIdx].n),'4n',undefined,0.6);
+      }
+    } else {tapMatchTarget=candidate;tapMatchStreak=1;}
+  } else if(candidate<=noteIdx){tapMatchStreak=0;tapMatchTarget=-1;}
+
+  // 更新歌词高亮
+  MELODY.forEach((_,i)=>{
+    const el=document.getElementById('tap-btn-'+i);
+    if(!el) return;
+    if(i===noteIdx) el.style.background='#166534';
+    else if(i<noteIdx) el.style.background='#052e16';
+    else el.style.background='#1e293b';
+  });
+
+  // 音准反馈
+  const current=MELODY[noteIdx];
+  if(current){
+    document.getElementById('tap-char').textContent=current.l;
+    const expectedFreq=midiToFreq(current.n);
+    const cents=freq>0?1200*Math.log2(freq/expectedFreq):null;
+    if(cents!==null){
+      const absCents=Math.abs(cents);
+      const col=absCents<10?'#4ade80':absCents<25?'#fbbf24':'#f87171';
+      document.getElementById('tap-char').style.color=col;
+      document.getElementById('tap-note-name').textContent=(cents>0?'+':'')+Math.round(cents)+'¢  ·  '+midiToName(current.n);
+    } else {
+      document.getElementById('tap-char').style.color='#334155';
+      document.getElementById('tap-note-name').textContent='等待声音';
+    }
+  }
+
+  tapRaf=requestAnimationFrame(tapLoop);
 }
 </script>
 </body>
