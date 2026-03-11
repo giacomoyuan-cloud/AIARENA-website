@@ -542,7 +542,7 @@ baseUrl:"https://tonejs.github.io/audio/salamander/"
   noteResults=MELODY.map((_,i)=>({
 idx:i,
 centsArr:[],
-actualDur:0,
+actualStart:null,
 started:false,
 played:false
 }));
@@ -600,6 +600,9 @@ noteIdx = newIdx;
 const current=MELODY[noteIdx];
 
 if(current){
+  document.getElementById('pitch-row').style.visibility='visible';
+  
+  document.getElementById('big-lyric').textContent = current.l;
 
 if(piano && !noteResults[noteIdx].played){
 
@@ -628,6 +631,7 @@ noteResults[noteIdx].centsArr.push(cents);
 if(!noteResults[noteIdx].started){
 
 noteResults[noteIdx].started=true;
+noteResults[noteIdx].actualStart = elapsed;
 
 }
 
