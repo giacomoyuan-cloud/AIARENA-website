@@ -375,6 +375,9 @@ function stopPianoScheduler(){
 // ═══════════════════════════════════════════
 // 主流程
 // ═══════════════════════════════════════════
+// ═══════════════════════════════════════════
+// 主流程
+// ═══════════════════════════════════════════
 let isRecordingPhase = false; // 记录是否已经进入正式录制阶段
 
 async function doStart(){
@@ -526,93 +529,6 @@ function recordLoop(){
     }
   }
 
-  MELODY.forEach((_,i)=>{
-    const el=document.getElementById('lc-'+i);
-    if(!el) return;
-    if(i===noteIdx) el.className='lc now';
-    else if(i<noteIdx){
-      const r=noteResults[i];
-      if(r.centsArr.length>=2){
-        const avg=r.centsArr.reduce((a,b)=>a+Math.abs(b),0)/r.centsArr.length;
-        el.className=avg<10?'lc dg':avg<25?'lc dw':'lc db';
-      } else { el.className='lc dw'; }
-    } else { el.className='lc'; }
-  });
-
-  raf=requestAnimationFrame(recordLoop);
-}
-
-  // ── 音符推进判定（用绝对时间，不累积误差）──
-  const nextNote = MELODY[noteIdx+1];
-  if(nextNote && elapsed >= nextNote.expStart){
-    noteResults[noteIdx].actualDur = elapsed - current.expStart;
-    noteIdx++;
-    if(noteIdx>=MELODY.length){
-      stopRecording(); return;
-    }
-  }
-
-  // ── UI更新 ──
-  const bigLyric=document.getElementById('big-lyric');
-  const pitchNote=document.getElementById('pitch-note');
-  const pitchCents=document.getElementById('pitch-cents');
-  const meterFill=document.getElementById('meter-fill');
-
-  bigLyric.textContent=current.l;
-
-  if(cents!==null){
-    const clamped=Math.max(-50,Math.min(50,cents));
-    const pct=50+clamped;
-    const col=absCents<10?'#4ade80':absCents<25?'#fbbf24':'#f87171';
-    meterFill.style.left=Math.min(50,pct)+'%';
-    meterFill.style.width=Math.abs(pct-50)+'%';
-    meterFill.style.background=col;
-    bigLyric.className=absCents<10?'good':absCents<25?'warn':'bad';
-    pitchNote.textContent=midiToName(Math.round(69+12*Math.log2(freq/440)));
-    pitchNote.style.color=col;
-    pitchCents.textContent=(cents>0?'+':'')+Math.round(cents)+'¢';
-    pitchCents.style.color=col;
-  } else {
-    bigLyric.className='';
-    bigLyric.style.color='#334155';
-    meterFill.style.width='0%';
-    pitchNote.textContent='—'; pitchNote.style.color='#334155';
-    pitchCents.textContent='等待声音'; pitchCents.style.color='#334155';
-  }
-  if(freq>0) bigLyric.style.color='';
-
-  // 进度
-  const pctProg=Math.round(noteIdx/MELODY.length*100);
-  document.getElementById('prog-fill').style.width=pctProg+'%';
-  document.getElementById('r-progress').textContent=pctProg+'%';
-
-  // 节拍点
-  const beatPos=Math.floor(elapsed/BEAT)%4;
-  for(let i=0;i<4;i++) document.getElementById('bd'+i).className='bd'+(i===beatPos?' on':'');
-
-  // 实时得分估算
-  const done=noteResults.slice(0,noteIdx).filter(r=>r.centsArr.length>=2);
-  if(done.length>0){
-    const avgAbsCents=done.reduce((s,r)=>{
-      const avg=r.centsArr.reduce((a,b)=>a+Math.abs(b),0)/r.centsArr.length;
-      return s+avg;
-    },0)/done.length;
-    const ps=Math.round(Math.max(0,100-avgAbsCents*1.8));
-    document.getElementById('r-pitch').textContent=ps;
-
-    const rhythmDone=done.filter(r=>r.actualDur>0);
-    if(rhythmDone.length>0){
-      const ri=noteIdx>0?noteIdx-1:0;
-      const avgRhythm=rhythmDone.reduce((s,r,i)=>{
-        const exp=MELODY[r.idx]?MELODY[r.idx].dur:BEAT;
-        const ratio=Math.min(r.actualDur,exp*2)/exp;
-        return s+Math.max(0,1-Math.abs(ratio-1));
-      },0)/rhythmDone.length;
-      document.getElementById('r-rhythm').textContent=Math.round(avgRhythm*100);
-    }
-  }
-
-  // 歌词高亮
   MELODY.forEach((_,i)=>{
     const el=document.getElementById('lc-'+i);
     if(!el) return;
