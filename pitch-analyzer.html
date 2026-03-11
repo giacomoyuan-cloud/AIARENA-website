@@ -195,12 +195,12 @@ h1{font-size:22px;letter-spacing:.5em;color:#f1f5f9;margin-bottom:4px;text-align
 // ═══════════════════════════════════════════
 
 
-let currentSong = SONGS.yueRenGe;
+let currentSong = null;
 
-let BPM = currentSong.bpm;
+let BPM = 68;
 let BEAT = 60000 / BPM;
-let VOCAL_START_TIME = currentSong.vocalStart;
-let MELODY = currentSong.melody;
+let VOCAL_START_TIME = 0;
+let MELODY = [];
 
 // ═══════════════════════════════════════════
 // 2. 核心状态变量
@@ -493,25 +493,17 @@ strip.appendChild(s);
 }
   async function loadSong(url){
 
-const res = await fetch(url)
+const res = await fetch(url);
 
-const data = await res.json()
+const data = await res.json();
 
-currentSong = data
+currentSong = data;
 
-BPM = data.bpm
-BEAT = 60000 / BPM
-VOCAL_START_TIME = data.vocalStart
-MELODY = data.melody
+BPM = data.bpm;
+BEAT = 60000 / BPM;
+VOCAL_START_TIME = data.vocalStart;
+MELODY = data.melody;
 
-}
-  const strip=document.getElementById('lyrics-strip');
-  strip.innerHTML='';
-  MELODY.forEach((n,i)=>{
-    const s=document.createElement('span');
-    s.className='lc';s.id='lc-'+i;s.textContent=n.l;
-    strip.appendChild(s);
-  });
 }
 async function doStart(){
 await loadSong("songs/yuerge.json")
