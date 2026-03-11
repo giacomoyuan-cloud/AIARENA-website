@@ -209,6 +209,7 @@ let audioCtx=null, analyser=null, stream=null, raf=null;
 let piano=null;
 let noteIdx=0, noteResults=[], isRecordingPhase=false;
 let pitchHistory=[];
+let matchStreak=0, matchTarget=-1;
 
 const NOTES_NAMES=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 function midiToFreq(m){return 440*Math.pow(2,(m-69)/12);}
@@ -618,10 +619,22 @@ drawPitchGraph();
 
 }
 
-const newIdx = followScore(freq);
-
-if(newIdx > noteIdx && newIdx - noteIdx <= 2){
-noteIdx = newIdx;
+const candidate = followScore(freq);
+if(candidate > noteIdx && candidate - noteIdx <= 2){
+    if(candidate === matchTarget){
+        matchStreak++;
+        if(matchStreak >= 3){
+            noteIdx = candidate;
+            matchStreak = 0;
+            matchTarget = -1;
+        }
+    } else {
+        matchTarget = candidate;
+        matchStreak = 1;
+    }
+} else if(candidate <= noteIdx){
+    matchStreak = 0;
+    matchTarget = -1;
 }
 
 const current=MELODY[noteIdx];
