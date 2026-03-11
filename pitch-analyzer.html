@@ -85,7 +85,7 @@ h1{font-size:22px;letter-spacing:.5em;color:#f1f5f9;margin-bottom:4px;text-align
 
 <div id="screen-setup" class="screen active">
   <h1>越 人 歌</h1>
-  <div class="sub">钢琴引导 · 音准 · 节奏 智能分析</div>
+  <div class="sub">钢琴引导 · 音准 · 节奏 1智能分析</div>
   <div class="hpbox">
     <div class="hpicon">🎧</div>
     <div class="hptext">
@@ -476,8 +476,8 @@ function recordLoop(){
     document.getElementById('pitch-row').style.visibility='visible';
   }
 
-  // 绝对零误差计算：音乐当前的真实时间 - 第一句开口时间
-  const elapsed = (ct - VOCAL_START_TIME) * 1000;
+  // 绝对零误差计算：直接使用音频的真实物理毫秒数！不减去任何东西！
+  const elapsed = ct * 1000;
   globalElapsed = elapsed;
 
   const buf=new Float32Array(analyser.fftSize);
