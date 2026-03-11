@@ -517,7 +517,6 @@ return;
 await Tone.start();
 
 piano = new Tone.Sampler({
-  await piano.loaded;
 urls:{
 "A0":"A0.mp3",
 "A1":"A1.mp3",
@@ -555,6 +554,7 @@ urls:{
 release:1,
 baseUrl:"https://pub-eff7391c158f464ab640187f9465d705.r2.dev/piano-sounds/acoustic_grand_piano-mp3/"
 }).toDestination();
+await piano.loaded;
   try{
     stream=await navigator.mediaDevices.getUserMedia({audio:true,echoCancellation:false,noiseSuppression:false});
     audioCtx=new(window.AudioContext||window.webkitAudioContext)();
