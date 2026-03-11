@@ -303,9 +303,22 @@ const ctx=canvas.getContext('2d');
 
 ctx.clearRect(0,0,canvas.width,canvas.height);
 
+const current=MELODY[noteIdx];
+if(!current) return;
+
+const targetFreq=midiToFreq(current.n);
+
+const targetY=canvas.height-(targetFreq/1000)*canvas.height;
+
+ctx.strokeStyle="#64748b";
+ctx.lineWidth=2;
+ctx.beginPath();
+ctx.moveTo(0,targetY);
+ctx.lineTo(canvas.width,targetY);
+ctx.stroke();
+
 ctx.strokeStyle="#3b82f6";
 ctx.lineWidth=2;
-
 ctx.beginPath();
 
 for(let i=0;i<pitchHistory.length;i++){
@@ -320,6 +333,8 @@ else ctx.lineTo(x,y);
 }
 
 ctx.stroke();
+
+}
 
 }
 
@@ -418,9 +433,18 @@ analyser.getFloatTimeDomainData(buf);
 const freq=detectPitch(buf,audioCtx.sampleRate);
 
 if(freq>0){
-pitchHistory.push(freq);
+
+const smooth =
+pitchHistory.length>0
+? pitchHistory[pitchHistory.length-1]*0.7 + freq*0.3
+: freq;
+
+pitchHistory.push(smooth);
+
 if(pitchHistory.length>200) pitchHistory.shift();
+
 drawPitchGraph();
+
 }
 
 const current=MELODY[noteIdx];
