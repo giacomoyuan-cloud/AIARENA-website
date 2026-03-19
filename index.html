@@ -1097,7 +1097,7 @@
         <div style="position:relative;">
           <button id="aaPlusBtn" class="aa-plus-btn">+</button>
           <input type="file" id="aaImgInput" accept="image/jpeg,image/png,image/gif,image/webp" multiple style="display:none;">
-        <input type="file" id="aaFileInput" accept=".txt,.pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" style="display:none;">
+        <input type="file" id="aaFileInput" accept=".txt,.pdf,.docx,.xlsx,.xls,.pptx,.csv,.tsv,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/plain,text/csv" style="display:none;">
           <div id="aaPlusMenu" class="aa-plus-menu" style="display:none;">
             <div id="aaPlusPhoto" class="aa-plus-item">上传照片</div>
             <div id="aaPlusFile" class="aa-plus-item">上传文件</div>
@@ -2243,7 +2243,8 @@ var TEAM_COLORS = {
     }
 
     // 1. Extract fenced code blocks
-    t = t.replace(/```(\w*)\n([\s\S]*?)```/g, function(match, lang, code){
+     t = t.replace(/```([^\n\r`]*?)[\r\n]+([\s\S]*?)```/g, function(match, lang, code){
+      lang = lang.trim().split(/\s/)[0].replace(/[^a-zA-Z0-9+#-]/g,'');
       var raw = code.replace(/\n$/, '');
       if(lang === 'pptx'){
         var b64 = toB64Utf8(raw.trim());
@@ -2596,8 +2597,22 @@ var TEAM_COLORS = {
       } else {
         extractDocx(file);
       }
+     } else if(ext === 'xlsx' || ext === 'xls'){
+      extractXlsx(file);
+    } else if(ext === 'pptx'){
+      extractPptxFile(file);
+    } else if(ext === 'csv' || ext === 'tsv'){
+      var reader = new FileReader();
+      reader.onload = function(e){
+        var text = e.target.result;
+        if(!text.trim()){ alert('文件内容为空'); return; }
+        sentTexts.push('[文件: '+file.name+']\n' + text);
+        renderTextPreviews();
+        $('aaSendBtn').disabled = aaRunning;
+      };
+      reader.readAsText(file, 'UTF-8');
     } else {
-      alert('不支持的文件格式，请上传 TXT、PDF 或 Word 文件');
+      alert('不支持的文件格式，请上传 TXT、PDF、Word、Excel、PPT 或 CSV 文件');
     }
   });
   function extractPdf(file){
@@ -2637,6 +2652,68 @@ var TEAM_COLORS = {
       }).catch(function(err){ alert('Word 解析失败：' + err.message); });
     };
     reader.readAsArrayBuffer(file);
+  }
+  function extractXlsx(file){
+    if(!window.XLSX){
+      var s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+      s.onload = function(){ _doExtractXlsx(file); };
+      s.onerror = function(){ alert('Excel 解析库加载失败'); };
+      document.head.appendChild(s);
+    } else { _doExtractXlsx(file); }
+  }
+  function _doExtractXlsx(file){
+    var reader = new FileReader();
+    reader.onload = function(e){
+      try {
+        var wb = window.XLSX.read(e.target.result, {type:'array'});
+        var allText = [];
+        wb.SheetNames.forEach(function(name){
+          var ws = wb.Sheets[name];
+          var csv = window.XLSX.utils.sheet_to_csv(ws);
+          if(csv.trim()) allText.push('[Sheet: '+name+']\n'+csv);
+        });
+        var text = allText.join('\n\n');
+        if(!text.trim()){ alert('Excel 文件内容为空'); return; }
+        sentTexts.push('[文件: '+file.name+']\n' + text);
+        renderTextPreviews();
+        $('aaSendBtn').disabled = aaRunning;
+      } catch(err){ alert('Excel 解析失败：'+err.message); }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+  function extractPptxFile(file){
+    if(!window.JSZip){
+      var s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+      s.onload = function(){ _doExtractPptx(file); };
+      s.onerror = function(){ alert('PPT 解析库加载失败'); };
+      document.head.appendChild(s);
+    } else { _doExtractPptx(file); }
+  }
+  async function _doExtractPptx(file){
+    try {
+      var arrayBuf = await file.arrayBuffer();
+      var zip = await window.JSZip.loadAsync(arrayBuf);
+      var slideFiles = Object.keys(zip.files).filter(function(f){ return /^ppt\/slides\/slide\d+\.xml$/.test(f); }).sort(function(a,b){
+        var na = parseInt(a.match(/slide(\d+)/)[1]);
+        var nb = parseInt(b.match(/slide(\d+)/)[1]);
+        return na - nb;
+      });
+      var allText = [];
+      for(var i = 0; i < slideFiles.length; i++){
+        var xml = await zip.file(slideFiles[i]).async('string');
+        var texts = [];
+        var matches = xml.match(/<a:t>([^<]*)<\/a:t>/g);
+        if(matches) matches.forEach(function(m){ var t = m.replace(/<\/?a:t>/g,'').trim(); if(t) texts.push(t); });
+        if(texts.length) allText.push('[Slide '+(i+1)+']\n'+texts.join(' '));
+      }
+      var text = allText.join('\n\n');
+      if(!text.trim()){ alert('PPT 文件内容为空'); return; }
+      sentTexts.push('[文件: '+file.name+']\n' + text);
+      renderTextPreviews();
+      $('aaSendBtn').disabled = aaRunning;
+    } catch(err){ alert('PPT 解析失败：'+err.message); }
   }
   document.addEventListener('click', function(e){
     if(!e.target.closest('#aaPlusBtn') && !e.target.closest('#aaPlusMenu')) $('aaPlusMenu').style.display = 'none';
