@@ -3273,12 +3273,41 @@ var TEAM_COLORS = {
         var cleaned = jsonStr
           .replace(/^\uFEFF/, '')
           .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '')
-          .replace(/,\s*([}\]])/g, '$1')
+          .replace(/\r\n/g, '\n')
+          .replace(/\t/g, '  ')
           .trim();
+        // Extract JSON object
         var s0 = cleaned.indexOf('{');
         var s1 = cleaned.lastIndexOf('}');
         if(s0 >= 0 && s1 > s0) cleaned = cleaned.slice(s0, s1 + 1);
-        data = JSON.parse(cleaned);
+        // Fix common AI JSON errors
+        cleaned = cleaned
+          .replace(/,\s*([}\]])/g, '$1')           // trailing commas
+          .replace(/(["\u201C\u201D\u2018\u2019])/g, function(m){ return /["\u201C\u201D]/.test(m) ? '"' : "'"; })  // smart quotes
+          .replace(/\n/g, '\\n')                     // unescaped newlines inside strings
+          .replace(/\\n\s*"/g, '\\n"')               // clean up
+          .replace(/"\s*\\n\s*}/g, '"\\n}')
+          ;
+        // Attempt parse with progressive fixes
+        try {
+          data = JSON.parse(cleaned);
+        } catch(e1) {
+          // Try fixing unescaped quotes inside string values
+          try {
+            var fixed = cleaned.replace(/"([^"]*?)"/g, function(match, inner){
+              // If inner contains unescaped quotes, escape them
+              return '"' + inner.replace(/(?<!\\)"/g, '\\"') + '"';
+            });
+            data = JSON.parse(fixed);
+          } catch(e2) {
+            // Last resort: try to eval as JS object (handles single quotes, trailing commas)
+            try {
+              data = (new Function('return (' + cleaned + ')'))();
+            } catch(e3) {
+              throw new Error(e1.message);
+            }
+          }
+        }
       } catch(e){
         alert('PPT 数据格式有误：' + e.message + '\n\n建议重新生成一次。');
         if(btn){ btn.textContent = '下载 PPT'; btn.disabled = false; }
