@@ -3291,7 +3291,7 @@ var TEAM_COLORS = {
           try {
             data = (new Function('return (' + cleaned + ')'))();
           } catch(e2) {
-            console.error('PPT JSON parse failed. Raw:', cleaned.slice(0, 500));
+            console.error('PPT JSON parse failed. Raw:', cleaned);
             throw new Error(e1.message);
           }
         }
