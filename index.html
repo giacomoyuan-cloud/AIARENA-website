@@ -3285,8 +3285,8 @@ var TEAM_COLORS = {
         cleaned = cleaned.replace(/"((?:[^"\\]|\\.)*)"/g, function(match, inner){
           return '"' + inner.replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t') + '"';
         });
-        // Fix slides array missing {} around objects
-        cleaned = cleaned.replace(/"slides"\s*:\s*\[/, '"slides": [{');
+        // Fix slides array missing {} around objects (only if first element lacks {)
+        cleaned = cleaned.replace(/"slides"\s*:\s*\[\s*"layout"/g, '"slides": [{"layout"');
         cleaned = cleaned.replace(/("subtitle"\s*:\s*"[^"]*")\s*("layout")/g, '$1}, {$2');
         cleaned = cleaned.replace(/(]\s*)\s*("layout")/g, '$1}, {$2');
         cleaned = cleaned.replace(/(]\s*)\s*("title")/g, function(m, p1, p2){
@@ -3303,8 +3303,10 @@ var TEAM_COLORS = {
         cleaned = cleaned.replace(/,?\s*"[^"]*"\s*$/, '');
         for(var _bi = 0; _bi < openBraces - closeBraces; _bi++) cleaned += '}';
         for(var _bj = 0; _bj < openBrackets - closeBrackets; _bj++) cleaned += ']';
-        // Re-clean trailing commas after bracket fixes
+        // Re-clean trailing commas and double closing braces
         cleaned = cleaned.replace(/,\s*([}\]])/g, '$1');
+        cleaned = cleaned.replace(/}\s*}/g, '}');
+        cleaned = cleaned.replace(/]\s*}/g, ']}');
         try {
           data = JSON.parse(cleaned);
         } catch(e1) {
