@@ -3272,40 +3272,27 @@ var TEAM_COLORS = {
       try {
         var cleaned = jsonStr
           .replace(/^\uFEFF/, '')
-          .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '')
-          .replace(/\r\n/g, '\n')
-          .replace(/\t/g, '  ')
+          .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, '')
+          .replace(/[\u201C\u201D]/g, '"')
+          .replace(/[\u2018\u2019]/g, "'")
+          .replace(/\u2014/g, '--')
+          .replace(/\u2026/g, '...')
           .trim();
-        // Extract JSON object
         var s0 = cleaned.indexOf('{');
         var s1 = cleaned.lastIndexOf('}');
         if(s0 >= 0 && s1 > s0) cleaned = cleaned.slice(s0, s1 + 1);
-        // Fix common AI JSON errors
-        cleaned = cleaned
-          .replace(/,\s*([}\]])/g, '$1')           // trailing commas
-          .replace(/(["\u201C\u201D\u2018\u2019])/g, function(m){ return /["\u201C\u201D]/.test(m) ? '"' : "'"; })  // smart quotes
-          .replace(/\n/g, '\\n')                     // unescaped newlines inside strings
-          .replace(/\\n\s*"/g, '\\n"')               // clean up
-          .replace(/"\s*\\n\s*}/g, '"\\n}')
-          ;
-        // Attempt parse with progressive fixes
+        cleaned = cleaned.replace(/,\s*([}\]])/g, '$1');
+        cleaned = cleaned.replace(/"((?:[^"\\]|\\.)*)"/g, function(match, inner){
+          return '"' + inner.replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t') + '"';
+        });
         try {
           data = JSON.parse(cleaned);
         } catch(e1) {
-          // Try fixing unescaped quotes inside string values
           try {
-            var fixed = cleaned.replace(/"([^"]*?)"/g, function(match, inner){
-              // If inner contains unescaped quotes, escape them
-              return '"' + inner.replace(/(?<!\\)"/g, '\\"') + '"';
-            });
-            data = JSON.parse(fixed);
+            data = (new Function('return (' + cleaned + ')'))();
           } catch(e2) {
-            // Last resort: try to eval as JS object (handles single quotes, trailing commas)
-            try {
-              data = (new Function('return (' + cleaned + ')'))();
-            } catch(e3) {
-              throw new Error(e1.message);
-            }
+            console.error('PPT JSON parse failed. Raw:', cleaned.slice(0, 500));
+            throw new Error(e1.message);
           }
         }
       } catch(e){
