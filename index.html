@@ -1918,70 +1918,31 @@ var TEAM_COLORS = {
         };
 
         var grandTotal = 0;
-        var userOrder = ['oakleyyuen'];
-        Object.keys(byUser).sort().forEach(function(u){ if(u !== 'oakleyyuen') userOrder.push(u); });
-
-        var usageHtml = '';
-        userOrder.forEach(function(uname){
-          if(!byUser[uname]) return;
+        var mergedPools = {};
+        Object.keys(byUser).forEach(function(uname){
           var userModels = byUser[uname];
-          var userTotal = 0;
-          // Group by pool
-          var pools = {};
           Object.keys(userModels).forEach(function(fk){
             var m = userModels[fk];
             var poolId = USAGE_POOL_MAP[fk] || 'other';
-            if(!pools[poolId]) pools[poolId] = {models:{}, total:0};
             var p2 = prices2[fk] || {input:0,output:0};
             var cost = ((m.input||0)/1000000)*p2.input + ((m.output||0)/1000000)*p2.output;
-            pools[poolId].models[fk] = {input:m.input||0, output:m.output||0, calls:m.calls||0, cost:cost};
-            pools[poolId].total += cost;
-            userTotal += cost;
+            if(!mergedPools[poolId]) mergedPools[poolId] = 0;
+            mergedPools[poolId] += cost;
+            grandTotal += cost;
           });
-          grandTotal += userTotal;
-
-          var uid = 'uu-'+uname.replace(/[^a-z0-9]/gi,'');
-          var isDefault = uname === 'oakleyyuen';
-          usageHtml += '<div style="margin-bottom:12px;border:1px solid '+border+';border-radius:10px;overflow:hidden;">';
-          // User header
-          var DISPLAY_NAMES = {'oakleyyuen':'KitsunYuen','doctor.wang':'Doctor.Wang','zty007007990':'Zty'};
-          var displayName = DISPLAY_NAMES[uname] || uname;
-          usageHtml += '<div onclick="(function(){var b=document.getElementById(\''+uid+'\');b.style.display=b.style.display===\'none\'?\'block\':\'none\';})()" style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;cursor:pointer;background:rgba(255,255,255,0.03);">'
-            +'<span style="font-size:13px;font-weight:700;color:'+textClr+';">'+esc(displayName)+'</span>'
-            +'<span style="font-size:12px;font-weight:600;color:#f59e0b;">$'+userTotal.toFixed(4)+'</span>'
-            +'</div>';
-          // User body (collapsible)
-          usageHtml += '<div id="'+uid+'" style="display:'+(isDefault?'block':'none')+';padding:0 8px 8px;">';
-
-          // Pool groups
-          var poolOrder = ['xai-official','openai-official','google-official','anthropic-official','ai-proxy','aipro','mj','other'];
-          poolOrder.forEach(function(pid){
-            if(!pools[pid]) return;
-            var pool = pools[pid];
-            var poolLabel = USAGE_POOL_LABELS[pid] || pid;
-            var ppid = uid+'-'+pid.replace(/[^a-z0-9]/gi,'');
-            usageHtml += '<div style="margin-top:6px;">';
-            usageHtml += '<div onclick="(function(){var b=document.getElementById(\''+ppid+'\');b.style.display=b.style.display===\'none\'?\'block\':\'none\';var a=document.getElementById(\''+ppid+'-a\');if(a)a.textContent=b.style.display===\'none\'?\'▶\':\'▼\';})()" style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;cursor:pointer;background:rgba(255,255,255,0.04);border-radius:7px;">'
-              +'<span style="font-size:11px;font-weight:600;color:'+textClr+';"><span id="'+ppid+'-a" style="font-size:9px;color:#555;margin-right:6px;">▶</span>'+esc(poolLabel)+'</span>'
-              +'<span style="font-size:11px;color:#a5b4fc;font-weight:600;">$'+pool.total.toFixed(4)+'</span>'
-              +'</div>';
-            // Model rows (collapsible)
-            usageHtml += '<div id="'+ppid+'" style="display:none;">';
-            usageHtml += '<table style="width:100%;border-collapse:collapse;margin-top:4px;">';
-            Object.keys(pool.models).forEach(function(fk){
-              var mm = pool.models[fk];
-              var label = MODEL_LABELS[fk] || fk;
-              usageHtml += '<tr>'
-                +'<td style="padding:4px 10px 4px 24px;font-size:11px;color:'+textClr+';white-space:nowrap;">'+label+'</td>'
-                +'<td style="padding:4px 6px;font-size:11px;color:'+subClr+';text-align:right;">'+mm.input.toLocaleString()+'</td>'
-                +'<td style="padding:4px 6px;font-size:11px;color:'+subClr+';text-align:right;">'+mm.output.toLocaleString()+'</td>'
-                +'<td style="padding:4px 6px;font-size:11px;color:#a5b4fc;text-align:right;">$'+mm.cost.toFixed(4)+'</td>'
-                +'</tr>';
-            });
-            usageHtml += '</table></div></div>';
-          });
-          usageHtml += '</div></div>';
         });
+
+        var usageHtml = '<div style="margin-bottom:12px;border:1px solid '+border+';border-radius:10px;overflow:hidden;padding:8px;">';
+        var poolOrder = ['xai-official','openai-official','google-official','anthropic-official','ai-proxy','aipro','mj','other'];
+        poolOrder.forEach(function(pid){
+          if(mergedPools[pid] === undefined) return;
+          var poolLabel = USAGE_POOL_LABELS[pid] || pid;
+          usageHtml += '<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:rgba(255,255,255,0.04);border-radius:7px;margin-top:6px;">'
+            +'<span style="font-size:12px;font-weight:600;color:'+textClr+';">'+esc(poolLabel)+'</span>'
+            +'<span style="font-size:12px;color:#a5b4fc;font-weight:600;">$'+mergedPools[pid].toFixed(4)+'</span>'
+            +'</div>';
+        });
+        usageHtml += '</div>';
 
         // Grand total
         usageHtml += '<div style="display:flex;justify-content:space-between;padding:10px 14px;border-top:2px solid '+border+';margin-top:8px;">'
