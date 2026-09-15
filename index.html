@@ -153,6 +153,8 @@
   /* === Chat === */
   #ai-arena-app .aa-chat { flex: 1; display: flex; flex-direction: column; min-height: 0; }
   #ai-arena-app .aa-chat.empty-state { justify-content: center; align-items: center; }
+  #ai-arena-app .aa-chat.empty-state.image-composer-state { justify-content: flex-end; align-items: stretch; }
+  #ai-arena-app .aa-chat.empty-state.image-composer-state .aa-input-area { margin-bottom: min(6vh, 54px); }
   #ai-arena-app .aa-chat.empty-state .aa-messages { flex: 0; height: 0; padding: 0; overflow: hidden; }
   #ai-arena-app .aa-chat.empty-state .aa-input-area { position: relative; }
   #ai-arena-app .aa-messages {
@@ -210,6 +212,11 @@
   #ai-arena-app .aa-generated-card {
     width: min(100%, 720px); margin: 0 auto;
   }
+  #ai-arena-app .aa-generated-list.multiple {
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px; max-width: 900px; margin: 0 auto;
+  }
+  #ai-arena-app .aa-generated-list.multiple .aa-generated-card { width: 100%; margin: 0; }
   #ai-arena-app .aa-generated-stage {
     display: flex; align-items: center; justify-content: center;
     width: 100%; min-height: min(180px, 30vh);
@@ -261,6 +268,7 @@
   @media (max-width: 640px) {
     #ai-arena-app .aa-generated-message { margin-left: 0; }
     #ai-arena-app .aa-generated-card { width: 100%; }
+    #ai-arena-app .aa-generated-list.multiple { grid-template-columns: 1fr; }
     #ai-arena-app .aa-generated-image { border-radius: 11px; }
     #ai-arena-app .aa-generated-actions { padding-top: 8px; }
   }
@@ -594,6 +602,73 @@
     padding: 10px 12px 10px 12px;
     box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 4px 20px rgba(0,0,0,0.1);
   }
+  #ai-arena-app .aa-input-row.image-mode-layout { flex-wrap: wrap; padding-bottom: 7px; }
+  #ai-arena-app .aa-image-dock {
+    display: none; flex: 0 0 100%; min-width: 0; align-items: center; gap: 7px;
+    border-top: 1px solid rgba(255,255,255,0.08); padding-top: 7px;
+  }
+  #ai-arena-app .aa-image-dock.visible { display: flex; }
+  #ai-arena-app .aa-image-tool {
+    min-width: 0; height: 30px; padding: 0 10px; border-radius: 9px;
+    border: 1px solid transparent; background: transparent; color: #a8a8bb;
+    font: 500 12px 'Sora', sans-serif; cursor: pointer; white-space: nowrap;
+    display: inline-flex; align-items: center; gap: 6px; transition: all .16s;
+  }
+  #ai-arena-app .aa-image-tool:hover,
+  #ai-arena-app .aa-image-tool.open { background: rgba(255,255,255,0.07); color: #e8e8ee; }
+  #ai-arena-app .aa-image-tool.settings { color: #8585a0; overflow: hidden; text-overflow: ellipsis; }
+  #ai-arena-app .aa-image-tool.model { margin-left: auto; color: #d5d5e5; font-weight: 600; }
+  #ai-arena-app .aa-image-tool .new {
+    color: #fbbf24; font-size: 9px; font-weight: 700; letter-spacing: .04em;
+  }
+  #ai-arena-app .aa-image-popover {
+    display: none; position: fixed; z-index: 100001; min-width: 220px; max-width: min(92vw, 390px);
+    overflow-y: auto; overscroll-behavior: contain;
+    padding: 7px; border-radius: 15px; background: rgba(20,25,45,.97);
+    border: 1px solid rgba(255,255,255,.13); box-shadow: 0 18px 55px rgba(0,0,0,.48);
+    backdrop-filter: blur(30px) saturate(1.35); -webkit-backdrop-filter: blur(30px) saturate(1.35);
+  }
+  #ai-arena-app .aa-image-popover.open { display: block; }
+  #ai-arena-app .aa-image-popover { scrollbar-width: thin; scrollbar-color: rgba(148,163,184,.35) transparent; }
+  #ai-arena-app .aa-image-popover::-webkit-scrollbar { width: 5px; }
+  #ai-arena-app .aa-image-popover::-webkit-scrollbar-thumb { background: rgba(148,163,184,.3); border-radius: 5px; }
+  #ai-arena-app .aa-image-pop-item {
+    width: 100%; min-height: 37px; padding: 8px 10px; border: 0; border-radius: 10px;
+    background: transparent; color: #a8a8bb; font: 500 13px 'Sora', sans-serif;
+    cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    text-align: left;
+  }
+  #ai-arena-app .aa-image-pop-item:hover { background: rgba(255,255,255,.06); color: #e8e8ee; }
+  #ai-arena-app .aa-image-pop-item.selected { background: rgba(99,102,241,.14); color: #eef2ff; }
+  #ai-arena-app .aa-image-pop-check { color: #a5b4fc; opacity: 0; }
+  #ai-arena-app .aa-image-pop-item.selected .aa-image-pop-check { opacity: 1; }
+  #ai-arena-app .aa-image-settings { min-width: 310px; padding: 13px; }
+  #ai-arena-app .aa-image-setting-row + .aa-image-setting-row { margin-top: 14px; }
+  #ai-arena-app .aa-image-setting-head {
+    display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;
+    color: #777790; font: 500 11px 'Sora', sans-serif;
+  }
+  #ai-arena-app .aa-image-choice-row { display: flex; flex-wrap: wrap; gap: 6px; }
+  #ai-arena-app .aa-image-choice {
+    height: 32px; min-width: 42px; padding: 0 10px; border-radius: 10px;
+    border: 1px solid rgba(255,255,255,.07); background: rgba(255,255,255,.035);
+    color: #8989a1; font: 500 12px 'Sora', sans-serif; cursor: pointer;
+  }
+  #ai-arena-app .aa-image-choice.selected {
+    background: rgba(165,180,252,.16); border-color: rgba(165,180,252,.35); color: #e0e7ff;
+  }
+  #ai-arena-app .aa-image-choice[disabled] { opacity: .32; cursor: not-allowed; }
+  #ai-arena-app .aa-image-hint { color: #606078; font: 400 10px/1.45 'Sora', sans-serif; margin-top: 8px; }
+  @media (max-width: 640px) {
+    #ai-arena-app .aa-image-dock { gap: 2px; }
+    #ai-arena-app .aa-image-tool { padding: 0 7px; font-size: 11px; }
+    #ai-arena-app .aa-image-tool.settings { flex: 1; }
+    #ai-arena-app .aa-image-popover {
+      left: 12px !important; right: 12px !important; bottom: max(12px, env(safe-area-inset-bottom)) !important;
+      top: auto !important; max-width: none; max-height: 72vh !important; width: auto; transform: none !important;
+    }
+    #ai-arena-app .aa-image-settings { min-width: 0; }
+  }
   #ai-arena-app .aa-input-row:focus-within {
     border-color: rgba(255,255,255,0.18);
     box-shadow: inset 0 1px 0 rgba(255,255,255,0.1), 0 4px 24px rgba(99,102,241,0.08);
@@ -770,6 +845,17 @@
   #ai-arena-app.light-mode .aa-code-wrap { background: rgba(38,32,28,0.92) !important; border-color: rgba(0,0,0,0.15) !important; }
   #ai-arena-app.light-mode .aa-input-row { background: rgba(255,255,255,0.88) !important; border-color: rgba(0,0,0,0.12) !important; box-shadow: 0 2px 12px rgba(0,0,0,0.06) !important; }
   #ai-arena-app.light-mode .aa-input-row:focus-within { border-color: rgba(99,102,241,0.4) !important; }
+  #ai-arena-app.light-mode .aa-image-dock { border-top-color: rgba(15,23,42,.09); }
+  #ai-arena-app.light-mode .aa-image-tool { color: #64748b; }
+  #ai-arena-app.light-mode .aa-image-tool:hover,
+  #ai-arena-app.light-mode .aa-image-tool.open { background: rgba(15,23,42,.06); color: #0f172a; }
+  #ai-arena-app.light-mode .aa-image-tool.model { color: #1e293b; }
+  #ai-arena-app.light-mode .aa-image-popover { background: rgba(255,255,255,.98); border-color: rgba(15,23,42,.12); box-shadow: 0 18px 50px rgba(15,23,42,.18); }
+  #ai-arena-app.light-mode .aa-image-pop-item { color: #64748b; }
+  #ai-arena-app.light-mode .aa-image-pop-item:hover { background: rgba(15,23,42,.05); color: #0f172a; }
+  #ai-arena-app.light-mode .aa-image-pop-item.selected { background: rgba(99,102,241,.1); color: #3730a3; }
+  #ai-arena-app.light-mode .aa-image-choice { border-color: rgba(15,23,42,.09); background: rgba(15,23,42,.025); color: #64748b; }
+  #ai-arena-app.light-mode .aa-image-choice.selected { border-color: rgba(79,70,229,.25); background: rgba(99,102,241,.1); color: #3730a3; }
   #ai-arena-app.light-mode .aa-topic { color: #2a2a35 !important; }
   #ai-arena-app.light-mode .aa-topic::placeholder { color: #9090a8 !important; }
   #ai-arena-app.light-mode .aa-card-head { background: rgba(255,255,255,0.75) !important; border-color: rgba(0,0,0,0.1) !important; }
@@ -1179,7 +1265,15 @@
         </div>
         <textarea class="aa-topic" id="aaTopic" rows="1" style="caret-color: auto;" placeholder="输入内容..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
         <button class="aa-send" id="aaSendBtn" disabled>↑</button>
+        <div class="aa-image-dock" id="aaImageDock">
+          <button class="aa-image-tool" id="aaImageTaskBtn" type="button"><span id="aaImageTaskLabel">生成</span><span>⌄</span></button>
+          <button class="aa-image-tool settings" id="aaImageSettingsBtn" type="button"><span id="aaImageSettingsSummary">1:1 · 1K · 自动 · 1张</span><span>⌄</span></button>
+          <button class="aa-image-tool model" id="aaImageModelBtn" type="button"><span id="aaImageModelLabel">Grok Image 2.0</span><span class="new" id="aaImageNewBadge">NEW</span><span>⌄</span></button>
+        </div>
       </div>
+      <div class="aa-image-popover" id="aaImageTaskPop"></div>
+      <div class="aa-image-popover aa-image-settings" id="aaImageSettingsPop"></div>
+      <div class="aa-image-popover" id="aaImageModelPop"></div>
       <div class="aa-ctrl-row">
         <div class="aa-ctrl-grp" id="aaModeToggle">
           <button id="aaBarDebateBtn" class="aa-bar-btn" style="color:#6b6b88;background:transparent;">辩论</button>
@@ -1236,6 +1330,7 @@
     'grok41-proxy':          {brand:'xai',       name:'G-4.1-JK'},
     'grok41-biz-official':   {brand:'xai',       name:'G-4.1-越狱'},
     'grok420-multiagent':    {brand:'xai',       name:'Grok-4.2-官方'},
+    'grok-image-2':          {brand:'xai',       name:'Grok Image 2.0'},
 
     'sonnet46-official':     {brand:'anthropic', name:'S-4.7-官方'},
     'opus46-official':       {brand:'anthropic', name:'O-4.7-官方'},
@@ -1297,6 +1392,13 @@
 var debateMode = 'free'; // 'free' | '2v2'
 var imageMode = false;
 var videoMode = false;
+var imageComposerModel = localStorage.getItem('aa-image-model') || 'grok-image-2';
+var imageComposerTask = localStorage.getItem('aa-image-task') || 'generation';
+var grokImageResolution = localStorage.getItem('aa-grok-resolution') || '1k';
+var grokAspectRatio = localStorage.getItem('aa-grok-ratio') || '1:1';
+var grokImageQuality = localStorage.getItem('aa-grok-quality') || 'auto';
+var grokImageCount = parseInt(localStorage.getItem('aa-grok-count') || '1', 10);
+var mjAspectRatio = localStorage.getItem('aa-mj-ratio') || '1:1';
 var TEAM_COLORS = {
   pro:  {color:'#60a5fa', bg:'rgba(96,165,250,0.10)', border:'rgba(96,165,250,0.25)', label:'正方'},
   con:  {color:'#f87171', bg:'rgba(248,113,113,0.10)', border:'rgba(248,113,113,0.25)', label:'反方'}
@@ -1408,7 +1510,7 @@ var TEAM_COLORS = {
   };
 
   var POOL_MAP = {
-    'grok41-official':'xai-official','grok41-biz-official':'xai-official','grok420-multiagent':'xai-official',
+    'grok41-official':'xai-official','grok41-biz-official':'xai-official','grok420-multiagent':'xai-official','grok-image-2':'xai-official',
     'sonnet46-official':'anthropic-official','opus46-official':'anthropic-official',
     'sonnet-thinking':'aipro','opus-thinking':'aipro','gemini31high-official':'aipro',
     'gpt52-official':'openai-official','gpt54-official':'openai-official','gpt-4o-mini-search-preview':'openai-official','codex-official':'openai-official',
@@ -1568,6 +1670,7 @@ var TEAM_COLORS = {
     return msgs.map(function(m){
       var obj = {uid:m.uid, brand:m.brand, name:m.name, text:m.text, color:m.color, isUser:m.isUser, isError:m.isError, round:m.round, _team:m._team, _liked:m._liked, _comment:m._comment, topicText:m.topicText, pastedTexts:m.pastedTexts, reasoning:m.reasoning, submodel:m.submodel};
       if(m.imgData){ obj.imgData = m.imgData; obj.imgMime = m.imgMime; }
+      if(m.imgItems && m.imgItems.length){ obj.imgItems = m.imgItems; }
       return obj;
     });
   }
@@ -1971,7 +2074,7 @@ var TEAM_COLORS = {
 
         // Step 2: Build nested structure: user → pool → models with costs
         var USAGE_POOL_MAP = {
-          'grok41-official':'xai-official','grok41-biz-official':'xai-official','grok420-multiagent':'xai-official',
+          'grok41-official':'xai-official','grok41-biz-official':'xai-official','grok420-multiagent':'xai-official','grok-image-2':'xai-official',
           'sonnet46-official':'anthropic-official','opus46-official':'anthropic-official',
           'sonnet-thinking':'aipro','opus-thinking':'aipro','gemini31high-official':'aipro',
           'gpt52-official':'openai-official','gpt54-official':'openai-official','gpt-4o-mini-search-preview':'openai-official','codex-official':'openai-official',
@@ -2091,16 +2194,8 @@ var TEAM_COLORS = {
       result.push(brandSelection['kling'] || 'kling25-i2v');
       return result;
     }
-    if(imageMode && activeBrands['mj']){
-      result.push(brandSelection['mj'] || 'mj-imagine');
-      return result;
-    }
-    if(imageMode && activeBrands['mj']){
-      result.push(brandSelection['mj'] || 'mj-imagine');
-      return result;
-    }
-    if(imageMode && activeBrands['google']){
-      result.push(brandSelection['google'] || 'nanbanana2-official');
+    if(imageMode){
+      result.push(imageComposerModel === 'mj-imagine' ? (brandSelection['mj'] || 'mj-imagine') : (imageComposerModel || 'grok-image-2'));
       return result;
     }
     var cards = document.querySelectorAll('#aaBrandBar .aa-brand-card');
@@ -2579,11 +2674,7 @@ var TEAM_COLORS = {
     menu.style.display = menu.style.display === 'none' ? '' : 'none';
   });
   $('aaPlusPhoto').addEventListener('click', function(){
-    if(imageMode){
-      $('aaNbRefInput').click();
-    } else {
-      $('aaImgInput').click();
-    }
+    $('aaImgInput').click();
     $('aaPlusMenu').style.display = 'none';
   });
   $('aaPlusSearch').addEventListener('click', function(){
@@ -2993,6 +3084,7 @@ var TEAM_COLORS = {
             if(obj.img && onChunk) onChunk('\x00IMG\x00'+obj.img+'\x00MIME\x00'+(obj.mime||'image/png'));
             if(obj.mjButtons) onChunk('\x00MJB\x00'+JSON.stringify(obj.mjButtons));
             if(obj.usage && onChunk) onChunk('%%USAGE%%'+JSON.stringify(obj.usage));
+            if(obj.cost !== undefined && onChunk) onChunk('%%USAGE%%'+JSON.stringify({cost:obj.cost}));
           } catch(e){ console.warn('SSE parse error:', raw, e); }
         }
       }
@@ -3139,7 +3231,8 @@ var TEAM_COLORS = {
     for(var i=0;i<byteStr.length;i++) arr[i]=byteStr.charCodeAt(i);
     var blob = new Blob([arr], {type: entry.mime});
     var url = URL.createObjectURL(blob);
-    var a = document.createElement('a'); a.href=url; a.download='nanbanana2-'+uid+'.png';
+    var ext = entry.mime === 'image/jpeg' ? 'jpg' : (entry.mime === 'image/webp' ? 'webp' : 'png');
+    var a = document.createElement('a'); a.href=url; a.download='ai-image-'+uid+'.'+ext;
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
   };
@@ -3518,6 +3611,204 @@ btn.classList.add('copied');
     this.scrollTop += e.deltaY > 0 ? 40 : -40;
   }, {passive: true});
 
+  // === Image composer: model, task and model-specific settings ===
+  var IMAGE_MODELS = [
+    {value:'grok-image-2', label:'Grok Image 2.0', badge:'NEW'},
+    {value:'nanbanana2-official', label:'Google NB-2'},
+    {value:'mj-imagine', label:'Midjourney'}
+  ];
+  var GROK_RATIOS = ['1:1','16:9','9:16','4:3','3:4','3:2','2:3','2:1','1:2','21:9','auto'];
+  var MJ_RATIOS = ['1:1','16:9','9:16','4:3','3:4','3:2','2:3','21:9'];
+
+  function imageTaskOptions(){
+    if(imageComposerModel === 'mj-imagine'){
+      return [
+        {value:'mj-imagine',label:'生成图片'},
+        {value:'mj-describe',label:'分析图片风格'},
+        {value:'mj-blend',label:'融合多张图片'},
+        {value:'swap-face',label:'人脸替换'}
+      ];
+    }
+    return [
+      {value:'generation',label:'生成图片'},
+      {value:'edit',label:'编辑图片'},
+      {value:'multi-edit',label:'多图编辑'}
+    ];
+  }
+
+  function currentImageTask(){
+    var opts = imageTaskOptions();
+    var match = opts.find(function(o){ return o.value === imageComposerTask; });
+    return match || opts[0];
+  }
+
+  function closeImagePopovers(){
+    ['aaImageTaskPop','aaImageSettingsPop','aaImageModelPop'].forEach(function(id){
+      var el = $(id); if(el) el.classList.remove('open');
+    });
+    ['aaImageTaskBtn','aaImageSettingsBtn','aaImageModelBtn'].forEach(function(id){
+      var el = $(id); if(el) el.classList.remove('open');
+    });
+  }
+
+  function positionImagePopover(trigger, pop, alignRight){
+    var r = trigger.getBoundingClientRect();
+    pop.style.top = 'auto';
+    pop.style.bottom = (window.innerHeight - r.top + 8) + 'px';
+    pop.style.maxHeight = Math.max(220, r.top - 24) + 'px';
+    pop.style.transform = 'none';
+    if(alignRight){ pop.style.left = 'auto'; pop.style.right = Math.max(12, window.innerWidth - r.right) + 'px'; }
+    else { pop.style.right = 'auto'; pop.style.left = Math.max(12, r.left) + 'px'; }
+  }
+
+  function openImagePopover(triggerId, popId, alignRight){
+    var trigger = $(triggerId), pop = $(popId);
+    var reopen = !pop.classList.contains('open');
+    closeImagePopovers();
+    if(!reopen) return;
+    positionImagePopover(trigger, pop, alignRight);
+    pop.classList.add('open'); trigger.classList.add('open');
+  }
+
+  function popItem(value, label, selected, badge){
+    return '<button class="aa-image-pop-item'+(selected?' selected':'')+'" type="button" data-value="'+esc(value)+'">'
+      +'<span>'+esc(label)+(badge?' <span class="new">'+esc(badge)+'</span>':'')+'</span>'
+      +'<span class="aa-image-pop-check">✓</span></button>';
+  }
+
+  function imageChoice(setting, value, label, selected, disabled){
+    return '<button class="aa-image-choice'+(selected?' selected':'')+'" type="button" data-setting="'+setting+'" data-value="'+esc(value)+'"'+(disabled?' disabled':'')+'>'+esc(label)+'</button>';
+  }
+
+  function imageSettingRow(title, html){
+    return '<div class="aa-image-setting-row"><div class="aa-image-setting-head"><span>'+esc(title)+'</span></div><div class="aa-image-choice-row">'+html+'</div></div>';
+  }
+
+  function buildImageModelPop(){
+    $('aaImageModelPop').innerHTML = IMAGE_MODELS.map(function(m){
+      return popItem(m.value, m.label, m.value === imageComposerModel, m.badge || '');
+    }).join('');
+  }
+
+  function buildImageTaskPop(){
+    $('aaImageTaskPop').innerHTML = imageTaskOptions().map(function(t){
+      return popItem(t.value, t.label, t.value === currentImageTask().value, '');
+    }).join('');
+  }
+
+  function buildImageSettingsPop(){
+    var html = '';
+    if(imageComposerModel === 'grok-image-2'){
+      html += imageSettingRow('画面比例', GROK_RATIOS.map(function(v){ return imageChoice('grok-ratio',v,v,grokAspectRatio===v,false); }).join(''));
+      html += imageSettingRow('分辨率', ['1k','2k'].map(function(v){ return imageChoice('grok-resolution',v,v.toUpperCase(),grokImageResolution===v,false); }).join(''));
+      html += imageSettingRow('质量', [['low','快速'],['medium','高质量'],['auto','自动']].map(function(v){ return imageChoice('grok-quality',v[0],v[1],grokImageQuality===v[0],false); }).join(''));
+      html += imageSettingRow('生成数量', [1,2,3,4].map(function(v){ return imageChoice('grok-count',String(v),v+'张',grokImageCount===v,imageComposerTask!=='generation'); }).join(''));
+      html += '<div class="aa-image-hint">编辑支持 1 张参考图，多图编辑支持 2–5 张；编辑任务每次返回 1 张。</div>';
+    } else if(imageComposerModel === 'nanbanana2-official'){
+      html += imageSettingRow('风格', _nbStyleOptions.map(function(o){ return imageChoice('nb-style',o.value,o.label,nbStylePreset===o.value,false); }).join(''));
+      html += imageSettingRow('分辨率', _nbSizeOptions.map(function(o){ return imageChoice('nb-size',o.value,o.label,nbImageSize===o.value,false); }).join(''));
+      html += imageSettingRow('画面比例', _nbRatioOptions.map(function(o){ return imageChoice('nb-ratio',o.value,o.label,nbAspectRatio===o.value,false); }).join(''));
+      html += imageSettingRow('思考强度', [['minimal','快速'],['high','深度']].map(function(v){ return imageChoice('nb-thinking',v[0],v[1],nbThinkingLevel===v[0],false); }).join(''));
+      html += imageSettingRow('输出方式', [['false','图文'],['true','仅图片']].map(function(v){ return imageChoice('nb-only',v[0],v[1],nbImageOnly===(v[0]==='true'),false); }).join(''));
+    } else {
+      if(imageComposerTask === 'mj-imagine'){
+        html += imageSettingRow('画面比例', MJ_RATIOS.map(function(v){ return imageChoice('mj-ratio',v,v,mjAspectRatio===v,false); }).join(''));
+        html += imageSettingRow('生成速度', imageChoice('mj-speed','relax','Relax',true,true));
+      } else if(imageComposerTask === 'mj-describe'){
+        html = '<div class="aa-image-hint" style="margin:2px;">上传 1 张参考图，Midjourney 会分析并返回风格描述。</div>';
+      } else if(imageComposerTask === 'mj-blend'){
+        html = '<div class="aa-image-hint" style="margin:2px;">上传 2–5 张参考图，将它们融合成一张新图片。</div>';
+      } else {
+        html = '<div class="aa-image-hint" style="margin:2px;">分别上传人脸图和目标图后执行替换。</div>';
+      }
+    }
+    $('aaImageSettingsPop').innerHTML = html;
+  }
+
+  function imageSettingsSummary(){
+    if(imageComposerModel === 'grok-image-2'){
+      var qualityLabel = {low:'快速',medium:'高质量',auto:'自动'}[grokImageQuality] || '自动';
+      return grokAspectRatio+' · '+grokImageResolution.toUpperCase()+' · '+qualityLabel+(imageComposerTask==='generation'?' · '+grokImageCount+'张':'');
+    }
+    if(imageComposerModel === 'nanbanana2-official'){
+      var style = _nbStyleOptions.find(function(o){ return o.value===nbStylePreset; });
+      return (style?style.label:'无预设')+' · '+nbImageSize+' · '+nbAspectRatio+' · '+(nbThinkingLevel==='high'?'深度':'快速');
+    }
+    if(imageComposerTask === 'mj-imagine') return mjAspectRatio+' · Relax';
+    if(imageComposerTask === 'mj-describe') return '需要 1 张参考图';
+    if(imageComposerTask === 'mj-blend') return '需要 2–5 张参考图';
+    return '人脸图 + 目标图';
+  }
+
+  function syncImageComposer(){
+    var dock = $('aaImageDock'), row = dock && dock.closest('.aa-input-row');
+    if(!dock || !row) return;
+    var chat = document.querySelector('#ai-arena-app .aa-chat');
+    if(chat) chat.classList.toggle('image-composer-state', imageMode);
+    dock.classList.toggle('visible', imageMode);
+    row.classList.toggle('image-mode-layout', imageMode);
+    if(!imageMode){ closeImagePopovers(); return; }
+
+    var model = IMAGE_MODELS.find(function(m){ return m.value === imageComposerModel; }) || IMAGE_MODELS[0];
+    if(model.value !== imageComposerModel) imageComposerModel = model.value;
+    var opts = imageTaskOptions();
+    if(!opts.some(function(o){ return o.value === imageComposerTask; })) imageComposerTask = opts[0].value;
+    if(imageComposerModel === 'mj-imagine') brandSelection['mj'] = imageComposerTask;
+    activeBrands = {
+      xai:imageComposerModel==='grok-image-2', anthropic:false, openai:false,
+      google:imageComposerModel==='nanbanana2-official', mj:imageComposerModel==='mj-imagine', kling:false
+    };
+    $('aaImageModelLabel').textContent = model.label;
+    $('aaImageNewBadge').style.display = model.badge ? '' : 'none';
+    $('aaImageTaskLabel').textContent = currentImageTask().label;
+    $('aaImageSettingsSummary').textContent = imageSettingsSummary();
+    $('aaTopic').placeholder = imageComposerTask === 'generation' || imageComposerTask === 'mj-imagine'
+      ? '描述你想生成的图片…' : '描述你想怎样处理参考图…';
+    $('aaNbOptions').style.display = 'none';
+    $('aaNbRefArea').style.display = 'none';
+    $('aaNbEditBanner').style.display = 'none';
+    buildImageModelPop(); buildImageTaskPop(); buildImageSettingsPop();
+    localStorage.setItem('aa-image-model', imageComposerModel);
+    localStorage.setItem('aa-image-task', imageComposerTask);
+  }
+
+  $('aaImageModelBtn').addEventListener('click', function(e){ e.stopPropagation(); buildImageModelPop(); openImagePopover('aaImageModelBtn','aaImageModelPop',true); });
+  $('aaImageTaskBtn').addEventListener('click', function(e){ e.stopPropagation(); buildImageTaskPop(); openImagePopover('aaImageTaskBtn','aaImageTaskPop',false); });
+  $('aaImageSettingsBtn').addEventListener('click', function(e){ e.stopPropagation(); buildImageSettingsPop(); openImagePopover('aaImageSettingsBtn','aaImageSettingsPop',false); });
+  $('aaImageModelPop').addEventListener('click', function(e){
+    var btn = e.target.closest('[data-value]'); if(!btn) return;
+    imageComposerModel = btn.dataset.value;
+    imageComposerTask = imageComposerModel === 'mj-imagine' ? 'mj-imagine' : 'generation';
+    closeImagePopovers(); syncImageComposer(); saveState();
+  });
+  $('aaImageTaskPop').addEventListener('click', function(e){
+    var btn = e.target.closest('[data-value]'); if(!btn) return;
+    imageComposerTask = btn.dataset.value;
+    if(imageComposerModel === 'mj-imagine') brandSelection['mj'] = imageComposerTask;
+    closeImagePopovers(); syncImageComposer(); saveState();
+  });
+  $('aaImageSettingsPop').addEventListener('click', function(e){
+    var btn = e.target.closest('[data-setting]'); if(!btn || btn.disabled) return;
+    var setting = btn.dataset.setting, value = btn.dataset.value;
+    if(setting === 'grok-ratio'){ grokAspectRatio=value; localStorage.setItem('aa-grok-ratio',value); }
+    if(setting === 'grok-resolution'){ grokImageResolution=value; localStorage.setItem('aa-grok-resolution',value); }
+    if(setting === 'grok-quality'){ grokImageQuality=value; localStorage.setItem('aa-grok-quality',value); }
+    if(setting === 'grok-count'){ grokImageCount=parseInt(value,10); localStorage.setItem('aa-grok-count',value); }
+    if(setting === 'nb-style'){ nbStylePreset=value; }
+    if(setting === 'nb-size'){ nbImageSize=value; }
+    if(setting === 'nb-ratio'){ nbAspectRatio=value; }
+    if(setting === 'nb-thinking'){ nbThinkingLevel=value; }
+    if(setting === 'nb-only'){ nbImageOnly=value==='true'; }
+    if(setting === 'mj-ratio'){ mjAspectRatio=value; localStorage.setItem('aa-mj-ratio',value); }
+    closeImagePopovers();
+    syncImageComposer();
+    openImagePopover('aaImageSettingsBtn','aaImageSettingsPop',false);
+  });
+  document.addEventListener('click', function(e){
+    if(!e.target.closest('.aa-image-popover') && !e.target.closest('.aa-image-tool')) closeImagePopovers();
+  });
+  window.addEventListener('resize', closeImagePopovers);
+
   // === Mode toggle ===
   $('aaRoundsBar').addEventListener('click', function(e){
     var btn = e.target.closest('[data-rounds]'); if(!btn) return;
@@ -3613,6 +3904,7 @@ btn.classList.add('copied');
     $('aaSeatsArea').style.display = 'none';
     $('aaPersonaArea').style.display = 'none';
     $('aaTopic').placeholder = '输入内容...';
+    syncImageComposer();
   });
 
   $('aaBarImageBtn').addEventListener('click', function(){
@@ -3628,23 +3920,11 @@ btn.classList.add('copied');
     if($('aaBarVideoBtn')){ $('aaBarVideoBtn').style.background='transparent'; $('aaBarVideoBtn').style.color='#6b6b88'; }
     $('aaRoundsBar').style.display = 'none';
     $('aaDebateModeBar').style.display = 'none';
-  // 图像模式：保留上次选择；若都没激活则默认 Google(Nano Banana 2)
-activeBrands = {xai:false, anthropic:false, openai:false, google:!!activeBrands['google'], mj:!!activeBrands['mj']};
-if(!activeBrands.google && !activeBrands.mj){
-  activeBrands.google = true;
-}
-brandSelection['google'] = 'nanbanana2-official';
-      if(!brandSelection['mj']) brandSelection['mj'] = 'mj-imagine';
-      var _gLabelBtn = document.getElementById('aaCardSub-google');
-      if(_gLabelBtn) _gLabelBtn.textContent = 'NB-2';
-      // 显示图像专用卡片，隐藏非图像卡片
-      syncImageCards();
-    $('aaBrandBar').style.display = 'flex';
-    $('aaBrandBarCollapsed').style.display = 'none';
+    brandSelection['google'] = 'nanbanana2-official';
+    if(!brandSelection['mj']) brandSelection['mj'] = 'mj-imagine';
     syncImageCards();
-    $('aaBrandBar').style.display = 'flex';
-    $('aaBrandBarCollapsed').style.display = 'none';
     syncBrandUI(); sync2v2UI(); syncNbOptions(); updateModeBadge(); saveState();
+    syncImageCards();
     if($('aaSkillsWrap')) $('aaSkillsWrap').style.display = 'none';
     if($('aaDebateModeBar')) $('aaDebateModeBar').style.display = 'none';
     if($('aaRoundsBar')) $('aaRoundsBar').style.display = 'none';
@@ -4182,16 +4462,24 @@ function initPersonaDragDrop(){
         h += '<video controls style="max-width:100%;border-radius:8px;display:block;margin-bottom:8px;" src="'+esc(msg.videoUrl)+'"></video>';
         h += '<a href="'+esc(msg.videoUrl)+'" download target="_blank" style="display:inline-block;padding:6px 12px;border-radius:8px;background:rgba(232,121,249,0.15);border:1px solid rgba(232,121,249,0.3);color:#e879f9;font-size:11px;font-weight:600;text-decoration:none;">下载视频</a>';
         h += '</div>';
-      } else if(msg.imgData){
+      } else if((msg.imgItems && msg.imgItems.length) || msg.imgData){
         h += '<div class="aa-msg-body '+bodyClass+' aa-generated-message" style="'+bodyStyle+'">';
         if(msg.text) h += '<p>'+esc(msg.text)+'</p>';
-        var _imgKey = 'aigen_'+msg.uid; window._aaImgClickStore = window._aaImgClickStore||{}; window._aaImgClickStore[_imgKey] = 'data:'+msg.imgMime+';base64,'+msg.imgData;
-        h += '<div class="aa-generated-card">';
-        h += '<div class="aa-generated-stage"><img class="aa-generated-image" src="data:'+msg.imgMime+';base64,'+msg.imgData+'" onload="window._aaGeneratedImgLoaded(this,\''+msg.uid+'\')" onclick="window._aaLightbox(window._aaImgClickStore[\''+_imgKey+'\'])" alt="AI 生成图片"></div>';
-        h += '<div class="aa-generated-actions">';
-        h += '<button class="aa-generated-btn primary" onclick="window._aaLightbox(window._aaImgClickStore[\''+_imgKey+'\'])">查看大图</button>';
-        h += '<button class="aa-generated-btn" onclick="window._aaDownloadImg(\''+msg.uid+'\')">下载原图</button>';
-        h += '</div></div>';
+        var _renderImgs = (msg.imgItems && msg.imgItems.length) ? msg.imgItems : [{data:msg.imgData,mime:msg.imgMime}];
+        h += '<div class="aa-generated-list'+(_renderImgs.length>1?' multiple':'')+'">';
+        _renderImgs.forEach(function(item, imageIndex){
+          var _imgKey = 'aigen_'+msg.uid+'_'+imageIndex;
+          window._aaImgClickStore = window._aaImgClickStore||{};
+          window._aaImgClickStore[_imgKey] = 'data:'+(item.mime||'image/png')+';base64,'+item.data;
+          window._aaImgStore[_imgKey] = {data:item.data,mime:item.mime||'image/png'};
+          h += '<div class="aa-generated-card">';
+          h += '<div class="aa-generated-stage"><img class="aa-generated-image" src="'+window._aaImgClickStore[_imgKey]+'" onload="window._aaGeneratedImgLoaded(this,\''+msg.uid+'\')" onclick="window._aaLightbox(window._aaImgClickStore[\''+_imgKey+'\'])" alt="AI 生成图片"></div>';
+          h += '<div class="aa-generated-actions">';
+          h += '<button class="aa-generated-btn primary" onclick="window._aaLightbox(window._aaImgClickStore[\''+_imgKey+'\'])">查看大图</button>';
+          h += '<button class="aa-generated-btn" onclick="window._aaDownloadImg(\''+_imgKey+'\')">下载原图</button>';
+          h += '</div></div>';
+        });
+        h += '</div>';
         h += '</div>';
       } else {
         // 提取所有 [MJ_IMAGE]...[/MJ_IMAGE] 链接
@@ -4345,6 +4633,15 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
     }
     var act = getActiveSubmodels();
     if(!act.length){ alert('请至少选择一个模型。'); return; }
+    if(imageMode){
+      var refCount = sentImgs.length;
+      if((imageComposerModel === 'grok-image-2' || imageComposerModel === 'nanbanana2-official' || imageComposerTask === 'mj-imagine') && !topic){ alert('请先描述你想生成或修改的图片。'); return; }
+      if((imageComposerModel === 'grok-image-2' || imageComposerModel === 'nanbanana2-official') && imageComposerTask === 'edit' && refCount < 1){ alert('编辑图片需要先上传 1 张参考图。'); return; }
+      if((imageComposerModel === 'grok-image-2' || imageComposerModel === 'nanbanana2-official') && imageComposerTask === 'multi-edit' && (refCount < 2 || refCount > 5)){ alert('多图编辑需要上传 2–5 张参考图。'); return; }
+      if(imageComposerModel === 'mj-imagine' && imageComposerTask === 'mj-describe' && refCount !== 1){ alert('风格分析需要上传 1 张参考图。'); return; }
+      if(imageComposerModel === 'mj-imagine' && imageComposerTask === 'mj-blend' && (refCount < 2 || refCount > 5)){ alert('图片融合需要上传 2–5 张参考图。'); return; }
+      if(imageComposerModel === 'mj-imagine' && imageComposerTask === 'swap-face' && refCount !== 2){ alert('人脸替换需要上传 2 张图片：第一张人脸图，第二张目标图。'); return; }
+    }
     _bizMode = act.indexOf('grok41-biz-official') !== -1;
     // ✅ 商业版模式:清空当前 chatId,阻止保存到历史
   if(_bizMode){
@@ -4362,10 +4659,9 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
     var _rawName = $('aaUsername').value.trim() || '用户';
     var CHAT_DISPLAY_NAMES = {'oakleyyuen':'Oakley Suen','doctor.wang':'Doctor.Wang','zty007007990':'Zty'};
     var userName = CHAT_DISPLAY_NAMES[_rawName.toLowerCase()] || _rawName;
-    var _isSwap = brandSelection['mj'] === 'swap-face' && imageMode && activeBrands['mj'];
-    var _swapImgs = _isSwap && swapSrcImg && swapTgtImg ? [swapSrcImg, swapTgtImg] : null;
+    var _isSwap = imageMode && imageComposerModel === 'mj-imagine' && imageComposerTask === 'swap-face';
+    var _swapImgs = _isSwap ? sentImgs.slice(0,2) : null;
     var _imgs = _swapImgs || sentImgs.slice(), _img = _imgs.length ? _imgs[0].data : null, _imgMime = _imgs.length ? _imgs[0].mime : null, _texts = sentTexts.slice();
-    if(_isSwap && _swapImgs){ swapSrcImg=null; swapTgtImg=null; $('aaSwapFaceArea').style.display='none'; window._aaClearSwap('src'); window._aaClearSwap('tgt'); }
     var _topicText = topic;
     if(_texts.length) topic = topic ? topic + '\n\n' + _texts.join('\n\n') : _texts.join('\n\n');
     var _quotedBlock = activeQuote ? activeQuote : null;
@@ -4697,15 +4993,14 @@ var uid = newUid();
 var msgObj = {uid:uid, submodel:sub, brand:info.brand, name:info.name, text:'', color:brandInfo.color};
 var firstChunk = true;
 var _nbStylePrefix = (sub === 'nanbanana2-official' && nbStylePreset !== 'none') ? (NB_STYLE_PROMPTS[nbStylePreset] || '') : '';
-var _nbAutoRefs = [];
+var _nbExtraOpts = { _imgs: _imgs };
 if(sub === 'nanbanana2-official'){
-  var _lastNbMsg = null;
-  for(var _mi = msgs.length - 1; _mi >= 0; _mi--){
-    if(msgs[_mi].submodel === 'nanbanana2-official' && msgs[_mi].imgData){ _lastNbMsg = msgs[_mi]; break; }
-  }
-  if(_lastNbMsg) _nbAutoRefs = [{ data: _lastNbMsg.imgData, mime: _lastNbMsg.imgMime || 'image/png' }];
+  _nbExtraOpts = { imageTask:imageComposerTask, imageSize:nbImageSize, aspectRatio:nbAspectRatio, refImages:_imgs.slice(1), thinkingLevel:nbThinkingLevel, imageOnly:nbImageOnly, _imgs:_imgs };
+} else if(sub === 'grok-image-2'){
+  _nbExtraOpts = { imageTask:imageComposerTask, resolution:grokImageResolution, aspectRatio:grokAspectRatio, quality:grokImageQuality, n:(imageComposerTask==='generation'?grokImageCount:1), _imgs:_imgs };
+} else if(sub === 'mj-imagine'){
+  _nbExtraOpts = { aspectRatio:mjAspectRatio, _imgs:_imgs };
 }
-var _nbExtraOpts = (sub === 'nanbanana2-official') ? { imageSize: nbImageSize, aspectRatio: nbAspectRatio, refImages: _nbAutoRefs.concat(nbRefImages), thinkingLevel: nbThinkingLevel, imageOnly: nbImageOnly, _imgs: _imgs } : { _imgs: _imgs };
 var _skillSys = (activeSkill && activeSkill.type === 'prompt' && activeSkill.prompt) ? activeSkill.prompt : null;
 if(_skillSys && activeSkill.id === 'ppt-maker' && _pptTemplateInfo){
   var _tpl = _pptTemplateInfo;
@@ -4717,9 +5012,10 @@ var sysPrompt = (sub === 'codex-official' || sub === 'codex-proxy') ? 'You are a
 var memText = (_bizMode || _incognitoMode || imageMode) ? '' : (_cachedMemory || '');
 var _topicWithStyle = (sub === 'nanbanana2-official' && _nbStylePrefix) ? _nbStylePrefix + topic : topic;
 var _topicForPrompt = _topicWithStyle.replace(' [img]', _imgs.length ? '（已附图'+_imgs.length+'张）' : '');
+if(sub === 'mj-imagine' && mjAspectRatio && _topicForPrompt.indexOf('--ar ') === -1) _topicForPrompt += ' --ar ' + mjAspectRatio;
 var fullPrompt = _bizMode
   ? (history ? history + '\n\n[Human]: ' + _topicForPrompt : _topicForPrompt)
-  : (memText ? '【关于这个用户的已知信息】\n' + memText + '\n\n---\n\n' : '') + sysPrompt + '\n\n' + history + '\n\n[Human]: ' + _topicForPrompt;
+  : (imageMode ? _topicForPrompt : (memText ? '【关于这个用户的已知信息】\n' + memText + '\n\n---\n\n' : '') + sysPrompt + '\n\n' + history + '\n\n[Human]: ' + _topicForPrompt);
 callWorkerStream(sub, fullPrompt, _img, _imgMime,
           function(chunk){
             if(chunk.indexOf('\x00MJB\x00') === 0){
@@ -4729,9 +5025,18 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
             }
             if(chunk.indexOf('\x00IMG\x00') === 0){
               var parts2 = chunk.split('\x00');
-              msgObj.imgData = parts2[2]; msgObj.imgMime = parts2[4] || 'image/png';
-              msgObj._imageRevealHandled = true; msgObj._autoReveal = true;
-              window._aaImgStore[uid] = {data: msgObj.imgData, mime: msgObj.imgMime};
+              var _chunkImage = {data:parts2[2], mime:parts2[4] || 'image/png'};
+              if(sub === 'grok-image-2'){
+                msgObj.imgItems = msgObj.imgItems || [];
+                msgObj.imgItems.push(_chunkImage);
+                if(!msgObj.imgData){ msgObj.imgData=_chunkImage.data; msgObj.imgMime=_chunkImage.mime; }
+                window._aaImgStore['aigen_'+uid+'_'+(msgObj.imgItems.length-1)] = _chunkImage;
+                msgObj.usageStr = grokImageResolution.toUpperCase()+' · '+({low:'快速',medium:'高质量',auto:'自动'}[grokImageQuality]||'自动')+' · '+msgObj.imgItems.length+'张';
+              } else {
+                msgObj.imgData = _chunkImage.data; msgObj.imgMime = _chunkImage.mime;
+                window._aaImgStore[uid] = _chunkImage;
+              }
+              if(!msgObj._imageRevealHandled){ msgObj._imageRevealHandled = true; msgObj._autoReveal = true; }
               window._aaPromptStore[uid] = {prompt: topic};
               if(sub === 'kling25-i2v'){
                 var _klingSavedPrices = JSON.parse(localStorage.getItem('aa-model-prices') || '{}');
@@ -4875,16 +5180,22 @@ if(debateMode === '2v2'){
   }
 // === 图像模式卡片显示控制 ===
   function syncImageCards(){
+    if(imageMode){
+      $('aaBrandBar').style.display = 'none';
+      $('aaBrandBarCollapsed').style.display = 'none';
+      syncImageComposer();
+      return;
+    }
     var normalBrands = ['xai','anthropic','openai'];
     normalBrands.forEach(function(b){
       var card = document.querySelector('#aaBrandBar .aa-brand-card[data-brand="'+b+'"]');
       if(card) card.style.display = imageMode ? 'none' : '';
     });
     var googleCard = document.querySelector('#aaBrandBar .aa-brand-card[data-brand="google"]');
-    if(googleCard) googleCard.style.display = imageMode ? '' : '';
+    if(googleCard) googleCard.style.display = '';
     var mjCard = $('aaMjCard');
-    if(mjCard) mjCard.style.display = imageMode ? '' : 'none';
-    
+    if(mjCard) mjCard.style.display = 'none';
+    syncImageComposer();
   }
 
 // === Drag reorder brand cards ===
@@ -5370,7 +5681,7 @@ if(debateMode === '2v2'){
   function updateNbEditBanner(){
     var banner = $('aaNbEditBanner');
     if(!banner) return;
-    var isNbActive = imageMode || (!debate && activeBrands['google'] && brandSelection['google'] === 'nanbanana2-official');
+    var isNbActive = !imageMode && !debate && activeBrands['google'] && brandSelection['google'] === 'nanbanana2-official';
     if(!isNbActive){ banner.style.display = 'none'; return; }
     var lastNbMsg = null;
     for(var i = msgs.length - 1; i >= 0; i--){
@@ -5551,14 +5862,14 @@ if(debateMode === '2v2'){
     if(!videoMode && brandSelection['kling'] === 'kling25-i2v'){
       activeBrands['kling'] = false;
     }
-    var show = imageMode && !(activeBrands['mj'] && !activeBrands['google']);
-    $('aaNbOptions').style.display = show ? 'block' : 'none';
+    var show = false;
+    $('aaNbOptions').style.display = 'none';
     $('aaNbRefArea').style.display = 'none';
     if(videoMode){
       $('aaBrandBar').style.display = 'none';
       $('aaBrandBarCollapsed').style.display = 'none';
     } else {
-      if(!debate){
+      if(!debate && !imageMode){
         $('aaBrandBar').style.display = '';
       }
       // 非图像模式强制隐藏MJ卡片
@@ -5569,6 +5880,7 @@ if(debateMode === '2v2'){
     if(!show){ nbRefImages = []; renderNbRefList(); }
     if(!imageMode && !videoMode) $('aaTopic').placeholder = '输入内容...';
     updateNbEditBanner();
+    syncImageComposer();
   }
   var _origSyncBrandUI = syncBrandUI;
   syncBrandUI = function(){ _origSyncBrandUI(); syncNbOptions(); syncJudgeUI(); renderAllPoolBars(); };
@@ -5600,16 +5912,11 @@ if(imageMode){
   $('aaBarImageBtn').style.background='rgba(255,255,255,0.1)'; $('aaBarImageBtn').style.color='#e8e8ee';
   $('aaBarChatBtn').style.background='transparent'; $('aaBarChatBtn').style.color='#6b6b88';
   $('aaBarDebateBtn').style.background='transparent'; $('aaBarDebateBtn').style.color='#6b6b88';
-  activeBrands = {xai:false, anthropic:false, openai:false, google:!!activeBrands['google'], mj:!!activeBrands['mj']};
-  if(!activeBrands.google && !activeBrands.mj){
-    activeBrands.google = true;
-  }
   brandSelection['google'] = 'nanbanana2-official';
-      if(!brandSelection['mj']) brandSelection['mj'] = 'mj-imagine';
-      if($('aaSkillsWrap')) $('aaSkillsWrap').style.display = 'none';
-      var _gLabel = document.getElementById('aaCardSub-google');
-      if(_gLabel) _gLabel.textContent = 'NB-2';
-      syncBrandUI();
+  if(!brandSelection['mj']) brandSelection['mj'] = 'mj-imagine';
+  if($('aaSkillsWrap')) $('aaSkillsWrap').style.display = 'none';
+  syncBrandUI();
+  syncImageCards();
     }
 
   // 判断是否已登录
