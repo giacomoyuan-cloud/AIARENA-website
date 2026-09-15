@@ -194,6 +194,76 @@
     box-shadow: none !important;
   }
   #ai-arena-app .aa-msg-body.error { border-color: rgba(239,68,68,0.3) !important; color: #fca5a5; }
+
+  /* === Generated image results === */
+  #ai-arena-app .aa-generated-message {
+    padding: 6px 0 2px !important;
+  }
+  #ai-arena-app .aa-generated-message > p {
+    max-width: 720px; margin: 0 auto 10px !important;
+    font-size: 13px !important; line-height: 1.6;
+  }
+  #ai-arena-app .aa-generated-list {
+    display: flex; flex-wrap: wrap; justify-content: center;
+    align-items: flex-start; gap: 14px; width: 100%;
+  }
+  #ai-arena-app .aa-generated-card {
+    width: min(100%, 720px); margin: 0 auto;
+  }
+  #ai-arena-app .aa-generated-stage {
+    display: flex; align-items: center; justify-content: center;
+    width: 100%; min-height: min(180px, 30vh);
+  }
+  #ai-arena-app .aa-generated-image {
+    display: block; width: auto; height: auto;
+    max-width: 100%; max-height: var(--aa-generated-max-height, min(48vh, 620px));
+    object-fit: contain; border-radius: 14px;
+    border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(5,8,18,0.45);
+    box-shadow: 0 16px 42px rgba(0,0,0,0.28);
+    cursor: zoom-in;
+  }
+  #ai-arena-app .aa-generated-actions {
+    display: flex; align-items: center; justify-content: center;
+    gap: 8px; padding-top: 10px;
+  }
+  #ai-arena-app .aa-generated-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-height: 30px; padding: 5px 13px; border-radius: 9px;
+    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.06); color: #a8a8bb;
+    font: 600 11px 'Sora', sans-serif; text-decoration: none;
+    cursor: pointer; transition: background 0.15s, border-color 0.15s, color 0.15s;
+  }
+  #ai-arena-app .aa-generated-btn:hover {
+    background: rgba(255,255,255,0.1); color: #e8e8ee;
+    border-color: rgba(255,255,255,0.2);
+  }
+  #ai-arena-app .aa-generated-btn.primary {
+    color: #93c5fd; background: rgba(96,165,250,0.12);
+    border-color: rgba(96,165,250,0.28);
+  }
+  #ai-arena-app .aa-generated-btn.primary:hover {
+    color: #bfdbfe; background: rgba(96,165,250,0.2);
+  }
+  #ai-arena-app.light-mode .aa-generated-image {
+    border-color: rgba(15,23,42,0.12); background: rgba(248,250,252,0.9);
+    box-shadow: 0 16px 42px rgba(15,23,42,0.12);
+  }
+  #ai-arena-app.light-mode .aa-generated-btn {
+    border-color: rgba(15,23,42,0.12); background: rgba(255,255,255,0.78);
+    color: #64748b;
+  }
+  #ai-arena-app.light-mode .aa-generated-btn.primary {
+    border-color: rgba(37,99,235,0.2); background: rgba(59,130,246,0.1);
+    color: #2563eb;
+  }
+  @media (max-width: 640px) {
+    #ai-arena-app .aa-generated-message { margin-left: 0; }
+    #ai-arena-app .aa-generated-card { width: 100%; }
+    #ai-arena-app .aa-generated-image { border-radius: 11px; }
+    #ai-arena-app .aa-generated-actions { padding-top: 8px; }
+  }
   #ai-arena-app .aa-code-wrap {
     position: relative; margin: 8px 0; border-radius: 8px; overflow: hidden;
     background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08);
@@ -2936,6 +3006,13 @@ var TEAM_COLORS = {
     var c = $('aaMessages');
     var el = c.querySelector('[data-uid="'+uid+'"]');
     if(!el) return;
+    if(text && text.indexOf('[MJ_IMAGE]') !== -1){
+      var imageMsg = msgs.find(function(m){ return m.uid === uid; });
+      if(imageMsg && !imageMsg._imageRevealHandled){
+        imageMsg._imageRevealHandled = true;
+        imageMsg._autoReveal = true;
+      }
+    }
     if(reasoning !== undefined){
       var rb = el.querySelector('.aa-reasoning-content');
       if(rb){ rb.textContent = reasoning; var tog = el.querySelector('.aa-reasoning-toggle span:last-child'); if(tog) tog.textContent = '思考中… ('+Math.ceil(reasoning.length/2)+' 字)'; }
@@ -3024,6 +3101,7 @@ var TEAM_COLORS = {
         if(chunk.indexOf('\x00IMG\x00') === 0){
           var parts2 = chunk.split('\x00');
           msgObj.imgData = parts2[2]; msgObj.imgMime = parts2[4] || 'image/png';
+          msgObj._imageRevealHandled = true; msgObj._autoReveal = true;
           window._aaImgStore[uid] = {data: msgObj.imgData, mime: msgObj.imgMime};
           window._aaPromptStore[uid] = {prompt: entry.prompt};
           var _nbSavedP2 = JSON.parse(localStorage.getItem('aa-model-prices') || '{}');
@@ -4003,11 +4081,39 @@ function initPersonaDragDrop(){
     $('aaBizBanner').style.display = 'none'; //
   });
 
+  function fitGeneratedMedia(){
+    var box = $('aaMessages');
+    var app = $('ai-arena-app');
+    if(!box || !app) return;
+    var available = Math.max(180, Math.min(620, box.clientHeight - 96));
+    app.style.setProperty('--aa-generated-max-height', available + 'px');
+  }
+
+  window._aaGeneratedImgLoaded = function(img, uid){
+    fitGeneratedMedia();
+    var numericUid = parseInt(uid, 10);
+    var msgObj = msgs.find(function(m){ return m.uid === numericUid; });
+    if(!msgObj || !msgObj._autoReveal) return;
+    msgObj._autoReveal = false;
+    requestAnimationFrame(function(){
+      var box = $('aaMessages');
+      var row = img && img.closest ? img.closest('.aa-msg') : null;
+      if(!box || !row) return;
+      var card = img.closest('.aa-generated-card');
+      var target = row.scrollHeight <= box.clientHeight - 8 ? row : (card || row);
+      var targetTop = box.scrollTop + target.getBoundingClientRect().top - box.getBoundingClientRect().top - 8;
+      userScrolledUp = false;
+      box.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });
+      setTimeout(updateScrollBtns, 320);
+    });
+  };
+
   // === Render messages ===
   function render(){
     saveCurrentChat();
     setTimeout(updateNbEditBanner, 50);
     var c = $('aaMessages');
+    fitGeneratedMedia();
     var savedScrollTop = c.scrollTop;
     var chatEl = c.parentElement;
     var thinkArea = $('aaThinkingArea');
@@ -4077,11 +4183,15 @@ function initPersonaDragDrop(){
         h += '<a href="'+esc(msg.videoUrl)+'" download target="_blank" style="display:inline-block;padding:6px 12px;border-radius:8px;background:rgba(232,121,249,0.15);border:1px solid rgba(232,121,249,0.3);color:#e879f9;font-size:11px;font-weight:600;text-decoration:none;">下载视频</a>';
         h += '</div>';
       } else if(msg.imgData){
-        h += '<div class="aa-msg-body '+bodyClass+'" style="'+bodyStyle+';padding:8px;">';
-        if(msg.text) h += '<p style="margin:0 0 8px;font-size:13px;color:#c8c8dd;">'+esc(msg.text)+'</p>';
+        h += '<div class="aa-msg-body '+bodyClass+' aa-generated-message" style="'+bodyStyle+'">';
+        if(msg.text) h += '<p>'+esc(msg.text)+'</p>';
         var _imgKey = 'aigen_'+msg.uid; window._aaImgClickStore = window._aaImgClickStore||{}; window._aaImgClickStore[_imgKey] = 'data:'+msg.imgMime+';base64,'+msg.imgData;
-        h += '<img src="data:'+msg.imgMime+';base64,'+msg.imgData+'" onclick="window._aaLightbox(window._aaImgClickStore[\''+_imgKey+'\'])" style="max-width:100%;border-radius:8px;display:block;margin-bottom:8px;cursor:pointer;">';
-        h += '<button onclick="window._aaDownloadImg(\''+msg.uid+'\')" style="padding:6px 12px;border-radius:8px;background:rgba(96,165,250,0.15);border:1px solid rgba(96,165,250,0.3);color:#60a5fa;font-size:11px;font-weight:600;cursor:pointer;font-family:\'Sora\',sans-serif;">下载原图</button>';
+        h += '<div class="aa-generated-card">';
+        h += '<div class="aa-generated-stage"><img class="aa-generated-image" src="data:'+msg.imgMime+';base64,'+msg.imgData+'" onload="window._aaGeneratedImgLoaded(this,\''+msg.uid+'\')" onclick="window._aaLightbox(window._aaImgClickStore[\''+_imgKey+'\'])" alt="AI 生成图片"></div>';
+        h += '<div class="aa-generated-actions">';
+        h += '<button class="aa-generated-btn primary" onclick="window._aaLightbox(window._aaImgClickStore[\''+_imgKey+'\'])">查看大图</button>';
+        h += '<button class="aa-generated-btn" onclick="window._aaDownloadImg(\''+msg.uid+'\')">下载原图</button>';
+        h += '</div></div>';
         h += '</div>';
       } else {
         // 提取所有 [MJ_IMAGE]...[/MJ_IMAGE] 链接
@@ -4106,14 +4216,15 @@ function initPersonaDragDrop(){
           h += renderMd(_deduped.join('\n'));
         }
           if(mjImgUrls.length){
-            h += '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:'+(cleanText?'10px':'0')+'">';
+            h += '<div class="aa-generated-list" style="margin-top:'+(cleanText?'10px':'0')+'">';
             mjImgUrls.forEach(function(url, idx){
-              h += '<div style="position:relative;display:inline-block;">';
+              h += '<div class="aa-generated-card">';
               var _mjKey = 'mj_'+msg.uid+'_'+idx; window._aaImgClickStore = window._aaImgClickStore||{}; window._aaImgClickStore[_mjKey] = url;
-              h += '<img src="'+esc(url)+'" onclick="window._aaLightbox(window._aaImgClickStore[\''+_mjKey+'\'])" style="max-width:100%;border-radius:10px;display:block;border:1px solid rgba(255,255,255,0.1);cursor:pointer;" crossorigin="anonymous">';
-              
-              
-              h += '<a href="'+esc(url)+'" download target="_blank" style="display:inline-block;margin-top:6px;padding:5px 12px;border-radius:8px;background:rgba(56,189,248,0.15);border:1px solid rgba(56,189,248,0.3);color:#38bdf8;font-size:11px;font-weight:600;text-decoration:none;">下载图片</a>';
+              h += '<div class="aa-generated-stage"><img class="aa-generated-image" src="'+esc(url)+'" onload="window._aaGeneratedImgLoaded(this,\''+msg.uid+'\')" onclick="window._aaLightbox(window._aaImgClickStore[\''+_mjKey+'\'])" alt="AI 生成图片" crossorigin="anonymous"></div>';
+              h += '<div class="aa-generated-actions">';
+              h += '<button class="aa-generated-btn primary" onclick="window._aaLightbox(window._aaImgClickStore[\''+_mjKey+'\'])">查看大图</button>';
+              h += '<a class="aa-generated-btn" href="'+esc(url)+'" download target="_blank">下载图片</a>';
+              h += '</div>';
               h += '</div>';
             });
             h += '</div>';
@@ -4619,6 +4730,7 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
             if(chunk.indexOf('\x00IMG\x00') === 0){
               var parts2 = chunk.split('\x00');
               msgObj.imgData = parts2[2]; msgObj.imgMime = parts2[4] || 'image/png';
+              msgObj._imageRevealHandled = true; msgObj._autoReveal = true;
               window._aaImgStore[uid] = {data: msgObj.imgData, mime: msgObj.imgMime};
               window._aaPromptStore[uid] = {prompt: topic};
               if(sub === 'kling25-i2v'){
@@ -5397,6 +5509,7 @@ if(debateMode === '2v2'){
       if(chunk.indexOf('\x00IMG\x00') === 0){
         var _mjAP = chunk.split('\x00');
         msgObj.imgData = _mjAP[2]; msgObj.imgMime = _mjAP[4] || 'image/png';
+        msgObj._imageRevealHandled = true; msgObj._autoReveal = true;
         var _mjActSavedPrices = JSON.parse(localStorage.getItem('aa-model-prices') || '{}');
         var _mjActSub = brandSelection['mj'] || 'mj-imagine';
         var _mjActCost = (_mjActSavedPrices[_mjActSub] && _mjActSavedPrices[_mjActSub].input) ? _mjActSavedPrices[_mjActSub].input : 0;
@@ -5512,6 +5625,11 @@ if(imageMode){
   var msgBox = $('aaMessages');
   var scrollTopBtn = $('aaScrollTopBtn');
   var scrollBottomBtn = $('aaScrollBottomBtn');
+  fitGeneratedMedia();
+  window.addEventListener('resize', fitGeneratedMedia);
+  if(typeof ResizeObserver !== 'undefined'){
+    new ResizeObserver(fitGeneratedMedia).observe(msgBox);
+  }
   function updateScrollBtns(){
     if(!msgBox) return;
     var atTop = msgBox.scrollTop < 80;
@@ -5657,4 +5775,3 @@ if(imageMode){
 <script>if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');</script>
 </body>
 </html>
-
