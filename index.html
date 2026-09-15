@@ -253,6 +253,14 @@
   #ai-arena-app .aa-generated-btn.primary:hover {
     color: #bfdbfe; background: rgba(96,165,250,0.2);
   }
+  #ai-arena-app .aa-generated-btn.edit {
+    color: #d8b4fe; background: rgba(168,85,247,0.14);
+    border-color: rgba(192,132,252,0.34);
+  }
+  #ai-arena-app .aa-generated-btn.edit:hover {
+    color: #f3e8ff; background: rgba(168,85,247,0.24);
+    border-color: rgba(216,180,254,0.5);
+  }
   #ai-arena-app.light-mode .aa-generated-image {
     border-color: rgba(15,23,42,0.12); background: rgba(248,250,252,0.9);
     box-shadow: 0 16px 42px rgba(15,23,42,0.12);
@@ -4388,6 +4396,51 @@ function initPersonaDragDrop(){
     });
   };
 
+  window._aaEditGeneratedImage = function(imageKey){
+    var source = window._aaImgStore && window._aaImgStore[imageKey];
+    if(!source || !source.data){ alert('没有找到这张图片，请刷新后重试。'); return; }
+
+    debate = false;
+    imageMode = true;
+    videoMode = false;
+    imageComposerModel = 'grok-image-2';
+    imageComposerTask = 'edit';
+    sentImgs = [{
+      data: source.data,
+      mime: source.mime || 'image/png',
+      preview: 'data:'+(source.mime || 'image/png')+';base64,'+source.data
+    }];
+    sentTexts = [];
+
+    $('aaBarImageBtn').classList.add('active');
+    $('aaBarDebateBtn').classList.remove('active');
+    $('aaBarChatBtn').classList.remove('active');
+    if($('aaBarVideoBtn')) $('aaBarVideoBtn').classList.remove('active');
+    $('aaBarImageBtn').style.background='rgba(255,255,255,0.1)'; $('aaBarImageBtn').style.color='#e8e8ee';
+    $('aaBarDebateBtn').style.background='transparent'; $('aaBarDebateBtn').style.color='#6b6b88';
+    $('aaBarChatBtn').style.background='transparent'; $('aaBarChatBtn').style.color='#6b6b88';
+    if($('aaBarVideoBtn')){ $('aaBarVideoBtn').style.background='transparent'; $('aaBarVideoBtn').style.color='#6b6b88'; }
+    $('aaRoundsBar').style.display = 'none';
+    $('aaDebateModeBar').style.display = 'none';
+    if($('aaSkillsWrap')) $('aaSkillsWrap').style.display = 'none';
+
+    renderImgPreviews();
+    renderTextPreviews();
+    syncImageCards();
+    syncBrandUI();
+    sync2v2UI();
+    syncNbOptions();
+    syncImageComposer();
+    updateModeBadge();
+    saveState();
+
+    $('aaTopic').value = '';
+    $('aaTopic').placeholder = '描述你想怎样修改这张图…';
+    $('aaSendBtn').disabled = false;
+    $('aaTopic').scrollIntoView({behavior:'smooth', block:'center'});
+    setTimeout(function(){ $('aaTopic').focus(); }, 260);
+  };
+
   // === Render messages ===
   function render(){
     saveCurrentChat();
@@ -4475,6 +4528,7 @@ function initPersonaDragDrop(){
           h += '<div class="aa-generated-card">';
           h += '<div class="aa-generated-stage"><img class="aa-generated-image" src="'+window._aaImgClickStore[_imgKey]+'" onload="window._aaGeneratedImgLoaded(this,\''+msg.uid+'\')" onclick="window._aaLightbox(window._aaImgClickStore[\''+_imgKey+'\'])" alt="AI 生成图片"></div>';
           h += '<div class="aa-generated-actions">';
+          if(msg.submodel === 'grok-image-2') h += '<button class="aa-generated-btn edit" onclick="window._aaEditGeneratedImage(\''+_imgKey+'\')">编辑这张</button>';
           h += '<button class="aa-generated-btn primary" onclick="window._aaLightbox(window._aaImgClickStore[\''+_imgKey+'\'])">查看大图</button>';
           h += '<button class="aa-generated-btn" onclick="window._aaDownloadImg(\''+_imgKey+'\')">下载原图</button>';
           h += '</div></div>';
