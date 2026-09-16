@@ -196,6 +196,19 @@
     box-shadow: none !important;
   }
   #ai-arena-app .aa-msg-body.error { border-color: rgba(239,68,68,0.3) !important; color: #fca5a5; }
+  #ai-arena-app .aa-msg-body.moderation-help {
+    padding: 14px 16px !important; border: 1px solid rgba(245,158,11,.28) !important;
+    background: rgba(245,158,11,.07) !important; color: #d8d8e8;
+  }
+  #ai-arena-app .aa-msg-body.moderation-help p,
+  #ai-arena-app .aa-msg-body.moderation-help li { color: #c8c8dd; }
+  #ai-arena-app .aa-msg-body.moderation-help strong { color: #fbbf24; }
+  #ai-arena-app .aa-moderation-use-btn {
+    margin-top: 10px; min-height: 32px; padding: 6px 12px; border-radius: 9px;
+    border: 1px solid rgba(245,158,11,.35); background: rgba(245,158,11,.12);
+    color: #fbbf24; font: 600 11px 'Sora', sans-serif; cursor: pointer;
+  }
+  #ai-arena-app .aa-moderation-use-btn:hover { background: rgba(245,158,11,.2); color: #fde68a; }
 
   /* === Generated image results === */
   #ai-arena-app .aa-generated-message {
@@ -1749,7 +1762,7 @@ var TEAM_COLORS = {
 
   function serializeMsgs(){
     return msgs.map(function(m){
-      var obj = {uid:m.uid, brand:m.brand, name:m.name, text:m.text, color:m.color, isUser:m.isUser, isError:m.isError, round:m.round, _team:m._team, _liked:m._liked, _comment:m._comment, topicText:m.topicText, pastedTexts:m.pastedTexts, reasoning:m.reasoning, submodel:m.submodel, completedAt:m.completedAt};
+      var obj = {uid:m.uid, brand:m.brand, name:m.name, text:m.text, color:m.color, isUser:m.isUser, isError:m.isError, round:m.round, _team:m._team, _liked:m._liked, _comment:m._comment, topicText:m.topicText, pastedTexts:m.pastedTexts, reasoning:m.reasoning, submodel:m.submodel, completedAt:m.completedAt, moderationHelp:m.moderationHelp, suggestedPrompt:m.suggestedPrompt, moderationTask:m.moderationTask};
       if(m.imgData){ obj.imgData = m.imgData; obj.imgMime = m.imgMime; }
       if(m.imgItems && m.imgItems.length){ obj.imgItems = m.imgItems; }
       return obj;
@@ -4556,6 +4569,83 @@ function initPersonaDragDrop(){
     setTimeout(function(){ $('aaTopic').focus(); }, 260);
   };
 
+  function isImageModerationError(message, submodel){
+    var imageModels = ['grok-image-2','nanbanana2-official','mj-imagine'];
+    if(imageModels.indexOf(submodel) === -1) return false;
+    return /content moderation|moderation|safety policy|safety filter|rejected by content|blocked for safety|内容审核|安全审核|违规内容/i.test(String(message || ''));
+  }
+
+  function makeSaferImagePrompt(prompt){
+    var safe = String(prompt || '').replace(/\s+/g, ' ').trim();
+    var replacements = [
+      [/(屁股|臀部)(正对|对着|朝向)?(镜头)?/g, '背对镜头、以自然时尚姿态展示服装'],
+      [/(双腿内侧|两腿之间|裆部|胯下)/g, '服装与产品展示区域'],
+      [/(跪在|趴在)床上/g, '置身专业室内影棚'],
+      [/(欲望情绪|欲望|勾引|挑逗|诱惑|色情|情色|性爱|性行为)/g, '自信、克制的时尚情绪'],
+      [/(全裸|裸体|赤裸|裸露|露点)/g, '衣着完整'],
+      [/(情趣内衣|丁字裤|内裤|胸罩|文胸|内衣)/g, '设计感时尚服装'],
+      [/(亲密)/g, '高级'],
+      [/(卧室)/g, '室内影棚'],
+      [/(床上)/g, '室内布景中'],
+      [/(性感)/g, '优雅'],
+      [/\b(nude|naked|explicit|erotic|seductive|lingerie|underwear)\b/gi, 'elegant editorial fashion']
+    ];
+    replacements.forEach(function(pair){ safe = safe.replace(pair[0], pair[1]); });
+    safe = safe.replace(/([，。；、])\1+/g, '$1').trim();
+    if(!safe) safe = '成年模特在专业摄影棚中进行高端商业时尚拍摄，姿态自然，重点展示服装与产品';
+    if(!/(成年|成人|adult)/i.test(safe)) safe = '成年模特，' + safe;
+    if(!/[。.!?！？]$/.test(safe)) safe += '。';
+    safe += '人物衣着完整，无裸露、无性暗示，姿态自然，画面适合品牌商业广告。';
+    return safe;
+  }
+
+  function buildImageModerationHelp(prompt){
+    var suggested = makeSaferImagePrompt(prompt);
+    return {
+      suggestedPrompt: suggested,
+      text: '这次图片没有通过内容审核，因此没有生成图片。\n\n'
+        +'**可能触发的原因**\n'
+        +'- 姿势、镜头角度或身体部位描述带有较强性暗示；\n'
+        +'- “欲望、挑逗、裸露、内衣、卧室”等词与人物画面组合后风险较高；\n'
+        +'- 参考图和修改要求组合后，审核尺度可能比单纯文生图更严格。\n\n'
+        +'**修改建议**\n'
+        +'1. 明确人物为成年人，并写明衣着完整；\n'
+        +'2. 将敏感姿势改成自然站姿、坐姿、背对镜头或时尚杂志姿态；\n'
+        +'3. 将私密场景改成摄影棚、酒店套房式商业布景或时尚广告场景；\n'
+        +'4. 加上“无裸露、无性暗示、适合品牌商业广告”。\n\n'
+        +'**可直接参考的改写**\n\n> '+suggested
+    };
+  }
+
+  window._aaUseModerationSuggestion = function(uid){
+    var numericUid = parseInt(uid, 10);
+    var msg = msgs.find(function(m){ return m.uid === numericUid; });
+    if(!msg || !msg.suggestedPrompt) return;
+    debate = false; imageMode = true; videoMode = false;
+    if(msg.submodel === 'grok-image-2' || msg.submodel === 'nanbanana2-official' || msg.submodel === 'mj-imagine') imageComposerModel = msg.submodel;
+    if(msg.moderationTask) imageComposerTask = msg.moderationTask;
+    $('aaBarImageBtn').classList.add('active');
+    $('aaBarChatBtn').classList.remove('active');
+    $('aaBarDebateBtn').classList.remove('active');
+    if($('aaBarVideoBtn')) $('aaBarVideoBtn').classList.remove('active');
+    $('aaTopic').value = msg.suggestedPrompt;
+    $('aaTopic').style.height = 'auto';
+    $('aaTopic').style.height = Math.min($('aaTopic').scrollHeight, 220) + 'px';
+    var retryImages = window._aaModerationRetryStore && window._aaModerationRetryStore[numericUid];
+    if(retryImages && retryImages.length){
+      sentImgs = retryImages.map(function(item){
+        return {data:item.data, mime:item.mime || 'image/jpeg', preview:'data:'+(item.mime || 'image/jpeg')+';base64,'+item.data};
+      });
+      renderImgPreviews();
+    }
+    syncImageCards();
+    syncImageComposer();
+    updateModeBadge();
+    $('aaSendBtn').disabled = false;
+    $('aaTopic').scrollIntoView({behavior:'smooth', block:'center'});
+    setTimeout(function(){ $('aaTopic').focus(); }, 220);
+  };
+
   // === Render messages ===
   function render(){
     if(_skipNextChatSave) _skipNextChatSave = false;
@@ -4580,14 +4670,26 @@ function initPersonaDragDrop(){
     var h = '';
     msgs.forEach(function(msg, i){
       var brandInfo = BRANDS[msg.brand] || {color:'#888',border:'rgba(136,136,136,0.15)'};
+      if(!msg.isUser && !msg.moderationHelp && isImageModerationError(msg.text, msg.submodel)){
+        var previousUser = null;
+        for(var previousIndex = i - 1; previousIndex >= 0; previousIndex--){
+          if(msgs[previousIndex].isUser){ previousUser = msgs[previousIndex]; break; }
+        }
+        var existingHelp = buildImageModerationHelp(previousUser ? (previousUser.topicText || previousUser.text || '') : '');
+        msg.text = existingHelp.text;
+        msg.suggestedPrompt = existingHelp.suggestedPrompt;
+        msg.moderationHelp = true;
+        msg.isError = true;
+      }
       h += '<div class="aa-msg'+(msg.isUser?' user-msg':'')+'" data-uid="'+msg.uid+'" style="animation-delay:'+(i%4)*0.05+'s">';
       h += '<div class="aa-msg-head"><div class="aa-msg-dot" style="background:'+msg.color+';box-shadow:0 0 6px '+msg.color+'40"></div>';
       h += '<span class="aa-msg-name" style="color:'+msg.color+'">'+msg.name+'</span>';
       if(msg.round !== undefined) h += '<span class="aa-msg-round">R'+(msg.round+1)+'</span>';
       h += '</div>';
       var bodyClass = msg.isUser ? 'user' : 'ai-bubble';
-      if(msg.isError) bodyClass += ' error';
-      var bodyStyle = (!msg.isUser && !msg.isError) ? 'border-color:'+brandInfo.border : '';
+      if(msg.moderationHelp) bodyClass += ' moderation-help';
+      else if(msg.isError) bodyClass += ' error';
+      var bodyStyle = (!msg.isUser && (!msg.isError || msg.moderationHelp)) ? 'border-color:'+brandInfo.border : '';
       if(!msg.isUser && msg.reasoning && msg.brand !== 'google'){
         h += '<div class="aa-reasoning-block"><div class="aa-reasoning-toggle" onclick="toggleReasoning(\''+msg.uid+'\')"><span class="aa-reasoning-arrow open">▶</span><span>思考过程 ('+Math.ceil(msg.reasoning.length/2)+' 字)</span></div><div class="aa-reasoning-content open">'+esc(msg.reasoning)+'</div></div>';
       }
@@ -4673,6 +4775,9 @@ function initPersonaDragDrop(){
           }
           h += renderMd(_deduped.join('\n'));
         }
+          if(msg.moderationHelp && msg.suggestedPrompt){
+            h += '<button type="button" class="aa-moderation-use-btn" onclick="window._aaUseModerationSuggestion(\''+msg.uid+'\')">填入建议提示词</button>';
+          }
           if(mjImgUrls.length){
             h += '<div class="aa-generated-list" style="margin-top:'+(cleanText?'10px':'0')+'">';
             mjImgUrls.forEach(function(url, idx){
@@ -5275,8 +5380,22 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
           },
           function(err){
             var em = (err && err.message) ? err.message : String(err || '未知错误');
-            if(firstChunk){ hideThink(sub); msgObj.text = em; msgObj.isError = true; msgs.push(msgObj); render(); }
-            else { msgObj.text += '\n[错误: ' + em + ']'; msgObj.isError = true; finalizeMsg(uid, msgObj.text, true, ''); }
+            if(isImageModerationError(em, sub)){
+              var moderationHelp = buildImageModerationHelp(_topicText || topic);
+              msgObj.text = moderationHelp.text;
+              msgObj.suggestedPrompt = moderationHelp.suggestedPrompt;
+              msgObj.moderationHelp = true;
+              msgObj.moderationTask = imageComposerTask;
+              msgObj.isError = true;
+              window._aaModerationRetryStore = window._aaModerationRetryStore || {};
+              window._aaModerationRetryStore[uid] = _imgs.slice();
+              if(firstChunk){ firstChunk = false; hideThink(sub); msgs.push(msgObj); }
+              render();
+            } else if(firstChunk){
+              hideThink(sub); msgObj.text = em; msgObj.isError = true; msgs.push(msgObj); render();
+            } else {
+              msgObj.text += '\n[错误: ' + em + ']'; msgObj.isError = true; finalizeMsg(uid, msgObj.text, true, '');
+            }
             console.error('[AI Arena][Chat][Error]', sub, em);
             done++; if(done >= act.length) finish();
           },
