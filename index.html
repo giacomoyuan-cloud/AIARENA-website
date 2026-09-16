@@ -1674,6 +1674,29 @@ var TEAM_COLORS = {
   var currentChatId = null;
   var chatList = [];
   var _saveTimer = null;
+  var _skipNextChatSave = false;
+  var CHAT_REPLY_TIMES_KEY = 'aa-chat-last-reply-times';
+
+  function getStoredReplyTimes(){
+    try { return JSON.parse(localStorage.getItem(CHAT_REPLY_TIMES_KEY) || '{}') || {}; }
+    catch(e){ return {}; }
+  }
+
+  function rememberChatReplyTime(chatId, timestamp){
+    var ts = Number(timestamp);
+    if(!chatId || !Number.isFinite(ts) || ts <= 0) return;
+    var times = getStoredReplyTimes();
+    times[chatId] = ts;
+    try { localStorage.setItem(CHAT_REPLY_TIMES_KEY, JSON.stringify(times)); } catch(e){}
+  }
+
+  function getLastAssistantReplyAt(messages){
+    var latest = 0;
+    (messages || []).forEach(function(m){
+      if(!m.isUser && !m.isError && Number(m.completedAt) > latest) latest = Number(m.completedAt);
+    });
+    return latest;
+  }
 
   function genChatId(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
 
@@ -1687,7 +1710,7 @@ var TEAM_COLORS = {
 
   function serializeMsgs(){
     return msgs.map(function(m){
-      var obj = {uid:m.uid, brand:m.brand, name:m.name, text:m.text, color:m.color, isUser:m.isUser, isError:m.isError, round:m.round, _team:m._team, _liked:m._liked, _comment:m._comment, topicText:m.topicText, pastedTexts:m.pastedTexts, reasoning:m.reasoning, submodel:m.submodel};
+      var obj = {uid:m.uid, brand:m.brand, name:m.name, text:m.text, color:m.color, isUser:m.isUser, isError:m.isError, round:m.round, _team:m._team, _liked:m._liked, _comment:m._comment, topicText:m.topicText, pastedTexts:m.pastedTexts, reasoning:m.reasoning, submodel:m.submodel, completedAt:m.completedAt};
       if(m.imgData){ obj.imgData = m.imgData; obj.imgMime = m.imgMime; }
       if(m.imgItems && m.imgItems.length){ obj.imgItems = m.imgItems; }
       return obj;
@@ -1710,9 +1733,15 @@ var TEAM_COLORS = {
     if(_bizMode || _incognitoMode) return;
     if(!currentChatId || !msgs.length) return;
     if(_saveTimer) clearTimeout(_saveTimer);
+    var saveChatId = currentChatId;
+    var saveTitle = getChatTitle();
+    var saveMessages = serializeMsgs();
+    var lastReplyAt = getLastAssistantReplyAt(msgs);
+    if(lastReplyAt) rememberChatReplyTime(saveChatId, lastReplyAt);
     _saveTimer = setTimeout(function(){
       if(aaRunning) return;
-      chatApiCall('save', { chatId: currentChatId, title: getChatTitle(), messages: serializeMsgs() }).then(function(){ loadChatList(); });
+      _saveTimer = null;
+      chatApiCall('save', { chatId: saveChatId, title: saveTitle, messages: saveMessages, lastReplyAt: lastReplyAt || null }).then(function(){ loadChatList(); });
     }, 2000);
   }
 
@@ -1720,18 +1749,36 @@ var TEAM_COLORS = {
     chatApiCall('list').then(function(data){
       if(!data || !data.chats) return;
       chatList = data.chats;
+      var knownTimes = getStoredReplyTimes();
+      var changed = false;
+      chatList.forEach(function(chat){
+        var serverReplyAt = Number(chat.lastReplyAt);
+        if(serverReplyAt > Number(knownTimes[chat.id] || 0)){
+          knownTimes[chat.id] = serverReplyAt;
+          changed = true;
+        } else if(!knownTimes[chat.id] && Number(chat.updatedAt) > 0){
+          // Older records have no per-message timestamp; preserve their current server time once.
+          knownTimes[chat.id] = Number(chat.updatedAt);
+          changed = true;
+        }
+      });
+      if(changed){ try { localStorage.setItem(CHAT_REPLY_TIMES_KEY, JSON.stringify(knownTimes)); } catch(e){} }
       renderHistoryList();
     });
   }
 
   function loadChat(chatId){
+    if(_saveTimer){ clearTimeout(_saveTimer); _saveTimer = null; }
     return chatApiCall('load', { chatId: chatId }).then(function(data){
       if(!data) return false;
       currentChatId = chatId;
       msgs = data.messages || [];
+      var loadedReplyAt = getLastAssistantReplyAt(msgs);
+      if(loadedReplyAt) rememberChatReplyTime(chatId, loadedReplyAt);
       if(msgs.length){
         _uidCounter = Math.max.apply(null, msgs.map(function(m){ return m.uid || 0; })) + 1;
       }
+      _skipNextChatSave = true;
       render();
       closeHistory();
       return true;
@@ -1748,8 +1795,8 @@ var TEAM_COLORS = {
   function formatTime(ts){
     var d = new Date(ts);
     var now = new Date();
-    var diff = now - d;
-    if(diff < 60000) return '刚刚';
+    var diff = Math.max(0, now - d);
+    if(diff < 60000) return '不到1分钟前';
     if(diff < 3600000) return Math.floor(diff/60000) + '分钟前';
     if(diff < 86400000) return Math.floor(diff/3600000) + '小时前';
     if(diff < 604800000) return Math.floor(diff/86400000) + '天前';
@@ -1759,15 +1806,17 @@ var TEAM_COLORS = {
   function renderHistoryList(){
     var container = $('aaHistoryList');
     if(!chatList.length){ container.innerHTML = '<div class="aa-history-empty">暂无历史会话</div>'; return; }
+    var replyTimes = getStoredReplyTimes();
     var h = '';
     chatList.forEach(function(chat){
       var isActive = chat.id === currentChatId;
       var safeId = esc(String(chat.id));
+      var displayTime = Number(chat.lastReplyAt) || Number(replyTimes[chat.id]) || Number(chat.updatedAt);
       h += '<div class="aa-history-item'+(isActive?' active':'')+'">'
         +'<button type="button" class="aa-history-item-open" data-cid="'+safeId+'">'
         +'<span class="aa-history-item-text">'
         +'<span class="aa-history-item-title">'+esc(chat.title)+'</span>'
-        +'<span class="aa-history-item-time">'+formatTime(chat.updatedAt)+'</span>'
+        +'<span class="aa-history-item-time">'+formatTime(displayTime)+'</span>'
         +'</span>'
         +'</button>'
         +'<button type="button" class="aa-history-item-del" data-del="'+safeId+'" aria-label="删除会话">✕</button>'
@@ -3158,6 +3207,11 @@ var TEAM_COLORS = {
     if(!userScrolledUp) c.scrollTop = c.scrollHeight;
   }
   function finalizeMsg(uid, text, isError, reasoning){
+    var completedMsg = msgs.find(function(m){ return m.uid === uid; });
+    if(completedMsg && !completedMsg.isUser && !isError && !completedMsg.completedAt){
+      completedMsg.completedAt = Date.now();
+      if(currentChatId) rememberChatReplyTime(currentChatId, completedMsg.completedAt);
+    }
     var c = $('aaMessages');
     var el = c.querySelector('[data-uid="'+uid+'"]');
     if(!el) return;
@@ -4465,7 +4519,8 @@ function initPersonaDragDrop(){
 
   // === Render messages ===
   function render(){
-    saveCurrentChat();
+    if(_skipNextChatSave) _skipNextChatSave = false;
+    else saveCurrentChat();
     setTimeout(updateNbEditBanner, 50);
     var c = $('aaMessages');
     fitGeneratedMedia();
