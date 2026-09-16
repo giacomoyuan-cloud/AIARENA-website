@@ -1252,15 +1252,15 @@
       </div>
       <!-- Dropdowns (outside cards for z-index) -->
       <div class="aa-card-dropdown" id="aaDrop-xai">
-        <div class="aa-drop-item selected" data-sub="grok-4.6"><span class="aa-drop-dot" data-health="proxy"></span>Grok 4.6</div>
+        <div class="aa-drop-item selected" data-sub="grok-4.6"><span class="aa-drop-dot" data-health="quick"></span>Grok 4.6</div>
       </div>
       <div class="aa-card-dropdown" id="aaDrop-openai">
-        <div class="aa-drop-item selected" data-sub="gpt-6-astra"><span class="aa-drop-dot" data-health="proxy"></span>GPT-6 Astra</div>
-        <div class="aa-drop-item" data-sub="gpt-5.6-sol"><span class="aa-drop-dot" data-health="proxy"></span>GPT-5.6 Sol</div>
+        <div class="aa-drop-item selected" data-sub="gpt-6-astra"><span class="aa-drop-dot" data-health="quick"></span>GPT-6 Astra</div>
+        <div class="aa-drop-item" data-sub="gpt-5.6-sol"><span class="aa-drop-dot" data-health="quick"></span>GPT-5.6 Sol</div>
       </div>
       <div class="aa-card-dropdown" id="aaDrop-google">
-        <div class="aa-drop-item selected" data-sub="gemini-3.8-flash"><span class="aa-drop-dot" data-health="proxy"></span>Gemini 3.8 Flash</div>
-        <div class="aa-drop-item" data-sub="gemini-3.1-pro-preview"><span class="aa-drop-dot" data-health="proxy"></span>Gemini 3.1 Pro</div>
+        <div class="aa-drop-item selected" data-sub="gemini-3.8-flash"><span class="aa-drop-dot" data-health="quick"></span>Gemini 3.8 Flash</div>
+        <div class="aa-drop-item" data-sub="gemini-3.1-pro-preview"><span class="aa-drop-dot" data-health="quick"></span>Gemini 3.1 Pro</div>
         <div class="aa-drop-item" data-sub="nanbanana2-official" style="display:none;"><span class="aa-drop-dot" data-health="official-google"></span>NB-2</div>
       </div>
       <div class="aa-card-dropdown" id="aaDrop-mj">
@@ -1269,13 +1269,13 @@
         <div class="aa-drop-item" data-sub="swap-face"><span class="aa-drop-dot" data-health="proxy"></span>MJ 换脸</div>
       </div>
       <div class="aa-card-dropdown" id="aaDrop-anthropic">
-        <div class="aa-drop-item selected" data-sub="claude-fable-5-1"><span class="aa-drop-dot" data-health="proxy"></span>Claude Fable 5.1</div>
-        <div class="aa-drop-item" data-sub="claude-opus-5"><span class="aa-drop-dot" data-health="proxy"></span>Claude Opus 5</div>
+        <div class="aa-drop-item selected" data-sub="claude-fable-5-1"><span class="aa-drop-dot" data-health="quick"></span>Claude Fable 5.1</div>
+        <div class="aa-drop-item" data-sub="claude-opus-5"><span class="aa-drop-dot" data-health="quick"></span>Claude Opus 5</div>
       </div>
       <div class="aa-card-dropdown" id="aaJudgeDrop">
         <div class="aa-drop-item" data-jsub="none"><span class="aa-drop-dot"></span>不设思维教练</div>
-        <div class="aa-drop-item" data-jsub="claude-opus-5"><span class="aa-drop-dot" data-health="proxy"></span>Claude Opus 5</div>
-        <div class="aa-drop-item" data-jsub="gemini-3.1-pro-preview"><span class="aa-drop-dot" data-health="proxy"></span>Gemini 3.1 Pro</div>
+        <div class="aa-drop-item" data-jsub="claude-opus-5"><span class="aa-drop-dot" data-health="quick"></span>Claude Opus 5</div>
+        <div class="aa-drop-item" data-jsub="gemini-3.1-pro-preview"><span class="aa-drop-dot" data-health="quick"></span>Gemini 3.1 Pro</div>
       </div>
 
       <div id="aaQuoteBar" class="aa-quote-bar">
@@ -1335,7 +1335,7 @@
           <button id="aaBarDebateBtn" class="aa-bar-btn" style="color:#6b6b88;background:transparent;">辩论</button>
           <button id="aaBarChatBtn" class="aa-bar-btn active" style="color:#e8e8ee;background:rgba(255,255,255,0.1);">对话</button>
           <button id="aaBarImageBtn" class="aa-bar-btn" style="color:#6b6b88;background:transparent;">图像</button>
-          <button id="aaBarVideoBtn" class="aa-bar-btn" style="color:#6b6b88;background:transparent;">视频</button>
+          <button id="aaBarVideoBtn" class="aa-bar-btn" style="display:none;color:#6b6b88;background:transparent;">视频</button>
         </div>
       </div>
       <div class="aa-ctrl-row" id="aaSubCtrlRow" style="padding-top:6px;">
@@ -1389,6 +1389,10 @@
     'claude-opus-5':        {brand:'anthropic', name:'Claude Opus 5'},
     'gemini-3.8-flash':     {brand:'google',    name:'Gemini 3.8 Flash'},
     'gemini-3.1-pro-preview': {brand:'google',  name:'Gemini 3.1 Pro'},
+    'grok-imagine-image-2.0': {brand:'xai',     name:'Grok Imagine Image 2.0'},
+    'gpt-image-2.5-sunburst': {brand:'openai',  name:'GPT Image 2.5 Sunburst'},
+    'gemini-3.1-flash-image': {brand:'google',  name:'Gemini 3.1 Flash Image'},
+    'mj_imagine':             {brand:'mj',      name:'Midjourney Imagine'},
 
     // Legacy aliases are kept so older conversation history still renders correctly.
     'grok41-official':       {brand:'xai',       name:'G-4.1-官方'},
@@ -1457,12 +1461,15 @@
 var debateMode = 'free'; // 'free' | '2v2'
 var imageMode = false;
 var videoMode = false;
-var imageComposerModel = localStorage.getItem('aa-image-model') || 'grok-image-2';
+var imageComposerModel = localStorage.getItem('aa-image-model') || 'grok-imagine-image-2.0';
+if(['grok-image-2','nanbanana2-official','mj-imagine'].indexOf(imageComposerModel) !== -1){
+  imageComposerModel = imageComposerModel === 'mj-imagine' ? 'mj_imagine' : 'grok-imagine-image-2.0';
+}
 var imageComposerTask = localStorage.getItem('aa-image-task') || 'generation';
 var grokImageResolution = localStorage.getItem('aa-grok-resolution') || '1k';
 var grokAspectRatio = localStorage.getItem('aa-grok-ratio') || '1:1';
 var grokImageQuality = localStorage.getItem('aa-grok-quality') || 'auto';
-var grokImageCount = parseInt(localStorage.getItem('aa-grok-count') || '1', 10);
+var grokImageCount = parseInt(localStorage.getItem('aa-grok-count') || '2', 10);
 var mjAspectRatio = localStorage.getItem('aa-mj-ratio') || '1:1';
 var TEAM_COLORS = {
   pro:  {color:'#60a5fa', bg:'rgba(96,165,250,0.10)', border:'rgba(96,165,250,0.25)', label:'正方'},
@@ -1564,20 +1571,14 @@ var TEAM_COLORS = {
   var _incognitoMode = false;
   var judgeModel = 'none';
 
-  var POOL_LABELS = {
-    'xai-official': 'xAI 官方',
-    'anthropic-official': 'Anthropic 官方',
-    'openai-official': 'OpenAI 官方',
-    'google-official': 'Google 官方',
-    'ai-proxy': 'Jiekou.ai',
-    'aipro': '哈基米',
-    'mj': 'Patrovia'
-  };
+  var POOL_LABELS = { 'quick': 'QuickRouter' };
 
   var POOL_MAP = {
-    'grok-4.6':'ai-proxy','gpt-6-astra':'ai-proxy','gpt-5.6-sol':'ai-proxy',
-    'claude-fable-5-1':'ai-proxy','claude-opus-5':'ai-proxy',
-    'gemini-3.8-flash':'ai-proxy','gemini-3.1-pro-preview':'ai-proxy',
+    'grok-4.6':'quick','gpt-6-astra':'quick','gpt-5.6-sol':'quick',
+    'claude-fable-5-1':'quick','claude-opus-5':'quick',
+    'gemini-3.8-flash':'quick','gemini-3.1-pro-preview':'quick',
+    'grok-imagine-image-2.0':'quick','gpt-image-2.5-sunburst':'quick',
+    'gemini-3.1-flash-image':'quick','mj_imagine':'quick',
     'grok41-official':'xai-official','grok41-biz-official':'xai-official','grok420-multiagent':'xai-official','grok-image-2':'xai-official',
     'sonnet46-official':'anthropic-official','opus46-official':'anthropic-official',
     'sonnet-thinking':'aipro','opus-thinking':'aipro','gemini31high-official':'aipro',
@@ -1921,6 +1922,8 @@ var TEAM_COLORS = {
       'gpt-6-astra':'GPT-6 Astra','gpt-5.6-sol':'GPT-5.6 Sol',
       'claude-fable-5-1':'Claude Fable 5.1','claude-opus-5':'Claude Opus 5',
       'gemini-3.8-flash':'Gemini 3.8 Flash','gemini-3.1-pro-preview':'Gemini 3.1 Pro',
+      'grok-imagine-image-2.0':'Grok Image 2.0','gpt-image-2.5-sunburst':'GPT Image 2.5 Sunburst',
+      'gemini-3.1-flash-image':'Gemini 3.1 Flash Image','mj_imagine':'Midjourney Imagine',
       'grok41-official':'G-4.1-官方','grok41-proxy':'G-4.1-JK','grok41-biz-official':'G-4.1-越狱','grok420-multiagent':'Grok-4.2-官方',
       'sonnet46-official':'S-4.6-官方','opus46-official':'O-4.6-官方',
       'sonnet46-proxy':'S-4.6-JK','opus46-proxy':'O-4.6-JK','sonnet-thinking':'S-4.6-哈基米','opus-thinking':'O-4.6-哈基米',
@@ -1948,13 +1951,11 @@ var TEAM_COLORS = {
         }
       } catch(e) {}
     }
-    var _noOutputKeys = ['nb2-512px','nb2-1K','nb2-2K','nb2-4K','mj-imagine','mj-describe','mj-variation','mj-upscale'];
+    var _noOutputKeys = ['grok-imagine-image-2.0','gpt-image-2.5-sunburst','gemini-3.1-flash-image','mj_imagine'];
     var PRICE_GROUPS = [
-      {label:'Jiekou.ai 对话', pool:'ai-proxy', keys:['grok-4.6','gpt-6-astra','gpt-5.6-sol','claude-fable-5-1','claude-opus-5','gemini-3.8-flash','gemini-3.1-pro-preview','kling25-i2v']},
-      {label:'Google 官方图片', pool:'google-official', keys:['nb2-512px','nb2-1K','nb2-2K','nb2-4K']},
-      {label:'Patrovia', pool:'mj', keys:['mj-imagine','mj-describe','mj-variation','mj-upscale']},
+      {label:'QuickRouter 对话', pool:'quick', keys:['grok-4.6','gpt-6-astra','gpt-5.6-sol','claude-fable-5-1','claude-opus-5','gemini-3.8-flash','gemini-3.1-pro-preview']},
+      {label:'QuickRouter 图像', pool:'quick', keys:['grok-imagine-image-2.0','gpt-image-2.5-sunburst','gemini-3.1-flash-image','mj_imagine']},
     ];
-    var _noOutputKeys = ['nb2-512px','nb2-1K','nb2-2K','nb2-4K','mj-imagine','mj-describe','mj-variation','mj-upscale','kling25-i2v'];
     var priceRows = PRICE_GROUPS.map(function(group){
       var groupId = 'pg-' + group.pool + '-' + group.label.replace(/[\s\.]+/g,'');
       var rowsHtml = group.keys.map(function(k){
@@ -2198,9 +2199,11 @@ var TEAM_COLORS = {
 
         // Step 2: Build nested structure: user → pool → models with costs
         var USAGE_POOL_MAP = {
-          'grok-4.6':'ai-proxy','gpt-6-astra':'ai-proxy','gpt-5.6-sol':'ai-proxy',
-          'claude-fable-5-1':'ai-proxy','claude-opus-5':'ai-proxy',
-          'gemini-3.8-flash':'ai-proxy','gemini-3.1-pro-preview':'ai-proxy',
+          'grok-4.6':'quick','gpt-6-astra':'quick','gpt-5.6-sol':'quick',
+          'claude-fable-5-1':'quick','claude-opus-5':'quick',
+          'gemini-3.8-flash':'quick','gemini-3.1-pro-preview':'quick',
+          'grok-imagine-image-2.0':'quick','gpt-image-2.5-sunburst':'quick',
+          'gemini-3.1-flash-image':'quick','mj_imagine':'quick',
           'grok41-official':'xai-official','grok41-biz-official':'xai-official','grok420-multiagent':'xai-official','grok-image-2':'xai-official',
           'sonnet46-official':'anthropic-official','opus46-official':'anthropic-official',
           'sonnet-thinking':'aipro','opus-thinking':'aipro','gemini31high-official':'aipro',
@@ -2213,6 +2216,7 @@ var TEAM_COLORS = {
           'mj-upscale':'mj','mj-zoom':'mj','swap-face':'mj'
         };
         var USAGE_POOL_LABELS = {
+          'quick':'QuickRouter',
           'xai-official':'xAI 官方','anthropic-official':'Anthropic 官方','openai-official':'OpenAI 官方',
           'google-official':'Google 官方','ai-proxy':'Jiekou.ai','aipro':'哈基米','mj':'Patrovia'
         };
@@ -2233,7 +2237,7 @@ var TEAM_COLORS = {
         });
 
         var usageHtml = '<div style="margin-bottom:12px;border:1px solid '+border+';border-radius:10px;overflow:hidden;padding:8px;">';
-        var poolOrder = ['xai-official','openai-official','google-official','anthropic-official','ai-proxy','aipro','mj','other'];
+        var poolOrder = ['quick','other'];
         poolOrder.forEach(function(pid){
           if(mergedPools[pid] === undefined) return;
           var poolLabel = USAGE_POOL_LABELS[pid] || pid;
@@ -2262,7 +2266,7 @@ var TEAM_COLORS = {
     anthropic: 'claude-fable-5-1',
     openai: 'gpt-6-astra',
     google: 'gemini-3.8-flash',
-    mj: 'mj-imagine'
+    mj: 'mj_imagine'
   };
   // Track which brands are active (for debate mode, multiple; for chat, one)
   var activeBrands = {xai: true, anthropic: false, openai: false, google: false, mj: false};
@@ -2300,7 +2304,7 @@ var TEAM_COLORS = {
         openai: 'gpt-6-astra',
         google: 'gemini-3.8-flash',
         anthropic: 'claude-fable-5-1',
-        mj: 'mj-imagine'
+        mj: 'mj_imagine'
       };
       if(!imageMode){ activeBrands['mj'] = false; }
       var ab = JSON.parse(localStorage.getItem('aa-active-brands'));
@@ -2322,7 +2326,7 @@ var TEAM_COLORS = {
       return result;
     }
     if(imageMode){
-      result.push(imageComposerModel === 'mj-imagine' ? (brandSelection['mj'] || 'mj-imagine') : (imageComposerModel || 'grok-image-2'));
+      result.push(imageComposerModel || 'grok-imagine-image-2.0');
       return result;
     }
     var cards = document.querySelectorAll('#aaBrandBar .aa-brand-card');
@@ -3745,21 +3749,17 @@ btn.classList.add('copied');
 
   // === Image composer: model, task and model-specific settings ===
   var IMAGE_MODELS = [
-    {value:'grok-image-2', label:'Grok Image 2.0', badge:'NEW'},
-    {value:'nanbanana2-official', label:'Google NB-2'},
-    {value:'mj-imagine', label:'Midjourney'}
+    {value:'grok-imagine-image-2.0', label:'Grok Image 2.0'},
+    {value:'gpt-image-2.5-sunburst', label:'GPT Image 2.5 Sunburst'},
+    {value:'gemini-3.1-flash-image', label:'Gemini 3.1 Flash Image'},
+    {value:'mj_imagine', label:'Midjourney Imagine'}
   ];
   var GROK_RATIOS = ['1:1','16:9','9:16','4:3','3:4','3:2','2:3','2:1','1:2','21:9','auto'];
   var MJ_RATIOS = ['1:1','16:9','9:16','4:3','3:4','3:2','2:3','21:9'];
 
   function imageTaskOptions(){
-    if(imageComposerModel === 'mj-imagine'){
-      return [
-        {value:'mj-imagine',label:'生成图片'},
-        {value:'mj-describe',label:'分析图片风格'},
-        {value:'mj-blend',label:'融合多张图片'},
-        {value:'swap-face',label:'人脸替换'}
-      ];
+    if(imageComposerModel === 'mj_imagine'){
+      return [{value:'mj_imagine',label:'生成图片'}];
     }
     return [
       {value:'generation',label:'生成图片'},
@@ -3830,46 +3830,44 @@ btn.classList.add('copied');
 
   function buildImageSettingsPop(){
     var html = '';
-    if(imageComposerModel === 'grok-image-2'){
+    if(imageComposerModel === 'grok-imagine-image-2.0'){
       html += imageSettingRow('画面比例', GROK_RATIOS.map(function(v){ return imageChoice('grok-ratio',v,v,grokAspectRatio===v,false); }).join(''));
       html += imageSettingRow('分辨率', ['1k','2k'].map(function(v){ return imageChoice('grok-resolution',v,v.toUpperCase(),grokImageResolution===v,false); }).join(''));
       html += imageSettingRow('质量', [['low','快速'],['medium','高质量'],['auto','自动']].map(function(v){ return imageChoice('grok-quality',v[0],v[1],grokImageQuality===v[0],false); }).join(''));
       html += imageSettingRow('生成数量', [1,2,3,4].map(function(v){ return imageChoice('grok-count',String(v),v+'张',grokImageCount===v,imageComposerTask!=='generation'); }).join(''));
       html += '<div class="aa-image-hint">编辑支持 1 张参考图，多图编辑支持 2–5 张；编辑任务每次返回 1 张。</div>';
-    } else if(imageComposerModel === 'nanbanana2-official'){
+    } else if(imageComposerModel === 'gpt-image-2.5-sunburst'){
+      html += imageSettingRow('画面比例', ['1:1','3:2','2:3','auto'].map(function(v){ return imageChoice('grok-ratio',v,v,grokAspectRatio===v,false); }).join(''));
+      html += imageSettingRow('质量', [['low','快速'],['medium','标准'],['high','高质量'],['auto','自动']].map(function(v){ return imageChoice('grok-quality',v[0],v[1],grokImageQuality===v[0],false); }).join(''));
+      html += imageSettingRow('生成数量', [1,2,3,4].map(function(v){ return imageChoice('grok-count',String(v),v+'张',grokImageCount===v,imageComposerTask!=='generation'); }).join(''));
+      html += '<div class="aa-image-hint">尺寸会根据画面比例自动选择；支持单图和多图编辑。</div>';
+    } else if(imageComposerModel === 'gemini-3.1-flash-image'){
       html += imageSettingRow('风格', _nbStyleOptions.map(function(o){ return imageChoice('nb-style',o.value,o.label,nbStylePreset===o.value,false); }).join(''));
       html += imageSettingRow('分辨率', _nbSizeOptions.map(function(o){ return imageChoice('nb-size',o.value,o.label,nbImageSize===o.value,false); }).join(''));
       html += imageSettingRow('画面比例', _nbRatioOptions.map(function(o){ return imageChoice('nb-ratio',o.value,o.label,nbAspectRatio===o.value,false); }).join(''));
       html += imageSettingRow('思考强度', [['minimal','快速'],['high','深度']].map(function(v){ return imageChoice('nb-thinking',v[0],v[1],nbThinkingLevel===v[0],false); }).join(''));
       html += imageSettingRow('输出方式', [['false','图文'],['true','仅图片']].map(function(v){ return imageChoice('nb-only',v[0],v[1],nbImageOnly===(v[0]==='true'),false); }).join(''));
     } else {
-      if(imageComposerTask === 'mj-imagine'){
-        html += imageSettingRow('画面比例', MJ_RATIOS.map(function(v){ return imageChoice('mj-ratio',v,v,mjAspectRatio===v,false); }).join(''));
-        html += imageSettingRow('生成速度', imageChoice('mj-speed','relax','Relax',true,true));
-      } else if(imageComposerTask === 'mj-describe'){
-        html = '<div class="aa-image-hint" style="margin:2px;">上传 1 张参考图，Midjourney 会分析并返回风格描述。</div>';
-      } else if(imageComposerTask === 'mj-blend'){
-        html = '<div class="aa-image-hint" style="margin:2px;">上传 2–5 张参考图，将它们融合成一张新图片。</div>';
-      } else {
-        html = '<div class="aa-image-hint" style="margin:2px;">分别上传人脸图和目标图后执行替换。</div>';
-      }
+      html += imageSettingRow('画面比例', MJ_RATIOS.map(function(v){ return imageChoice('mj-ratio',v,v,mjAspectRatio===v,false); }).join(''));
+      html += imageSettingRow('生成速度', imageChoice('mj-speed','relax','Relax',true,true));
     }
     $('aaImageSettingsPop').innerHTML = html;
   }
 
   function imageSettingsSummary(){
-    if(imageComposerModel === 'grok-image-2'){
+    if(imageComposerModel === 'grok-imagine-image-2.0'){
       var qualityLabel = {low:'快速',medium:'高质量',auto:'自动'}[grokImageQuality] || '自动';
       return grokAspectRatio+' · '+grokImageResolution.toUpperCase()+' · '+qualityLabel+(imageComposerTask==='generation'?' · '+grokImageCount+'张':'');
     }
-    if(imageComposerModel === 'nanbanana2-official'){
+    if(imageComposerModel === 'gpt-image-2.5-sunburst'){
+      var gptQualityLabel = {low:'快速',medium:'标准',high:'高质量',auto:'自动'}[grokImageQuality] || '自动';
+      return grokAspectRatio+' · '+gptQualityLabel+(imageComposerTask==='generation'?' · '+grokImageCount+'张':'');
+    }
+    if(imageComposerModel === 'gemini-3.1-flash-image'){
       var style = _nbStyleOptions.find(function(o){ return o.value===nbStylePreset; });
       return (style?style.label:'无预设')+' · '+nbImageSize+' · '+nbAspectRatio+' · '+(nbThinkingLevel==='high'?'深度':'快速');
     }
-    if(imageComposerTask === 'mj-imagine') return mjAspectRatio+' · Relax';
-    if(imageComposerTask === 'mj-describe') return '需要 1 张参考图';
-    if(imageComposerTask === 'mj-blend') return '需要 2–5 张参考图';
-    return '人脸图 + 目标图';
+    return mjAspectRatio+' · Relax';
   }
 
   function syncImageComposer(){
@@ -3885,16 +3883,17 @@ btn.classList.add('copied');
     if(model.value !== imageComposerModel) imageComposerModel = model.value;
     var opts = imageTaskOptions();
     if(!opts.some(function(o){ return o.value === imageComposerTask; })) imageComposerTask = opts[0].value;
-    if(imageComposerModel === 'mj-imagine') brandSelection['mj'] = imageComposerTask;
+    if(imageComposerModel === 'mj_imagine') brandSelection['mj'] = 'mj_imagine';
     activeBrands = {
-      xai:imageComposerModel==='grok-image-2', anthropic:false, openai:false,
-      google:imageComposerModel==='nanbanana2-official', mj:imageComposerModel==='mj-imagine', kling:false
+      xai:imageComposerModel==='grok-imagine-image-2.0', anthropic:false,
+      openai:imageComposerModel==='gpt-image-2.5-sunburst',
+      google:imageComposerModel==='gemini-3.1-flash-image', mj:imageComposerModel==='mj_imagine', kling:false
     };
     $('aaImageModelLabel').textContent = model.label;
     $('aaImageNewBadge').style.display = model.badge ? '' : 'none';
     $('aaImageTaskLabel').textContent = currentImageTask().label;
     $('aaImageSettingsSummary').textContent = imageSettingsSummary();
-    $('aaTopic').placeholder = imageComposerTask === 'generation' || imageComposerTask === 'mj-imagine'
+    $('aaTopic').placeholder = imageComposerTask === 'generation' || imageComposerTask === 'mj_imagine'
       ? '描述你想生成的图片…' : '描述你想怎样处理参考图…';
     $('aaNbOptions').style.display = 'none';
     $('aaNbRefArea').style.display = 'none';
@@ -3910,13 +3909,13 @@ btn.classList.add('copied');
   $('aaImageModelPop').addEventListener('click', function(e){
     var btn = e.target.closest('[data-value]'); if(!btn) return;
     imageComposerModel = btn.dataset.value;
-    imageComposerTask = imageComposerModel === 'mj-imagine' ? 'mj-imagine' : 'generation';
+    imageComposerTask = imageComposerModel === 'mj_imagine' ? 'mj_imagine' : 'generation';
     closeImagePopovers(); syncImageComposer(); saveState();
   });
   $('aaImageTaskPop').addEventListener('click', function(e){
     var btn = e.target.closest('[data-value]'); if(!btn) return;
     imageComposerTask = btn.dataset.value;
-    if(imageComposerModel === 'mj-imagine') brandSelection['mj'] = imageComposerTask;
+    if(imageComposerModel === 'mj_imagine') brandSelection['mj'] = 'mj_imagine';
     closeImagePopovers(); syncImageComposer(); saveState();
   });
   $('aaImageSettingsPop').addEventListener('click', function(e){
@@ -4052,8 +4051,7 @@ btn.classList.add('copied');
     if($('aaBarVideoBtn')){ $('aaBarVideoBtn').style.background='transparent'; $('aaBarVideoBtn').style.color='#6b6b88'; }
     $('aaRoundsBar').style.display = 'none';
     $('aaDebateModeBar').style.display = 'none';
-    brandSelection['google'] = 'nanbanana2-official';
-    if(!brandSelection['mj']) brandSelection['mj'] = 'mj-imagine';
+    brandSelection['mj'] = 'mj_imagine';
     syncImageCards();
     syncBrandUI(); sync2v2UI(); syncNbOptions(); updateModeBadge(); saveState();
     syncImageCards();
@@ -4521,14 +4519,15 @@ function initPersonaDragDrop(){
     });
   };
 
-  window._aaEditGeneratedImage = function(imageKey){
+  window._aaEditGeneratedImage = function(imageKey, sourceModel){
     var source = window._aaImgStore && window._aaImgStore[imageKey];
     if(!source || !source.data){ alert('没有找到这张图片，请刷新后重试。'); return; }
 
     debate = false;
     imageMode = true;
     videoMode = false;
-    imageComposerModel = 'grok-image-2';
+    imageComposerModel = ['grok-imagine-image-2.0','gpt-image-2.5-sunburst','gemini-3.1-flash-image'].indexOf(sourceModel) !== -1
+      ? sourceModel : 'grok-imagine-image-2.0';
     imageComposerTask = 'edit';
     sentImgs = [{
       data: source.data,
@@ -4567,7 +4566,7 @@ function initPersonaDragDrop(){
   };
 
   function isImageModerationError(message, submodel){
-    var imageModels = ['grok-image-2','nanbanana2-official','mj-imagine'];
+    var imageModels = ['grok-imagine-image-2.0','gpt-image-2.5-sunburst','gemini-3.1-flash-image','mj_imagine'];
     if(imageModels.indexOf(submodel) === -1) return false;
     return /content moderation|moderation|safety policy|safety filter|rejected by content|blocked for safety|内容审核|安全审核|违规内容/i.test(String(message || ''));
   }
@@ -4619,7 +4618,7 @@ function initPersonaDragDrop(){
     var msg = msgs.find(function(m){ return m.uid === numericUid; });
     if(!msg || !msg.suggestedPrompt) return;
     debate = false; imageMode = true; videoMode = false;
-    if(msg.submodel === 'grok-image-2' || msg.submodel === 'nanbanana2-official' || msg.submodel === 'mj-imagine') imageComposerModel = msg.submodel;
+    if(['grok-imagine-image-2.0','gpt-image-2.5-sunburst','gemini-3.1-flash-image','mj_imagine'].indexOf(msg.submodel) !== -1) imageComposerModel = msg.submodel;
     if(msg.moderationTask) imageComposerTask = msg.moderationTask;
     $('aaBarImageBtn').classList.add('active');
     $('aaBarChatBtn').classList.remove('active');
@@ -4743,7 +4742,7 @@ function initPersonaDragDrop(){
           h += '<div class="aa-generated-card">';
           h += '<div class="aa-generated-stage"><img class="aa-generated-image" src="'+window._aaImgClickStore[_imgKey]+'" onload="window._aaGeneratedImgLoaded(this,\''+msg.uid+'\')" onclick="window._aaLightbox(window._aaImgClickStore[\''+_imgKey+'\'])" alt="AI 生成图片"></div>';
           h += '<div class="aa-generated-actions">';
-          if(msg.submodel === 'grok-image-2') h += '<button class="aa-generated-btn edit" onclick="window._aaEditGeneratedImage(\''+_imgKey+'\')">编辑这张</button>';
+          if(['grok-imagine-image-2.0','gpt-image-2.5-sunburst','gemini-3.1-flash-image'].indexOf(msg.submodel) !== -1) h += '<button class="aa-generated-btn edit" onclick="window._aaEditGeneratedImage(\''+_imgKey+'\',\''+msg.submodel+'\')">编辑这张</button>';
           h += '<button class="aa-generated-btn primary" onclick="window._aaLightbox(window._aaImgClickStore[\''+_imgKey+'\'])">查看大图</button>';
           h += '<button class="aa-generated-btn" onclick="window._aaDownloadImg(\''+_imgKey+'\')">下载原图</button>';
           h += '</div></div>';
@@ -4907,12 +4906,10 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
     if(!act.length){ alert('请至少选择一个模型。'); return; }
     if(imageMode){
       var refCount = sentImgs.length;
-      if((imageComposerModel === 'grok-image-2' || imageComposerModel === 'nanbanana2-official' || imageComposerTask === 'mj-imagine') && !topic){ alert('请先描述你想生成或修改的图片。'); return; }
-      if((imageComposerModel === 'grok-image-2' || imageComposerModel === 'nanbanana2-official') && imageComposerTask === 'edit' && refCount < 1){ alert('编辑图片需要先上传 1 张参考图。'); return; }
-      if((imageComposerModel === 'grok-image-2' || imageComposerModel === 'nanbanana2-official') && imageComposerTask === 'multi-edit' && (refCount < 2 || refCount > 5)){ alert('多图编辑需要上传 2–5 张参考图。'); return; }
-      if(imageComposerModel === 'mj-imagine' && imageComposerTask === 'mj-describe' && refCount !== 1){ alert('风格分析需要上传 1 张参考图。'); return; }
-      if(imageComposerModel === 'mj-imagine' && imageComposerTask === 'mj-blend' && (refCount < 2 || refCount > 5)){ alert('图片融合需要上传 2–5 张参考图。'); return; }
-      if(imageComposerModel === 'mj-imagine' && imageComposerTask === 'swap-face' && refCount !== 2){ alert('人脸替换需要上传 2 张图片：第一张人脸图，第二张目标图。'); return; }
+      var editableImageModel = imageComposerModel !== 'mj_imagine';
+      if(!topic){ alert('请先描述你想生成或修改的图片。'); return; }
+      if(editableImageModel && imageComposerTask === 'edit' && refCount < 1){ alert('编辑图片需要先上传 1 张参考图。'); return; }
+      if(editableImageModel && imageComposerTask === 'multi-edit' && (refCount < 2 || refCount > 5)){ alert('多图编辑需要上传 2–5 张参考图。'); return; }
     }
     _bizMode = act.indexOf('grok41-biz-official') !== -1;
     // ✅ 商业版模式:清空当前 chatId,阻止保存到历史
@@ -4931,7 +4928,7 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
     var _rawName = $('aaUsername').value.trim() || '用户';
     var CHAT_DISPLAY_NAMES = {'oakleyyuen':'Oakley Suen','doctor.wang':'Doctor.Wang','zty007007990':'Zty'};
     var userName = CHAT_DISPLAY_NAMES[_rawName.toLowerCase()] || _rawName;
-    var _isSwap = imageMode && imageComposerModel === 'mj-imagine' && imageComposerTask === 'swap-face';
+    var _isSwap = false;
     var _swapImgs = _isSwap ? sentImgs.slice(0,2) : null;
     var _imgs = _swapImgs || sentImgs.slice(), _img = _imgs.length ? _imgs[0].data : null, _imgMime = _imgs.length ? _imgs[0].mime : null, _texts = sentTexts.slice();
     var _topicText = topic;
@@ -5264,13 +5261,13 @@ function build2v2Prompt(topic, history, speakerInfo, rnd){
 var uid = newUid();
 var msgObj = {uid:uid, submodel:sub, brand:info.brand, name:info.name, text:'', color:brandInfo.color};
 var firstChunk = true;
-var _nbStylePrefix = (sub === 'nanbanana2-official' && nbStylePreset !== 'none') ? (NB_STYLE_PROMPTS[nbStylePreset] || '') : '';
+var _nbStylePrefix = (sub === 'gemini-3.1-flash-image' && nbStylePreset !== 'none') ? (NB_STYLE_PROMPTS[nbStylePreset] || '') : '';
 var _nbExtraOpts = { _imgs: _imgs };
-if(sub === 'nanbanana2-official'){
-  _nbExtraOpts = { imageTask:imageComposerTask, imageSize:nbImageSize, aspectRatio:nbAspectRatio, refImages:_imgs.slice(1), thinkingLevel:nbThinkingLevel, imageOnly:nbImageOnly, _imgs:_imgs };
-} else if(sub === 'grok-image-2'){
+if(sub === 'gemini-3.1-flash-image'){
+  _nbExtraOpts = { imageTask:imageComposerTask, imageSize:nbImageSize, resolution:nbImageSize, aspectRatio:nbAspectRatio, quality:'auto', n:1, _imgs:_imgs };
+} else if(sub === 'grok-imagine-image-2.0' || sub === 'gpt-image-2.5-sunburst'){
   _nbExtraOpts = { imageTask:imageComposerTask, resolution:grokImageResolution, aspectRatio:grokAspectRatio, quality:grokImageQuality, n:(imageComposerTask==='generation'?grokImageCount:1), _imgs:_imgs };
-} else if(sub === 'mj-imagine'){
+} else if(sub === 'mj_imagine'){
   _nbExtraOpts = { aspectRatio:mjAspectRatio, _imgs:_imgs };
 }
 var _skillSys = (activeSkill && activeSkill.type === 'prompt' && activeSkill.prompt) ? activeSkill.prompt : null;
@@ -5282,9 +5279,9 @@ if(_skillSys && activeSkill.id === 'ppt-maker' && _pptTemplateInfo){
 }
 var sysPrompt = (sub === 'codex-official' || sub === 'codex-proxy') ? 'You are a coding assistant. The user does not know programming at all. For ALL code changes, you MUST use a "find and replace" format: clearly write out the exact, unique, searchable code snippet to find, then write the replacement. Never use vague descriptions. Always self-check your code to ensure no errors. Write code blocks with language tags. Answer in the same language the user used.' : (_skillSys || SYS_CHAT);
 var memText = (_bizMode || _incognitoMode || imageMode) ? '' : (_cachedMemory || '');
-var _topicWithStyle = (sub === 'nanbanana2-official' && _nbStylePrefix) ? _nbStylePrefix + topic : topic;
+var _topicWithStyle = (sub === 'gemini-3.1-flash-image' && _nbStylePrefix) ? _nbStylePrefix + topic : topic;
 var _topicForPrompt = _topicWithStyle.replace(' [img]', _imgs.length ? '（已附图'+_imgs.length+'张）' : '');
-if(sub === 'mj-imagine' && mjAspectRatio && _topicForPrompt.indexOf('--ar ') === -1) _topicForPrompt += ' --ar ' + mjAspectRatio;
+if(sub === 'mj_imagine' && mjAspectRatio && _topicForPrompt.indexOf('--ar ') === -1) _topicForPrompt += ' --ar ' + mjAspectRatio;
 var fullPrompt = _bizMode
   ? (history ? history + '\n\n[Human]: ' + _topicForPrompt : _topicForPrompt)
   : (imageMode ? _topicForPrompt : (memText ? '【关于这个用户的已知信息】\n' + memText + '\n\n---\n\n' : '') + sysPrompt + '\n\n' + history + '\n\n[Human]: ' + _topicForPrompt);
@@ -5298,12 +5295,13 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
             if(chunk.indexOf('\x00IMG\x00') === 0){
               var parts2 = chunk.split('\x00');
               var _chunkImage = {data:parts2[2], mime:parts2[4] || 'image/png'};
-              if(sub === 'grok-image-2'){
+              if(['grok-imagine-image-2.0','gpt-image-2.5-sunburst','gemini-3.1-flash-image','mj_imagine'].indexOf(sub) !== -1){
                 msgObj.imgItems = msgObj.imgItems || [];
                 msgObj.imgItems.push(_chunkImage);
                 if(!msgObj.imgData){ msgObj.imgData=_chunkImage.data; msgObj.imgMime=_chunkImage.mime; }
                 window._aaImgStore['aigen_'+uid+'_'+(msgObj.imgItems.length-1)] = _chunkImage;
-                msgObj.usageStr = grokImageResolution.toUpperCase()+' · '+({low:'快速',medium:'高质量',auto:'自动'}[grokImageQuality]||'自动')+' · '+msgObj.imgItems.length+'张';
+                var _imageSpec = sub === 'gemini-3.1-flash-image' ? nbImageSize : (sub === 'mj_imagine' ? 'MJ' : grokImageResolution.toUpperCase());
+                msgObj.usageStr = _imageSpec+' · '+msgObj.imgItems.length+'张';
               } else {
                 msgObj.imgData = _chunkImage.data; msgObj.imgMime = _chunkImage.mime;
                 window._aaImgStore[uid] = _chunkImage;
@@ -5317,21 +5315,12 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
                 if(_klingPool && _klingCost > 0) addPoolSpent(_klingPool, _klingCost);
                 msgObj.usageStr = 'Kling V2.5' + (_klingCost > 0 ? ' · $' + _klingCost.toFixed(4) : '');
               }
-              if(sub === 'nanbanana2-official'){
-                var _nbSavedP = JSON.parse(localStorage.getItem('aa-model-prices') || '{}');
-                var _nbSizeKey = 'nb2-' + nbImageSize;
-                var _nbCost = (_nbSavedP[_nbSizeKey] && _nbSavedP[_nbSizeKey].input) ? _nbSavedP[_nbSizeKey].input : 0;
-                var _nbPool = getSubPool('nanbanana2-official');
-                if(_nbPool && _nbCost > 0) addPoolSpent(_nbPool, _nbCost);
-                msgObj.usageStr = nbImageSize + (_nbCost > 0 ? ' · $' + _nbCost.toFixed(4) : '');
-              }
-              var _mjSavedPrices = JSON.parse(localStorage.getItem('aa-model-prices') || '{}');
-              var _mjSubKeys = ['mj-imagine','mj-describe','mj-variation','mj-upscale','mj-blend','mj-zoom','swap-face'];
-              if(_mjSubKeys.indexOf(sub) !== -1){
-                var _mjCost = (_mjSavedPrices[sub] && _mjSavedPrices[sub].input) ? _mjSavedPrices[sub].input : 0;
-                var _mjPool = getSubPool(sub);
-                if(_mjPool && _mjCost > 0) addPoolSpent(_mjPool, _mjCost);
-                msgObj.usageStr = (SUBS[sub] ? SUBS[sub].name : sub) + (_mjCost > 0 ? ' · $' + _mjCost.toFixed(4) : '');
+              var _imageSavedPrices = JSON.parse(localStorage.getItem('aa-model-prices') || '{}');
+              if(['grok-imagine-image-2.0','gpt-image-2.5-sunburst','gemini-3.1-flash-image','mj_imagine'].indexOf(sub) !== -1){
+                var _imageCost = (_imageSavedPrices[sub] && _imageSavedPrices[sub].input) ? _imageSavedPrices[sub].input : 0;
+                var _imagePool = getSubPool(sub);
+                if(_imagePool && _imageCost > 0) addPoolSpent(_imagePool, _imageCost);
+                if(_imageCost > 0) msgObj.usageStr += ' · $' + _imageCost.toFixed(4);
               }
               if(firstChunk){ firstChunk=false; hideThink(sub); msgs.push(msgObj); }
               render(); return;
@@ -6198,8 +6187,7 @@ if(imageMode){
   $('aaBarImageBtn').style.background='rgba(255,255,255,0.1)'; $('aaBarImageBtn').style.color='#e8e8ee';
   $('aaBarChatBtn').style.background='transparent'; $('aaBarChatBtn').style.color='#6b6b88';
   $('aaBarDebateBtn').style.background='transparent'; $('aaBarDebateBtn').style.color='#6b6b88';
-  brandSelection['google'] = 'nanbanana2-official';
-  if(!brandSelection['mj']) brandSelection['mj'] = 'mj-imagine';
+  brandSelection['mj'] = 'mj_imagine';
   if($('aaSkillsWrap')) $('aaSkillsWrap').style.display = 'none';
   syncBrandUI();
   syncImageCards();
@@ -6247,6 +6235,7 @@ if(imageMode){
     });
     var healthVal = ok ? '1' : '0';
     var poolMap = {
+      'quick': 'quick',
       'official-xai': 'xai-official',
       'official-anthropic': 'anthropic-official',
       'official-openai': 'openai-official',
@@ -6273,6 +6262,7 @@ if(imageMode){
     fetch(WORKER, { method: 'GET' })
       .then(function(res){ return res.json(); })
       .then(function(data){
+        setHealthDots('quick', data.quick);
         setHealthDots('official-xai', data.xai);
         setHealthDots('official-anthropic', data.anthropic);
         setHealthDots('official-openai', data.openai);
@@ -6284,6 +6274,7 @@ if(imageMode){
         syncBrandUI();
       })
       .catch(function(){
+        setHealthDots('quick', false);
         setHealthDots('official-xai', false);
         setHealthDots('official-anthropic', false);
         setHealthDots('official-openai', false);
