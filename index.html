@@ -783,24 +783,35 @@
   #ai-arena-app .aa-history-list { flex: 1; overflow-y: auto; padding: 8px 0; scrollbar-width: none; }
   #ai-arena-app .aa-history-list::-webkit-scrollbar { display: none; }
   #ai-arena-app .aa-history-item {
-    padding: 10px 16px; cursor: pointer; display: flex; align-items: center; gap: 10px;
+    display: flex; align-items: stretch;
     transition: background 0.1s; border-left: 3px solid transparent;
   }
-  #ai-arena-app .aa-history-item:active { background: rgba(255,255,255,0.05); }
+  #ai-arena-app .aa-history-item:active,
+  #ai-arena-app .aa-history-item.loading { background: rgba(255,255,255,0.05); }
   #ai-arena-app .aa-history-item.active {
     background: rgba(99,102,241,0.08); border-left-color: #6366f1;
   }
-  #ai-arena-app .aa-history-item-text { flex: 1; min-width: 0; }
+  #ai-arena-app .aa-history-item-open {
+    flex: 1; min-width: 0; padding: 10px 8px 10px 13px;
+    border: 0; background: transparent; color: inherit; text-align: left;
+    font: inherit; cursor: pointer; touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #ai-arena-app .aa-history-item-open:disabled { cursor: wait; }
+  #ai-arena-app .aa-history-item-text { display: block; min-width: 0; pointer-events: none; }
   #ai-arena-app .aa-history-item-title {
+    display: block;
     font-size: 12px; font-weight: 500; color: #c8c8dd;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  #ai-arena-app .aa-history-item-time { font-size: 10px; color: #555; margin-top: 2px; }
+  #ai-arena-app .aa-history-item-time { display: block; font-size: 10px; color: #555; margin-top: 2px; }
+  #ai-arena-app .aa-history-item.loading .aa-history-item-time::after { content: ' · 打开中'; color: #818cf8; }
   #ai-arena-app .aa-history-item-del {
     width: 22px; height: 22px; border-radius: 6px; border: none;
     background: transparent; color: #555; font-size: 11px;
     cursor: pointer; display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0; transition: all 0.15s; opacity: 0;
+    flex-shrink: 0; align-self: center; margin-right: 8px; transition: all 0.15s; opacity: 0;
+    touch-action: manipulation; -webkit-tap-highlight-color: transparent;
   }
   #ai-arena-app .aa-history-item:hover .aa-history-item-del,
   #ai-arena-app .aa-history-item:active .aa-history-item-del { opacity: 1; }
@@ -1714,8 +1725,8 @@ var TEAM_COLORS = {
   }
 
   function loadChat(chatId){
-    chatApiCall('load', { chatId: chatId }).then(function(data){
-      if(!data) return;
+    return chatApiCall('load', { chatId: chatId }).then(function(data){
+      if(!data) return false;
       currentChatId = chatId;
       msgs = data.messages || [];
       if(msgs.length){
@@ -1723,6 +1734,7 @@ var TEAM_COLORS = {
       }
       render();
       closeHistory();
+      return true;
     });
   }
 
@@ -1750,27 +1762,36 @@ var TEAM_COLORS = {
     var h = '';
     chatList.forEach(function(chat){
       var isActive = chat.id === currentChatId;
-      h += '<div class="aa-history-item'+(isActive?' active':'')+'" data-cid="'+chat.id+'">'
-        +'<div class="aa-history-item-text">'
-        +'<div class="aa-history-item-title">'+esc(chat.title)+'</div>'
-        +'<div class="aa-history-item-time">'+formatTime(chat.updatedAt)+'</div>'
-        +'</div>'
-        +'<button class="aa-history-item-del" data-del="'+chat.id+'">✕</button>'
+      var safeId = esc(String(chat.id));
+      h += '<div class="aa-history-item'+(isActive?' active':'')+'">'
+        +'<button type="button" class="aa-history-item-open" data-cid="'+safeId+'">'
+        +'<span class="aa-history-item-text">'
+        +'<span class="aa-history-item-title">'+esc(chat.title)+'</span>'
+        +'<span class="aa-history-item-time">'+formatTime(chat.updatedAt)+'</span>'
+        +'</span>'
+        +'</button>'
+        +'<button type="button" class="aa-history-item-del" data-del="'+safeId+'" aria-label="删除会话">✕</button>'
         +'</div>';
     });
     container.innerHTML = h;
-    container.querySelectorAll('.aa-history-item').forEach(function(item){
-      item.addEventListener('click', function(e){
-        if(e.target.closest('.aa-history-item-del')) return;
-        loadChat(item.dataset.cid);
-      });
-    });
-    container.querySelectorAll('.aa-history-item-del').forEach(function(btn){
-      btn.addEventListener('click', function(e){
+    container.onclick = function(e){
+      var deleteBtn = e.target.closest('.aa-history-item-del');
+      if(deleteBtn && container.contains(deleteBtn)){
+        e.preventDefault();
         e.stopPropagation();
-        if(confirm('删除这个会话？')) deleteChat(btn.dataset.del);
+        if(confirm('删除这个会话？')) deleteChat(deleteBtn.dataset.del);
+        return;
+      }
+      var openBtn = e.target.closest('.aa-history-item-open');
+      if(!openBtn || !container.contains(openBtn) || openBtn.disabled) return;
+      var item = openBtn.closest('.aa-history-item');
+      openBtn.disabled = true;
+      if(item) item.classList.add('loading');
+      loadChat(openBtn.dataset.cid).finally(function(){
+        if(openBtn.isConnected) openBtn.disabled = false;
+        if(item && item.isConnected) item.classList.remove('loading');
       });
-    });
+    };
   }
 
   function openHistory(){ $('aaHistoryPanel').classList.add('open'); $('aaHistoryOverlay').classList.add('open'); loadChatList(); }
@@ -3967,7 +3988,8 @@ btn.classList.add('copied');
         var card = $('aaBrandBar').querySelector('[data-brand="'+b+'"]');
         if(card) card.classList.remove('seated-away');
       });
-      $('aaBrandBar').style.display = '';
+      // Image/video mode uses the compact composer model selector; never revive the legacy cards here.
+      $('aaBrandBar').style.display = (imageMode || videoMode) ? 'none' : '';
       $('aaBrandBarCollapsed').style.display = 'none';
       return;
     }
