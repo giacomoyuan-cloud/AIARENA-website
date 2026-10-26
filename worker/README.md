@@ -18,7 +18,7 @@ Midjourney has no generally available public official API. Its option is disable
 ## Deployment and verification
 
 1. Check that each official account and its server region are supported by its provider.
-2. Deploy the backend before publishing the changed browser page. The Wrangler configuration preserves the Worker name, custom domain, compatibility date, secrets and both existing KV namespaces. The explicit placement hint is `aws:us-east-1`; placement is an operational setting, not proof of account eligibility or guaranteed API availability.
+2. Deploy the backend before publishing the changed browser page. The Wrangler configuration preserves the Worker name, custom domain, compatibility date, secrets and both existing KV namespaces. It does not request a placement change. Verify production behavior before deciding whether any server-region change is necessary.
 3. Verify model-list authentication from the actual deployed environment. The root GET response reports **key presence only**, not successful authentication or available credit.
 4. Check text streaming, image generation/editing, and existing chat/memory functions. Do not infer a successful generation from a successful model-list request.
 5. Publish the browser page after backend verification.
@@ -32,6 +32,8 @@ node --test worker/worker.test.mjs
 ```
 
 These tests mock provider responses and do not charge any provider account. Never commit API key values or local `.dev.vars` files.
+
+Cloudflare placement labels such as `aws:us-east-1` are geographic references for Cloudflare's own data centers. They do not move the Worker into AWS or require an AWS account. Such a placement hint is not a requirement for this integration and is not configured in this change.
 
 ## Official references
 
