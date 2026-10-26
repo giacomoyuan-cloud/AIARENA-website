@@ -13,10 +13,10 @@
 | 密钥变量 | 对应服务/域名 | 是否官方直连 | 迁移前业务使用情况 |
 | --- | --- | --- | --- |
 | `QUICK` | QuickRouter，`api.quickrouter.ai` | 第三方中转 | 当前 7 个聊天模型、3 个图片模型和 MJ 生成均使用它 |
-| `ANTHROPIC_API_KEY` | Anthropic，`api.anthropic.com` | 代码直连官方域名；当前认证未通过 | 记忆整理分支使用；主聊天的两个 Claude 选项仍走 QuickRouter |
-| `OPENAI_API_KEY` | OpenAI，`api.openai.com` | 代码直连官方域名；当前认证未通过 | 已保存；原官方聊天分支被当前模型白名单挡住 |
+| `ANTHROPIC_API_KEY` | Anthropic，`api.anthropic.com` | 代码直连官方域名；预览检查未确认可用 | 记忆整理分支使用；主聊天的两个 Claude 选项仍走 QuickRouter |
+| `OPENAI_API_KEY` | OpenAI，`api.openai.com` | 代码直连官方域名；预览检查未确认可用 | 已保存；原官方聊天分支被当前模型白名单挡住 |
 | `GROK_API_KEY` | xAI，`api.x.ai` | 官方模型列表认证已通过 | 已保存；原官方分支未被当前聊天/图片选项调用 |
-| `GEMINI_API_KEY` | Google，`generativelanguage.googleapis.com` | 代码直连官方域名；当前认证未通过 | 已保存；原官方分支未被当前选项调用 |
+| `GEMINI_API_KEY` | Google，`generativelanguage.googleapis.com` | 代码直连官方域名；预览检查未确认可用 | 已保存；原官方分支未被当前选项调用 |
 | `JIEKOU_API_KEY` | Jiekou.ai，`api.jiekou.ai` | 第三方中转 | 遗留 Codex/Kling 分支；被当前白名单挡住 |
 | `HAJIMI_API_KEY` | `vip.aipro.love` | 第三方中转 | 遗留 Claude/Gemini 分支；被当前白名单挡住 |
 | `MJ_API_KEY` | `proxy.pickandcase.com` 的 MJ 路由 | 第三方中转；不能因自有域名认定为官方 | 遗留 MJ 分支；当前 MJ 使用 `QUICK` |
@@ -34,7 +34,7 @@
 | OpenAI | 403 | `Country, region, or territory not supported` |
 | Google | 400 | `User location is not supported for the API use.` |
 
-这组结果来自当前默认就近运行的预览环境，不能替代更换运行地区后对实际生产环境的复核。地区拒绝也不能证明密钥值无效。
+这组结果来自当前默认就近运行的预览环境，不能替代对实际生产环境的复核，也不能据此认定生产环境必须更换运行地区。地区拒绝也不能证明密钥值无效。
 
 临时认证检查脚本没有部署为生产版本。
 
