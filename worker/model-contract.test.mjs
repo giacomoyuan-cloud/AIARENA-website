@@ -94,13 +94,23 @@ test('Google grounding exposes containing-page attribution, search suggestions a
  const b=browser(setup());
  t.mock.method(globalThis,'fetch',async()=>{
   const data=await imageResponse().json();
-  data.candidates[0].groundingMetadata={groundingChunks:[{web:{uri:'https://example.com/facts',title:'Facts'}},{image:{uri:'https://example.com/photo-page',image_uri:'https://example.com/raw.jpg',title:'Photo source'}},{web:{uri:'javascript:alert(1)'}}],imageSearchQueries:['blue cube'],searchEntryPoint:{renderedContent:'<div>Google</div>'}};
+  data.candidates[0].groundingMetadata={groundingChunks:[
+   {web:{uri:'https://example.com/facts',title:'Facts'}},
+   {image:{sourceUri:'https://example.com/photo-page',imageUri:'https://example.com/raw.jpg',title:'Photo source'}},
+   {image:{source_uri:'https://example.com/second-page',image_uri:'https://example.com/second.jpg',domain:'example.com'}},
+   {image:{uri:'https://example.com/legacy-page',image_uri:'https://example.com/legacy.jpg'}},
+   {image:{imageUri:'https://example.com/raw-without-attribution.jpg'}},
+   {image:{sourceUri:'javascript:alert(1)',imageUri:'https://example.com/unsafe.jpg'}},
+   {web:{uri:'javascript:alert(1)'}}
+  ],imageSearchQueries:['blue cube'],searchEntryPoint:{renderedContent:'<div>Google</div>'}};
   return Response.json(data);
  });
  await b.send(A.GOOGLE_MODEL,A.requestOptions(A.GOOGLE_MODEL,'generation',{grounding:'web-image'},[]));
- assert.deepEqual(b.meta.filter(m=>m.citation).map(m=>m.citation.url),['https://example.com/facts','https://example.com/photo-page']);
+ assert.deepEqual(b.meta.filter(m=>m.citation).map(m=>m.citation.url),['https://example.com/facts','https://example.com/photo-page','https://example.com/second-page','https://example.com/legacy-page']);
  assert.equal(b.meta.find(m=>m.grounding).grounding.html,'<div>Google</div>');
  assert.equal(b.meta.find(m=>m.activity?.kind==='search_results').activity.query,'blue cube');
+ assert.deepEqual(JSON.parse(JSON.stringify(b.meta.find(m=>m.activity?.kind==='search_results').activity.searchModes)),{web:true,image:true});
+ assert.equal(b.meta.find(m=>m.activity?.kind==='search_results').activity.label,'Google 网页与图片搜索');
 });
 
 test('UI presets change the real prompt and image generations are not automatically retried',()=>{

@@ -780,11 +780,14 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
       const sources=[];
       for(const chunk of metadata.groundingChunks||[]){
         const value=chunk.web||chunk.image;
-        const source=publicSource({url:value?.uri,title:value?.title});
+        // REST image chunks use sourceUri for the containing page; imageUri is the raw asset.
+        const source=publicSource({url:value?.sourceUri||value?.source_uri||value?.uri,title:value?.title||value?.domain});
         if(source&&!sources.some(item=>item.url===source.url)){sources.push(source);await sendCitation(source,false);}
       }
       const queries=[...(metadata.webSearchQueries||[]),...(metadata.imageSearchQueries||[])].filter(value=>typeof value==="string");
-      if(sources.length||queries.length)await sendActivity({kind:"search_results",label:"Google 搜索",query:queries.join(" · ").slice(0,512),sources});
+      const searchModes={web:!!metadata.webSearchQueries?.length||!!metadata.groundingChunks?.some(chunk=>chunk.web),image:!!metadata.imageSearchQueries?.length||!!metadata.groundingChunks?.some(chunk=>chunk.image)};
+      const label=searchModes.image?(searchModes.web?"Google 网页与图片搜索":"Google 图片搜索"):"Google 网页搜索";
+      if(sources.length||queries.length)await sendActivity({kind:"search_results",label,searchModes,query:queries.join(" · ").slice(0,512),sources});
       await writer.write(encoder.encode("data: "+JSON.stringify({grounding:{html:typeof metadata.searchEntryPoint?.renderedContent==="string"?metadata.searchEntryPoint.renderedContent.slice(0,32768):""}})+"\n\n"));
     }
     __name(sendImage, "sendImage");
