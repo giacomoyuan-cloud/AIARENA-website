@@ -27,6 +27,14 @@ Midjourney has no generally available public official API. It is not shown in th
 
 Authenticated text requests may set `maxOutputTokens` to an integer between 32 and the configured model ceiling. Omitting it retains the existing model default; it cannot increase that ceiling.
 
+### Thinking effort and progress
+
+Authenticated requests may set `effort`. Claude Opus 5.5 and Sonnet 5.5 accept `low`, `medium`, `high`, `xhigh`, and `max`, forwarded as `output_config.effort`. Grok 4.7 accepts `low`, `medium`, `high`, and `xhigh`, forwarded as `reasoning.effort`. Unsupported values are rejected before an upstream request. Omission preserves the provider default, including for cached clients. The browser remembers each model's selection separately and starts at the provider defaults: medium for Opus 5.5, high for Sonnet 5.5 and Grok 4.7. Higher effort can use more tokens and take longer; it is not a fixed time or spending budget.
+
+Streaming `status` events reflect provider thinking, web search and answer events. The browser measures elapsed time locally and only displays thinking summaries returned by the provider, in a collapsed details section. It does not synthesize reasoning text or infer a search merely because the search option is enabled.
+
+The shared Markdown renderer keeps currency literal, preserves repeated source lines, supports inline formatting in table cells, and escapes raw HTML. Check it with `node --test arena-markdown.test.cjs` from the repository root, in addition to the Worker tests.
+
 New usage records include `official~` in their model key so earlier aggregate records are not reclassified as official traffic. Earlier records remain in place. User-entered prices remain estimates; this migration does not replace provider billing records.
 
 Run the offline routing and streaming tests with:
@@ -52,6 +60,8 @@ The native binding transport follows [Cloudflare's official Agents SDK implement
 - [OpenAI Responses streaming](https://developers.openai.com/api/docs/guides/migrate-to-responses#7-update-streaming-consumers)
 - [OpenAI image generation and editing](https://developers.openai.com/api/docs/guides/image-generation)
 - [Anthropic Messages API](https://platform.claude.com/docs/en/api/messages/create)
+- [Anthropic effort](https://platform.claude.com/docs/en/build-with-claude/effort)
+- [Grok reasoning effort](https://docs.x.ai/developers/model-capabilities/text/reasoning)
 - [xAI Responses](https://docs.x.ai/developers/rest-api-reference/inference/chat)
 - [xAI image request settings](https://docs.x.ai/developers/model-capabilities/images/prompting-guide)
 - [Gemini image generation](https://ai.google.dev/gemini-api/docs/image-generation)

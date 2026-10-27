@@ -28,6 +28,77 @@ function mockFetch(t, handler) {
   return calls;
 }
 
+for (const model of ['claude-opus-5-5','claude-sonnet-5-5','grok-4.7']) test(model+' forwards every supported effort to its official API', async t => {
+  const {env} = setup();
+  const levels = model === 'grok-4.7' ? ['low','medium','high','xhigh'] : ['low','medium','high','xhigh','max'];
+  let expected;
+  const calls = mockFetch(t, (_url,options) => {
+    const body = JSON.parse(options.body);
+    if(model.startsWith('claude')) {
+      assert.deepEqual(body.output_config,{effort:expected});
+      assert.equal(body.thinking,undefined,'retain the model default adaptive thinking');
+      assert.equal(body.reasoning,undefined);
+      return stream([{type:'content_block_delta',delta:{type:'text_delta',text:'OK'}}]);
+    }
+    assert.deepEqual(body.reasoning,{effort:expected});
+    assert.equal(body.output_config,undefined);
+    assert.equal(body.store,false);
+    return responses();
+  });
+  for (expected of levels) {
+    const response = await worker.fetch(request(model,{effort:expected,maxOutputTokens:64}),env);
+    assert.equal(response.status,200);
+    assert.ok(events(await response.text()).some(event=>event.t));
+  }
+  assert.equal(calls.length,levels.length);
+});
+
+test('unsupported effort values fail before a paid upstream request',async t=>{
+  const {env}=setup();const calls=mockFetch(t,()=>{throw new Error('unexpected request');});
+  for(const [model,effort] of [['grok-4.7','max'],['claude-opus-5-5','ultra'],['claude-sonnet-5-5','disabled'],['claude-sonnet-5-5',null],['claude-sonnet-5-5',{}],['gpt-6-astra','high'],['grok-imagine-image-2.0','high']]) {
+    assert.equal((await worker.fetch(request(model,{effort}),env)).status,400);
+  }
+  assert.equal(calls.length,0);
+});
+
+test('omitted effort preserves default provider behavior for cached clients',async t=>{
+  const {env}=setup();
+  mockFetch(t,(_url,options)=>{
+    const body=JSON.parse(options.body);
+    assert.equal(body.output_config,undefined);assert.equal(body.reasoning,undefined);
+    return responses();
+  });
+  await (await worker.fetch(request('grok-4.6'),env)).text();
+});
+
+test('Anthropic progress follows real thinking and search blocks, with no invented summary',async t=>{
+  const {env}=setup();
+  mockFetch(t,()=>stream([
+    {type:'content_block_start',content_block:{type:'thinking'}},
+    {type:'content_block_delta',delta:{type:'thinking_delta',thinking:'公开摘要'}},
+    {type:'content_block_start',content_block:{type:'server_tool_use',name:'web_search'}},
+    {type:'content_block_start',content_block:{type:'web_search_tool_result'}},
+    {type:'content_block_delta',delta:{type:'text_delta',text:'结果'}}
+  ]));
+  const output=events(await (await worker.fetch(request('claude-sonnet-5-5'),env)).text());
+  assert.deepEqual(output.filter(event=>event.status).map(event=>event.status),['thinking','searching','thinking','responding']);
+  assert.deepEqual(output.filter(event=>event.r).map(event=>event.r),['公开摘要']);
+});
+
+test('Grok progress follows Responses reasoning and search events',async t=>{
+  const {env}=setup();
+  mockFetch(t,()=>stream([
+    {type:'response.output_item.added',item:{type:'reasoning'}},
+    {type:'response.reasoning_summary_text.delta',delta:'摘要'},
+    {type:'response.web_search_call.in_progress'},
+    {type:'response.web_search_call.searching'},
+    {type:'response.web_search_call.completed'},
+    {type:'response.output_text.delta',delta:'结果'}
+  ]));
+  const output=events(await (await worker.fetch(request('grok-4.7'),env)).text());
+  assert.deepEqual(output.filter(event=>event.status).map(event=>event.status),['thinking','searching','thinking','responding']);
+});
+
 for(const [model,host,binding] of [
 ['grok-4.7','api.x.ai','GROK_API_KEY'],['gpt-6-astra','api.openai.com','OPENAI_API_KEY'],['gpt-5.6-sol','api.openai.com','OPENAI_API_KEY']
 ]) test(model+' uses the matching official Responses API and key',async t=>{

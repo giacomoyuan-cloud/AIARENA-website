@@ -72,10 +72,6 @@
 
   @keyframes aa-pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
   @keyframes aa-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-  @keyframes aa-claude-think { 0%, 100% { transform: scale(0.7); } 50% { transform: scale(1.15); } }
-  @keyframes aa-claude-stream { 0% { transform: rotate(0deg) scale(0.75); } 50% { transform: rotate(180deg) scale(1.15); } 100% { transform: rotate(360deg) scale(0.75); } }
-  @keyframes aa-dot-pulse { 0%, 100% { transform: scale(0.5); opacity: 0.3; } 50% { transform: scale(1); opacity: 1; } }
-  @keyframes aa-grok-dot { 0%, 75%, 100% { opacity: 0.15; } 12.5% { opacity: 1; } }
   @keyframes aa-slideIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
   @keyframes aa-slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
 
@@ -1176,6 +1172,7 @@
         <textarea class="aa-topic" id="aaTopic" aria-label="消息内容" rows="2" style="caret-color: auto;" placeholder="输入内容..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
         <div class="arena-composer-model" id="aaChatModelWrap">
           <button class="arena-model-trigger" id="aaChatModelBtn" aria-haspopup="dialog" aria-expanded="false" aria-controls="aaChatModelPop"><span id="aaChatModelLabel">Grok 4.7</span><svg viewBox="0 0 24 24"><path d="m7 10 5 5 5-5"/></svg></button>
+          <label class="arena-effort-control" id="aaEffortWrap"><span class="arena-sr-only">思考强度</span><select id="aaEffortSelect" aria-label="思考强度" title="思考强度：越高通常耗时越长、使用的 token 越多"></select></label>
         </div>
         <button class="aa-send" id="aaSendBtn" aria-label="发送消息" disabled>↑</button>
         <div class="aa-image-dock" id="aaImageDock">
@@ -1202,6 +1199,7 @@
 </div>
 </div>
 
+<script src="/arena-markdown.js"></script>
 <script>
 (function(){
   (function(){
@@ -1229,6 +1227,15 @@
 
   // Submodel → brand mapping and display names
   var AVAILABLE_CHAT_MODELS = ['claude-opus-5-5','claude-sonnet-5-5','grok-4.7'];
+  var EFFORT_LEVELS = {
+    'claude-opus-5-5': ['low','medium','high','xhigh','max'],
+    'claude-sonnet-5-5': ['low','medium','high','xhigh','max'],
+    'grok-4.7': ['low','medium','high','xhigh']
+  };
+  var EFFORT_LABELS = {low:'低 Low',medium:'中 Medium',high:'高 High',xhigh:'超高 XHigh',max:'最大 Max'};
+  var effortSelection = {'claude-opus-5-5':'medium','claude-sonnet-5-5':'high','grok-4.7':'high'};
+  function effortFor(model){ return EFFORT_LEVELS[model] ? effortSelection[model] : undefined; }
+
   var SUBS = {
     'grok-4.6': {brand:'xai', name:'Grok 4.6'},
     'claude-opus-5-5': {brand:'anthropic', name:'Claude Opus 5.5'},
@@ -1618,7 +1625,7 @@ var TEAM_COLORS = {
 
   function serializeMsgs(){
     return msgs.map(function(m){
-      var obj = {uid:m.uid, brand:m.brand, name:m.name, text:m.text, color:m.color, isUser:m.isUser, isError:m.isError, round:m.round, _team:m._team, _liked:m._liked, _comment:m._comment, topicText:m.topicText, pastedTexts:m.pastedTexts, reasoning:m.reasoning, submodel:m.submodel, completedAt:m.completedAt, moderationHelp:m.moderationHelp, suggestedPrompt:m.suggestedPrompt, moderationTask:m.moderationTask};
+      var obj = {uid:m.uid, brand:m.brand, name:m.name, text:m.text, color:m.color, isUser:m.isUser, isError:m.isError, round:m.round, _team:m._team, _liked:m._liked, _comment:m._comment, topicText:m.topicText, pastedTexts:m.pastedTexts, reasoning:m.reasoning, effort:m.effort, submodel:m.submodel, completedAt:m.completedAt, moderationHelp:m.moderationHelp, suggestedPrompt:m.suggestedPrompt, moderationTask:m.moderationTask};
       if(m.imgData){ obj.imgData = m.imgData; obj.imgMime = m.imgMime; }
       if(m.imgItems && m.imgItems.length){ obj.imgItems = m.imgItems; }
       return obj;
@@ -2152,6 +2159,7 @@ var TEAM_COLORS = {
     var order = Array.from(bar.querySelectorAll('.aa-brand-card')).map(function(c){ return c.dataset.brand; });
     localStorage.setItem('aa-brand-order', JSON.stringify(order));
     localStorage.setItem('aa-brand-selection', JSON.stringify(brandSelection));
+    localStorage.setItem('aa-effort-selection', JSON.stringify(effortSelection));
     localStorage.setItem('aa-active-brands', JSON.stringify(activeBrands));
     localStorage.setItem('aa-mode-debate', debate ? '1' : '0');
     localStorage.setItem('aa-debate-mode', debateMode);
@@ -2172,6 +2180,10 @@ var TEAM_COLORS = {
         anthropic: 'claude-sonnet-5-5',
         mj: 'mj_imagine'
       };
+      var savedEffort = JSON.parse(localStorage.getItem('aa-effort-selection') || '{}');
+      Object.keys(EFFORT_LEVELS).forEach(function(model){
+        if(EFFORT_LEVELS[model].indexOf(savedEffort[model]) !== -1) effortSelection[model] = savedEffort[model];
+      });
       var savedSelection = JSON.parse(localStorage.getItem('aa-brand-selection') || '{}');
       if(['claude-opus-5-5','claude-sonnet-5-5'].indexOf(savedSelection.anthropic) !== -1) brandSelection.anthropic = savedSelection.anthropic;
       if(!imageMode){ activeBrands['mj'] = false; }
@@ -2368,23 +2380,14 @@ var TEAM_COLORS = {
     }
   });
 
-  // === Markdown renderer ===
+  // Markdown is shared with the regression tests; code actions stay in this app.
   function renderMd(t){
-    var blockId = 0;
-    var blockStore = {};
-    function protect(html){
-      var id = '%%BLOCK_'+(blockId++)+'%%';
-      blockStore[id] = html;
-      return '\n'+id+'\n';
-    }
-
-    // 1. Extract fenced code blocks
-     t = t.replace(/```([^\n\r`]*?)[\r\n]+([\s\S]*?)```/g, function(match, lang, code){
+    return ArenaMarkdown.render(t, {code: function(lang, raw){
       lang = lang.trim().split(/\s/)[0].replace(/[^a-zA-Z0-9+#-]/g,'');
-      var raw = code.replace(/\n$/, '');
+
       if(lang === 'pptx'){
         var b64 = toB64Utf8(raw.trim());
-        return protect('<div style="margin:10px 0;padding:14px 16px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);border-radius:12px;display:flex;align-items:center;gap:12px;">'
+        return ('<div style="margin:10px 0;padding:14px 16px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);border-radius:12px;display:flex;align-items:center;gap:12px;">'
           +'<div style="flex:1;min-width:0;">'
           +'<div style="font-size:13px;font-weight:600;color:#f59e0b;margin-bottom:3px;">PPT 已就绪</div>'
           +'<div style="font-size:11px;color:#6b6b88;">点击按钮生成并下载 .pptx 文件</div>'
@@ -2407,139 +2410,8 @@ var TEAM_COLORS = {
       } else {
         html = '<div class="aa-code-wrap" data-code="'+toB64Utf8(raw)+'"><button class="aa-code-copy" onclick="window._aaCopyCode(this)">复制</button><pre><code class="'+(lang?'language-'+lang:'')+'">'+esc(raw)+'</code></pre></div>';
       }
-      return protect(html);
-    });
-
-    // 2. Tables — line-by-line scan (more reliable than multiline regex)
-    var tLines = t.split('\n');
-    var tOut = [];
-    var ti = 0;
-    while(ti < tLines.length){
-      var tl = tLines[ti];
-      // Detect table header: line contains | and next line is separator |---|
-      if(/\|/.test(tl) && ti+1 < tLines.length && /^\|?[\s\-:]+(\|[\s\-:]+)+\|?$/.test(tLines[ti+1].trim())){
-        var tableRows = [];
-        var headerRow = tl;
-        ti += 2; // skip header + separator
-        while(ti < tLines.length && /\|/.test(tLines[ti])){
-          tableRows.push(tLines[ti]);
-          ti++;
-        }
-        // Build table HTML
-        var hCells = headerRow.trim().split('|');
-        if(hCells[0] !== undefined && hCells[0].trim() === '') hCells.shift();
-        if(hCells[hCells.length-1] !== undefined && hCells[hCells.length-1].trim() === '') hCells.pop();
-        var thtml = '<div style="overflow-x:auto;margin:10px 0;"><table class="aa-md-table" style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr>';
-        hCells.forEach(function(h){
-          thtml += '<th class="aa-md-th" style="padding:7px 12px;text-align:left;font-weight:600;white-space:nowrap;">'+esc(h.trim())+'</th>';
-        });
-        thtml += '</tr></thead><tbody>';
-        tableRows.forEach(function(row, ri){
-          var cells = row.trim().split('|');
-          if(cells[0] !== undefined && cells[0].trim() === '') cells.shift();
-          if(cells[cells.length-1] !== undefined && cells[cells.length-1].trim() === '') cells.pop();
-          thtml += '<tr class="aa-md-tr'+(ri%2===0?' aa-md-tr-even':' aa-md-tr-odd')+'">';
-          cells.forEach(function(c){
-            thtml += '<td class="aa-md-td" style="padding:6px 12px;">'+esc(c.trim())+'</td>';
-          });
-          thtml += '</tr>';
-        });
-        thtml += '</tbody></table></div>';
-        tOut.push(protect(thtml));
-      } else {
-        tOut.push(tl);
-        ti++;
-      }
-    }
-    t = tOut.join('\n');
-
-    // 3. LaTeX block: $$...$$
-    t = t.replace(/\$\$([\s\S]+?)\$\$/g, function(match, formula){
-      return protect('<div style="overflow-x:auto;margin:8px 0;padding:10px 14px;background:rgba(167,139,250,0.08);border:1px solid rgba(167,139,250,0.2);border-radius:8px;font-family:\'Courier New\',monospace;font-size:13px;color:#c4b5fd;white-space:pre;">'+esc(formula.trim())+'</div>');
-    });
-
-    // 4. LaTeX inline: $...$
-    t = t.replace(/\$([^\$\n]+?)\$/g, function(match, formula){
-      return protect('<code style="background:rgba(167,139,250,0.12);padding:1px 5px;border-radius:4px;font-size:12px;font-family:\'Courier New\',monospace;color:#c4b5fd;">'+esc(formula)+'</code>');
-    });
-
-    var lines = t.split('\n');
-    var html = '';
-    var inList = false;
-
-    for(var i = 0; i < lines.length; i++){
-      var line = lines[i];
-
-      // Protected block placeholder
-      var blockMatch = line.trim().match(/^%%BLOCK_(\d+)%%$/);
-      if(blockMatch){
-        if(inList){ html += '</ul>'; inList = false; }
-        html += blockStore[line.trim()] || '';
-        continue;
-      }
-
-      // Horizontal rule: --- or *** or ___
-      if(/^(\-{3,}|\*{3,}|_{3,})$/.test(line.trim())){
-        if(inList){ html += '</ul>'; inList = false; }
-        html += '<hr style="border:none;border-top:1px solid rgba(255,255,255,0.12);margin:14px 0;">';
-        continue;
-      }
-
-      // Headings
-      var h1 = line.match(/^#\s+(.+)/);
-      var h2 = line.match(/^##\s+(.+)/);
-      var h3 = line.match(/^###\s+(.+)/);
-      var h4 = line.match(/^####\s+(.+)/);
-      if(h4){
-        if(inList){ html += '</ul>'; inList = false; }
-        html += '<p style="margin:10px 0 4px;font-size:13px;font-weight:600;color:#e8e8ee;letter-spacing:0.01em;">'+inlineFormat(esc(h4[1]))+'</p>';
-        continue;
-      }
-      if(h3){
-        if(inList){ html += '</ul>'; inList = false; }
-        html += '<p style="margin:12px 0 4px;font-size:14px;font-weight:600;color:#e8e8ee;letter-spacing:-0.01em;">'+inlineFormat(esc(h3[1]))+'</p>';
-        continue;
-      }
-      if(h2){
-        if(inList){ html += '</ul>'; inList = false; }
-        html += '<p style="margin:14px 0 6px;font-size:15px;font-weight:700;color:#e8e8ee;letter-spacing:-0.01em;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:4px;">'+inlineFormat(esc(h2[1]))+'</p>';
-        continue;
-      }
-      if(h1){
-        if(inList){ html += '</ul>'; inList = false; }
-        html += '<p style="margin:16px 0 8px;font-size:17px;font-weight:700;color:#e8e8ee;letter-spacing:-0.02em;">'+inlineFormat(esc(h1[1]))+'</p>';
-        continue;
-      }
-
-      var escaped = esc(line);
-      escaped = inlineFormat(escaped);
-
-      var isBullet = /^[-*]\s+/.test(line);
-      var isNum = /^\d+\.\s+/.test(line);
-      if(isBullet || isNum){
-        if(!inList){ html += '<ul style="padding-left:18px;margin:6px 0;list-style:none;">'; inList = true; }
-        var content = escaped.replace(/^[-\*]\s+/, '').replace(/^\d+\.\s+/, '');
-        html += '<li style="margin:4px 0;display:flex;gap:6px;"><span style="opacity:0.4;flex-shrink:0;">'+(isNum?(line.match(/^\d+/)[0]+'.'):'•')+'</span><span>'+content+'</span></li>';
-      } else {
-        if(inList){ html += '</ul>'; inList = false; }
-        if(escaped.trim() === ''){ html += '<br>'; }
-        else { html += '<p style="margin:6px 0;font-size:16px;">'+escaped+'</p>'; }
-      }
-    }
-    if(inList) html += '</ul>';
-    return html;
-  }
-
-  // Inline formatting: bold, italic, bold-italic, inline code, links
-  function inlineFormat(s){
-    s = s.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
-    s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-    s = s.replace(/\*([^\*\n]+?)\*/g, '<em style="color:#c8c8dd;font-style:italic;">$1</em>');
-    s = s.replace(/`([^`]+)`/g, '<code style="background:rgba(255,255,255,0.08);padding:1px 5px;border-radius:4px;font-size:12px;font-family:\'Courier New\',monospace;color:#d4a5ff;">$1</code>');
-    var _linkColor = _lightMode ? '#1a3fa8' : '#93c5fd';
-    s = s.replace(/\[+([^\]]+)\]+\((https?:\/\/[^\)]+)\)/g, function(match, text, url){ try{ var domain = new URL(url).hostname.replace(/^www\./,''); return '<a href="'+url+'" target="_blank" rel="noopener" style="color:'+_linkColor+';font-size:11px;text-decoration:none;opacity:0.85;">('+domain+')</a>'; }catch(e){ return ''; } });
-    s = s.replace(/(?<![="'(])https?:\/\/[^\s\)\]<"]+/g, function(url){ try{ var domain = new URL(url).hostname.replace(/^www\./,''); return '<a href="'+url+'" target="_blank" rel="noopener" style="color:'+_linkColor+';font-size:11px;text-decoration:none;opacity:0.85;">('+domain+')</a>'; }catch(e){ return ''; } });
-    return s;
+      return (html);
+    }});
   }
 
   // === Edit mode (unchanged logic) ===
@@ -3067,6 +2939,7 @@ var TEAM_COLORS = {
       imageMime: imgMime || null,
       images: (typeof extraOpts !== 'undefined' && extraOpts && extraOpts._imgs) ? extraOpts._imgs : null
     };
+    if(effortFor(submodel)) payload.effort = effortFor(submodel);
     if(extraOpts) Object.assign(payload, extraOpts);
 
     
@@ -3108,8 +2981,12 @@ var TEAM_COLORS = {
           try{
             var obj = JSON.parse(raw);
             if(obj.modelName && onModelName) onModelName(obj.modelName);
+            if(obj.status) updateThinkStatus(submodel, obj.status);
             if(obj.t) onChunk(obj.t);
-            if(obj.r && onReasoning) onReasoning(obj.r);
+            if(obj.r){
+              appendThinkSummary(submodel, obj.r);
+              if(onReasoning) onReasoning(obj.r);
+            }
             if(obj.img && onChunk) onChunk('\x00IMG\x00'+obj.img+'\x00MIME\x00'+(obj.mime||'image/png'));
             if(obj.mjButtons) onChunk('\x00MJB\x00'+JSON.stringify(obj.mjButtons));
             if(obj.usage && onChunk) onChunk('%%USAGE%%'+JSON.stringify(obj.usage));
@@ -3134,14 +3011,15 @@ var TEAM_COLORS = {
         imageMsg._autoReveal = true;
       }
     }
-    if(reasoning !== undefined){
+    if(reasoning){
       var rb = el.querySelector('.aa-reasoning-content');
-      if(rb){ rb.textContent = reasoning; var tog = el.querySelector('.aa-reasoning-toggle span:last-child'); if(tog) tog.textContent = '思考中… ('+Math.ceil(reasoning.length/2)+' 字)'; }
+      if(!rb){
+        var details = document.createElement('details'); details.className = 'aa-reasoning-block';
+        details.innerHTML = '<summary class="aa-reasoning-toggle">思考摘要</summary><div class="aa-reasoning-content"></div>';
+        el.insertBefore(details, el.querySelector('.aa-msg-body')); rb = details.querySelector('.aa-reasoning-content');
+      }
+      rb.textContent = reasoning;
     }
-    var claudeSvg = el.querySelector('.aa-claude-anim');
-    if(claudeSvg) claudeSvg.style.animation = 'aa-claude-stream 1.8s ease-in-out infinite';
-    var claudeSvg = el.querySelector('.aa-claude-anim');
-    if(claudeSvg) claudeSvg.style.animation = 'aa-claude-stream 1.8s ease-in-out infinite';
     var body = el.querySelector('.aa-msg-body');
     if(body){
       var _liveText = (text || '').replace(/\[MJ_IMAGE\]([\s\S]*?)\[\/MJ_IMAGE\]/g, '').replace(/\[MJ_BUTTONS\]([\s\S]*?)\[\/MJ_BUTTONS\]/g, '').replace(/\[KLING_VIDEO\]([\s\S]*?)\[\/KLING_VIDEO\]/g, '').trim();
@@ -3176,10 +3054,11 @@ var TEAM_COLORS = {
       var rb = el.querySelector('.aa-reasoning-content');
       if(rb) rb.textContent = reasoning;
       var tog = el.querySelector('.aa-reasoning-toggle span:last-child');
-      if(tog) tog.textContent = '思考过程 ('+Math.ceil(reasoning.length/2)+' 字)';
+      if(tog) tog.textContent = '思考摘要';
     }
     var body = el.querySelector('.aa-msg-body');
     if(body){
+      if(body._renderTimer){ clearTimeout(body._renderTimer); body._renderTimer = null; }
       if(isError){ body.classList.add('error'); body.innerHTML = esc(text); }
       else body.innerHTML = renderMd(text);
     }
@@ -4585,7 +4464,7 @@ function initPersonaDragDrop(){
       else if(msg.isError) bodyClass += ' error';
       var bodyStyle = (!msg.isUser && (!msg.isError || msg.moderationHelp)) ? 'border-color:'+brandInfo.border : '';
       if(!msg.isUser && msg.reasoning && msg.brand !== 'google'){
-        h += '<div class="aa-reasoning-block"><div class="aa-reasoning-toggle" onclick="toggleReasoning(\''+msg.uid+'\')"><span class="aa-reasoning-arrow open">▶</span><span>思考过程 ('+Math.ceil(msg.reasoning.length/2)+' 字)</span></div><div class="aa-reasoning-content open">'+esc(msg.reasoning)+'</div></div>';
+        h += '<details class="aa-reasoning-block"><summary class="aa-reasoning-toggle">思考摘要</summary><div class="aa-reasoning-content">'+esc(msg.reasoning)+'</div></details>';
       }
       if(msg.isUser){
         var displayTopic = msg.topicText ? msg.topicText : (msg.pastedTexts && msg.pastedTexts.length ? '' : msg.text.replace(' [img]','').trim());
@@ -4661,13 +4540,7 @@ function initPersonaDragDrop(){
 
         h += '<div class="aa-msg-body '+bodyClass+'" style="'+bodyStyle+'">';
         if(cleanText){
-          var _lines = cleanText.split('\n');
-          var _seen = {}, _deduped = [];
-          for(var _li=0; _li<_lines.length; _li++){
-            var _l = _lines[_li].trim();
-            if(_l !== '' && !_seen[_l]){ _deduped.push(_lines[_li]); _seen[_l] = true; }
-          }
-          h += renderMd(_deduped.join('\n'));
+          h += renderMd(cleanText);
         }
           if(msg.moderationHelp && msg.suggestedPrompt){
             h += '<button type="button" class="aa-moderation-use-btn" onclick="window._aaUseModerationSuggestion(\''+msg.uid+'\')">填入建议提示词</button>';
@@ -4725,46 +4598,51 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
     });
   }
 
-  // === Thinking indicators ===
+  // Progress is driven by upstream events; elapsed time is measured, not simulated.
+  var thinkingClock = null;
+  function tickThinkingClock(){
+    var rows = document.querySelectorAll('#aaThinkingArea [data-started-at]');
+    rows.forEach(function(row){
+      var seconds = Math.max(0, Math.floor((Date.now() - Number(row.dataset.startedAt)) / 1000));
+      row.querySelector('.arena-progress-time').textContent = seconds ? seconds + '秒' : '';
+    });
+    if(!rows.length && thinkingClock){ clearInterval(thinkingClock); thinkingClock = null; }
+  }
   function showThink(submodel){
-    var area = $('aaThinkingArea');
-    var info = SUBS[submodel]; if(!info) return;
-    var brandInfo = BRANDS[info.brand];
-    if(area.querySelector('[data-think="'+submodel+'"]')) return;
-    var d = document.createElement('div'); d.className = 'aa-msg'; d.setAttribute('data-think', submodel);
-    var animHTML = '';
-    if(info.brand === 'anthropic'){
-      var claudePath = 'M19.6 66.5l19.7-11 .3-1-.3-.5h-1l-3.3-.2-11.2-.3L14 53l-9.5-.5-2.4-.5L0 49l.2-1.5 2-1.3 2.9.2 6.3.5 9.5.6 6.9.4L38 49.1h1.6l.2-.7-.5-.4-.4-.4L29 41l-10.6-7-5.6-4.1-3-2-1.5-2-.6-4.2 2.7-3 3.7.3.9.2 3.7 2.9 8 6.1L37 36l1.5 1.2.6-.4.1-.3-.7-1.1L33 25l-6-10.4-2.7-4.3-.7-2.6c-.3-1-.4-2-.4-3l3-4.2L28 0l4.2.6L33.8 2l2.6 6 4.1 9.3L47 29.9l2 3.8 1 3.4.3 1h.7v-.5l.5-7.2 1-8.7 1-11.2.3-3.2 1.6-3.8 3-2L61 2.6l2 2.9-.3 1.8-1.1 7.7L59 27.1l-1.5 8.2h.9l1-1.1 4.1-5.4 6.9-8.6 3-3.5L77 13l2.3-1.8h4.3l3.1 4.7-1.4 4.9-4.4 5.6-3.7 4.7-5.3 7.1-3.2 5.7.3.4h.7l12-2.6 6.4-1.1 7.6-1.3 3.5 1.6.4 1.6-1.4 3.4-8.2 2-9.6 2-14.3 3.3-.2.1.2.3 6.4.6 2.8.2h6.8l12.6 1 3.3 2 1.9 2.7-.3 2-5.1 2.6-6.8-1.6-16-3.8-5.4-1.3h-.8v.4l4.6 4.5 8.3 7.5L89 80.1l.5 2.4-1.3 2-1.4-.2-9.2-7-3.6-3-8-6.8h-.5v.7l1.8 2.7 9.8 14.7.5 4.5-.7 1.4-2.6 1-2.7-.6-5.8-8-6-9-4.7-8.2-.5.4-2.9 30.2-1.3 1.5-3 1.2-2.5-2-1.4-3 1.4-6.2 1.6-8 1.3-6.4 1.2-7.9.7-2.6v-.2H49L43 72l-9 12.3-7.2 7.6-1.7.7-3-1.5.3-2.8L24 86l10-12.8 6-7.9 4-4.6-.1-.5h-.3L17.2 77.4l-4.7.6-2-2 .2-3 1-1 8-5.5Z';
-      animHTML = '<svg class="aa-claude-anim" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 96" width="30" height="30" style="display:block;animation:aa-claude-think 1.8s ease-in-out infinite;transform-origin:50% 50%;"><path fill="#CC785C" d="'+claudePath+'"/></svg>';
-    } else if(info.brand === 'google'){
-      var gid = 'aa-gg-'+submodel.replace(/[^a-z0-9]/g,'');
-      var gringid = 'aa-gr-'+submodel.replace(/[^a-z0-9]/g,'');
-      animHTML = '<div style="position:relative;width:36px;height:36px;display:flex;align-items:center;justify-content:center;">'
-        +'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36" width="36" height="36" style="position:absolute;top:0;left:0;animation:aa-spin 1.4s linear infinite;transform-origin:center;">'
-        +'<defs><linearGradient id="'+gringid+'" gradientUnits="userSpaceOnUse" x1="36" y1="18" x2="0" y2="18"><stop offset="0%" stop-color="#F5A623"/><stop offset="50%" stop-color="#E8572A"/><stop offset="100%" stop-color="#E8572A" stop-opacity="0"/></linearGradient></defs>'
-        +'<circle cx="18" cy="18" r="15" fill="none" stroke="url(#'+gringid+')" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="75 20"/>'
-        +'</svg>'
-        +'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 177.5 177.5" width="18" height="18" style="position:relative;z-index:1;"><defs><linearGradient id="'+gid+'" x1="0%" y1="100%" x2="100%" y2="0%"><stop offset="0%" stop-color="#346BF1"/><stop offset="50%" stop-color="#3186FF"/><stop offset="100%" stop-color="#4FA0FF"/></linearGradient></defs><path fill="url(#'+gid+')" d="M84.85,3.8C83.47,9.28 81.67,14.61 79.43,19.82C73.59,33.38 65.59,45.25 55.42,55.42C45.25,65.58 33.38,73.59 19.82,79.43C14.62,81.67 9.28,83.47 3.8,84.85C2.01,85.3 0.75,86.9 0.75,88.75C0.75,90.6 2.01,92.2 3.8,92.65C9.28,94.03 14.61,95.83 19.82,98.07C33.38,103.91 45.24,111.91 55.42,122.08C65.59,132.25 73.6,144.12 79.43,157.68C81.67,162.88 83.47,168.22 84.85,173.7C85.3,175.49 86.91,176.75 88.75,176.75C90.6,176.75 92.2,175.49 92.65,173.7C94.03,168.22 95.83,162.89 98.07,157.68C103.91,144.12 111.91,132.26 122.08,122.08C132.25,111.91 144.12,103.9 157.68,98.07C162.88,95.83 168.22,94.03 173.7,92.65C175.49,92.2 176.75,90.59 176.75,88.75C176.75,86.9 175.49,85.3 173.7,84.85C168.22,83.47 162.89,81.67 157.68,79.43C144.12,73.59 132.26,65.59 122.08,55.42C111.91,45.25 103.9,33.38 98.07,19.82C95.83,14.62 94.03,9.28 92.65,3.8C92.2,2.01 90.6,0.75 88.75,0.75C86.9,0.75 85.3,2.01 84.85,3.8Z"/></svg>'
-        +'</div>';
-    } else if(info.brand === 'openai'){
-      animHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="28" height="28" style="display:block;"><circle cx="12" cy="12" r="7" fill="#000" style="animation:aa-dot-pulse 1.2s ease-in-out infinite;transform-origin:center;"/></svg>';
-    } else if(info.brand === 'xai'){
-      var outerDots = [{x:5.6,y:5.6},{x:12,y:5.6},{x:18.4,y:5.6},{x:18.4,y:12},{x:18.4,y:18.4},{x:12,y:18.4},{x:5.6,y:18.4},{x:5.6,y:12}];
-      var gs = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="28" height="28" style="display:block;">';
-      outerDots.forEach(function(dot,i){ gs += '<circle cx="'+dot.x+'" cy="'+dot.y+'" r="1.6" fill="#000" style="animation:aa-grok-dot 1.6s ease-in-out infinite;animation-delay:'+( -(i*0.2).toFixed(1) )+'s;"/>'; });
-      gs += '<circle cx="12" cy="12" r="1.6" fill="#000" style="opacity:0.15;"/></svg>';
-      animHTML = gs;
-    }
-    d.innerHTML = '<div class="aa-msg-head"><div class="aa-msg-dot aa-thinking" style="background:'+brandInfo.color+'"></div><span class="aa-msg-name" style="color:'+brandInfo.color+'">'+info.name+'</span></div>'
-      +'<div class="aa-msg-body ai-bubble" style="border-color:'+brandInfo.border+';padding:12px 16px;">'+animHTML+'</div>';
-    area.appendChild(d);
+    var area = $('aaThinkingArea'), info = SUBS[submodel];
+    if(!area || !info) return;
+    hideThink(submodel);
+    var row = document.createElement('div');
+    row.className = 'aa-msg aa-pending-message'; row.dataset.think = submodel; row.dataset.startedAt = Date.now();
+    row.innerHTML = '<div class="aa-msg-head"><span class="aa-msg-name">'+esc(info.name)+'</span></div>'
+      +'<div class="arena-progress"><span class="arena-progress-dots" aria-hidden="true"><i></i><i></i><i></i></span>'
+      +'<span class="arena-progress-label" role="status">'+(imageMode?'正在生成图像':'正在准备回答')+'</span><span class="arena-progress-time" aria-hidden="true"></span></div>';
+    area.appendChild(row);
+    if(!thinkingClock) thinkingClock = setInterval(tickThinkingClock, 1000);
     if(!userScrolledUp) $('aaMessages').scrollTop = $('aaMessages').scrollHeight;
   }
-      
+  function updateThinkStatus(submodel, status){
+    var row = document.querySelector('#aaThinkingArea [data-think="'+submodel+'"]');
+    var labels = {thinking:'正在思考',searching:'正在搜索网页',responding:'正在生成回答'};
+    if(row && labels[status]) row.querySelector('.arena-progress-label').textContent = labels[status];
+  }
+  function appendThinkSummary(submodel, text){
+    var row = document.querySelector('#aaThinkingArea [data-think="'+submodel+'"]');
+    if(!row) return;
+    updateThinkStatus(submodel, 'thinking');
+    var content = row.querySelector('.aa-reasoning-content');
+    if(!content){
+      var details = document.createElement('details'); details.className = 'aa-reasoning-block';
+      details.innerHTML = '<summary class="aa-reasoning-toggle">思考摘要</summary><div class="aa-reasoning-content"></div>';
+      row.appendChild(details); content = details.querySelector('.aa-reasoning-content');
+    }
+    content.textContent += text;
+  }
   function hideThink(submodel){
-    var area = $('aaThinkingArea');
-    if(submodel){ var el = area.querySelector('[data-think="'+submodel+'"]'); if(el) el.remove(); }
+    var area = $('aaThinkingArea'); if(!area) return;
+    if(submodel){ var row = area.querySelector('[data-think="'+submodel+'"]'); if(row) row.remove(); }
     else area.innerHTML = '';
+    tickThinkingClock();
   }
 
   // === Build debate prompt ===
@@ -4948,7 +4826,7 @@ function buildPersonaPrompt(topic, history, speaker, rnd, allSpeakers){
           var prompt = buildPersonaPrompt(topic, msgs.filter(function(m){ return !m.isUser; }), speaker, rndP, speakOrderP);
           var uid = newUid();
           var displayName = speaker.role + ' · ' + info.name;
-          var msgObj = {uid:uid, submodel:sub, brand:info.brand, name:displayName, text:'', color:brandInfo.color, round:rndP};
+          var msgObj = {uid:uid, submodel:sub, effort:effortFor(sub), brand:info.brand, name:displayName, text:'', color:brandInfo.color, round:rndP};
           var firstChunk = true;
           callWorkerStream(sub, prompt, rndP===0&&idxP===0?_img:null, rndP===0&&idxP===0?_imgMime:null,
             function(chunk){
@@ -5088,7 +4966,7 @@ function build2v2Prompt(topic, history, speakerInfo, rnd){
           showThink(sub);
           var prompt = build2v2Prompt(topic, msgs.filter(function(m){ return !m.isUser; }), speaker, rnd2v2);
           var uid = newUid();
-          var msgObj = {uid:uid, submodel:sub, brand:info.brand, name:tc.label+' · '+info.name, text:'', color:tc.color, round:rnd2v2, _team:speaker.team};
+          var msgObj = {uid:uid, submodel:sub, effort:effortFor(sub), brand:info.brand, name:tc.label+' · '+info.name, text:'', color:tc.color, round:rnd2v2, _team:speaker.team};
           var firstChunk = true;
           callWorkerStream(sub, prompt, rnd2v2===0&&idx===0?_img:null, rnd2v2===0&&idx===0?_imgMime:null,
             function(chunk){
@@ -5128,7 +5006,7 @@ function build2v2Prompt(topic, history, speakerInfo, rnd){
           showThink(sub);
           var prompt = buildPrompt(topic, msgs.filter(function(m){ return !m.isUser; }), rndFree, info.name);
           var uid = newUid();
-          var msgObj = {uid:uid, submodel:sub, brand:info.brand, name:info.name, text:'', color:brandInfo.color, round:rndFree};
+          var msgObj = {uid:uid, submodel:sub, effort:effortFor(sub), brand:info.brand, name:info.name, text:'', color:brandInfo.color, round:rndFree};
           var firstChunk = true;
           callWorkerStream(sub, prompt, rndFree===0?_img:null, rndFree===0?_imgMime:null,
             function(chunk){
@@ -5166,7 +5044,7 @@ function build2v2Prompt(topic, history, speakerInfo, rnd){
         showThink(sub);
         var history = msgs.filter(function(m){ return !m.isError; }).map(function(m){ return (m.isUser?'[Human]':m.name)+': '+m.text; }).join('\n');
 var uid = newUid();
-var msgObj = {uid:uid, submodel:sub, brand:info.brand, name:info.name, text:'', color:brandInfo.color};
+var msgObj = {uid:uid, submodel:sub, effort:effortFor(sub), brand:info.brand, name:info.name, text:'', color:brandInfo.color};
 var firstChunk = true;
 var _nbStylePrefix = (sub === 'gemini-3.1-flash-image' && nbStylePreset !== 'none') ? (NB_STYLE_PROMPTS[nbStylePreset] || '') : '';
 var _nbExtraOpts = { _imgs: _imgs };
@@ -6125,6 +6003,18 @@ if(debateMode === '2v2'){
     if(imageMode || videoMode) closeArenaModelMenu(false);
     var models = getActiveSubmodels();
     $('aaChatModelLabel').textContent = debate ? (models.length + ' 个参与模型') : (SUBS[models[0]] ? SUBS[models[0]].name : '选择模型');
+    var effortModel = models[0], effortSelect = $('aaEffortSelect');
+    $('aaEffortWrap').hidden = !EFFORT_LEVELS[effortModel];
+    if(EFFORT_LEVELS[effortModel]){
+      var levels = EFFORT_LEVELS[effortModel];
+      if(effortSelect.dataset.model !== effortModel){
+        effortSelect.innerHTML = levels.map(function(level){return '<option value="'+level+'">'+EFFORT_LABELS[level]+'</option>';}).join('');
+        effortSelect.dataset.model = effortModel;
+      }
+      effortSelect.value = effortFor(effortModel);
+      effortSelect.disabled = aaRunning;
+      effortSelect.title = debate ? '设置当前首个参与模型的思考强度；各模型独立记住自己的档位' : '思考强度：越高通常耗时越长、使用的 token 越多';
+    }
     $('aaIncognitoBtn').setAttribute('aria-pressed', String(!!_incognitoMode));
     document.querySelectorAll('#aaChatModelPop [data-arena-model]').forEach(function(button){
       var id = button.dataset.arenaModel;
@@ -6142,6 +6032,11 @@ if(debateMode === '2v2'){
     $('aaChatModelPop').innerHTML = h;
     syncArenaLayout();
   }
+  $('aaEffortSelect').addEventListener('change', function(){
+    var model = this.dataset.model;
+    if(!aaRunning && EFFORT_LEVELS[model] && EFFORT_LEVELS[model].indexOf(this.value) !== -1){ effortSelection[model] = this.value; saveState(); }
+    syncArenaLayout();
+  });
   $('aaChatModelBtn').addEventListener('click', function(e){
     e.stopPropagation();
     var popover = $('aaChatModelPop');
