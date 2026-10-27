@@ -59,10 +59,12 @@ test('browser → Worker → xAI uses every exposed ratio, resolution, quality a
 test('all chat effort controls reach their provider; unsupported levels fail before fetch',async t=>{
  const b=browser(setup());b.context.imageMode=false;b.context.effortSelection={};
  vm.runInContext(source.slice(source.indexOf('  var EFFORT_LEVELS'),source.indexOf('  var SUBS')),b.context);
+ Object.assign(b.context,{aaRunning:false,saveState:()=>{},syncArenaLayout:()=>{}});
+ vm.runInContext(fn('setArenaEffort')+'\n'+fn('updateArenaEffortFromSlider'),b.context);
  let calls=0,actual;
  t.mock.method(globalThis,'fetch',async(url,options)=>{calls++;actual=JSON.parse(options.body);return new Response('data: '+JSON.stringify(url.includes('anthropic')?{type:'content_block_delta',delta:{type:'text_delta',text:'ok'}}:url.includes('googleapis')?{candidates:[{content:{parts:[{text:'ok'}]}}]}:{type:'response.output_text.delta',delta:'ok'})+'\n\n');});
  for(const [model,levels] of Object.entries(b.context.EFFORT_LEVELS))for(const level of levels){
-  b.context.effortSelection[model]=level;await b.send(model);
+  assert.equal(b.context.updateArenaEffortFromSlider({dataset:{effortModel:model},value:String(levels.indexOf(level))}),true);await b.send(model);
   assert.equal(model.startsWith('claude')?actual.output_config.effort:model.startsWith('gemini')?actual.generationConfig.thinkingConfig.thinkingLevel.toLowerCase():actual.reasoning.effort,level);
   assert.equal(actual.max_tokens||actual.max_output_tokens||actual.generationConfig.maxOutputTokens,model.startsWith('gemini')?65536:128000);
  }
