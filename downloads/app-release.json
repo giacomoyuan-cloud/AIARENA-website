@@ -1,0 +1,9 @@
+{
+  "version": "1.0.0",
+  "versionCode": 1,
+  "package": "com.pickandcase.assistant",
+  "minAndroid": "8.0",
+  "url": "/downloads/AI-Assistant-1.0.0.apk",
+  "bytes": 120263,
+  "sha256": "ff044c908d2d581499c1deae126c3380d38bb5658f58d942fd81805a4362fd97"
+}
