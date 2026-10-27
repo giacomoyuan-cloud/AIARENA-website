@@ -242,6 +242,40 @@
 #ai-arena-app.arena-shell .aa-image-choice { color: var(--arena-muted); border-color: var(--arena-border); background: var(--arena-user); }
 #ai-arena-app.arena-shell .aa-image-setting-head,
 #ai-arena-app.arena-shell .aa-image-hint { color: var(--arena-muted); }
+
+/* Image controls stay compact regardless of how many ratios a model supports. */
+#ai-arena-app.arena-shell .aa-image-settings { width: 376px; min-width: 0; padding: 0; border-radius: 16px; box-sizing: border-box; }
+#ai-arena-app.arena-shell .arena-image-heading { display: flex; align-items: center; justify-content: space-between; padding: 20px 22px 16px; border-bottom: 1px solid var(--arena-border); }
+#ai-arena-app.arena-shell .arena-image-heading h2 { margin: 0; font-size: 16px; line-height: 1.4; font-weight: 600; font-family: inherit; letter-spacing: -.02em; }
+#ai-arena-app.arena-shell .arena-image-heading p { margin: 5px 0 0; color: var(--arena-muted); font-size: 12px; }
+#ai-arena-app.arena-shell .arena-image-heading p span { opacity: .75; }
+#ai-arena-app.arena-shell .arena-image-heading button { display: grid; place-items: center; width: 32px; height: 32px; border: 0; border-radius: 50%; color: var(--arena-muted); background: var(--arena-user); font-size: 22px; cursor: pointer; }
+#ai-arena-app.arena-shell .arena-image-form { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 19px 14px; padding: 19px 22px 22px; }
+#ai-arena-app.arena-shell .arena-image-field { display: flex; flex-direction: column; gap: 9px; margin: 0; padding: 0; border: 0; min-width: 0; font-size: 12px; color: var(--arena-muted); }
+#ai-arena-app.arena-shell .arena-image-field legend { padding: 0; margin-bottom: 9px; }
+#ai-arena-app.arena-shell .arena-image-field select { box-sizing: border-box; width: 100%; height: 40px; padding: 0 10px; border: 1px solid var(--arena-border); border-radius: 9px; background: var(--arena-surface); color: var(--arena-text); font-family: inherit; font-size: 13px; cursor: pointer; color-scheme: light dark; }
+#ai-arena-app.arena-shell .arena-image-span { grid-column: 1 / -1; }
+#ai-arena-app.arena-shell .arena-image-segments { display: flex; gap: 3px; padding: 4px; border-radius: 10px; background: var(--arena-user); }
+#ai-arena-app.arena-shell .arena-image-segments label { position: relative; flex: 1; min-width: 0; cursor: pointer; }
+#ai-arena-app.arena-shell .arena-image-segments input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+#ai-arena-app.arena-shell .arena-image-segments span { display: grid; place-items: center; min-height: 33px; border-radius: 7px; font-size: 13px; color: var(--arena-muted); }
+#ai-arena-app.arena-shell .arena-image-segments input:checked + span { background: var(--arena-surface); color: var(--arena-text); box-shadow: 0 1px 4px #00000012; font-weight: 600; }
+#ai-arena-app.arena-shell .arena-image-segments input:focus-visible + span,
+#ai-arena-app.arena-shell .arena-image-field select:focus-visible,
+#ai-arena-app.arena-shell .arena-image-heading button:focus-visible { outline: 2px solid var(--arena-accent); outline-offset: 3px; }
+#ai-arena-app.arena-shell .arena-image-settings-foot { display: flex; align-items: center; justify-content: space-between; padding: 13px 22px; border-top: 1px solid var(--arena-border); color: var(--arena-muted); font-size: 11px; }
+#ai-arena-app.arena-shell .arena-image-note { margin: 0; padding: 0 22px 14px; color: var(--arena-muted); font-size: 11px; line-height: 1.6; }
+#ai-arena-app.arena-shell .arena-google-grounding { max-width: 640px; margin-top: 12px; }
+#ai-arena-app.arena-shell .arena-grounding-sources { display: flex; flex-wrap: wrap; gap: 8px; }
+#ai-arena-app.arena-shell .arena-grounding-sources a { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; padding: 5px 9px; border: 1px solid var(--arena-border); border-radius: 6px; color: var(--arena-text); }
+#ai-arena-app.arena-shell .arena-google-suggestions { display: block; border: 0; width: 100%; height: 112px; margin-top: 8px; background: transparent; }
+@media (max-width: 640px) {
+  #ai-arena-app.arena-shell .aa-image-settings { width: auto; max-height: 75dvh !important; }
+  #ai-arena-app.arena-shell .arena-image-heading { padding: 17px 18px 14px; }
+  #ai-arena-app.arena-shell .arena-image-form { padding: 17px 18px; gap: 16px 12px; }
+  #ai-arena-app.arena-shell .arena-image-field select { font-size: 16px; height: 44px; }
+  #ai-arena-app.arena-shell .arena-image-segments span { min-height: 36px; }
+}
 #ai-arena-app.arena-shell .aa-image-pop-check { color: var(--arena-accent); }
 #ai-arena-app.arena-shell .aa-image-tool .new { display: none; }
 

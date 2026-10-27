@@ -863,7 +863,7 @@
   #ai-arena-app #aaSkillEditPrompt::placeholder { color: #888; opacity: 1; }
 
 </style>
-<link rel="stylesheet" href="/arena.css?v=20261027-projects1">
+<link rel="stylesheet" href="/arena.css?v=20261027-models1">
 <link rel="stylesheet" href="/arena-workspace.css?v=20261027-projects1">
 
 <!-- Login overlay -->
@@ -1127,6 +1127,7 @@
       </div>
       <div class="aa-card-dropdown" id="aaDrop-anthropic">
         <div class="aa-drop-item selected" data-sub="claude-sonnet-5-5"><span class="aa-drop-dot" data-health="official-anthropic"></span>Claude Sonnet 5.5</div>
+        <div class="aa-drop-item" data-sub="claude-fable-5-1"><span class="aa-drop-dot" data-health="official-anthropic"></span>Claude Fable 5.1</div>
         <div class="aa-drop-item" data-sub="claude-opus-5-5"><span class="aa-drop-dot" data-health="official-anthropic"></span>Claude Opus 5.5</div>
       </div>
       <div class="aa-card-dropdown" id="aaJudgeDrop">
@@ -1184,7 +1185,7 @@
         </div>
       </div>
       <div class="aa-image-popover" id="aaImageTaskPop"></div>
-      <div class="aa-image-popover aa-image-settings" id="aaImageSettingsPop"></div>
+      <div class="aa-image-popover aa-image-settings" id="aaImageSettingsPop" role="dialog" aria-labelledby="aaImageSettingsTitle"></div>
       <div class="aa-image-popover" id="aaImageModelPop"></div>
       <div class="arena-model-popover" id="aaChatModelPop" data-arena-model-menu role="dialog" aria-label="模型设置" hidden></div>
       <div class="arena-model-popover arena-submenu" id="aaEffortSubmenu" data-arena-model-menu role="dialog" aria-label="思考强度" hidden></div>
@@ -1210,6 +1211,7 @@
 </div>
 
 <script src="/arena-markdown.js?v=20261027-projects1"></script>
+<script src="/arena-image.js?v=20261027-models1"></script>
 <script src="/arena-context.js?v=20261027-projects1"></script>
 <script src="/arena-workspace.js?v=20261027-projects1"></script>
 <script>
@@ -1238,12 +1240,13 @@
   };
 
   // Submodel → brand mapping and display names
-  var AVAILABLE_CHAT_MODELS = ['claude-opus-5-5','claude-sonnet-5-5','grok-4.7','gemini-4-argon'];
+  var AVAILABLE_CHAT_MODELS = ['claude-fable-5-1','claude-opus-5-5','claude-sonnet-5-5','grok-4.7','gemini-4-argon'];
   var IMAGE_MODELS = [
     {value:'grok-imagine-image-2.0', label:'Grok Image 2.0'},
-    {value:'gemini-3.1-flash-image', label:'Gemini 3.1 Flash Image'}
+    {value:'gemini-nano-banana-2.1', label:'Nano Banana 2.1'}
   ];
   var EFFORT_LEVELS = {
+    'claude-fable-5-1': ['low','medium','high','xhigh','max'],
     'claude-opus-5-5': ['low','medium','high','xhigh','max'],
     'claude-sonnet-5-5': ['low','medium','high','xhigh','max'],
     'grok-4.7': ['low','medium','high','xhigh'],
@@ -1251,7 +1254,7 @@
   };
   var EFFORT_LABELS = {low:'低',medium:'中等',high:'高',xhigh:'超高',max:'最高'};
   var EFFORT_DESCRIPTIONS = {low:'快速处理简单问题，减少等待。',medium:'兼顾思考深度与响应速度。',high:'适合较复杂的分析、写作和编程。',xhigh:'更深入地思考，通常需要更长时间。',max:'最高思考强度，可能消耗更多 token。'};
-  var effortSelection = {'claude-opus-5-5':'medium','claude-sonnet-5-5':'high','grok-4.7':'high','gemini-4-argon':'medium'};
+  var effortSelection = {'claude-fable-5-1':'high','claude-opus-5-5':'medium','claude-sonnet-5-5':'high','grok-4.7':'high','gemini-4-argon':'medium'};
   function effortFor(model){ return EFFORT_LEVELS[model] ? effortSelection[model] : undefined; }
 
   var SUBS = {
@@ -1268,7 +1271,8 @@
     'gemini-4-argon':       {brand:'google',    name:'Gemini 4 Argon'},
     'grok-imagine-image-2.0': {brand:'xai',     name:'Grok Imagine Image 2.0'},
     'gpt-image-2.5-sunburst': {brand:'openai',  name:'GPT Image 2.5 Sunburst'},
-    'gemini-3.1-flash-image': {brand:'google',  name:'Gemini 3.1 Flash Image'},
+    'gemini-nano-banana-2.1': {brand:'google', name:'Nano Banana 2.1'},
+    'gemini-3.1-flash-image': {brand:'google', name:'Gemini 3.1 Flash Image'},
     'mj_imagine':             {brand:'mj',      name:'Midjourney Imagine'},
 
     // Legacy aliases are kept so older conversation history still renders correctly.
@@ -1337,12 +1341,13 @@
   var activeProjectId=sessionStorage.getItem('aa-active-project')||null,activeProject=null;
   var activeStreamControllers=new Set();
   var rounds = 1, msgs = [], debate = false, aaRunning = false, abortF = false, searchOn = true;
+  var stopActiveGeneration = null;
 var debateMode = 'free'; // 'free' | '2v2'
 var imageMode = false;
 var videoMode = false;
-var imageComposerModel = localStorage.getItem('aa-image-model') || 'grok-imagine-image-2.0';
+var imageComposerModel = ArenaImage.canonical(localStorage.getItem('aa-image-model') || ArenaImage.GOOGLE_MODEL);
 if(['grok-image-2','nanbanana2-official','mj-imagine'].indexOf(imageComposerModel) !== -1){
-  imageComposerModel = imageComposerModel === 'mj-imagine' ? 'mj_imagine' : 'grok-imagine-image-2.0';
+  imageComposerModel = imageComposerModel === 'mj-imagine' ? 'mj_imagine' : ArenaImage.GOOGLE_MODEL;
 }
 var imageComposerTask = localStorage.getItem('aa-image-task') || 'generation';
 var grokImageResolution = localStorage.getItem('aa-grok-resolution') || '1k';
@@ -1396,12 +1401,14 @@ var TEAM_COLORS = {
     var author = msg.isUser ? (_qDisplayNames[_qName] || $('aaUsername').value.trim() || '用户') : (msg.name || 'AI');
     setQuote(author, plain, msg.color || '#818cf8');
   };
-  var nbImageSize = '1K';
-  var nbAspectRatio = '1:1';
+  var nbImageSize = localStorage.getItem('aa-nb-size') || '1K';
+  var nbAspectRatio = localStorage.getItem('aa-nb-ratio') || '1:1';
   var nbRefImages = [];
-  var nbThinkingLevel = 'minimal';
-  var nbImageOnly = false;
-  var nbStylePreset = 'none';
+  var nbThinkingLevel = localStorage.getItem('aa-nb-thinking') || 'medium';
+  var nbGrounding = localStorage.getItem('aa-nb-grounding') || 'off';
+  var imageEditParentUid = null;
+  var nbImageOnly = localStorage.getItem('aa-nb-only') === 'true';
+  var nbStylePreset = localStorage.getItem('aa-nb-style') || 'none';
   var NB_STYLE_PROMPTS = {
     'none': '',
     'photo': 'Photorealistic, high-resolution photograph. Natural lighting, sharp focus, realistic textures, shot with a DSLR camera. ',
@@ -1556,9 +1563,9 @@ var TEAM_COLORS = {
 
   function serializeMsgs(){
     return msgs.map(function(m){
-      var obj = {uid:m.uid, brand:m.brand, name:m.name, text:m.text, color:m.color, isUser:m.isUser, isError:m.isError, round:m.round, _team:m._team, _liked:m._liked, _comment:m._comment, topicText:m.topicText, pastedTexts:m.pastedTexts, _quote:m._quote, context:m.context, reasoning:m.reasoning, activity:m.activity, citations:m.citations, _feedback:m._feedback, effort:m.effort, submodel:m.submodel, completedAt:m.completedAt, moderationHelp:m.moderationHelp, suggestedPrompt:m.suggestedPrompt, moderationTask:m.moderationTask};
-      if(m.imgData){ obj.imgData = m.imgData; obj.imgMime = m.imgMime; }
+      var obj = {uid:m.uid, brand:m.brand, name:m.name, text:m.text, color:m.color, isUser:m.isUser, isError:m.isError, round:m.round, _team:m._team, _liked:m._liked, _comment:m._comment, topicText:m.topicText, pastedTexts:m.pastedTexts, _quote:m._quote, context:m.context, reasoning:m.reasoning, activity:m.activity, citations:m.citations, _feedback:m._feedback, effort:m.effort, submodel:m.submodel, completedAt:m.completedAt, moderationHelp:m.moderationHelp, suggestedPrompt:m.suggestedPrompt, moderationTask:m.moderationTask, imageTurn:m.imageTurn, imageResponse:m.imageResponse, grounding:m.grounding};
       if(m.imgItems && m.imgItems.length){ obj.imgItems = m.imgItems; }
+      else if(m.imgData){ obj.imgData = m.imgData; obj.imgMime = m.imgMime; }
       return obj;
     });
   }
@@ -1622,6 +1629,7 @@ var TEAM_COLORS = {
     return chatApiCall('load', { chatId: chatId }).then(function(data){
       if(epoch!==scopeEpoch||loadEpoch!==chatLoadEpoch||loadScope!==activeProjectId||!data||data.error) return false;
       currentChatId = chatId;
+      imageEditParentUid=null;
       msgs = data.messages || [];
       var loadedReplyAt = getLastAssistantReplyAt(msgs);
       if(loadedReplyAt) rememberChatReplyTime(chatId, loadedReplyAt);
@@ -1637,7 +1645,7 @@ var TEAM_COLORS = {
 
   function deleteChat(chatId){
     chatApiCall('delete', { chatId: chatId }).then(function(){
-      if(currentChatId === chatId){ currentChatId = null; msgs = []; render(); }
+      if(currentChatId === chatId){ currentChatId = null; imageEditParentUid=null;msgs = []; render(); }
       loadChatList();
     });
   }
@@ -1751,7 +1759,7 @@ var TEAM_COLORS = {
         if(EFFORT_LEVELS[model].indexOf(savedEffort[model]) !== -1) effortSelection[model] = savedEffort[model];
       });
       var savedSelection = JSON.parse(localStorage.getItem('aa-brand-selection') || '{}');
-      if(['claude-opus-5-5','claude-sonnet-5-5'].indexOf(savedSelection.anthropic) !== -1) brandSelection.anthropic = savedSelection.anthropic;
+      if(['claude-fable-5-1','claude-opus-5-5','claude-sonnet-5-5'].indexOf(savedSelection.anthropic) !== -1) brandSelection.anthropic = savedSelection.anthropic;
       if(savedSelection.google === 'gemini-4-argon') brandSelection.google = savedSelection.google;
       if(!imageMode){ activeBrands['mj'] = false; }
       var ab = JSON.parse(localStorage.getItem('aa-active-brands'));
@@ -1766,8 +1774,9 @@ var TEAM_COLORS = {
   }
 
   function normalizeAvailableModels(){
+    imageComposerModel=ArenaImage.canonical(imageComposerModel);
     activeBrands.openai = false; activeBrands.mj = false; activeBrands.kling = false;
-    if(['claude-opus-5-5','claude-sonnet-5-5'].indexOf(brandSelection.anthropic) === -1) brandSelection.anthropic = 'claude-sonnet-5-5';
+    if(['claude-fable-5-1','claude-opus-5-5','claude-sonnet-5-5'].indexOf(brandSelection.anthropic) === -1) brandSelection.anthropic = 'claude-sonnet-5-5';
     brandSelection.google = 'gemini-4-argon';
     brandSelection.xai = 'grok-4.7';
     if(!imageMode && !activeBrands.xai && !activeBrands.anthropic && !activeBrands.google) activeBrands.anthropic = true;
@@ -2103,7 +2112,7 @@ var TEAM_COLORS = {
   }
 
   // === Image handling ===
-  function showPreview(dataUrl){ if(!dataUrl) return; if(sentImgs.length < 10){ sentImgs.push({data: dataUrl.split(',').length > 1 ? dataUrl.split(',')[1] : dataUrl, mime: 'image/jpeg', preview: dataUrl}); renderImgPreviews(); } }
+  function showPreview(dataUrl){ if(!dataUrl) return; if(sentImgs.length < imageReferenceLimit()){ sentImgs.push({data: dataUrl.split(',').length > 1 ? dataUrl.split(',')[1] : dataUrl, mime: 'image/jpeg', preview: dataUrl}); renderImgPreviews(); } }
   function renderTextPreviews(){
     var container = $('aaTextPreview');
     container.innerHTML = '';
@@ -2333,6 +2342,7 @@ var TEAM_COLORS = {
   document.addEventListener('click', function(e){
     if(!e.target.closest('#aaPlusBtn') && !e.target.closest('#aaPlusMenu')) $('aaPlusMenu').style.display = 'none';
   });
+  function imageReferenceLimit(){return imageMode&&ArenaImage.cap(imageComposerModel)?ArenaImage.cap(imageComposerModel).references:10;}
   function handleImageFile(f){
     if(f.size > 10*1024*1024){ alert('图片不能超过 10MB'); return; }
     var reader = new FileReader();
@@ -2344,7 +2354,7 @@ var TEAM_COLORS = {
         var canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h;
         canvas.getContext('2d').drawImage(img, 0, 0, w, h);
         var compressed = canvas.toDataURL('image/jpeg', 0.8);
-        if(sentImgs.length >= 10){ alert('最多一次上传10张图片'); return; }
+        if(sentImgs.length >= imageReferenceLimit()){ alert('此模型最多上传 '+imageReferenceLimit()+' 张参考图'); return; }
         sentImgs.push({data: compressed.split(',')[1], mime: 'image/jpeg', preview: compressed});
         if(!aaRunning) $('aaSendBtn').disabled = false; renderImgPreviews();
       };
@@ -2352,7 +2362,7 @@ var TEAM_COLORS = {
     };
     reader.readAsDataURL(f);
   }
-  $('aaImgInput').addEventListener('change', function(ev){ var files = Array.from(ev.target.files); files.slice(0, 10 - sentImgs.length).forEach(function(f){ handleImageFile(f); }); ev.target.value = ''; });
+  $('aaImgInput').addEventListener('change', function(ev){ var files = Array.from(ev.target.files); files.slice(0, imageReferenceLimit() - sentImgs.length).forEach(function(f){ handleImageFile(f); }); ev.target.value = ''; });
    $('aaImgRemove').addEventListener('click', clearPreview);
 
   $('aaQuoteClose').addEventListener('click', clearQuote);
@@ -2610,7 +2620,7 @@ var TEAM_COLORS = {
             var obj = JSON.parse(raw);
             if(obj.modelName && onModelName) onModelName(obj.modelName);
             if(obj.status) updateThinkStatus(submodel, obj.status);
-            if(onMeta && (obj.status || obj.activity || obj.citation || obj.context)) onMeta(obj);
+            if(onMeta && (obj.status || obj.activity || obj.citation || obj.context || obj.imageContext || obj.grounding)) onMeta(obj);
             if(obj.t) onChunk(obj.t);
             if(obj.r){
               appendThinkSummary(submodel, obj.r);
@@ -2628,6 +2638,16 @@ var TEAM_COLORS = {
     }).catch(function(error){activeStreamControllers.delete(controller);if(error.name==='AbortError')completed();else onError(error);});
   }
 
+  function renderGoogleGrounding(msg){
+    if(!msg.grounding)return '';
+    var h='<div class="arena-google-grounding">';
+    if(msg.citations&&msg.citations.length)h+='<div class="arena-grounding-sources">'+msg.citations.map(function(c){return '<a target="_blank" rel="noopener noreferrer" href="'+esc(c.url)+'">'+esc(c.title||'来源网页')+'</a>';}).join('')+'</div>';
+    if(msg.grounding.html){
+      var html='<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; style-src \'unsafe-inline\'; img-src https://www.google.com https://www.gstatic.com data:; base-uri \'none\'; form-action \'none\'">'+msg.grounding.html;
+      h+='<iframe class="arena-google-suggestions" title="Google 搜索建议" sandbox="allow-popups allow-popups-to-escape-sandbox" referrerpolicy="no-referrer" srcdoc="'+esc(html)+'"></iframe>';
+    }
+    return h+'</div>';
+  }
   function renderMessageActivity(msg){
     var entries = msg.activity || [];
     if(!entries.length && !msg.reasoning) return '';
@@ -2756,7 +2776,7 @@ var TEAM_COLORS = {
     aaRunning = true; abortF = false;
     var btn = $('aaSendBtn');
     btn.textContent = '■'; btn.className = 'aa-send stop'; btn.disabled = false;
-    btn.onclick = function(){ abortF = true; hideThink(); finishRes(); };
+    stopActiveGeneration = function(){ abortF = true; hideThink(); finishRes(); };
     showThink('nanbanana2-official');
     var uid = newUid();
     var info = SUBS['nanbanana2-official']; var brandInfo = BRANDS[info.brand];
@@ -2793,7 +2813,7 @@ var TEAM_COLORS = {
       btn.textContent = '\u21b5';
       btn.className = 'aa-send'+(debate?' debate-mode':(imageMode?' image-mode':' chat-mode'));
       btn.disabled = !$('aaTopic').value.trim();
-      btn.onclick = null;
+      stopActiveGeneration = null;
     }
   };
   window._aaDownloadImg = function(uid){
@@ -3204,7 +3224,7 @@ var TEAM_COLORS = {
       var el = $(id); if(el) el.classList.remove('open');
     });
     ['aaImageTaskBtn','aaImageSettingsBtn','aaImageModelBtn'].forEach(function(id){
-      var el = $(id); if(el) el.classList.remove('open');
+      var el = $(id); if(el){el.classList.remove('open');el.setAttribute('aria-expanded','false');}
     });
   }
 
@@ -3212,10 +3232,10 @@ var TEAM_COLORS = {
     var r = trigger.getBoundingClientRect();
     pop.style.top = 'auto';
     pop.style.bottom = (window.innerHeight - r.top + 8) + 'px';
-    pop.style.maxHeight = Math.max(220, r.top - 24) + 'px';
+    pop.style.maxHeight = Math.max(120, r.top - 24) + 'px';
     pop.style.transform = 'none';
     if(alignRight){ pop.style.left = 'auto'; pop.style.right = Math.max(12, window.innerWidth - r.right) + 'px'; }
-    else { pop.style.right = 'auto'; pop.style.left = Math.max(12, r.left) + 'px'; }
+    else { pop.style.right = 'auto'; pop.style.left = Math.max(12, Math.min(r.left, window.innerWidth-pop.offsetWidth-12)) + 'px'; }
   }
 
   function openImagePopover(triggerId, popId, alignRight){
@@ -3224,8 +3244,10 @@ var TEAM_COLORS = {
     var reopen = !pop.classList.contains('open');
     closeImagePopovers();
     if(!reopen) return;
-    positionImagePopover(trigger, pop, alignRight);
     pop.classList.add('open'); trigger.classList.add('open');
+    trigger.setAttribute('aria-expanded','true');
+    positionImagePopover(trigger, pop, alignRight);
+    var control=pop.querySelector('select,input,button');if(control)control.focus();
   }
 
   function popItem(value, label, selected, badge, disabled){
@@ -3254,30 +3276,19 @@ var TEAM_COLORS = {
     }).join('');
   }
 
+  function imageSettingsState(){
+    return imageComposerModel === ArenaImage.GOOGLE_MODEL
+      ? {size:nbImageSize,ratio:nbAspectRatio,thinking:nbThinkingLevel,imageOnly:nbImageOnly,grounding:nbGrounding,style:nbStylePreset}
+      : {size:grokImageResolution,ratio:grokAspectRatio,quality:grokImageQuality,count:grokImageCount};
+  }
+  function normalizeImageSettings(){
+    var state=ArenaImage.normalize(imageComposerModel,imageSettingsState());
+    if(imageComposerModel===ArenaImage.GOOGLE_MODEL){nbImageSize=state.size;nbAspectRatio=state.ratio;nbThinkingLevel=state.thinking;nbGrounding=state.grounding;}
+    else{grokImageResolution=state.size;grokAspectRatio=state.ratio;grokImageQuality=state.quality;grokImageCount=state.count;}
+  }
   function buildImageSettingsPop(){
-    var html = '';
-    if(imageComposerModel === 'grok-imagine-image-2.0'){
-      html += imageSettingRow('画面比例', GROK_RATIOS.map(function(v){ return imageChoice('grok-ratio',v,v,grokAspectRatio===v,false); }).join(''));
-      html += imageSettingRow('分辨率', ['1k','2k'].map(function(v){ return imageChoice('grok-resolution',v,v.toUpperCase(),grokImageResolution===v,false); }).join(''));
-      html += imageSettingRow('质量', [['low','快速'],['medium','高质量'],['auto','自动']].map(function(v){ return imageChoice('grok-quality',v[0],v[1],grokImageQuality===v[0],false); }).join(''));
-      html += imageSettingRow('生成数量', [1,2,3,4].map(function(v){ return imageChoice('grok-count',String(v),v+'张',grokImageCount===v,imageComposerTask!=='generation'); }).join(''));
-      html += '<div class="aa-image-hint">编辑支持 1 张参考图，多图编辑支持 2–5 张；编辑任务每次返回 1 张。</div>';
-    } else if(imageComposerModel === 'gpt-image-2.5-sunburst'){
-      html += imageSettingRow('画面比例', ['1:1','3:2','2:3','auto'].map(function(v){ return imageChoice('grok-ratio',v,v,grokAspectRatio===v,false); }).join(''));
-      html += imageSettingRow('质量', [['low','快速'],['medium','标准'],['high','高质量'],['auto','自动']].map(function(v){ return imageChoice('grok-quality',v[0],v[1],grokImageQuality===v[0],false); }).join(''));
-      html += imageSettingRow('生成数量', [1,2,3,4].map(function(v){ return imageChoice('grok-count',String(v),v+'张',grokImageCount===v,imageComposerTask!=='generation'); }).join(''));
-      html += '<div class="aa-image-hint">尺寸会根据画面比例自动选择；支持单图和多图编辑。</div>';
-    } else if(imageComposerModel === 'gemini-3.1-flash-image'){
-      html += imageSettingRow('风格', _nbStyleOptions.map(function(o){ return imageChoice('nb-style',o.value,o.label,nbStylePreset===o.value,false); }).join(''));
-      html += imageSettingRow('分辨率', _nbSizeOptions.map(function(o){ return imageChoice('nb-size',o.value,o.label,nbImageSize===o.value,false); }).join(''));
-      html += imageSettingRow('画面比例', _nbRatioOptions.map(function(o){ return imageChoice('nb-ratio',o.value,o.label,nbAspectRatio===o.value,false); }).join(''));
-      html += imageSettingRow('思考强度', [['minimal','快速'],['high','深度']].map(function(v){ return imageChoice('nb-thinking',v[0],v[1],nbThinkingLevel===v[0],false); }).join(''));
-      html += imageSettingRow('输出方式', [['false','图文'],['true','仅图片']].map(function(v){ return imageChoice('nb-only',v[0],v[1],nbImageOnly===(v[0]==='true'),false); }).join(''));
-    } else {
-      html += imageSettingRow('画面比例', MJ_RATIOS.map(function(v){ return imageChoice('mj-ratio',v,v,mjAspectRatio===v,false); }).join(''));
-      html += imageSettingRow('生成速度', imageChoice('mj-speed','relax','Relax',true,true));
-    }
-    $('aaImageSettingsPop').innerHTML = html;
+    normalizeImageSettings();
+    $('aaImageSettingsPop').innerHTML=ArenaImage.settingsMarkup(imageComposerModel,imageComposerTask,imageSettingsState(),_nbStyleOptions);
   }
 
   function imageSettingsSummary(){
@@ -3289,9 +3300,9 @@ var TEAM_COLORS = {
       var gptQualityLabel = {low:'快速',medium:'标准',high:'高质量',auto:'自动'}[grokImageQuality] || '自动';
       return grokAspectRatio+' · '+gptQualityLabel+(imageComposerTask==='generation'?' · '+grokImageCount+'张':'');
     }
-    if(imageComposerModel === 'gemini-3.1-flash-image'){
+    if(imageComposerModel === 'gemini-nano-banana-2.1'){
       var style = _nbStyleOptions.find(function(o){ return o.value===nbStylePreset; });
-      return (style?style.label:'无预设')+' · '+nbImageSize+' · '+nbAspectRatio+' · '+(nbThinkingLevel==='high'?'深度':'快速');
+      return nbImageSize+' · '+nbAspectRatio+' · '+({minimal:'快速',medium:'均衡',high:'深度'}[nbThinkingLevel])+(nbGrounding!=='off'?' · 搜索':'');
     }
     return mjAspectRatio+' · Relax';
   }
@@ -3303,7 +3314,9 @@ var TEAM_COLORS = {
     if(chat) chat.classList.toggle('image-composer-state', imageMode);
     dock.classList.toggle('visible', imageMode);
     row.classList.toggle('image-mode-layout', imageMode);
+    $('aaPlusSearch').style.display=imageMode?'none':'';
     if(!imageMode){ closeImagePopovers(); return; }
+    normalizeImageSettings();
 
     var model = IMAGE_MODELS.find(function(m){ return m.value === imageComposerModel; }) || IMAGE_MODELS[0];
     if(model.value !== imageComposerModel) imageComposerModel = model.value;
@@ -3313,7 +3326,7 @@ var TEAM_COLORS = {
     activeBrands = {
       xai:imageComposerModel==='grok-imagine-image-2.0', anthropic:false,
       openai:imageComposerModel==='gpt-image-2.5-sunburst',
-      google:imageComposerModel==='gemini-3.1-flash-image', mj:imageComposerModel==='mj_imagine', kling:false
+      google:imageComposerModel==='gemini-nano-banana-2.1', mj:imageComposerModel==='mj_imagine', kling:false
     };
     $('aaImageModelLabel').textContent = model.label;
     $('aaImageNewBadge').style.display = model.badge ? '' : 'none';
@@ -3334,32 +3347,43 @@ var TEAM_COLORS = {
   $('aaImageSettingsBtn').addEventListener('click', function(e){ e.stopPropagation(); buildImageSettingsPop(); openImagePopover('aaImageSettingsBtn','aaImageSettingsPop',false); });
   $('aaImageModelPop').addEventListener('click', function(e){
     var btn = e.target.closest('[data-value]'); if(!btn || btn.disabled) return;
+    imageEditParentUid=null;
     imageComposerModel = btn.dataset.value;
     imageComposerTask = imageComposerModel === 'mj_imagine' ? 'mj_imagine' : 'generation';
     closeImagePopovers(); syncImageComposer(); saveState();
   });
   $('aaImageTaskPop').addEventListener('click', function(e){
     var btn = e.target.closest('[data-value]'); if(!btn) return;
+    imageEditParentUid=null;
     imageComposerTask = btn.dataset.value;
     if(imageComposerModel === 'mj_imagine') brandSelection['mj'] = 'mj_imagine';
     closeImagePopovers(); syncImageComposer(); saveState();
   });
   $('aaImageSettingsPop').addEventListener('click', function(e){
-    var btn = e.target.closest('[data-setting]'); if(!btn || btn.disabled) return;
-    var setting = btn.dataset.setting, value = btn.dataset.value;
-    if(setting === 'grok-ratio'){ grokAspectRatio=value; localStorage.setItem('aa-grok-ratio',value); }
-    if(setting === 'grok-resolution'){ grokImageResolution=value; localStorage.setItem('aa-grok-resolution',value); }
-    if(setting === 'grok-quality'){ grokImageQuality=value; localStorage.setItem('aa-grok-quality',value); }
-    if(setting === 'grok-count'){ grokImageCount=parseInt(value,10); localStorage.setItem('aa-grok-count',value); }
-    if(setting === 'nb-style'){ nbStylePreset=value; }
-    if(setting === 'nb-size'){ nbImageSize=value; }
-    if(setting === 'nb-ratio'){ nbAspectRatio=value; }
-    if(setting === 'nb-thinking'){ nbThinkingLevel=value; }
-    if(setting === 'nb-only'){ nbImageOnly=value==='true'; }
-    if(setting === 'mj-ratio'){ mjAspectRatio=value; localStorage.setItem('aa-mj-ratio',value); }
-    closeImagePopovers();
-    syncImageComposer();
-    openImagePopover('aaImageSettingsBtn','aaImageSettingsPop',false);
+    e.stopPropagation();
+    if(e.target.closest('[data-image-close]')){closeImagePopovers();$('aaImageSettingsBtn').focus();}
+  });
+  $('aaImageSettingsPop').addEventListener('change', function(e){
+    var control=e.target.closest('[data-image-setting]');if(!control)return;
+    var key=control.dataset.imageSetting,value=control.value,google=imageComposerModel===ArenaImage.GOOGLE_MODEL;
+    if(google){
+      if(key==='ratio')nbAspectRatio=value;if(key==='size')nbImageSize=value;
+      if(key==='thinking')nbThinkingLevel=value;if(key==='imageOnly')nbImageOnly=value==='true';
+      if(key==='grounding')nbGrounding=value;if(key==='style')nbStylePreset=value;
+      var saved={size:nbImageSize,ratio:nbAspectRatio,thinking:nbThinkingLevel,only:String(nbImageOnly),grounding:nbGrounding,style:nbStylePreset};
+      Object.keys(saved).forEach(function(k){localStorage.setItem('aa-nb-'+k,saved[k]);});
+    }else{
+      if(key==='ratio')grokAspectRatio=value;if(key==='size')grokImageResolution=value;
+      if(key==='quality')grokImageQuality=value;if(key==='count')grokImageCount=Number(value);
+      localStorage.setItem('aa-grok-ratio',grokAspectRatio);localStorage.setItem('aa-grok-resolution',grokImageResolution);
+      localStorage.setItem('aa-grok-quality',grokImageQuality);localStorage.setItem('aa-grok-count',grokImageCount);
+    }
+    $('aaImageSettingsSummary').textContent=imageSettingsSummary();
+    var searchNote=$('aaImageSettingsPop').querySelector('[data-image-grounding-note]');if(searchNote)searchNote.hidden=nbGrounding==='off';
+    var styleNote=$('aaImageSettingsPop').querySelector('[data-image-style-note]');if(styleNote)styleNote.hidden=nbStylePreset==='none';
+  });
+  document.addEventListener('keydown',function(e){
+    if(e.key==='Escape'&&$('aaImageSettingsPop').classList.contains('open')){closeImagePopovers();$('aaImageSettingsBtn').focus();e.stopImmediatePropagation();}
   });
   document.addEventListener('click', function(e){
     if(!e.target.closest('.aa-image-popover') && !e.target.closest('.aa-image-tool')) closeImagePopovers();
@@ -3905,7 +3929,10 @@ function initPersonaDragDrop(){
       btn.classList.add(debate ? 'debate-mode' : (imageMode ? 'image-mode' : 'chat-mode'));
     }
   }
-  $('aaSendBtn').addEventListener('click', function(){ aaStart(); });
+  $('aaSendBtn').addEventListener('click', function(){
+    if(aaRunning){if(stopActiveGeneration)stopActiveGeneration();return;}
+    aaStart();
+  });
   $('aaHistoryBtn').addEventListener('click', openHistory);
   $('aaHistoryClose').addEventListener('click', function(){ closeHistory(); if(window.matchMedia('(min-width: 901px)').matches) $('ai-arena-app').classList.add('arena-sidebar-collapsed'); syncArenaNavigation(); $('aaHistoryBtn').focus(); });
   $('aaHistoryOverlay').addEventListener('click', closeHistory);
@@ -3915,7 +3942,7 @@ function initPersonaDragDrop(){
     if(msgs.length && currentChatId) saveCurrentChat();
     currentChatId = genChatId();
     _bizMode = false;
-    msgs = []; render(); hideThink(); $('aaTopic').value = ''; $('aaTopic').style.height = ''; clearPreview(); closeHistory(); $('aaTopic').focus();
+    imageEditParentUid=null;msgs = []; render(); hideThink(); $('aaTopic').value = ''; $('aaTopic').style.height = ''; clearPreview(); closeHistory(); $('aaTopic').focus();
     _memoryLoaded = false; loadMemory();
     $('aaBizBanner').style.display = 'none'; //
   });
@@ -3951,10 +3978,14 @@ function initPersonaDragDrop(){
     var source = window._aaImgStore && window._aaImgStore[imageKey];
     if(!source || !source.data){ alert('没有找到这张图片，请刷新后重试。'); return; }
 
+    imageEditParentUid=null;
+    var parent=msgs.find(function(m){return m.imgItems&&m.imgItems.some(function(i){return i.data===source.data;});});
+    if(parent&&parent.imageTurn&&parent.imageResponse&&parent.submodel===ArenaImage.GOOGLE_MODEL)imageEditParentUid=parent.uid;
+    sourceModel=ArenaImage.canonical(sourceModel);
     debate = false;
     imageMode = true;
     videoMode = false;
-    imageComposerModel = ['grok-imagine-image-2.0','gpt-image-2.5-sunburst','gemini-3.1-flash-image'].indexOf(sourceModel) !== -1
+    imageComposerModel = ['grok-imagine-image-2.0','gpt-image-2.5-sunburst','gemini-nano-banana-2.1'].indexOf(sourceModel) !== -1
       ? sourceModel : 'grok-imagine-image-2.0';
     imageComposerTask = 'edit';
     sentImgs = [{
@@ -3994,7 +4025,7 @@ function initPersonaDragDrop(){
   };
 
   function isImageModerationError(message, submodel){
-    var imageModels = ['grok-imagine-image-2.0','gpt-image-2.5-sunburst','gemini-3.1-flash-image','mj_imagine'];
+    var imageModels = ['grok-imagine-image-2.0','gpt-image-2.5-sunburst','gemini-nano-banana-2.1','mj_imagine'];
     if(imageModels.indexOf(submodel) === -1) return false;
     return /content moderation|moderation|safety policy|safety filter|rejected by content|blocked for safety|内容审核|安全审核|违规内容/i.test(String(message || ''));
   }
@@ -4046,7 +4077,7 @@ function initPersonaDragDrop(){
     var msg = msgs.find(function(m){ return m.uid === numericUid; });
     if(!msg || !msg.suggestedPrompt) return;
     debate = false; imageMode = true; videoMode = false;
-    if(['grok-imagine-image-2.0','gpt-image-2.5-sunburst','gemini-3.1-flash-image','mj_imagine'].indexOf(msg.submodel) !== -1) imageComposerModel = msg.submodel;
+    if(['grok-imagine-image-2.0','gpt-image-2.5-sunburst','gemini-nano-banana-2.1','mj_imagine'].indexOf(msg.submodel) !== -1) imageComposerModel = msg.submodel;
     if(msg.moderationTask) imageComposerTask = msg.moderationTask;
     $('aaBarImageBtn').classList.add('active');
     $('aaBarChatBtn').classList.remove('active');
@@ -4172,7 +4203,7 @@ function initPersonaDragDrop(){
           h += '<div class="aa-generated-card">';
           h += '<div class="aa-generated-stage"><img class="aa-generated-image" src="'+window._aaImgClickStore[_imgKey]+'" onload="window._aaGeneratedImgLoaded(this,\''+msg.uid+'\')" onclick="window._aaLightbox(window._aaImgClickStore[\''+_imgKey+'\'])" alt="AI 生成图片"></div>';
           h += '<div class="aa-generated-actions">';
-          if(['grok-imagine-image-2.0','gpt-image-2.5-sunburst','gemini-3.1-flash-image'].indexOf(msg.submodel) !== -1) h += '<button class="aa-generated-btn edit" onclick="window._aaEditGeneratedImage(\''+_imgKey+'\',\''+msg.submodel+'\')">编辑这张</button>';
+          if(['grok-imagine-image-2.0','gpt-image-2.5-sunburst','gemini-nano-banana-2.1','gemini-3.1-flash-image'].indexOf(msg.submodel) !== -1) h += '<button class="aa-generated-btn edit" onclick="window._aaEditGeneratedImage(\''+_imgKey+'\',\''+msg.submodel+'\')">编辑这张</button>';
           h += '<button class="aa-generated-btn primary" onclick="window._aaLightbox(window._aaImgClickStore[\''+_imgKey+'\'])">查看大图</button>';
           h += '<button class="aa-generated-btn" onclick="window._aaDownloadImg(\''+_imgKey+'\')">下载原图</button>';
           h += '</div></div>';
@@ -4236,6 +4267,7 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
 
       }
 
+      if(!msg.isUser)h+=renderGoogleGrounding(msg);
       h += '</div>';
     });
     h += '<div id="aaThinkingArea">'+savedThink+'</div>';
@@ -4363,10 +4395,14 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
     if(!act.length){ alert('请至少选择一个模型。'); return; }
     if(imageMode){
       var refCount = sentImgs.length;
+      if(refCount && imageComposerTask==='generation'){imageComposerTask=refCount===1?'edit':'multi-edit';syncImageComposer();}
+      if(refCount>imageReferenceLimit()){alert('此模型最多支持 '+imageReferenceLimit()+' 张参考图。');return;}
+      if(!refCount)imageEditParentUid=null;
+      try{if(imageEditParentUid!=null)ArenaImage.historyFor(msgs,imageEditParentUid);}catch(error){arenaNotice(error.message);return;}
       var editableImageModel = imageComposerModel !== 'mj_imagine';
       if(!topic){ alert('请先描述你想生成或修改的图片。'); return; }
       if(editableImageModel && imageComposerTask === 'edit' && refCount < 1){ alert('编辑图片需要先上传 1 张参考图。'); return; }
-      if(editableImageModel && imageComposerTask === 'multi-edit' && (refCount < 2 || refCount > 5)){ alert('多图编辑需要上传 2–5 张参考图。'); return; }
+      if(editableImageModel && imageComposerTask === 'multi-edit' && (refCount < 2 || refCount > imageReferenceLimit())){ alert('多图编辑需要上传 2–'+imageReferenceLimit()+' 张参考图。'); return; }
     }
     _bizMode = act.indexOf('grok41-biz-official') !== -1;
     // ✅ 商业版模式:清空当前 chatId,阻止保存到历史
@@ -4381,7 +4417,7 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
     hideThink();
     var btn = $('aaSendBtn');
     btn.textContent = '■'; btn.className = 'aa-send stop'; btn.disabled = false;
-    btn.onclick = function(){ abortF = true;activeStreamControllers.forEach(function(controller){controller.abort();});activeStreamControllers.clear(); hideThink(); finish(); };
+    stopActiveGeneration = function(){ abortF = true;activeStreamControllers.forEach(function(controller){controller.abort();});activeStreamControllers.clear(); hideThink(); finish(); };
     $('aaSidebar').classList.add('hidden'); $('aaGearBtn').classList.remove('active');
     var _rawName = $('aaUsername').value.trim() || '用户';
     var CHAT_DISPLAY_NAMES = {'oakleyyuen':'Oakley','oakley':'Oakley','doctor.wang':'Doctor.Wang','zty007007990':'Zty'};
@@ -4719,14 +4755,11 @@ function build2v2Prompt(topic, history, speakerInfo, rnd){
 var uid = newUid();
 var msgObj = {uid:uid, submodel:sub, effort:effortFor(sub), brand:info.brand, name:info.name, text:'', color:brandInfo.color, activity:[], citations:[]};
 var firstChunk = true;
-var _nbStylePrefix = (sub === 'gemini-3.1-flash-image' && nbStylePreset !== 'none') ? (NB_STYLE_PROMPTS[nbStylePreset] || '') : '';
+var _nbStylePrefix = (sub === 'gemini-nano-banana-2.1' && nbStylePreset !== 'none') ? (NB_STYLE_PROMPTS[nbStylePreset] || '') : '';
 var _nbExtraOpts = { _imgs: _imgs };
-if(sub === 'gemini-3.1-flash-image'){
-  _nbExtraOpts = { imageTask:imageComposerTask, imageSize:nbImageSize, resolution:nbImageSize, aspectRatio:nbAspectRatio, thinkingLevel:nbThinkingLevel, imageOnly:nbImageOnly, quality:'auto', n:1, _imgs:_imgs };
-} else if(sub === 'grok-imagine-image-2.0' || sub === 'gpt-image-2.5-sunburst'){
-  _nbExtraOpts = { imageTask:imageComposerTask, resolution:grokImageResolution, aspectRatio:grokAspectRatio, quality:grokImageQuality, n:(imageComposerTask==='generation'?grokImageCount:1), _imgs:_imgs };
-} else if(sub === 'mj_imagine'){
-  _nbExtraOpts = { aspectRatio:mjAspectRatio, _imgs:_imgs };
+if(imageMode&&ArenaImage.cap(sub)){
+  var imageHistory=sub===ArenaImage.GOOGLE_MODEL&&imageEditParentUid!=null?ArenaImage.historyFor(msgs,imageEditParentUid):[];
+  _nbExtraOpts=ArenaImage.requestOptions(sub,imageComposerTask,imageSettingsState(),_imgs,imageHistory);
 }
 var _skillSys = (activeSkill && activeSkill.type === 'prompt' && activeSkill.prompt) ? activeSkill.prompt : null;
 if(_skillSys && activeSkill.id === 'ppt-maker' && _pptTemplateInfo){
@@ -4737,11 +4770,17 @@ if(_skillSys && activeSkill.id === 'ppt-maker' && _pptTemplateInfo){
 }
 var sysPrompt = (sub === 'codex-official' || sub === 'codex-proxy') ? 'You are a coding assistant. The user does not know programming at all. For ALL code changes, you MUST use a "find and replace" format: clearly write out the exact, unique, searchable code snippet to find, then write the replacement. Never use vague descriptions. Always self-check your code to ensure no errors. Write code blocks with language tags. Answer in the same language the user used.' : (_skillSys || SYS_CHAT);
 var memText = (_bizMode || _incognitoMode || imageMode) ? '' : (_cachedMemory || '');
-var _topicWithStyle = (sub === 'gemini-3.1-flash-image' && _nbStylePrefix) ? _nbStylePrefix + topic : topic;
+var _topicWithStyle = (sub === 'gemini-nano-banana-2.1' && _nbStylePrefix) ? _nbStylePrefix + topic : topic;
 var _topicForPrompt = _topicWithStyle.replace(' [img]', _imgs.length ? '（已附图'+_imgs.length+'张）' : '');
 if(sub === 'mj_imagine' && mjAspectRatio && _topicForPrompt.indexOf('--ar ') === -1) _topicForPrompt += ' --ar ' + mjAspectRatio;
 var fullPrompt = imageMode ? _topicForPrompt : topicWithQuote;
 if(!imageMode)_nbExtraOpts.chat=scopedChatInput(topicWithQuote,sysPrompt,_topicText);
+if(sub===ArenaImage.GOOGLE_MODEL){
+  msgObj.imageTurn={prompt:fullPrompt,parentUid:imageEditParentUid,references:_imgs.map(function(image){
+    var parent=msgs.find(function(m){return m.imgItems&&m.imgItems.some(function(i){return i.data===image.data;});});
+    return parent?{uid:parent.uid,index:parent.imgItems.findIndex(function(i){return i.data===image.data;})}:{data:image.data,mime:image.mime};
+  })};
+}
 callWorkerStream(sub, fullPrompt, _img, _imgMime,
           function(chunk){
             if(chunk.indexOf('\x00MJB\x00') === 0){
@@ -4752,12 +4791,12 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
             if(chunk.indexOf('\x00IMG\x00') === 0){
               var parts2 = chunk.split('\x00');
               var _chunkImage = {data:parts2[2], mime:parts2[4] || 'image/png'};
-              if(['grok-imagine-image-2.0','gpt-image-2.5-sunburst','gemini-3.1-flash-image','mj_imagine'].indexOf(sub) !== -1){
+              if(['grok-imagine-image-2.0','gpt-image-2.5-sunburst','gemini-nano-banana-2.1','mj_imagine'].indexOf(sub) !== -1){
                 msgObj.imgItems = msgObj.imgItems || [];
                 msgObj.imgItems.push(_chunkImage);
                 if(!msgObj.imgData){ msgObj.imgData=_chunkImage.data; msgObj.imgMime=_chunkImage.mime; }
                 window._aaImgStore['aigen_'+uid+'_'+(msgObj.imgItems.length-1)] = _chunkImage;
-                var _imageSpec = sub === 'gemini-3.1-flash-image' ? nbImageSize : (sub === 'mj_imagine' ? 'MJ' : grokImageResolution.toUpperCase());
+                var _imageSpec = sub === 'gemini-nano-banana-2.1' ? nbImageSize : (sub === 'mj_imagine' ? 'MJ' : grokImageResolution.toUpperCase());
                 msgObj.usageStr = _imageSpec+' · '+msgObj.imgItems.length+'张';
               } else {
                 msgObj.imgData = _chunkImage.data; msgObj.imgMime = _chunkImage.mime;
@@ -4771,7 +4810,7 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
                 msgObj.usageStr = 'Kling V2.5' + (_klingCost > 0 ? ' · $' + _klingCost.toFixed(4) : '');
               }
               var _imageSavedPrices = JSON.parse(localStorage.getItem('aa-model-prices') || '{}');
-              if(['grok-imagine-image-2.0','gpt-image-2.5-sunburst','gemini-3.1-flash-image','mj_imagine'].indexOf(sub) !== -1){
+              if(['grok-imagine-image-2.0','gpt-image-2.5-sunburst','gemini-nano-banana-2.1','mj_imagine'].indexOf(sub) !== -1){
                 var _imageCost = (_imageSavedPrices[sub] && _imageSavedPrices[sub].input) ? _imageSavedPrices[sub].input : 0;
                 if(_imageCost > 0) msgObj.usageStr += ' · $' + _imageCost.toFixed(4);
               }
@@ -4843,6 +4882,8 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
           function(r){ msgObj.reasoning = (msgObj.reasoning||'') + r; if(!firstChunk) liveUpdate(uid, msgObj.text, msgObj.reasoning); },
           _nbExtraOpts,
           function(meta){
+            if(meta.imageContext)msgObj.imageResponse=meta.imageContext.parts;
+            if(meta.grounding)msgObj.grounding=meta.grounding;
             if(meta.context)msgObj.context=meta.context;
             if(meta.citation){
               var source = meta.citation;
@@ -4914,7 +4955,7 @@ if(debateMode === '2v2'){
       btn.textContent = '\u21b5';
       btn.className = 'aa-send'+(debate?' debate-mode':(imageMode?' image-mode':' chat-mode'));
       btn.disabled = !$('aaTopic').value.trim() && !sentImgs.length && !sentTexts.length;
-      btn.onclick = null;
+      stopActiveGeneration = null;
       // 保存聊天记录
       saveCurrentChat();
       // 后台静默更新 memory
@@ -5232,7 +5273,7 @@ if(debateMode === '2v2'){
 
   var _nbSizeOptions = [
 
-    {value:'512',label:'512px'},{value:'1K',label:'1K'},{value:'2K',label:'2K'},{value:'4K',label:'4K'}
+    {value:'1K',label:'1K'},{value:'2K',label:'2K'},{value:'4K',label:'4K'}
 
   ];
 
@@ -5553,7 +5594,7 @@ if(debateMode === '2v2'){
     aaRunning = true; abortF = false;
     var btn = $('aaSendBtn');
     btn.textContent = '■'; btn.className = 'aa-send stop'; btn.disabled = false;
-    btn.onclick = function(){ abortF = true; hideThink(); finishMjAction(); };
+    stopActiveGeneration = function(){ abortF = true; hideThink(); finishMjAction(); };
     var sub = 'mj-action';
     var info = SUBS['mj-imagine'];
     var brandInfo = BRANDS['mj'];
@@ -5717,6 +5758,7 @@ if(debateMode === '2v2'){
     $('aaConversationTitle').textContent = msgs.length ? getChatTitle() : '新对话';
     $('aaModeCaption').textContent = debate ? '多 AI 辩论' : imageMode ? '图像创作' : '';
     $('aaChatModelWrap').hidden = imageMode || videoMode;
+    ['aaImageModelBtn','aaImageTaskBtn','aaImageSettingsBtn'].forEach(function(id){$(id).disabled=aaRunning;});
     if(imageMode || videoMode) closeArenaModelMenu(false);
     var models = getActiveSubmodels();
     $('aaChatModelLabel').textContent = debate ? (models.length + ' 个参与模型') : (SUBS[models[0]] ? SUBS[models[0]].name.replace(/^Claude /,'') : '选择模型');
@@ -5739,7 +5781,7 @@ if(debateMode === '2v2'){
   }
   function renderArenaModelMenu(){
     var model = getActiveSubmodels()[0], info = SUBS[model];
-    var subtitles = {'claude-opus-5-5':'适用于复杂工作与深入分析','claude-sonnet-5-5':'适用于日常工作与高效交流','grok-4.7':'适用于问答、检索与探索','gemini-4-argon':'适用于复杂推理、编程与多模态任务'};
+    var subtitles = {'claude-fable-5-1':'适用于最复杂的推理与长程任务','claude-opus-5-5':'适用于复杂工作与深入分析','claude-sonnet-5-5':'适用于日常工作与高效交流','grok-4.7':'适用于问答、检索与探索','gemini-4-argon':'适用于复杂推理、编程与多模态任务'};
     var arrow = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>';
     var check = '<svg class="arena-model-check" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>';
     $('aaChatModelPop').innerHTML = '<div class="arena-current-model"><div><strong>'+(info?info.name.replace(/^Claude /,''):'选择模型')+'</strong><small>'+(subtitles[model]||'')+'</small></div>'+check+'</div>'
@@ -6183,13 +6225,14 @@ if(imageMode){
     if(_saveTimer){clearTimeout(_saveTimer);_saveTimer=null;if(currentChatId&&msgs.length&&!_incognitoMode)await chatApiCall('save',{projectId:activeProjectId,chatId:currentChatId,title:getChatTitle(),messages:serializeMsgs()});}
     if(switchEpoch!==scopeSwitchEpoch||aaRunning)return;
     var oldKey=activeProjectId||'general';
-    workspaceViews.set(oldKey,{msgs:msgs,currentChatId:currentChatId,draft:$('aaTopic').value,sentImgs:sentImgs,sentTexts:sentTexts,quote:activeQuote,skill:activeSkill,scroll:$('aaMessages').scrollTop,mode:{debate:debate,image:imageMode,video:videoMode,debateMode:debateMode,brands:Object.assign({},activeBrands),selection:Object.assign({},brandSelection)}});
+    workspaceViews.set(oldKey,{imageEditParentUid:imageEditParentUid,msgs:msgs,currentChatId:currentChatId,draft:$('aaTopic').value,sentImgs:sentImgs,sentTexts:sentTexts,quote:activeQuote,skill:activeSkill,scroll:$('aaMessages').scrollTop,mode:{debate:debate,image:imageMode,video:videoMode,debateMode:debateMode,brands:Object.assign({},activeBrands),selection:Object.assign({},brandSelection)}});
     ++scopeEpoch;++chatLoadEpoch;
     activeProject=project;activeProjectId=project?project.id:null;
     if(activeProjectId)sessionStorage.setItem('aa-active-project',activeProjectId);else sessionStorage.removeItem('aa-active-project');
     _cachedMemory=null;_memoryLoaded=false;clearQuote();hideSelectionMenu();selectionQuote=null;
     if(workspaceController)workspaceController.closeFile();
     var view=workspaceViews.get(activeProjectId||'general');
+    imageEditParentUid=view?view.imageEditParentUid:null;
     msgs=view?view.msgs:[];currentChatId=view?view.currentChatId:null;
     sentImgs=view?view.sentImgs:[];sentTexts=view?view.sentTexts:[];
     activeSkill=activeProjectId?null:(view?view.skill:null);
