@@ -120,12 +120,29 @@ for(const model of ['claude-fable-5-1','claude-opus-5','claude-opus-5-5','claude
   assert.deepEqual(output.find(value=>value.usage).usage,{input:23,output:9});
 });
 
-for(const model of ['gemini-3.8-flash','gemini-3.1-pro-preview']) test(model+' uses Google without putting its key in the URL',async t=>{
+for(const model of ['gemini-4-argon','gemini-3.8-flash','gemini-3.1-pro-preview']) test(model+' uses Google without putting its key in the URL',async t=>{
   const {env}=setup();
   mockFetch(t,(url,options)=>{ assert.equal(new URL(url).hostname,'generativelanguage.googleapis.com'); assert.ok(url.includes('/'+model+':streamGenerateContent')); assert.equal(new URL(url).searchParams.has('key'),false); assert.equal(options.headers['x-goog-api-key'],env.GEMINI_API_KEY); return stream([{candidates:[{content:{parts:[{text:'Gemini 官方'}]}}],usageMetadata:{promptTokenCount:13,candidatesTokenCount:6}}]); });
   const output=events(await (await worker.fetch(request(model),env)).text());
   assert.equal(output.find(value=>value.t).t,'Gemini 官方');
   assert.deepEqual(output.find(value=>value.usage).usage,{input:13,output:6});
+});
+
+test('Gemini 4 thinking levels, image input and search use the official Google schema',async t=>{
+  const {env}=setup();let level;
+  const calls=mockFetch(t,(_url,options)=>{
+    const body=JSON.parse(options.body);
+    assert.deepEqual(body.generationConfig,{maxOutputTokens:65536,thinkingConfig:{thinkingLevel:level}});
+    assert.deepEqual(body.contents[0].parts,[{inline_data:{mime_type:'image/png',data:'aGVsbG8='}},{text:'Test prompt'}]);
+    assert.deepEqual(body.tools,[{google_search:{}}]);
+    return stream([{candidates:[{content:{parts:[{text:'Gemini 4'}]}}]}]);
+  });
+  for(level of ['low','medium','high']) {
+    const output=events(await (await worker.fetch(request('gemini-4-argon',{effort:level,search:true,images:[{data:'aGVsbG8=',mime:'image/png'}]}),env)).text());
+    assert.equal(output.find(value=>value.t).t,'Gemini 4');
+  }
+  assert.equal((await worker.fetch(request('gemini-4-argon',{effort:'xhigh'}),env)).status,400);
+  assert.equal(calls.length,3);
 });
 
 test('Grok image generation uses the official endpoint and counts cost once',async t=>{

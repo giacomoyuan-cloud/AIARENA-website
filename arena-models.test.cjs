@@ -17,22 +17,22 @@ function browser(saved = {}) {
     imageMode: false, videoMode: false, debate: false, debateMode: 'free',
     imageComposerModel: 'grok-imagine-image-2.0',
     activeBrands: { xai: false, anthropic: false, openai: false, google: true },
-    brandSelection: { xai: 'grok-4.7', anthropic: 'claude-sonnet-5-5', google: 'gemini-3.8-flash' }
+    brandSelection: { xai: 'grok-4.7', anthropic: 'claude-sonnet-5-5', google: 'gemini-4-argon' }
   });
   vm.runInContext(source.slice(source.indexOf('  var AVAILABLE_CHAT_MODELS'), source.indexOf('  var SYS_DEBATE')), context);
   for (const name of ['loadState', 'normalizeAvailableModels', 'getActiveSubmodels']) vm.runInContext(browserFunction(name), context);
   return context;
 }
 
-for (const model of ['gemini-3.8-flash', 'gemini-3.1-pro-preview']) {
-  test(model + ' remains selected through repeated UI synchronization and reload', () => {
+for (const model of ['gemini-4-argon', 'gemini-3.8-flash', 'gemini-3.1-pro-preview']) {
+  test(model + ' restores the requested Gemini 4 model through synchronization and reload', () => {
     const context = browser({
       'aa-brand-selection': JSON.stringify({ google: model }),
       'aa-active-brands': JSON.stringify({ xai: false, anthropic: false, google: true })
     });
     context.loadState();
-    assert.ok(context.AVAILABLE_CHAT_MODELS.includes(model));
-    for (let i = 0; i < 3; i++) assert.deepEqual(Array.from(context.getActiveSubmodels()), [model]);
+    assert.ok(context.AVAILABLE_CHAT_MODELS.includes('gemini-4-argon'));
+    for (let i = 0; i < 3; i++) assert.deepEqual(Array.from(context.getActiveSubmodels()), ['gemini-4-argon']);
   });
 }
 
@@ -49,13 +49,13 @@ test('unavailable legacy routes still normalize to supported models', () => {
   context.activeBrands = { openai: true, mj: true, kling: true };
   context.brandSelection.google = 'gemini31-proxy';
   assert.deepEqual(Array.from(context.getActiveSubmodels()), ['claude-sonnet-5-5']);
-  assert.equal(context.brandSelection.google, 'gemini-3.8-flash');
+  assert.equal(context.brandSelection.google, 'gemini-4-argon');
   context.imageMode = true;
   context.imageComposerModel = 'mj_imagine';
   assert.deepEqual(Array.from(context.getActiveSubmodels()), ['grok-imagine-image-2.0']);
 });
 
-test('Gemini menu has no unused effort controls or undefined labels', () => {
+test('Gemini 4 menu exposes its three supported thinking levels and medium default', () => {
   const context = browser();
   const elements = new Map();
   context.$ = id => {
@@ -66,9 +66,13 @@ test('Gemini menu has no unused effort controls or undefined labels', () => {
   vm.runInContext(browserFunction('renderArenaModelMenu'), context);
   context.renderArenaModelMenu();
   const menu = elements.get('aaChatModelPop').innerHTML;
-  assert.match(menu, /Gemini 3\.8 Flash/);
-  assert.doesNotMatch(menu, /undefined|id="aaEffortMenuBtn"/);
-  assert.match(elements.get('aaModelsSubmenu').innerHTML, /gemini-3\.1-pro-preview/);
+  assert.match(menu, /Gemini 4 Argon/);
+  assert.doesNotMatch(menu, /undefined/);
+  assert.match(menu, /id="aaEffortMenuBtn"/);
+  assert.deepEqual(Array.from(context.EFFORT_LEVELS['gemini-4-argon']), ['low', 'medium', 'high']);
+  assert.equal(context.effortSelection['gemini-4-argon'], 'medium');
+  assert.match(elements.get('aaModelsSubmenu').innerHTML, /gemini-4-argon/);
+  assert.doesNotMatch(elements.get('aaModelsSubmenu').innerHTML, /gemini-3\.8-flash|gemini-3\.1-pro-preview/);
   context.activeBrands = { anthropic: true };
   context.renderArenaModelMenu();
   assert.match(elements.get('aaChatModelPop').innerHTML, /id="aaEffortMenuBtn"/);

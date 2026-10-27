@@ -34,6 +34,7 @@ const OFFICIAL_MODELS = {
   "claude-opus-5": { provider: "anthropic", binding: "ANTHROPIC_API_KEY", name: "Claude Opus 5", maxTokens: 128000 },
   "gemini-3.8-flash": { provider: "google", binding: "GEMINI_API_KEY", name: "Gemini 3.8 Flash", maxTokens: 65536 },
   "gemini-3.1-pro-preview": { provider: "google", binding: "GEMINI_API_KEY", name: "Gemini 3.1 Pro", maxTokens: 65536 },
+  "gemini-4-argon": { provider: "google", binding: "GEMINI_API_KEY", name: "Gemini 4 Argon", maxTokens: 65536 },
   "grok-imagine-image-2.0": { provider: "xai", binding: "GROK_API_KEY", name: "Grok Imagine Image 2.0", image: true },
   "gpt-image-2.5-sunburst": { provider: "openai", binding: "OPENAI_API_KEY", name: "GPT Image 2.5 Sunburst", image: true },
   "gemini-3.1-flash-image": { provider: "google", binding: "GEMINI_API_KEY", name: "Gemini 3.1 Flash Image", image: true }
@@ -41,7 +42,8 @@ const OFFICIAL_MODELS = {
 const MODEL_EFFORT_LEVELS = {
   "claude-opus-5-5": ["low", "medium", "high", "xhigh", "max"],
   "claude-sonnet-5-5": ["low", "medium", "high", "xhigh", "max"],
-  "grok-4.7": ["low", "medium", "high", "xhigh"]
+  "grok-4.7": ["low", "medium", "high", "xhigh"],
+  "gemini-4-argon": ["low", "medium", "high"]
 };
 
 var worker_default = {
@@ -661,6 +663,7 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
         endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse`;
         headers = { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY };
         payload = { contents: [{ parts: buildGeminiParts(prompt, image, imageMime) }], generationConfig: { maxOutputTokens: outputLimit } };
+        if (effort !== undefined) payload.generationConfig.thinkingConfig = { thinkingLevel: effort };
         if (search) payload.tools = [{ google_search: {} }];
       } else {
         const isXai = config.provider === "xai";
