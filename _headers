@@ -14,3 +14,6 @@
   Cache-Control: no-cache, max-age=0, must-revalidate
 /arena-workspace.css
   Cache-Control: no-cache, max-age=0, must-revalidate
+
+/arena-account.js
+  Cache-Control: no-cache, max-age=0, must-revalidate
