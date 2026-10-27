@@ -1,4 +1,3 @@
-import { animate } from 'motion';
 import { positionAt, stopAt } from './effort-math.mjs';
 
 let active;
@@ -19,19 +18,32 @@ function mount(root) {
   gesture.setAttribute('aria-hidden', 'true');
   root.appendChild(gesture);
   let pointer = null, rect, grabOffset = 0, width = 0, frame = 0, pendingX;
-  let drawnIndex = -1, animations = [];
-  function stop() { animations.forEach(animation => animation.stop()); animations = []; }
-  function draw(x, spring = false) {
-    const targets = [[thumb, `translateX(${x}px)`], [fill, `scaleX(${(x + 16) / Math.max(32, width)})`]];
-    if (spring && !reduced.matches) {
-      targets.forEach(([element, transform]) => animations.push(animate(element, { transform }, { type: 'spring', duration: .5, bounce: .2 })));
-    } else targets.forEach(([element, transform]) => { element.style.transform = transform; });
+  let drawnIndex = -1, drawnX = 0, animations = [];
+  function stop() { animations.forEach(animation => animation.cancel()); animations = []; }
+  function draw(x, settle = false) {
+    const transformAt = (position) => [
+      `translateX(${position}px)`,
+      `scaleX(${(position + 16) / Math.max(32, width)})`,
+    ];
+    const previousX = drawnX, from = transformAt(previousX), to = transformAt(x);
+    drawnX = x;
+    const elements = [thumb, fill];
+    if (settle && !reduced.matches && Math.abs(x - previousX) > .5 && elements.every(element => typeof element.animate === 'function')) {
+      // Keep the underlying style current and cancel the actual browser
+      // animation on interruption, so an older release cannot reappear.
+      elements.forEach((element, i) => {
+        element.style.transform = to[i];
+        animations.push(element.animate([{ transform: from[i] }, { transform: to[i] }], {
+          duration: 240, easing: 'cubic-bezier(.22, 1, .36, 1)',
+        }));
+      });
+    } else elements.forEach((element, i) => { element.style.transform = to[i]; });
   }
   function sync() {
     root.classList.toggle('is-disabled', input.disabled);
     if (pointer !== null) return;
     const nextWidth = root.getBoundingClientRect().width, index = Number(input.value);
-    // Do not truncate a release spring when unrelated app state synchronizes.
+    // Do not truncate a release animation when unrelated app state synchronizes.
     if (nextWidth <= 32 || (nextWidth === width && index === drawnIndex)) return;
     width = nextWidth; drawnIndex = index; stop(); draw(index / max * (width - 32));
   }
@@ -66,9 +78,9 @@ function mount(root) {
   }
   gesture.addEventListener('pointerdown', event => {
     if (input.disabled || pointer !== null || !event.isPrimary || event.button !== 0) return;
+    const center = thumb.getBoundingClientRect().left + 16;
     event.preventDefault(); stop();
     rect = root.getBoundingClientRect(); width = rect.width;
-    const center = thumb.getBoundingClientRect().left + 16;
     grabOffset = Math.abs(event.clientX - center) <= 22 ? event.clientX - center : 0;
     pointer = event.pointerId; gesture.setPointerCapture(pointer);
     input.dataset.effortDragging = 'true';

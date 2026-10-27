@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>AI 助手</title>
-<meta name="app-version" content="20261028-knead1">
+<meta name="app-version" content="20261028-effortfix1">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1208,7 +1208,7 @@
 <script src="/arena-markdown.js?v=20261027-account1"></script>
 <script src="/arena-image.js?v=20261027-imageui1"></script>
 <script src="/arena-native.js?v=20261028-smooth2"></script>
-<script src="/arena-effort.js?v=20261028-smooth2"></script>
+<script src="/arena-effort.js?v=20261028-effortfix1"></script>
 <script src="/arena-context.js?v=20261027-account1"></script>
 <script src="/arena-workspace.js?v=20261027-account1"></script>
 <script src="/arena-account.js?v=20261027-account2"></script>
@@ -5815,8 +5815,8 @@ if(debateMode === '2v2'){
       slider.setAttribute('aria-valuetext',EFFORT_LABELS[level]);
       $('aaEffortScale').style.setProperty('--effort-progress',(index/(levels.length-1)*100)+'%');
       document.querySelectorAll('#aaEffortScale .arena-effort-ticks > span').forEach(function(tick,i){tick.classList.toggle('is-filled',i<=index);});
-      $('aaEffortValue').textContent=EFFORT_LABELS[level];
-      $('aaEffortDescription').textContent=EFFORT_DESCRIPTIONS[level]||'';
+      if($('aaEffortValue').textContent!==EFFORT_LABELS[level]) $('aaEffortValue').textContent=EFFORT_LABELS[level];
+      if($('aaEffortDescription').textContent!==(EFFORT_DESCRIPTIONS[level]||'')) $('aaEffortDescription').textContent=EFFORT_DESCRIPTIONS[level]||'';
       $('aaEffortValue').title=EFFORT_DESCRIPTIONS[level]||'';
       $('aaResetEffortBtn').hidden=level===defaultEffortFor(sliderModel);
       $('aaResetEffortBtn').disabled=aaRunning;
@@ -5825,7 +5825,7 @@ if(debateMode === '2v2'){
     }
     var model=getActiveSubmodels()[0];
     if(!debate && EFFORT_LEVELS[model]){
-      $('aaCurrentEffort').textContent=EFFORT_LABELS[effortFor(model)];
+      if($('aaCurrentEffort').textContent!==EFFORT_LABELS[effortFor(model)]) $('aaCurrentEffort').textContent=EFFORT_LABELS[effortFor(model)];
       $('aaChatModelBtn').setAttribute('aria-label','选择模型：'+SUBS[model].name+'，思考强度：'+EFFORT_LABELS[effortFor(model)]);
     }
   }
@@ -5846,7 +5846,7 @@ if(debateMode === '2v2'){
     $('aaChatModelLabel').textContent = debate ? (models.length + ' 个参与模型') : (SUBS[models[0]] ? SUBS[models[0]].name.replace(/^Claude /,'') : '选择模型');
     var effortModel = models[0];
     $('aaCurrentEffort').hidden = !EFFORT_LEVELS[effortModel] || debate;
-    $('aaCurrentEffort').textContent = EFFORT_LABELS[effortFor(effortModel)] || '';
+    if($('aaCurrentEffort').textContent !== (EFFORT_LABELS[effortFor(effortModel)] || '')) $('aaCurrentEffort').textContent = EFFORT_LABELS[effortFor(effortModel)] || '';
     $('aaChatModelBtn').disabled = aaRunning;
     $('aaChatModelBtn').setAttribute('aria-label', '选择模型：'+(SUBS[models[0]] ? SUBS[models[0]].name : '')+(EFFORT_LEVELS[effortModel] ? '，思考强度：'+EFFORT_LABELS[effortFor(effortModel)] : ''));
     syncArenaEffort();
