@@ -183,7 +183,7 @@ function nativeImageHistory(history) {
         out.inlineData={data:part.inlineData.data,mimeType:part.inlineData.mimeType};
       }
       if(typeof part.thoughtSignature === "string")out.thoughtSignature=part.thoughtSignature;
-      if(!("text" in out)&&!out.inlineData)throw new Error("图片编辑上下文中有不支持的内容");
+      if(!Object.hasOwn(out,"text")&&!Object.hasOwn(out,"inlineData"))throw new Error("图片编辑上下文中有不支持的内容");
       return out;
     })};
   });
