@@ -160,10 +160,9 @@
 #ai-arena-app.arena-shell .aa-reasoning-block { margin-left: 0; background: var(--arena-user); border-color: var(--arena-border); }
 #ai-arena-app.arena-shell .aa-reasoning-content,
 #ai-arena-app.arena-shell .aa-reasoning-toggle { color: var(--arena-muted); }
-#ai-arena-app.arena-shell .aa-welcome { position: absolute; top: 34%; left: 24px; right: 24px; text-align: center; pointer-events: none; z-index: 1; }
-#ai-arena-app.arena-shell .aa-welcome h1 { background: none; -webkit-text-fill-color: var(--arena-text); color: var(--arena-text); font: 400 32px/1.4 Georgia, "Songti SC", serif; letter-spacing: -1px; margin: 14px 0 9px; }
-#ai-arena-app.arena-shell .aa-welcome p { color: var(--arena-muted); font: 12px/1.6 var(--arena-ui-font); }
-#ai-arena-app.arena-shell .arena-welcome-mark { width: 35px; height: 35px; color: var(--arena-accent); stroke-width: 2.4; }
+#ai-arena-app.arena-shell .aa-welcome { position:absolute;top:44%;left:24px;right:24px;transform:translateY(-50%);text-align:center;pointer-events:none;z-index:1; }
+#ai-arena-app.arena-shell .arena-welcome-pet { display:block;width:clamp(170px,18vw,220px);height:auto;aspect-ratio:1;object-fit:contain;margin:0 auto; }
+#ai-arena-app.arena-shell .aa-welcome h1 { background:none;-webkit-text-fill-color:var(--arena-text);color:var(--arena-text);font:400 32px/1.4 Georgia,"Songti SC",serif;letter-spacing:-1px;margin:8px 0 0; }
 
 /* Composer. Controls stay in the second row when the textarea grows. */
 #ai-arena-app.arena-shell .aa-input-area,
@@ -348,7 +347,8 @@
   #ai-arena-app.arena-shell #aaIncognitoBanner,
   #ai-arena-app.arena-shell #aaBizBanner { left: 0; width: 100% !important; }
   #ai-arena-app.arena-shell .aa-pass-popup { z-index: 100007; }
-  #ai-arena-app.arena-shell .aa-welcome { top: 32%; }
+  #ai-arena-app.arena-shell .aa-welcome { top:42%;left:14px;right:14px; }
+  #ai-arena-app.arena-shell .arena-welcome-pet { width:clamp(150px,42vw,190px); }
 }
 @media (max-width: 600px) {
   #ai-arena-app.arena-shell { grid-template-rows: 52px minmax(0, 1fr); }
@@ -379,10 +379,9 @@
   #ai-arena-app.arena-shell.arena-debate-mode .aa-card-head { width: 92px; height: 42px; }
 }
 @media (max-height: 520px) {
-  #ai-arena-app.arena-shell .aa-welcome { top: 15%; }
-  #ai-arena-app.arena-shell .arena-welcome-mark,
-  #ai-arena-app.arena-shell .aa-welcome p { display: none; }
-  #ai-arena-app.arena-shell .aa-welcome h1 { font-size: 23px; }
+  #ai-arena-app.arena-shell .aa-welcome { top:30%; }
+  #ai-arena-app.arena-shell .arena-welcome-pet { width:90px; }
+  #ai-arena-app.arena-shell .aa-welcome h1 { font-size:22px;margin-top:3px; }
   #ai-arena-app.arena-shell .arena-history-label { padding-top: 10px; }
   #ai-arena-app.arena-shell .arena-nav-item { min-height: 33px; height: 33px; }
 }
@@ -784,7 +783,7 @@ html, body { overscroll-behavior: none; }
   #ai-arena-app.arena-shell .arena-topbar .arena-icon-btn { min-width: 44px; min-height: 44px; }
 }
 @media (max-height: 500px) and (pointer: coarse) {
-  #ai-arena-app.arena-shell .aa-welcome { display: none; }
+  #ai-arena-app.arena-shell .aa-welcome[data-drafting="true"] { display:none; }
   #ai-arena-app.arena-shell .aa-chat.empty-state .aa-input-area { margin-top: auto; margin-bottom: 0; }
   #ai-arena-app.arena-shell .aa-input-area { max-height: 80%; }
   #ai-arena-app.arena-shell .arena-composer-note { display: none; }

@@ -8,5 +8,5 @@ const publicFiles=(await readdir(root)).filter(name => /^(index|android|pitch-an
   || /^arena[^/]*\.(css|js)$/.test(name) || /^icon-\d+\.png$/.test(name)
   || ['manifest.json','sw.js','app-version.json','_headers','THIRD_PARTY_LICENSES.txt'].includes(name));
 for(const name of await readdir(target)) await rm(resolve(target,name),{recursive:true,force:true});
-for(const name of [...publicFiles,'songs','downloads'])await cp(resolve(root,name),resolve(target,name),{recursive:true});
-console.log(`Staged ${publicFiles.length} public files plus songs/downloads; no Android sources or credentials.`);
+for(const name of [...publicFiles,'songs','downloads','welcome-media'])await cp(resolve(root,name),resolve(target,name),{recursive:true});
+console.log(`Staged ${publicFiles.length} public files plus songs/downloads/welcome-media; no Android sources or credentials.`);
