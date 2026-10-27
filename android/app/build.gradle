@@ -1,0 +1,58 @@
+plugins { id 'com.android.application' }
+def signingFile = rootProject.file('signing/release.properties')
+def signing = new Properties()
+if (signingFile.exists()) signingFile.withInputStream { signing.load(it) }
+android {
+    namespace 'com.pickandcase.assistant'
+    compileSdk 36
+    defaultConfig {
+        applicationId 'com.pickandcase.assistant'
+        minSdk 26
+        targetSdk 36
+        versionCode 1
+        versionName '1.0.0'
+        testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+        buildConfigField 'String', 'SITE_URL', '"https://ai.pickandcase.com/"'
+    }
+    signingConfigs {
+        release {
+            if (signingFile.exists()) {
+                storeFile rootProject.file('signing/release.jks')
+                storePassword signing.getProperty('storePassword')
+                keyAlias 'ai-assistant'
+                keyPassword signing.getProperty('keyPassword')
+            }
+        }
+    }
+    buildTypes {
+        debug { applicationIdSuffix '.debug'; versionNameSuffix '-debug' }
+        release {
+            signingConfig signingConfigs.release
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    buildFeatures { buildConfig true }
+    sourceSets { androidTest.assets.srcDir layout.buildDirectory.dir('generated/qa-assets') }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+}
+tasks.register('prepareQaAssets', Copy) {
+    from(rootProject.projectDir.parentFile) {
+        include '*.html', '*.css', 'arena*.js', 'icon-*.png', 'manifest.json', 'app-version.json', 'sw.js'
+    }
+    into layout.buildDirectory.dir('generated/qa-assets')
+    filesMatching('index.html') {
+        filter { line -> line.replace("var WORKER = 'https://api.pickandcase.com'", "var WORKER = 'https://ai.pickandcase.com/mock-api'") }
+    }
+}
+tasks.configureEach { if (name == 'mergeDebugAndroidTestAssets') dependsOn('prepareQaAssets') }
+dependencies {
+    implementation 'androidx.activity:activity:1.10.0'
+    implementation 'androidx.core:core:1.15.0'
+    implementation 'androidx.webkit:webkit:1.14.0'
+    testImplementation 'junit:junit:4.13.2'
+    androidTestImplementation 'androidx.test:runner:1.6.2'
+    androidTestImplementation 'androidx.test:rules:1.6.1'
+    androidTestImplementation 'androidx.test.ext:junit:1.2.1'
+}

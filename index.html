@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <title>AI 助手</title>
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="app-version" content="20261028-app1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -863,7 +864,7 @@
   #ai-arena-app #aaSkillEditPrompt::placeholder { color: #888; opacity: 1; }
 
 </style>
-<link rel="stylesheet" href="/arena.css?v=20261027-imageui2">
+<link rel="stylesheet" href="/arena.css?v=20261028-mobile1">
 <link rel="stylesheet" href="/arena-workspace.css?v=20261027-avatar1">
 
 <!-- Login overlay -->
@@ -1205,6 +1206,8 @@
 
 <script src="/arena-markdown.js?v=20261027-account1"></script>
 <script src="/arena-image.js?v=20261027-imageui1"></script>
+<script src="/arena-native.js?v=20261028-app1"></script>
+<script src="/arena-effort.js?v=20261028-motion1"></script>
 <script src="/arena-context.js?v=20261027-account1"></script>
 <script src="/arena-workspace.js?v=20261027-account1"></script>
 <script src="/arena-account.js?v=20261027-account2"></script>
@@ -1212,11 +1215,11 @@
 (function(){
   (function(){
     var vp = document.querySelector('meta[name="viewport"]');
-    if(vp){ vp.content = 'width=device-width, initial-scale=1.0, viewport-fit=cover'; }
+    if(vp){ vp.content = 'width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content'; }
     else {
       var m = document.createElement('meta');
       m.name = 'viewport';
-      m.content = 'width=device-width, initial-scale=1.0, viewport-fit=cover';
+      m.content = 'width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content';
       document.head.appendChild(m);
     }
   })();
@@ -2828,6 +2831,10 @@ var TEAM_COLORS = {
   window._aaDownloadImg = function(uid){
     var entry = window._aaImgStore[uid];
     if(!entry) return;
+    if(window.ArenaNative && ArenaNative.available()){
+      ArenaNative.image('saveImage',entry).then(function(){arenaNotice('已保存到相册');}).catch(function(error){arenaNotice(error.message);});
+      return;
+    }
     var byteStr = atob(entry.data);
     var arr = new Uint8Array(byteStr.length);
     for(var i=0;i<byteStr.length;i++) arr[i]=byteStr.charCodeAt(i);
@@ -2837,6 +2844,10 @@ var TEAM_COLORS = {
     var a = document.createElement('a'); a.href=url; a.download='ai-image-'+uid+'.'+ext;
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+  };
+  window._aaShareImg = function(uid){
+    var entry=window._aaImgStore[uid];
+    if(entry && window.ArenaNative) ArenaNative.image('shareImage',entry).catch(function(error){arenaNotice(error.message);});
   };
   window._aaStartEditMsg = function(uid){
     uid = parseInt(uid);
@@ -4244,7 +4255,8 @@ function initPersonaDragDrop(){
           h += '<div class="aa-generated-actions">';
           if(['grok-imagine-image-2.0','gpt-image-2.5-sunburst','gemini-nano-banana-2.1','gemini-3.1-flash-image'].indexOf(msg.submodel) !== -1) h += '<button class="aa-generated-btn edit" onclick="window._aaEditGeneratedImage(\''+_imgKey+'\',\''+msg.submodel+'\')">编辑这张</button>';
           h += '<button class="aa-generated-btn primary" onclick="window._aaLightbox(window._aaImgClickStore[\''+_imgKey+'\'])">查看大图</button>';
-          h += '<button class="aa-generated-btn" onclick="window._aaDownloadImg(\''+_imgKey+'\')">下载原图</button>';
+          h += '<button class="aa-generated-btn" onclick="window._aaDownloadImg(\''+_imgKey+'\')">'+(window.ArenaNative && ArenaNative.available()?'保存图片':'下载原图')+'</button>';
+          if(window.ArenaNative && ArenaNative.available()) h += '<button class="aa-generated-btn" onclick="window._aaShareImg(\''+_imgKey+'\')">分享图片</button>';
           h += '</div></div>';
         });
         h += '</div>';
@@ -5810,7 +5822,10 @@ if(debateMode === '2v2'){
       $('aaEffortValue').textContent=EFFORT_LABELS[level];
       $('aaEffortDescription').textContent=EFFORT_DESCRIPTIONS[level]||'';
       $('aaEffortValue').title=EFFORT_DESCRIPTIONS[level]||'';
-      $('aaResetEffortBtn').disabled=aaRunning || level===defaultEffortFor(sliderModel);
+      $('aaResetEffortBtn').hidden=level===defaultEffortFor(sliderModel);
+      $('aaResetEffortBtn').disabled=aaRunning;
+      $('aaResetEffortBtn').title='恢复默认 · '+EFFORT_LABELS[defaultEffortFor(sliderModel)];
+      if(typeof ArenaEffort!=='undefined') ArenaEffort.sync();
     }
     if($('aaModelPickerBtn')) $('aaModelPickerBtn').disabled=aaRunning;
     $('aaIncognitoBtn').setAttribute('aria-pressed', String(!!_incognitoMode));
@@ -5829,16 +5844,17 @@ if(debateMode === '2v2'){
     var arrow = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>';
     var check = '<svg class="arena-model-check" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>';
     var levels=EFFORT_LEVELS[model]||[], level=effortFor(model), index=levels.indexOf(level);
-    var h='<div class="arena-effort-heading"><svg class="arena-effort-bolt" viewBox="0 0 24 24" aria-hidden="true"><path d="m13 2-9 12h7l-1 8 10-13h-7l1-7Z"/></svg>'
+    var h='<div class="arena-effort-heading"><span aria-hidden="true"></span>'
       +'<output id="aaEffortValue" for="aaEffortSlider" aria-live="polite">'+(EFFORT_LABELS[level]||'选择模型')+'</output>'
       +'<button type="button" class="arena-effort-reset" id="aaResetEffortBtn" aria-label="恢复默认思考强度" title="恢复默认思考强度"'+(levels.length?'':' hidden')+'><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10a9 9 0 1 1 1.7 7M3 4v6h6"/></svg></button></div>'
       +'<button type="button" class="arena-effort-model" id="aaModelPickerBtn" aria-haspopup="dialog" aria-controls="aaModelsSubmenu"><span>'+(info?info.name.replace(/^Claude /,''):'选择模型')+'</span>'+arrow+'</button>';
     if(levels.length){
-      h+='<div class="arena-effort-scale" id="aaEffortScale" style="--effort-progress:'+(index/(levels.length-1)*100)+'%"><div class="arena-effort-track" aria-hidden="true"></div><div class="arena-effort-ticks" aria-hidden="true">';
+      h+='<div class="arena-effort-scale" id="aaEffortScale" style="--effort-progress:'+(index/(levels.length-1)*100)+'%"><div class="arena-effort-track" aria-hidden="true"><div class="arena-effort-fill"></div></div><div class="arena-effort-thumb" aria-hidden="true"><span><i class="arena-effort-halo"></i></span></div><div class="arena-effort-ticks" aria-hidden="true">';
       levels.forEach(function(value,i){h+='<span'+(i<=index?' class="is-filled"':'')+' style="left:'+(i/(levels.length-1)*100)+'%"></span>';});
       h+='</div><label class="arena-sr-only" for="aaEffortSlider">思考强度</label><input id="aaEffortSlider" type="range" min="0" max="'+(levels.length-1)+'" step="1" value="'+index+'" data-effort-model="'+model+'" aria-valuetext="'+EFFORT_LABELS[level]+'" aria-describedby="aaEffortDescription"><p class="arena-sr-only" id="aaEffortDescription">'+EFFORT_DESCRIPTIONS[level]+'</p></div>';
     }
     $('aaChatModelPop').innerHTML=h;
+    if(typeof ArenaEffort!=='undefined') ArenaEffort.mount($('aaEffortScale'));
     $('aaModelsSubmenu').innerHTML='<div class="arena-model-picker-heading"><span>选择模型</span><button type="button" data-arena-model-back aria-label="返回思考强度">'+arrow+'</button></div>'
       +AVAILABLE_CHAT_MODELS.map(function(id){return '<button type="button" class="arena-model-option" data-arena-model="'+id+'" aria-pressed="false"><span>'+SUBS[id].name.replace(/^Claude /,'')+'</span>'+check+'</button>';}).join('');
     syncArenaLayout();
@@ -5850,7 +5866,10 @@ if(debateMode === '2v2'){
     if(e.target.closest('#aaModelPickerBtn')) openArenaModelPicker();
     if(e.target.closest('#aaResetEffortBtn')){
       var model=getActiveSubmodels()[0];
-      if(setArenaEffort(model,defaultEffortFor(model)) && $('aaEffortSlider')) $('aaEffortSlider').focus();
+      if(setArenaEffort(model,defaultEffortFor(model)) && $('aaEffortSlider')){
+        $('aaEffortSlider').focus();
+        arenaNotice('已恢复默认强度 · '+EFFORT_LABELS[defaultEffortFor(model)]);
+      }
     }
   });
   $('aaChatModelBtn').addEventListener('click', function(e){
@@ -6229,6 +6248,16 @@ if(imageMode){
   // Project scope is captured on every request and delayed save.
   var workspaceViews=new Map(),workspaceController=null,memoryTurnCounts=new Map(),scopeSwitchEpoch=0;
   var noticeTimer=null;
+  if(window.ArenaNative) ArenaNative.mount({
+    canRefresh:function(){return !aaRunning && !msgs.length && !$('aaTopic').value.trim() && !sentImgs.length && !sentTexts.length && !activeQuote && !imageEditParentUid && !activeProjectId && !_incognitoMode && !$('aaHistoryPanel').classList.contains('open') && !document.querySelector('dialog[open],.aa-image-lightbox,.aa-image-popover.open') && $('aaChatModelPop').hidden && $('aaModelsSubmenu').hidden && $('aaPlusMenu').style.display==='none' && $('aaSidebar').classList.contains('hidden') && document.activeElement.tagName!=='INPUT' && document.activeElement.tagName!=='TEXTAREA';},
+    back:function(){
+      var lightbox=document.querySelector('.aa-image-lightbox-close'); if(lightbox){lightbox.click();return true;}
+      var dialog=document.querySelector('dialog[open]'); if(dialog){dialog.close();return true;}
+      var overlayOpen=!$('aaModelsSubmenu').hidden || !$('aaChatModelPop').hidden || $('aaPlusMenu').style.display!=='none' || $('aaSkillsDrop').classList.contains('open') || document.querySelector('.aa-image-popover.open') || !$('aaSidebar').classList.contains('hidden') || $('aaHistoryPanel').classList.contains('open');
+      if(overlayOpen){document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));return true;}
+      return false;
+    }
+  });
   function arenaNotice(message){
     var element=$('aaNotice');element.textContent=message;element.hidden=false;
     clearTimeout(noticeTimer);noticeTimer=setTimeout(function(){element.hidden=true;},2600);

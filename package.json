@@ -1,0 +1,15 @@
+{
+  "name": "ai-assistant-web",
+  "private": true,
+  "scripts": {
+    "build": "esbuild web/arena-effort.mjs --bundle --minify --format=iife --target=es2020 --outfile=arena-effort.js --legal-comments=linked && node scripts/stage-site.mjs",
+    "test": "node --test *.test.cjs web/*.test.mjs"
+  },
+  "dependencies": {
+    "motion": "14.7.1"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "qrcode": "1.5.4"
+  }
+}

@@ -3,3 +3,12 @@ worker/.env*
 worker/node_modules/
 worker/.wrangler/
 *.log
+node_modules/
+android/.gradle/
+android/**/build/
+android/local.properties
+android/signing/
+*.keystore
+*.jks
+
+dist-site/
