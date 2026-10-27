@@ -8,9 +8,9 @@ async function hashText(t) {
 }
 __name(hashText, "hashText");
 const OFFICIAL_MODELS = {
+  "grok-4.7": { provider: "xai", binding: "GROK_API_KEY", name: "Grok 4.7", maxTokens: 128000 },
   "claude-opus-5-5": { provider: "anthropic", binding: "ANTHROPIC_API_KEY", name: "Claude Opus 5.5", maxTokens: 128000 },
   "claude-sonnet-5-5": { provider: "anthropic", binding: "ANTHROPIC_API_KEY", name: "Claude Sonnet 5.5", maxTokens: 128000 },
-  "grok-4.6": { provider: "xai", binding: "GROK_API_KEY", name: "Grok 4.6", maxTokens: 128000 },
   "gpt-6-astra": { provider: "openai", binding: "OPENAI_API_KEY", name: "GPT-6 Astra", maxTokens: 128000 },
   "gpt-5.6-sol": { provider: "openai", binding: "OPENAI_API_KEY", name: "GPT-5.6 Sol", maxTokens: 128000 },
   "claude-fable-5-1": { provider: "anthropic", binding: "ANTHROPIC_API_KEY", name: "Claude Fable 5.1", maxTokens: 64000 },
@@ -373,7 +373,9 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
     } catch {
       return new Response("Invalid JSON", { status: 400 });
     }
-    const { password, model, prompt, search, image = null, imageMime = null, images = null } = body;
+    const { password, model: requestedModel, prompt, search, image = null, imageMime = null, images = null } = body;
+    // Cached clients using the previous Grok ID upgrade to the same canonical model and usage key.
+    const model = requestedModel === "grok-4.6" ? "grok-4.7" : requestedModel;
     const allImages = images && images.length ? images : image ? [{ data: image, mime: imageMime || "image/jpeg" }] : [];
     const MAX_IMAGE_BASE64_LEN = 14 * 1024 * 1024;
     if (image && image.length > MAX_IMAGE_BASE64_LEN) {

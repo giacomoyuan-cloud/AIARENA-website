@@ -6,14 +6,14 @@ The browser remains on Cloudflare Pages. `worker.js` serves the existing `ai` Wo
 
 | Models | API host | Existing secret binding |
 | --- | --- | --- |
-| Grok 4.6, Grok Imagine Image 2.0 | `api.x.ai` | `GROK_API_KEY` |
+| Grok 4.7, Grok Imagine Image 2.0 | `api.x.ai` | `GROK_API_KEY` |
 | GPT-6 Astra, GPT-5.6 Sol, GPT Image 2.5 Sunburst | `api.openai.com` | `OPENAI_API_KEY` |
 | Claude Opus 5.5, Claude Sonnet 5.5 (earlier Fable/Opus routes retained for compatibility); memory extraction with the existing Haiku model | `api.anthropic.com` | `ANTHROPIC_API_KEY` |
 | Gemini 3.8 Flash, Gemini 3.1 Pro, Gemini 3.1 Flash Image | `generativelanguage.googleapis.com` | `GEMINI_API_KEY` |
 
 There is no third-party fallback. Missing official keys produce a 503; provider errors reach the page. The Worker no longer references `QUICK`, `JIEKOU_API_KEY`, `HAJIMI_API_KEY` or `MJ_API_KEY`. Existing secret bindings are retained in Cloudflare and do not need to be deleted to stop their use.
 
-The browser model menu is a flat deployment allowlist and hides provider routes that have not completed live acceptance. The image menu exposes only the verified image route. Historical model labels and backend routes remain readable for compatibility.
+The browser model menu is a flat deployment allowlist and hides provider routes that have not completed live acceptance. The image menu exposes only the verified image route. Historical conversation labels remain readable for compatibility. Cached requests using `grok-4.6` upgrade to `grok-4.7`; returned model names and new usage records identify 4.7. Earlier Claude backend routes remain available for compatibility.
 
 Midjourney has no generally available public official API. It is not shown in the active model menu. The already inactive legacy Kling route remains unavailable until an official integration and its credentials are configured.
 

@@ -29,7 +29,7 @@ function mockFetch(t, handler) {
 }
 
 for(const [model,host,binding] of [
-  ['grok-4.6','api.x.ai','GROK_API_KEY'],['gpt-6-astra','api.openai.com','OPENAI_API_KEY'],['gpt-5.6-sol','api.openai.com','OPENAI_API_KEY']
+['grok-4.7','api.x.ai','GROK_API_KEY'],['gpt-6-astra','api.openai.com','OPENAI_API_KEY'],['gpt-5.6-sol','api.openai.com','OPENAI_API_KEY']
 ]) test(model+' uses the matching official Responses API and key',async t=>{
   const {env,data}=setup();
   const calls=mockFetch(t,(url,options)=>{ assert.equal(new URL(url).hostname,host); assert.equal(options.headers.Authorization,'Bearer '+env[binding]); const body=JSON.parse(options.body); assert.equal(body.model,model); assert.equal(body.store,false); assert.deepEqual(body.tools,[{type:'web_search'}]); return responses(); });
@@ -228,4 +228,14 @@ test('invalid output limits fail before any paid provider call',async t=>{
     assert.equal(response.status,400);
   }
   assert.equal(calls.length,0);
+});
+
+
+test('cached Grok 4.6 clients upgrade to 4.7 with the actual model name and usage key',async t=>{
+  const {env,data}=setup();
+  mockFetch(t,(url,options)=>{assert.equal(JSON.parse(options.body).model,'grok-4.7');return responses();});
+  const output=events(await(await worker.fetch(request('grok-4.6'),env)).text());
+  assert.equal(output.find(row=>row.modelName).modelName,'Grok 4.7');
+  assert.equal(JSON.parse(data.get('usage:user:tester:official~grok-4.7')).calls,1);
+  assert.equal(data.has('usage:user:tester:official~grok-4.6'),false);
 });
