@@ -3,6 +3,20 @@
 #ai-arena-app.arena-shell .arena-prompt-content { padding:20px 24px; }
 #ai-arena-app.arena-shell .arena-prompt-content h3 { margin:20px 0 8px;font-size:14px;font-weight:550; }
 #ai-arena-app.arena-shell .arena-prompt-content pre { padding:14px;margin:0;border:1px solid var(--arena-border);border-radius:8px;background:var(--arena-sidebar);white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.8 var(--arena-ui-font);user-select:text; }
+#ai-arena-app.arena-shell .arena-prompt-scope { display:inline-flex;padding:3px 8px;background:var(--arena-sidebar);border:1px solid var(--arena-border);border-radius:5px;font-size:12px;color:var(--arena-muted);margin-bottom:18px;max-width:100%;overflow-wrap:anywhere; }
+#ai-arena-app.arena-shell .arena-prompt-label { display:block;font-size:14px;font-weight:550; }
+#ai-arena-app.arena-shell .arena-prompt-label + p { margin:6px 0 12px; }
+#ai-arena-app.arena-shell .arena-prompt-editor { display:block;box-sizing:border-box;width:100%;min-height:160px;max-height:45dvh;resize:vertical;padding:13px 14px;border:1px solid var(--arena-border);border-radius:8px;background:var(--arena-bg);color:var(--arena-text);font:13px/1.75 var(--arena-ui-font); }
+#ai-arena-app.arena-shell .arena-prompt-editor:focus-visible { outline:2px solid var(--arena-muted);outline-offset:2px; }
+#ai-arena-app.arena-shell .arena-prompt-meta { display:flex;justify-content:space-between;gap:12px;margin-top:8px;font-size:11px;color:var(--arena-muted); }
+#ai-arena-app.arena-shell [data-prompt-count] { white-space:nowrap;font-variant-numeric:tabular-nums; }
+#ai-arena-app.arena-shell [data-prompt-status][data-error] { color:#b33b32; }
+#ai-arena-app.arena-shell .arena-prompt-actions { display:flex;justify-content:flex-end;gap:8px;padding:16px 0 20px;border-bottom:1px solid var(--arena-border); }
+#ai-arena-app.arena-shell .arena-prompt-actions button { padding:7px 14px;font-size:13px; }
+#ai-arena-app.arena-shell .arena-prompt-readonly { font-size:11px;font-weight:400;color:var(--arena-muted);margin-left:6px; }
+#ai-arena-app.arena-shell .arena-prompt-extra { margin-top:18px;font-size:12px;color:var(--arena-muted); }
+#ai-arena-app.arena-shell .arena-prompt-extra summary { cursor:pointer; }
+#ai-arena-app.arena-shell .arena-prompt-extra pre { margin-top:8px; }
 #ai-arena-app.arena-shell .arena-notice { position:fixed;z-index:100050;top:72px;left:50%;transform:translateX(-50%);padding:8px 13px;border-radius:8px;color:var(--arena-bg);background:var(--arena-text);font:12px/1.5 var(--arena-ui-font);box-shadow:0 3px 12px #0002;max-width:min(420px,85vw); }
 #ai-arena-app.arena-shell [hidden] { display:none !important; }
 #ai-arena-app.arena-shell .aa-msg.user-msg > .arena-user-actions { justify-content:flex-end;margin-top:6px;opacity:0; }
