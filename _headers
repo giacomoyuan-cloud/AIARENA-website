@@ -1,0 +1,10 @@
+/
+  Cache-Control: no-cache, max-age=0, must-revalidate
+/index.html
+  Cache-Control: no-cache, max-age=0, must-revalidate
+/arena.css
+  Cache-Control: no-cache, max-age=0, must-revalidate
+/arena-markdown.js
+  Cache-Control: no-cache, max-age=0, must-revalidate
+/manifest.json
+  Cache-Control: no-cache, max-age=0, must-revalidate
