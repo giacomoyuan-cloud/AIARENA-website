@@ -115,6 +115,24 @@ test('effort slider updates only valid levels, keeps per-model choices and suppo
   assert.equal(context.defaultEffortFor('claude-opus-5-5'),'medium');assert.equal(context.defaultEffortFor('grok-4.7'),'high');
 });
 
+test('pointer dragging updates the real effort immediately and persists once at release',()=>{
+  const context=browser();let saves=0,partialSyncs=0,fullSyncs=0;
+  Object.assign(context,{aaRunning:false,saveState:()=>saves++,syncArenaLayout:()=>fullSyncs++,syncArenaEffort:()=>partialSyncs++});
+  for(const name of ['setArenaEffort','updateArenaEffortFromSlider','commitArenaEffort'])vm.runInContext(browserFunction(name),context);
+  const input={id:'aaEffortSlider',dataset:{effortModel:'gemini-4-argon',effortDragging:'true'},value:'2'};
+  for(const [value,expected] of [[2,'high'],[0,'low'],[1,'medium'],[2,'high']]){
+    input.value=String(value);assert.equal(context.updateArenaEffortFromSlider(input),true);
+    assert.equal(context.effortFor('gemini-4-argon'),expected,'request state already matches the shown level');
+  }
+  assert.equal(saves,0);assert.equal(fullSyncs,0);assert.equal(partialSyncs,4);
+  delete input.dataset.effortDragging;
+  assert.equal(context.commitArenaEffort(input),true);assert.equal(saves,1);
+  assert.equal(context.commitArenaEffort(input),false);assert.equal(saves,1);
+  context.aaRunning=true;input.dataset.effortDragging='true';input.value='0';
+  assert.equal(context.updateArenaEffortFromSlider(input),false);
+  assert.equal(context.effortFor('gemini-4-argon'),'high');assert.equal(input.dataset.effortDirty,undefined);
+});
+
 test('Nano Banana controls build the actual outgoing request and remove unsupported 512px', () => {
   const context = browser();
   const start = source.indexOf('var _nbExtraOpts =');

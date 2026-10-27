@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>AI 助手</title>
-<meta name="app-version" content="20261028-app1">
+<meta name="app-version" content="20261028-smooth2">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -864,8 +864,8 @@
   #ai-arena-app #aaSkillEditPrompt::placeholder { color: #888; opacity: 1; }
 
 </style>
-<link rel="stylesheet" href="/arena.css?v=20261028-mobile1">
-<link rel="stylesheet" href="/arena-workspace.css?v=20261027-avatar1">
+<link rel="stylesheet" href="/arena.css?v=20261028-smooth2">
+<link rel="stylesheet" href="/arena-workspace.css?v=20261028-smooth2">
 
 <!-- Login overlay -->
 <div id="aaLoginOverlay" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:999999;background:linear-gradient(160deg,#0c1222 0%,#151d35 40%,#1a1030 100%);flex-direction:column;align-items:center;justify-content:center;padding:32px;">
@@ -939,12 +939,14 @@
   <div class="aa-pass-popup hidden arena-account-panel" id="aaSidebar" role="dialog" aria-label="账户设置">
     <div class="arena-account-heading">
       <span class="arena-panel-avatar" id="aaPanelAvatar" aria-hidden="true">A</span>
-      <div><strong id="aaPanelAccountName">我的账号</strong><span>账户设置</span></div>
+      <div><strong id="aaPanelAccountName">我的账号</strong></div>
       <button class="arena-icon-btn" id="aaAccountClose" aria-label="关闭账户面板"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
     </div>
     <div class="arena-appearance"><span>外观</span><button id="aaLightModeBtn" type="button">浅色</button></div>
-    <button id="aaAccountSettingsBtn" class="arena-account-action" type="button">账号设置<span aria-hidden="true">›</span></button>
-    <button id="aaPromptInfoBtn" class="arena-account-action" type="button">提示词与记忆<span aria-hidden="true">›</span></button>
+    <div class="arena-account-actions">
+      <button id="aaAccountSettingsBtn" class="arena-account-action" type="button">账号设置<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
+      <button id="aaPromptInfoBtn" class="arena-account-action" type="button">提示词与记忆<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
+    </div>
     <div hidden><input type="text" id="aaUsername" autocomplete="off"><input type="password" id="aaPassword" autocomplete="off"></div>
   </div>
 
@@ -1206,8 +1208,8 @@
 
 <script src="/arena-markdown.js?v=20261027-account1"></script>
 <script src="/arena-image.js?v=20261027-imageui1"></script>
-<script src="/arena-native.js?v=20261028-app1"></script>
-<script src="/arena-effort.js?v=20261028-motion1"></script>
+<script src="/arena-native.js?v=20261028-smooth2"></script>
+<script src="/arena-effort.js?v=20261028-smooth2"></script>
 <script src="/arena-context.js?v=20261027-account1"></script>
 <script src="/arena-workspace.js?v=20261027-account1"></script>
 <script src="/arena-account.js?v=20261027-account2"></script>
@@ -5774,16 +5776,24 @@ if(debateMode === '2v2'){
     var current=pop.querySelector('[aria-pressed="true"]') || pop.querySelector('[data-arena-model]');
     if(current) current.focus();
   }
-  function setArenaEffort(model, level){
+  function setArenaEffort(model, level, deferSave){
     if(aaRunning || !EFFORT_LEVELS[model] || EFFORT_LEVELS[model].indexOf(level) === -1) return false;
-    if(effortSelection[model] !== level){ effortSelection[model] = level; saveState(); }
-    syncArenaLayout();
+    if(effortSelection[model] !== level){ effortSelection[model] = level; if(!deferSave) saveState(); }
+    if(deferSave) syncArenaEffort(); else syncArenaLayout();
     return true;
   }
   function updateArenaEffortFromSlider(input){
     var levels=EFFORT_LEVELS[input.dataset.effortModel], index=Number(input.value);
     if(!levels || !Number.isInteger(index) || index<0 || index>=levels.length) return false;
-    return setArenaEffort(input.dataset.effortModel,levels[index]);
+    var dragging=input.dataset.effortDragging==='true';
+    var changed=effortFor(input.dataset.effortModel)!==levels[index];
+    var accepted=setArenaEffort(input.dataset.effortModel,levels[index],dragging);
+    if(dragging && changed && accepted) input.dataset.effortDirty='true';
+    return accepted;
+  }
+  function commitArenaEffort(input){
+    if(input.id!=='aaEffortSlider' || input.dataset.effortDirty!=='true') return false;
+    delete input.dataset.effortDirty;saveState();return true;
   }
   function syncArenaNavigation(){
     var mobile = window.matchMedia('(max-width: 900px)').matches;
@@ -5792,6 +5802,28 @@ if(debateMode === '2v2'){
     $('aaHistoryPanel').inert = mobile ? !expanded : collapsed;
     document.querySelector('.arena-topbar').inert = mobile && expanded;
     document.querySelector('.aa-main').inert = mobile && expanded;
+  }
+  function syncArenaEffort(){
+    var slider=$('aaEffortSlider');
+    if(slider){
+      var sliderModel=slider.dataset.effortModel, levels=EFFORT_LEVELS[sliderModel], level=effortFor(sliderModel), index=levels.indexOf(level);
+      slider.value=String(index); slider.disabled=aaRunning;
+      slider.setAttribute('aria-valuetext',EFFORT_LABELS[level]);
+      $('aaEffortScale').style.setProperty('--effort-progress',(index/(levels.length-1)*100)+'%');
+      document.querySelectorAll('#aaEffortScale .arena-effort-ticks > span').forEach(function(tick,i){tick.classList.toggle('is-filled',i<=index);});
+      $('aaEffortValue').textContent=EFFORT_LABELS[level];
+      $('aaEffortDescription').textContent=EFFORT_DESCRIPTIONS[level]||'';
+      $('aaEffortValue').title=EFFORT_DESCRIPTIONS[level]||'';
+      $('aaResetEffortBtn').hidden=level===defaultEffortFor(sliderModel);
+      $('aaResetEffortBtn').disabled=aaRunning;
+      $('aaResetEffortBtn').title='恢复默认 · '+EFFORT_LABELS[defaultEffortFor(sliderModel)];
+      if(typeof ArenaEffort!=='undefined') ArenaEffort.sync();
+    }
+    var model=getActiveSubmodels()[0];
+    if(!debate && EFFORT_LEVELS[model]){
+      $('aaCurrentEffort').textContent=EFFORT_LABELS[effortFor(model)];
+      $('aaChatModelBtn').setAttribute('aria-label','选择模型：'+SUBS[model].name+'，思考强度：'+EFFORT_LABELS[effortFor(model)]);
+    }
   }
   function syncArenaLayout(){
     var app = $('ai-arena-app');
@@ -5812,21 +5844,7 @@ if(debateMode === '2v2'){
     $('aaCurrentEffort').textContent = EFFORT_LABELS[effortFor(effortModel)] || '';
     $('aaChatModelBtn').disabled = aaRunning;
     $('aaChatModelBtn').setAttribute('aria-label', '选择模型：'+(SUBS[models[0]] ? SUBS[models[0]].name : '')+(EFFORT_LEVELS[effortModel] ? '，思考强度：'+EFFORT_LABELS[effortFor(effortModel)] : ''));
-    var slider=$('aaEffortSlider');
-    if(slider){
-      var sliderModel=slider.dataset.effortModel, levels=EFFORT_LEVELS[sliderModel], level=effortFor(sliderModel), index=levels.indexOf(level);
-      slider.value=String(index); slider.disabled=aaRunning;
-      slider.setAttribute('aria-valuetext',EFFORT_LABELS[level]);
-      $('aaEffortScale').style.setProperty('--effort-progress',(index/(levels.length-1)*100)+'%');
-      document.querySelectorAll('#aaEffortScale .arena-effort-ticks > span').forEach(function(tick,i){tick.classList.toggle('is-filled',i<=index);});
-      $('aaEffortValue').textContent=EFFORT_LABELS[level];
-      $('aaEffortDescription').textContent=EFFORT_DESCRIPTIONS[level]||'';
-      $('aaEffortValue').title=EFFORT_DESCRIPTIONS[level]||'';
-      $('aaResetEffortBtn').hidden=level===defaultEffortFor(sliderModel);
-      $('aaResetEffortBtn').disabled=aaRunning;
-      $('aaResetEffortBtn').title='恢复默认 · '+EFFORT_LABELS[defaultEffortFor(sliderModel)];
-      if(typeof ArenaEffort!=='undefined') ArenaEffort.sync();
-    }
+    syncArenaEffort();
     if($('aaModelPickerBtn')) $('aaModelPickerBtn').disabled=aaRunning;
     $('aaIncognitoBtn').setAttribute('aria-pressed', String(!!_incognitoMode));
     document.querySelectorAll('#aaModelsSubmenu [data-arena-model]').forEach(function(button){
@@ -5861,6 +5879,9 @@ if(debateMode === '2v2'){
   }
   $('aaChatModelPop').addEventListener('input', function(e){
     if(e.target.id==='aaEffortSlider') updateArenaEffortFromSlider(e.target);
+  });
+  $('aaChatModelPop').addEventListener('change', function(e){
+    commitArenaEffort(e.target);
   });
   $('aaChatModelPop').addEventListener('click', function(e){
     if(e.target.closest('#aaModelPickerBtn')) openArenaModelPicker();
