@@ -464,7 +464,7 @@
 #ai-arena-app.arena-shell .aa-chat:not(.empty-state) .aa-topic { min-height: 36px; }
 #ai-arena-app.arena-shell .aa-chat:not(.empty-state) .aa-input-row { padding-top: 12px; padding-bottom: 10px; gap: 7px 8px; border-radius: 20px; }
 
-/* Account information, provider balances and appearance share one clear hierarchy. */
+/* Account identity and appearance share one clear hierarchy. */
 #ai-arena-app.arena-shell .aa-pass-popup.arena-account-panel { width: 308px; max-width: calc(100vw - 24px); max-height: min(620px, calc(100dvh - 100px)); padding: 0; overflow-y: auto; border-radius: 14px; box-shadow: 0 12px 44px #17150f14, 0 2px 8px #17150f08; }
 #ai-arena-app.arena-shell .arena-account-heading { display: flex; align-items: center; gap: 10px; padding: 17px 16px 14px; }
 #ai-arena-app.arena-shell .arena-panel-avatar { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--arena-user); color: var(--arena-text); font-size: 14px; }
@@ -472,17 +472,6 @@
 #ai-arena-app.arena-shell .arena-account-heading strong { font-size: 13px; font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #ai-arena-app.arena-shell .arena-account-heading > div > span { font-size: 11px; color: var(--arena-muted); }
 #ai-arena-app.arena-shell .arena-account-heading .arena-icon-btn { width: 26px; height: 26px; color: var(--arena-muted); }
-#ai-arena-app.arena-shell .arena-balances { padding: 0 8px 10px; }
-#ai-arena-app.arena-shell .arena-balance-heading { display: flex; align-items: center; justify-content: space-between; margin: 0 8px 3px; padding-top: 10px; border-top: 1px solid var(--arena-border); }
-#ai-arena-app.arena-shell .arena-balance-heading h2 { margin: 0; font-size: 11px; color: var(--arena-muted); font-weight: 500; }
-#ai-arena-app.arena-shell .arena-balance-heading button { width: 27px; height: 27px; color: var(--arena-muted); }
-#ai-arena-app.arena-shell .arena-balance-heading button svg { width: 14px; height: 14px; }
-#ai-arena-app.arena-shell .arena-balance-row { display: flex; align-items: center; min-height: 39px; gap: 9px; padding: 8px; color: var(--arena-text); text-decoration: none; font-size: 12px; border-radius: 8px; }
-#ai-arena-app.arena-shell .arena-provider-mark { width: 22px; height: 22px; border: 1px solid var(--arena-border); border-radius: 6px; display: grid; place-items: center; color: var(--arena-muted); font-size: 10px; flex: 0 0 22px; }
-#ai-arena-app.arena-shell .arena-balance-value { margin-left: auto; font-size: 11px; color: var(--arena-muted); font-variant-numeric: tabular-nums; }
-#ai-arena-app.arena-shell .arena-balance-value.is-live { color: var(--arena-text); font-size: 12px; font-weight: 550; }
-#ai-arena-app.arena-shell .arena-balance-row > svg { width: 12px; height: 12px; color: var(--arena-faint); }
-#ai-arena-app.arena-shell .arena-balance-note { font: 10px/1.6 var(--arena-ui-font); color: var(--arena-muted); padding: 0 8px; margin: 6px 0 0; }
 #ai-arena-app.arena-shell .arena-appearance { display: flex; align-items: center; justify-content: space-between; padding: 11px 0; margin: 0 16px; border-top: 1px solid var(--arena-border); font-size: 12px; }
 #ai-arena-app.arena-shell #aaLightModeBtn { font: 11px/1.4 var(--arena-ui-font); border: 1px solid var(--arena-border); background: var(--arena-user); color: var(--arena-text); padding: 5px 10px; border-radius: 7px; transition: none; cursor: pointer; }
 #ai-arena-app.arena-shell .arena-login-settings { border-top: 1px solid var(--arena-border); margin: 0 16px; padding: 11px 0 15px; }
@@ -491,7 +480,6 @@
 #ai-arena-app.arena-shell .arena-login-settings input { margin-top: 5px; }
 #ai-arena-app.arena-shell .arena-login-settings p { font-size: 10px; color: var(--arena-muted); margin: 8px 0 0; }
 @media (hover: hover) and (pointer: fine) {
-  #ai-arena-app.arena-shell .arena-balance-row:hover,
   #ai-arena-app.arena-shell .arena-model-option:hover { background: var(--arena-hover); }
 }
 @media (max-width: 600px) {
@@ -592,7 +580,6 @@
 #ai-arena-app.arena-shell .arena-submenu { max-height: calc(100dvh - 24px); }
 #ai-arena-app.arena-shell .arena-source-preview strong { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
 #ai-arena-app.arena-shell .arena-source-preview > span { overflow-wrap: anywhere; }
-#ai-arena-app.arena-shell .arena-balance-value { max-width: 55%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #ai-arena-app.arena-shell .arena-composer-footer .arena-composer-note { font-size: 11px; color: var(--arena-muted); }
 #ai-arena-app.arena-shell .arena-composer-footer .arena-model-trigger { font-size: 12px; }
 #ai-arena-app.arena-shell .arena-menu-nav,
@@ -609,4 +596,10 @@
 #ai-arena-app.arena-shell:not(.arena-image-mode) .aa-input-row .aa-send:disabled { color: var(--arena-faint) !important; }
 @media (hover: hover) and (pointer: fine) {
   #ai-arena-app.arena-shell:not(.arena-image-mode) .aa-input-row .aa-send:not(:disabled):hover { background: var(--arena-user) !important; }
+}
+
+#ai-arena-app.arena-shell .aa-pass-popup.arena-account-panel { width: 264px; }
+#ai-arena-app.arena-shell .aa-msg-body .arena-source-chip { display: inline-block; max-width: 180px; overflow: hidden; text-overflow: ellipsis; margin: 0 2px; font-size: 11px; vertical-align: middle; }
+@media (max-width: 600px) {
+  #ai-arena-app.arena-shell .aa-msg-body .arena-source-chip { max-width: 150px; }
 }

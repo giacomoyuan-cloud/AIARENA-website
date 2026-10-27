@@ -27,59 +27,6 @@ const MODEL_EFFORT_LEVELS = {
   "grok-4.7": ["low", "medium", "high", "xhigh"]
 };
 
-// Provider balances are organization financial data, not per-chat cost estimates.
-async function accountBalances(request, env) {
-  const headers = { "Content-Type": "application/json", "Cache-Control": "no-store", "Access-Control-Allow-Origin": "*" };
-  const reply = (body, status = 200) => new Response(JSON.stringify(body), { status, headers });
-  if (request.method !== "POST") return reply({ error: "Method not allowed" }, 405);
-  let body;
-  try { body = await request.json(); } catch { return reply({ error: "Invalid JSON" }, 400); }
-  if (!body || typeof body !== "object" || Array.isArray(body)) return reply({ error: "Invalid JSON" }, 400);
-  const user = typeof body.user === "string" ? body.user.trim().toLowerCase() : "";
-  if (!user || typeof body.password !== "string") return reply({ error: "Unauthorized" }, 401);
-  const record = await env.MEMORY_KV.get("user:" + user);
-  let authorized = false;
-  try { authorized = !!record && JSON.parse(record).hash === body.password; } catch {}
-  if (!authorized) return reply({ error: "Unauthorized" }, 401);
-  const providers = [
-    { id: "anthropic", name: "Claude", status: "console_only", balanceUSD: null, billingUrl: "https://platform.claude.com/settings/billing" },
-    { id: "xai", name: "Grok", status: "console_only", balanceUSD: null, billingUrl: "https://console.x.ai/" },
-    { id: "openai", name: "OpenAI", status: "console_only", balanceUSD: null, billingUrl: "https://platform.openai.com/settings/organization/billing/overview" },
-    { id: "google", name: "Gemini", status: "console_only", balanceUSD: null, billingUrl: "https://aistudio.google.com/billing" }
-  ];
-  const viewers = String(env.BALANCE_VIEWERS || "").split(",").map(value => value.trim().toLowerCase()).filter(Boolean);
-  if (!viewers.includes(user)) {
-    if (!viewers.length) providers[1].status = "needs_setup";
-    return reply({ providers, canViewBalances: false, setupRequired: !viewers.length });
-  }
-  const grok = providers[1];
-  const team = String(env.XAI_TEAM_ID || "");
-  if (!env.XAI_MANAGEMENT_API_KEY || !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(team)) {
-    grok.status = "needs_setup";
-    return reply({ providers, canViewBalances: true });
-  }
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 8000);
-  try {
-    const response = await fetch("https://management-api.x.ai/v1/billing/teams/" + encodeURIComponent(team) + "/prepaid/balance", {
-      method: "GET", headers: { Authorization: "Bearer " + env.XAI_MANAGEMENT_API_KEY, Accept: "application/json" }, redirect: "manual", signal: controller.signal
-    });
-    if (!response.ok) { grok.status = response.status === 401 || response.status === 403 ? "access_required" : "unavailable"; }
-    else {
-      const data = await response.json();
-      const raw = data?.total?.val;
-      if (typeof raw !== "string" || !/^-?\d+$/.test(raw) || raw.length > 30) throw new Error("Unexpected balance schema");
-      // xAI's documented purchase/top-up entries use negative USD cents for credit.
-      const cents = -BigInt(raw), magnitude = cents < 0n ? -cents : cents;
-      grok.balanceUSD = (cents < 0n ? "-" : "") + (magnitude / 100n).toString() + "." + (magnitude % 100n).toString().padStart(2, "0");
-      grok.status = "live";
-      grok.checkedAt = new Date().toISOString();
-    }
-  } catch { grok.status = "unavailable"; }
-  finally { clearTimeout(timer); }
-  return reply({ providers, canViewBalances: true });
-}
-
 var worker_default = {
   async fetch(request, env) {
     if (request.method === "OPTIONS") {
@@ -92,7 +39,6 @@ var worker_default = {
       });
     }
     const url = new URL(request.url);
-    if (url.pathname === "/account-balances") return accountBalances(request, env);
     if (url.pathname === "/chats" && request.method === "POST") {
       let body2;
       try {
@@ -622,7 +568,12 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
     }
     async function parseAnthropicStream(response) {
       let usage;
-      const searchInputs = new Map();
+      const searchInputs = new Map(), blockCitations = new Map();
+      async function flushCitations(index) {
+        const values = blockCitations.get(index) || [], seen = new Set();
+        blockCitations.delete(index);
+        for (const citation of values) { if (!citation || typeof citation.url !== "string") continue; if (!seen.has(citation.url)) { seen.add(citation.url); await sendCitation(citation); } }
+      }
       await readOfficialStream(response, async event => {
         if (event.type === "message_start" && event.message?.usage) usage = { ...event.message.usage };
         if (event.type === "message_delta" && event.usage) usage = { ...usage, ...event.usage };
@@ -649,10 +600,16 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
           } else if (content?.type === "web_search_tool_result_error") await sendActivity({ kind: "search_error", label: "网页搜索未完成" });
           await sendStatus("thinking");
         }
-        if (event.type === "content_block_delta" && event.delta?.type === "citations_delta") await sendCitation(event.delta.citation);
+        if (event.type === "content_block_delta" && event.delta?.type === "citations_delta") {
+          const index = event.index ?? 0;
+          if (!blockCitations.has(index)) blockCitations.set(index, []);
+          blockCitations.get(index).push(event.delta.citation);
+        }
+        if (event.type === "content_block_stop") await flushCitations(event.index ?? 0);
         if (event.type === "content_block_delta" && event.delta?.type === "text_delta") { await sendStatus("responding"); await sendChunk(event.delta.text); }
         if (event.type === "content_block_delta" && event.delta?.type === "thinking_delta") { await sendStatus("thinking"); await sendReasoning(event.delta.thinking); }
       });
+      for (const index of blockCitations.keys()) await flushCitations(index);
       return usage;
     }
     async function parseGeminiStream(response) {

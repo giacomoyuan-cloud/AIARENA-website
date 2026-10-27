@@ -1,4 +1,4 @@
-# AI Arena official API Worker
+# AI 助手 official API Worker
 
 The browser remains on Cloudflare Pages. `worker.js` serves the existing `ai` Worker at `api.pickandcase.com` and keeps its existing login, chats, memory, price settings and KV bindings.
 
@@ -67,16 +67,6 @@ The native binding transport follows [Cloudflare's official Agents SDK implement
 - [Gemini image generation](https://ai.google.dev/gemini-api/docs/image-generation)
 - [Cloudflare placement](https://developers.cloudflare.com/workers/configuration/placement/)
 - [Midjourney API availability](https://docs.midjourney.com/hc/en-us/articles/32013696484109-Community-Guidelines)
-
-## Account balance panel
-
-`POST /account-balances` accepts the existing registered site's `user` and hashed `password`. It never accepts a shared site password as a substitute for a registered account. Financial amounts are returned only for exact usernames in the server-side `BALANCE_VIEWERS` comma-separated allowlist; an empty allowlist returns no financial data. Responses use `Cache-Control: no-store`.
-
-The public xAI Management API supports prepaid balance reads. Connecting it requires a separate management credential with only the available billing-read permission, the corresponding `XAI_TEAM_ID`, and authorization for the intended site account in `BALANCE_VIEWERS`. Save the credential as the encrypted Worker secret `XAI_MANAGEMENT_API_KEY`; never put it in the browser, repository, chat, or an inference-key field. The UI must be ready for review before asking the user to grant that access. Credential creation and entry are completed by the user. The adapter makes one GET to `management-api.x.ai`, with a timeout and no redirect following, retries, top-ups or account mutations.
-
-The documented xAI purchase/top-up examples represent credit as negative USD cents. The adapter renders the negation of `total.val`, preserving the sign and integer precision rather than using an absolute value. Unexpected responses remain unavailable, never a zero balance. A newly connected account still requires a real comparison against the official Console before accepting the numeric display.
-
-Claude and OpenAI's documented usage/cost APIs are not a prepaid-balance source; no balance is derived from the site's estimated costs. Google documents balance management in AI Studio. Until a suitable supported balance integration is available for those accounts, their rows link to official billing consoles. Links remain available when automatic synchronization is unconfigured or fails.
 
 ## Source and activity rendering
 
