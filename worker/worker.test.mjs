@@ -159,6 +159,24 @@ test('Google image generation preserves its native response schema',async t=>{
   assert.equal(output.find(value=>value.t).t,'描述');
 });
 
+test('Gemini multi-image edits forward resolution, thinking and image-only settings',async t=>{
+  const {env}=setup();
+  const images=[{data:'Zmlyc3Q=',mime:'image/png'},{data:'c2Vjb25k',mime:'image/jpeg'}];
+  mockFetch(t,(_url,options)=>{
+    const body=JSON.parse(options.body);
+    assert.deepEqual(body.contents[0].parts.slice(0,2),images.map(image=>({inlineData:{mimeType:image.mime,data:image.data}})));
+    assert.deepEqual(body.generationConfig,{responseModalities:['IMAGE'],imageConfig:{aspectRatio:'3:4',imageSize:'512'},thinkingConfig:{thinkingLevel:'high'}});
+    return Response.json({candidates:[{content:{parts:[
+      {thought:true,inlineData:{data:'dGhvdWdodA==',mimeType:'image/png'}},
+      {text:'Do not include this in image-only output'},
+      {inlineData:{data:'ZmluYWw=',mimeType:'image/png'}}
+    ]}}]});
+  });
+  const output=events(await (await worker.fetch(request('gemini-3.1-flash-image',{imageTask:'multi-edit',images,imageSize:'512',aspectRatio:'3:4',thinkingLevel:'high',imageOnly:true}),env)).text());
+  assert.deepEqual(output.filter(value=>value.img).map(value=>value.img),['ZmluYWw=']);
+  assert.equal(output.some(value=>value.t),false);
+});
+
 test('third-party and unsupported models never trigger outbound requests',async t=>{
   const {env}=setup(); const calls=mockFetch(t,()=>{throw new Error('unexpected upstream call');});
   for(const model of ['mj_imagine','mj-imagine','mj-action','swap-face','kling25-i2v','sonnet-thinking','opus46-proxy','constructor','__proto__']) {

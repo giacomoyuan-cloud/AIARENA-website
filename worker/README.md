@@ -13,7 +13,7 @@ The browser remains on Cloudflare Pages. `worker.js` serves the existing `ai` Wo
 
 There is no third-party fallback. Missing official keys produce a 503; provider errors reach the page. The Worker no longer references `QUICK`, `JIEKOU_API_KEY`, `HAJIMI_API_KEY` or `MJ_API_KEY`. Existing secret bindings are retained in Cloudflare and do not need to be deleted to stop their use.
 
-The browser model menu uses a deployment allowlist and hides provider routes that have not completed live acceptance. The image menu exposes only the verified image route. Historical conversation labels remain readable for compatibility. Cached requests using `grok-4.6` upgrade to `grok-4.7`; returned model names and new usage records identify 4.7. Earlier Claude backend routes remain available for compatibility.
+The browser model menu uses a deployment allowlist for Claude, Grok and Gemini. The image menu offers Grok Image 2.0 and Gemini 3.1 Flash Image, including generation, single-image editing and 2–5 reference image editing. Gemini settings forward 512px/1K/2K/4K resolution, aspect ratio, thinking level and image-only output to the existing official Google route. Historical conversation labels remain readable for compatibility. Cached requests using `grok-4.6` upgrade to `grok-4.7`; returned model names and new usage records identify 4.7. Earlier Claude backend routes remain available for compatibility.
 
 Midjourney has no generally available public official API. It is not shown in the active model menu. The already inactive legacy Kling route remains unavailable until an official integration and its credentials are configured.
 
@@ -40,7 +40,7 @@ New usage records include `official~` in their model key so earlier aggregate re
 Run the offline routing and streaming tests with:
 
 ```sh
-node --test worker/worker.test.mjs
+node --test arena-models.test.cjs arena-markdown.test.cjs worker/worker.test.mjs
 ```
 
 These tests mock provider responses and do not charge any provider account. Never commit API key values or local `.dev.vars` files.
