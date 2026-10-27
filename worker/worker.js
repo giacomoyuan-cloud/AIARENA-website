@@ -21,6 +21,11 @@ const OFFICIAL_MODELS = {
   "gpt-image-2.5-sunburst": { provider: "openai", binding: "OPENAI_API_KEY", name: "GPT Image 2.5 Sunburst", image: true },
   "gemini-3.1-flash-image": { provider: "google", binding: "GEMINI_API_KEY", name: "Gemini 3.1 Flash Image", image: true }
 };
+const MODEL_EFFORT_LEVELS = {
+  "claude-opus-5-5": ["low", "medium", "high", "xhigh", "max"],
+  "claude-sonnet-5-5": ["low", "medium", "high", "xhigh", "max"],
+  "grok-4.7": ["low", "medium", "high", "xhigh"]
+};
 
 var worker_default = {
   async fetch(request, env) {
@@ -413,6 +418,10 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
       return new Response(JSON.stringify({ error: reason }), { status: 400, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
     }
     const outputLimit = body.maxOutputTokens === undefined ? modelConfig.maxTokens : body.maxOutputTokens;
+    const effort = body.effort;
+    if (effort !== undefined && (!Object.hasOwn(MODEL_EFFORT_LEVELS, model) || !MODEL_EFFORT_LEVELS[model].includes(effort))) {
+      return new Response(JSON.stringify({ error: "该模型不支持这个思考档位，请刷新后重新选择" }), { status: 400, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
+    }
     if (!modelConfig.image && (!Number.isInteger(outputLimit) || outputLimit < 32 || outputLimit > modelConfig.maxTokens)) {
       return new Response(JSON.stringify({ error: "maxOutputTokens must be an integer between 32 and the model output limit" }), {status:400,headers:{"Content-Type":"application/json","Access-Control-Allow-Origin":"*"}});
     }
@@ -422,6 +431,12 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
     const { readable, writable } = new TransformStream();
     const writer = writable.getWriter();
     const encoder = new TextEncoder();
+    let lastStatus = "";
+    async function sendStatus(status) {
+      if (lastStatus === status) return;
+      lastStatus = status;
+      await writer.write(encoder.encode("data: " + JSON.stringify({ status }) + "\n\n"));
+    }
     async function sendChunk(text) {
       await writer.write(encoder.encode("data: " + JSON.stringify({ t: text }) + "\n\n"));
     }
@@ -542,8 +557,11 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
       await readOfficialStream(response, async event => {
         if (event.type === "message_start" && event.message?.usage) usage = { ...event.message.usage };
         if (event.type === "message_delta" && event.usage) usage = { ...usage, ...event.usage };
-        if (event.type === "content_block_delta" && event.delta?.type === "text_delta") await sendChunk(event.delta.text);
-        if (event.type === "content_block_delta" && event.delta?.type === "thinking_delta") await sendReasoning(event.delta.thinking);
+        if (event.type === "content_block_start" && event.content_block?.type === "thinking") await sendStatus("thinking");
+        if (event.type === "content_block_start" && event.content_block?.type === "server_tool_use" && event.content_block.name === "web_search") await sendStatus("searching");
+        if (event.type === "content_block_start" && event.content_block?.type === "web_search_tool_result") await sendStatus("thinking");
+        if (event.type === "content_block_delta" && event.delta?.type === "text_delta") { await sendStatus("responding"); await sendChunk(event.delta.text); }
+        if (event.type === "content_block_delta" && event.delta?.type === "thinking_delta") { await sendStatus("thinking"); await sendReasoning(event.delta.thinking); }
       });
       return usage;
     }
@@ -563,8 +581,11 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
       await readOfficialStream(response, async event => {
         if (event.type === "response.failed") throw new Error(event.response?.error?.message || "官方接口响应失败");
         if (event.type === "response.completed" && event.response?.usage) usage = event.response.usage;
-        if (event.type === "response.output_text.delta" || event.type === "response.refusal.delta") await sendChunk(event.delta || "");
-        if (event.type === "response.reasoning_summary_text.delta") await sendReasoning(event.delta || "");
+        if (event.type === "response.output_item.added" && event.item?.type === "reasoning") await sendStatus("thinking");
+        if ((event.type === "response.output_item.added" && event.item?.type === "web_search_call") || /^response\.web_search_call\.(in_progress|searching)$/.test(event.type)) await sendStatus("searching");
+        if (event.type === "response.web_search_call.completed") await sendStatus("thinking");
+        if (event.type === "response.output_text.delta" || event.type === "response.refusal.delta") { await sendStatus("responding"); await sendChunk(event.delta || ""); }
+        if (event.type === "response.reasoning_summary_text.delta") { await sendStatus("thinking"); await sendReasoning(event.delta || ""); }
       });
       return usage;
     }
@@ -644,6 +665,7 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
         endpoint = "https://api.anthropic.com/v1/messages";
         headers = { "Content-Type": "application/json", Authorization: "Bearer " + env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" };
         payload = { model, max_tokens: outputLimit, stream: true, messages: [{ role: "user", content: buildAnthropicContent(prompt, image, imageMime) }] };
+        if (effort !== undefined) payload.output_config = { effort };
         if (search) payload.tools = [{ type: "web_search_20250305", name: "web_search", max_uses: 3 }];
       } else if (config.provider === "google") {
         endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse`;
@@ -655,6 +677,7 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
         endpoint = isXai ? "https://api.x.ai/v1/responses" : "https://api.openai.com/v1/responses";
         headers = { "Content-Type": "application/json", Authorization: "Bearer " + env[config.binding] };
         payload = { model, input: buildOpenAIResponsesInput(prompt, image, imageMime), stream: true, store: false, max_output_tokens: outputLimit };
+        if (isXai && effort !== undefined) payload.reasoning = { effort };
         if (search) payload.tools = [{ type: "web_search" }];
       }
       const response = await fetchRetry(endpoint, { method: "POST", headers, body: JSON.stringify(payload) });
