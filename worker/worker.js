@@ -453,6 +453,20 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
       await writer.write(encoder.encode("data: " + JSON.stringify({ r }) + "\n\n"));
     }
     __name(sendReasoning, "sendReasoning");
+    function publicSource(source) {
+      try {
+        const url = new URL(source?.url);
+        if (!/^https?:$/.test(url.protocol) || url.username || url.password || url.href.length > 4096) return null;
+        return { url: url.href, title: typeof source.title === "string" ? source.title.slice(0, 512) : url.hostname };
+      } catch { return null; }
+    }
+    async function sendCitation(source, inline = true) {
+      const citation = publicSource(source);
+      if (citation) await writer.write(encoder.encode("data: " + JSON.stringify({ citation, ...(inline ? {} : { citationInline: false }) }) + "\n\n"));
+    }
+    async function sendActivity(activity) {
+      await writer.write(encoder.encode("data: " + JSON.stringify({ activity }) + "\n\n"));
+    }
     async function sendImage(b64, mime) {
       await writer.write(encoder.encode("data: " + JSON.stringify({ img: b64, mime }) + "\n\n"));
     }
@@ -554,15 +568,48 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
     }
     async function parseAnthropicStream(response) {
       let usage;
+      const searchInputs = new Map(), blockCitations = new Map();
+      async function flushCitations(index) {
+        const values = blockCitations.get(index) || [], seen = new Set();
+        blockCitations.delete(index);
+        for (const citation of values) { if (!citation || typeof citation.url !== "string") continue; if (!seen.has(citation.url)) { seen.add(citation.url); await sendCitation(citation); } }
+      }
       await readOfficialStream(response, async event => {
         if (event.type === "message_start" && event.message?.usage) usage = { ...event.message.usage };
         if (event.type === "message_delta" && event.usage) usage = { ...usage, ...event.usage };
         if (event.type === "content_block_start" && event.content_block?.type === "thinking") await sendStatus("thinking");
-        if (event.type === "content_block_start" && event.content_block?.type === "server_tool_use" && event.content_block.name === "web_search") await sendStatus("searching");
-        if (event.type === "content_block_start" && event.content_block?.type === "web_search_tool_result") await sendStatus("thinking");
+        if (event.type === "content_block_start" && event.content_block?.type === "server_tool_use" && event.content_block.name === "web_search") {
+          await sendStatus("searching");
+          searchInputs.set(event.index, { json: "", input: event.content_block.input });
+        }
+        if (event.type === "content_block_delta" && event.delta?.type === "input_json_delta" && searchInputs.has(event.index)) {
+          const input = searchInputs.get(event.index);
+          if (input.json.length < 8192) input.json += String(event.delta.partial_json || "");
+        }
+        if (event.type === "content_block_stop" && searchInputs.has(event.index)) {
+          const input = searchInputs.get(event.index); searchInputs.delete(event.index);
+          let data = input.input;
+          try { if (input.json) data = JSON.parse(input.json); } catch {}
+          if (typeof data?.query === "string") await sendActivity({ kind: "search", label: "搜索网页", query: data.query.slice(0, 512) });
+        }
+        if (event.type === "content_block_start" && event.content_block?.type === "web_search_tool_result") {
+          const content = event.content_block.content;
+          if (Array.isArray(content)) {
+            const sources = content.map(publicSource).filter(Boolean).slice(0, 12);
+            if (sources.length) await sendActivity({ kind: "search_results", label: "已搜索网页", sources });
+          } else if (content?.type === "web_search_tool_result_error") await sendActivity({ kind: "search_error", label: "网页搜索未完成" });
+          await sendStatus("thinking");
+        }
+        if (event.type === "content_block_delta" && event.delta?.type === "citations_delta") {
+          const index = event.index ?? 0;
+          if (!blockCitations.has(index)) blockCitations.set(index, []);
+          blockCitations.get(index).push(event.delta.citation);
+        }
+        if (event.type === "content_block_stop") await flushCitations(event.index ?? 0);
         if (event.type === "content_block_delta" && event.delta?.type === "text_delta") { await sendStatus("responding"); await sendChunk(event.delta.text); }
         if (event.type === "content_block_delta" && event.delta?.type === "thinking_delta") { await sendStatus("thinking"); await sendReasoning(event.delta.thinking); }
       });
+      for (const index of blockCitations.keys()) await flushCitations(index);
       return usage;
     }
     async function parseGeminiStream(response) {
@@ -578,6 +625,13 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
     }
     async function parseResponsesStream(response) {
       let usage;
+      const citations = new Set(), searches = new Set();
+      async function annotation(value) {
+        if (value?.type !== "url_citation") return;
+        const key = JSON.stringify([value.url, value.start_index, value.end_index]);
+        if (citations.has(key)) return;
+        citations.add(key); await sendCitation(value, false);
+      }
       await readOfficialStream(response, async event => {
         if (event.type === "response.failed") throw new Error(event.response?.error?.message || "官方接口响应失败");
         if (event.type === "response.completed" && event.response?.usage) usage = event.response.usage;
@@ -586,6 +640,17 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
         if (event.type === "response.web_search_call.completed") await sendStatus("thinking");
         if (event.type === "response.output_text.delta" || event.type === "response.refusal.delta") { await sendStatus("responding"); await sendChunk(event.delta || ""); }
         if (event.type === "response.reasoning_summary_text.delta") { await sendStatus("thinking"); await sendReasoning(event.delta || ""); }
+        if (event.type === "response.output_text.annotation.added") await annotation(event.annotation);
+        if (event.type === "response.output_item.done" && event.item?.type === "web_search_call") {
+          const action = event.item.action || {};
+          const query = typeof action.query === "string" ? action.query : Array.isArray(action.queries) ? action.queries.filter(value => typeof value === "string").join(" · ") : "";
+          const sources = Array.isArray(action.sources) ? action.sources.map(publicSource).filter(Boolean).slice(0, 12) : [];
+          const key = JSON.stringify([query, sources]);
+          if (!searches.has(key) && (query || sources.length)) { searches.add(key); await sendActivity({ kind: "search_results", label: "已搜索网页", query: query.slice(0, 512), sources }); }
+        }
+        if (event.type === "response.completed") {
+          for (const item of event.response?.output || []) for (const content of item.content || []) for (const value of content.annotations || []) await annotation(value);
+        }
       });
       return usage;
     }

@@ -65,3 +65,24 @@ test('explicit display formulas are readable without capturing dollar-denominate
   assert.ok(html.includes('<p>费用 $2，输出 $10。</p>'));
   assert.ok(html.includes('<pre class="aa-md-formula">x^2 + y^2</pre>'));
 });
+
+test('verified citation markers render inline while literal code and missing citations stay intact',()=>{
+  const options={citation:index=>index===1?'<a class="source">official</a>':''};
+  const html=render('说明 [[aa-citation:1]]，价格 $4 / $20。\n\n`[[aa-citation:1]]`\n\n[[aa-citation:2]]',options);
+  assert.ok(html.includes('说明 <a class="source">official</a>，价格 $4 / $20。'));
+  assert.ok(html.includes('<code>[[aa-citation:1]]</code>'));
+  assert.ok(html.includes('[[aa-citation:2]]'));
+});
+
+test('Grok native inline citations stay at the cited text rather than creating unsupported references',()=>{
+  const seen=[];
+  const html=render('事实 [[1]](https://example.com/source)。\n\n`[[2]](https://example.org/)`',{sourceLink:(url,number)=>{seen.push({url,number});return '<a class="source">Example</a>';}});
+  assert.ok(html.includes('事实 <a class="source">Example</a>。'));
+  assert.deepEqual(seen,[{url:'https://example.com/source',number:1}]);
+  assert.ok(html.includes('<code>[[2]](https://example.org/)</code>'));
+});
+
+test('provider titles and URLs escape quotes as well as HTML when used in attributes',()=>{
+  const {escape}=require('./arena-markdown.js');
+  assert.equal(escape('\" onclick=\"alert(1)\" <img> & \'x\''),'&quot; onclick=&quot;alert(1)&quot; &lt;img&gt; &amp; &#39;x&#39;');
+});

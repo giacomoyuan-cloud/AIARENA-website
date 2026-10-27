@@ -310,3 +310,49 @@ test('cached Grok 4.6 clients upgrade to 4.7 with the actual model name and usag
   assert.equal(JSON.parse(data.get('usage:user:tester:official~grok-4.7')).calls,1);
   assert.equal(data.has('usage:user:tester:official~grok-4.6'),false);
 });
+
+test('Anthropic streams public search activity and safe citations without encrypted tool content',async t=>{
+  const {env}=setup();
+  mockFetch(t,()=>stream([
+    {type:'content_block_start',index:0,content_block:{type:'server_tool_use',name:'web_search',input:{}}},
+    {type:'content_block_delta',index:0,delta:{type:'input_json_delta',partial_json:'{"query":"official '}},
+    {type:'content_block_delta',index:0,delta:{type:'input_json_delta',partial_json:'documentation"}'}},
+    {type:'content_block_stop',index:0},
+    {type:'content_block_start',index:1,content_block:{type:'web_search_tool_result',content:[{url:'https://example.com/docs',title:'Official docs',encrypted_content:'private-ciphertext'},{url:'javascript:alert(1)',title:'Unsafe'}]}},
+    {type:'content_block_delta',delta:{type:'text_delta',text:'Result'}},
+    {type:'content_block_delta',delta:{type:'citations_delta',citation:{type:'web_search_result_location',url:'https://example.com/docs',title:'Official docs',encrypted_index:'private-index'}}},
+    {type:'content_block_delta',delta:{type:'citations_delta',citation:{url:'https://user:password@example.com',title:'Unsafe'}}}
+  ]));
+  const text=await (await worker.fetch(request('claude-sonnet-5-5'),env)).text(),output=events(text);
+  assert.equal(output.find(event=>event.activity?.kind==='search').activity.query,'official documentation');
+  assert.equal(output.find(event=>event.activity?.kind==='search_results').activity.sources.length,1);
+  assert.deepEqual(output.filter(event=>event.citation).map(event=>event.citation),[{url:'https://example.com/docs',title:'Official docs'}]);
+  assert.doesNotMatch(text,/private-ciphertext|private-index|javascript:|user:password/);
+  assert.equal(output.find(event=>event.t).t,'Result');
+});
+
+test('Responses citation events and completed-message annotations are deduplicated',async t=>{
+  const {env}=setup();
+  const citation={type:'url_citation',url:'https://example.com/',title:'Example',start_index:0,end_index:6};
+  mockFetch(t,()=>stream([
+    {type:'response.output_item.done',item:{type:'web_search_call',action:{query:'example search',sources:[{url:'https://example.com/',title:'Example'}]}}},
+    {type:'response.output_text.delta',delta:'Result'},
+    {type:'response.output_text.annotation.added',annotation:citation},
+    {type:'response.completed',response:{output:[{content:[{annotations:[citation,{type:'url_citation',url:'https://example.org/',title:'Second'}]}]}]}}
+  ]));
+  const output=events(await (await worker.fetch(request('grok-4.7'),env)).text());
+  assert.equal(output.filter(event=>event.citation).length,2);
+  assert.equal(output.find(event=>event.activity).activity.query,'example search');
+});
+
+test('Anthropic citations render after their text block rather than before a word',async t=>{
+  const {env}=setup();const citation={url:'https://example.com/',title:'Example'};
+  mockFetch(t,()=>stream([
+    {type:'content_block_delta',index:2,delta:{type:'citations_delta',citation}},
+    {type:'content_block_delta',index:2,delta:{type:'text_delta',text:'A complete sentence.'}},
+    {type:'content_block_delta',index:2,delta:{type:'citations_delta',citation}},
+    {type:'content_block_stop',index:2}
+  ]));
+  const output=events(await (await worker.fetch(request('claude-sonnet-5-5'),env)).text());
+  assert.deepEqual(output.filter(event=>event.t||event.citation).map(event=>event.t?'text':'citation'),['text','citation']);
+});

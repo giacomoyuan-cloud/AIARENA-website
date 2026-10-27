@@ -1,4 +1,4 @@
-# AI Arena official API Worker
+# AI 助手 official API Worker
 
 The browser remains on Cloudflare Pages. `worker.js` serves the existing `ai` Worker at `api.pickandcase.com` and keeps its existing login, chats, memory, price settings and KV bindings.
 
@@ -67,3 +67,7 @@ The native binding transport follows [Cloudflare's official Agents SDK implement
 - [Gemini image generation](https://ai.google.dev/gemini-api/docs/image-generation)
 - [Cloudflare placement](https://developers.cloudflare.com/workers/configuration/placement/)
 - [Midjourney API availability](https://docs.midjourney.com/hc/en-us/articles/32013696484109-Community-Guidelines)
+
+## Source and activity rendering
+
+Anthropic search queries/results and citation deltas, and Responses search items/URL annotations, are forwarded as separate metadata. Only HTTP(S) source URLs without embedded credentials are linked. Encrypted search content and encrypted citation indexes are omitted. The client stores citation and public activity metadata with the message and renders source chips, focus/hover preview cards, and expandable activity rows. Source previews use returned metadata and do not fetch arbitrary websites. Existing cached clients may ignore the additional stream fields.

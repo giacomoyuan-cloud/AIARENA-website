@@ -10,8 +10,9 @@
       return /^https?:$/.test(url.protocol) ? url.href : null;
     } catch (_) { return null; }
   }
-  function inline(text, depth) {
+  function inline(text, depth, options) {
     depth = depth || 0;
+    options = options || {};
     if (depth > 4) return escape(text);
     var saved = [];
     function keep(html) { saved.push(html); return '\u0000MD' + (saved.length - 1) + '\u0000'; }
@@ -32,6 +33,16 @@
       return keep('<code>' + escape(code.replace(/\n/g, ' ')) + '</code>');
     });
     value = value.replace(/\\([\\`*{}_\[\]()#+.!|$~>\-])/g, function (_, character) { return keep(escape(character)); });
+    value = value.replace(/\[\[aa-citation:(\d+)\]\]/g, function (match, index) {
+      var html = options.citation ? options.citation(Number(index)) : '';
+      return html ? keep(html) : match;
+    });
+    value = value.replace(/\[\[(\d+)\]\]\((https?:\/\/[^\s)]+)\)/g, function (match, number, destination) {
+      var url = safeURL(destination);
+      if (!url) return match;
+      var html = options.sourceLink ? options.sourceLink(url, Number(number)) : '';
+      return keep(html || '<a href="' + escape(url) + '" target="_blank" rel="noopener noreferrer">[' + number + ']</a>');
+    });
     value = value.replace(/\[([^\]\n]+)\]\((https?:\/\/(?:[^\s()]|\([^\s()]*\))+)\)/g, function (match, label, destination) {
       var url = safeURL(destination);
       return url ? keep('<a href="' + escape(url) + '" target="_blank" rel="noopener noreferrer">' + format(label) + '</a>') : match;
@@ -102,18 +113,18 @@
         if (headers.length === alignments.length) {
           var align = alignments.map(function (cell) { return /^:.*:$/.test(cell) ? 'center' : /:$/.test(cell) ? 'right' : 'left'; });
           html += '<div class="aa-md-table-wrap" role="region" aria-label="表格，可横向滚动" tabindex="0"><table class="aa-md-table"><thead><tr>';
-          headers.forEach(function (cell, n) { html += '<th scope="col" style="text-align:' + align[n] + '">' + inline(cell) + '</th>'; });
+          headers.forEach(function (cell, n) { html += '<th scope="col" style="text-align:' + align[n] + '">' + inline(cell, 0, options) + '</th>'; });
           html += '</tr></thead><tbody>'; i += 2;
           while (i < lines.length && lines[i].trim() && cells(lines[i]).length > 1) {
             var row = cells(lines[i++]); html += '<tr>';
-            headers.forEach(function (_, n) { html += '<td style="text-align:' + align[n] + '">' + inline(row[n] || '') + '</td>'; });
+            headers.forEach(function (_, n) { html += '<td style="text-align:' + align[n] + '">' + inline(row[n] || '', 0, options) + '</td>'; });
             html += '</tr>';
           }
           html += '</tbody></table></div>'; continue;
         }
       }
       var heading = /^\s{0,3}(#{1,6})\s+(.+?)\s*#*\s*$/.exec(line);
-      if (heading) { var level = heading[1].length; html += '<h' + level + '>' + inline(heading[2]) + '</h' + level + '>'; i++; continue; }
+      if (heading) { var level = heading[1].length; html += '<h' + level + '>' + inline(heading[2], 0, options) + '</h' + level + '>'; i++; continue; }
       if (/^\s{0,3}(?:(?:-\s*){3,}|(?:\*\s*){3,}|(?:_\s*){3,})$/.test(line)) { html += '<hr>'; i++; continue; }
       if (/^\s{0,3}>/.test(line)) {
         var quoted = [];
@@ -145,11 +156,11 @@
       }
       var paragraph = [line]; i++;
       while (i < lines.length && !boundary(i)) paragraph.push(lines[i++]);
-      html += '<p>' + inline(paragraph.join('\n')).replace(/ {2}\n/g, '<br>') + '</p>';
+      html += '<p>' + inline(paragraph.join('\n'), 0, options).replace(/ {2}\n/g, '<br>') + '</p>';
     }
     return html;
   }
-  var api = { render: render, inline: inline };
+  var api = { render: render, inline: inline, escape: escape };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.ArenaMarkdown = api;
 })(typeof window === 'undefined' ? this : window);
