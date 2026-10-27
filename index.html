@@ -2663,9 +2663,12 @@ var TEAM_COLORS = {
     var entries = msg.activity || [];
     if(!entries.length && !msg.reasoning) return '';
     var searched = entries.some(function(item){return item.kind==='search_results';});
+    var imageSearch = entries.some(function(item){return item.kind==='search_results'&&item.searchModes&&item.searchModes.image;});
+    var webSearch = entries.some(function(item){return item.kind==='search_results'&&(!item.searchModes||item.searchModes.web);});
+    var searchLabel = imageSearch?(webSearch?'已思考，已搜索网页与图片':'已思考，已搜索图片'):'已思考，已搜索网页';
     var usedFiles=entries.some(function(item){return item.kind==='project_files';});
     var attempted = entries.some(function(item){return /search/.test(item.kind);});
-    var h = '<details class="arena-operation-details"><summary>'+ (usedFiles?'已查阅项目资料':searched?'已思考，已搜索网页':attempted?'思考与搜索过程':'思考记录')+'</summary><div class="arena-operation-card">';
+    var h = '<details class="arena-operation-details"><summary>'+ (usedFiles?'已查阅项目资料':searched?searchLabel:attempted?'思考与搜索过程':'思考记录')+'</summary><div class="arena-operation-card">';
     entries.forEach(function(item){
       if(item.kind==='project_files'){
         h+='<div class="arena-operation-row">已查阅项目资料 · '+Number(item.fragments||0)+' 个片段 '+(item.files||[]).map(function(file){return '<button data-context-file="'+esc(file.id)+'" data-project="'+esc((msg.context||{}).scope||activeProjectId||'')+'">'+esc(file.name)+'</button>';}).join(' ')+'</div>';return;
