@@ -33,13 +33,21 @@ test('empty drafts and an ongoing response do not submit',()=>{
   const f=inputFixture();f.input.value='';f.fire('keydown');assert.equal(f.sends,0);
   f.input.value='token';f.context.aaRunning=true;f.fire('keydown');assert.equal(f.sends,0);
 });
-test('prompt inspection shares the real selected skill and template prompt without injecting old task names by default',()=>{
+test('only explicit Skills or coding modes supplement the saved system prompt',()=>{
   const c=vm.createContext({activeSkill:null,_pptTemplateInfo:null,SYS_CHAT:'DEFAULT',activeProjectId:null,activeProject:null,getActiveSubmodels:()=>['claude-sonnet-5-5']});
-  vm.runInContext(fn('currentChatSystemPrompt')+'\n'+fn('currentFixedPrompt'),c);
+  vm.runInContext(fn('currentChatSystemPrompt')+'\n'+fn('chatSystemMode'),c);
   assert.equal(c.currentChatSystemPrompt('claude-sonnet-5-5'),'DEFAULT');
-  assert.ok(!/AI Arena|Excel|论文|PPT/.test(c.currentFixedPrompt()));
+  assert.equal(c.chatSystemMode('claude-sonnet-5-5'),'default');
   c.activeSkill={type:'prompt',id:'ppt-maker',prompt:'SKILL'};c._pptTemplateInfo={name:'template.pptx',colors:{accent:'123456'},fonts:[]};
-  assert.match(c.currentFixedPrompt(),/SKILL/);assert.match(c.currentFixedPrompt(),/123456/);
-  c.activeProjectId='project-123';c.activeProject={instructions:'PROJECT_ONLY'};
-  const project=c.currentFixedPrompt();assert.match(project,/PROJECT_ONLY/);assert.doesNotMatch(project,/SKILL|123456|DEFAULT/);
+  assert.equal(c.chatSystemMode('claude-sonnet-5-5'),'skill');
+  assert.match(c.currentChatSystemPrompt('claude-sonnet-5-5'),/SKILL/);assert.match(c.currentChatSystemPrompt('claude-sonnet-5-5'),/123456/);
+  assert.equal(c.chatSystemMode('codex-official'),'coding');
+});
+test('project requests never carry the general prompt or selected Skill',()=>{
+  const c=vm.createContext({activeSkill:{type:'prompt',prompt:'GENERAL_SKILL'},activeProjectId:null,currentChatId:'test-chat-123',msgs:[{uid:1,isUser:true,text:'question'}],_incognitoMode:false,getActiveSubmodels:()=>['claude-sonnet-5-5'],ArenaContext:{selectRecent:()=>({messages:[],earlier:[]})}});
+  vm.runInContext(fn('chatSystemMode')+'\n'+fn('scopedChatInput'),c);
+  assert.equal(c.scopedChatInput('question','GENERAL_SKILL').systemMode,'skill');
+  c.activeProjectId='project-123';
+  const request=c.scopedChatInput('question','GENERAL_SKILL');
+  assert.equal(request.system,'');assert.equal(request.systemMode,'project');assert.equal(request.scope,'project-123');
 });
