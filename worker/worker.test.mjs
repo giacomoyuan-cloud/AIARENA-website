@@ -41,7 +41,7 @@ for(const [model,host,binding] of [
   assert.equal(calls.length,1);
 });
 
-for(const model of ['claude-fable-5-1','claude-opus-5']) test(model+' uses Anthropic and merges stream token usage',async t=>{
+for(const model of ['claude-fable-5-1','claude-opus-5','claude-opus-5-5','claude-sonnet-5-5']) test(model+' uses Anthropic and merges stream token usage',async t=>{
   const {env}=setup();
   mockFetch(t,(url,options)=>{ assert.equal(url,'https://api.anthropic.com/v1/messages'); assert.equal(options.headers.Authorization,'Bearer '+env.ANTHROPIC_API_KEY); assert.equal(JSON.parse(options.body).model,model); return stream([{type:'message_start',message:{usage:{input_tokens:23,output_tokens:1}}},{type:'content_block_delta',delta:{type:'text_delta',text:'Claude 官方'}},{type:'message_delta',usage:{output_tokens:9}}]); });
   const output=events(await (await worker.fetch(request(model),env)).text());
@@ -204,4 +204,28 @@ test('missing gateway binding or rejected gateway authentication never falls bac
   assert.match(rejected,/HTTP 403/); assert.match(rejected,/\[redacted\]/);
   assert.ok(!rejected.includes(env.OPENAI_API_KEY));
   assert.equal(calls,1); assert.equal(directCalls.length,0);
+});
+
+
+test('short output limits bound real model verification requests without changing the default ceiling',async t=>{
+  const {env}=setup();
+  const calls=mockFetch(t,(url,options)=>{
+    const payload=JSON.parse(options.body);
+    assert.equal(payload.model,'claude-opus-5-5');
+    assert.equal(payload.max_tokens,1024);
+    assert.notEqual(payload.thinking?.type,'disabled');
+    return stream([{type:'content_block_delta',delta:{type:'thinking_delta',thinking:'brief reasoning'}},{type:'content_block_delta',delta:{type:'text_delta',text:'OK'}}]);
+  });
+  const result=events(await(await worker.fetch(request('claude-opus-5-5',{maxOutputTokens:1024}),env)).text());
+  assert.equal(result.filter(x=>x.t).map(x=>x.t).join(''),'OK');
+  assert.equal(calls.length,1);
+});
+
+test('invalid output limits fail before any paid provider call',async t=>{
+  const {env}=setup();const calls=mockFetch(t,()=>{throw new Error('unexpected paid call');});
+  for(const maxOutputTokens of [0,31,-1,1024.5,128001,'1024',null]){
+    const response=await worker.fetch(request('claude-sonnet-5-5',{maxOutputTokens}),env);
+    assert.equal(response.status,400);
+  }
+  assert.equal(calls.length,0);
 });

@@ -1029,7 +1029,7 @@
           <div class="aa-card-head"><span class="aa-card-brand">Google</span><span class="aa-card-sub" id="aaCardSub-google">Gemini 3.8 Flash</span><span class="aa-card-dot" id="aaCardDot-google"></span><span class="aa-team-label" id="aaTeam-google"></span><div id="aaPoolBar-google" style="display:none;position:absolute;bottom:0;left:6px;right:6px;"></div></div>
         </div>
         <div class="aa-brand-card" data-brand="anthropic">
-          <div class="aa-card-head"><span class="aa-card-brand">Anthropic</span><span class="aa-card-sub" id="aaCardSub-anthropic">Claude Fable 5.1</span><span class="aa-card-dot" id="aaCardDot-anthropic"></span><span class="aa-team-label" id="aaTeam-anthropic"></span><div id="aaPoolBar-anthropic" style="display:none;position:absolute;bottom:0;left:6px;right:6px;"></div></div>
+          <div class="aa-card-head"><span class="aa-card-brand">Anthropic</span><span class="aa-card-sub" id="aaCardSub-anthropic">Claude Sonnet 5.5</span><span class="aa-card-dot" id="aaCardDot-anthropic"></span><span class="aa-team-label" id="aaTeam-anthropic"></span><div id="aaPoolBar-anthropic" style="display:none;position:absolute;bottom:0;left:6px;right:6px;"></div></div>
         </div>
         <div class="aa-brand-card" data-brand="mj" id="aaMjCard" style="display:none;">
           <div class="aa-card-head" style="--bc:#38bdf8;--bcbg:rgba(56,189,248,0.1);--bcglow:rgba(56,189,248,0.15);"><span class="aa-card-brand">MJ</span><span class="aa-card-sub" id="aaCardSub-mj">生图</span><span class="aa-card-dot" id="aaCardDot-mj"></span><div id="aaPoolBar-mj" style="display:none;position:absolute;bottom:0;left:6px;right:6px;"></div></div>
@@ -1124,13 +1124,12 @@
         <div class="aa-drop-item" data-sub="swap-face"><span class="aa-drop-dot" data-health="proxy"></span>MJ 换脸</div>
       </div>
       <div class="aa-card-dropdown" id="aaDrop-anthropic">
-        <div class="aa-drop-item selected" data-sub="claude-fable-5-1"><span class="aa-drop-dot" data-health="official-anthropic"></span>Claude Fable 5.1</div>
-        <div class="aa-drop-item" data-sub="claude-opus-5"><span class="aa-drop-dot" data-health="official-anthropic"></span>Claude Opus 5</div>
+        <div class="aa-drop-item selected" data-sub="claude-sonnet-5-5"><span class="aa-drop-dot" data-health="official-anthropic"></span>Claude Sonnet 5.5</div>
+        <div class="aa-drop-item" data-sub="claude-opus-5-5"><span class="aa-drop-dot" data-health="official-anthropic"></span>Claude Opus 5.5</div>
       </div>
       <div class="aa-card-dropdown" id="aaJudgeDrop">
         <div class="aa-drop-item" data-jsub="none"><span class="aa-drop-dot"></span>不设思维教练</div>
-        <div class="aa-drop-item" data-jsub="claude-opus-5"><span class="aa-drop-dot" data-health="official-anthropic"></span>Claude Opus 5</div>
-        <div class="aa-drop-item" data-jsub="gemini-3.1-pro-preview"><span class="aa-drop-dot" data-health="official-google"></span>Gemini 3.1 Pro</div>
+        <div class="aa-drop-item" data-jsub="claude-opus-5-5"><span class="aa-drop-dot" data-health="official-anthropic"></span>Claude Opus 5.5</div>
       </div>
 
       <div id="aaQuoteBar" class="aa-quote-bar">
@@ -1229,7 +1228,10 @@
   };
 
   // Submodel → brand mapping and display names
+  var AVAILABLE_CHAT_MODELS = ['claude-opus-5-5','claude-sonnet-5-5','grok-4.6'];
   var SUBS = {
+    'claude-opus-5-5': {brand:'anthropic', name:'Claude Opus 5.5'},
+    'claude-sonnet-5-5': {brand:'anthropic', name:'Claude Sonnet 5.5'},
     'grok-4.6':             {brand:'xai',       name:'Grok 4.6'},
     'gpt-6-astra':          {brand:'openai',    name:'GPT-6 Astra'},
     'gpt-5.6-sol':          {brand:'openai',    name:'GPT-5.6 Sol'},
@@ -1422,6 +1424,7 @@ var TEAM_COLORS = {
   var POOL_LABELS = { 'xai-official':'xAI 官方', 'anthropic-official':'Anthropic 官方', 'openai-official':'OpenAI 官方', 'google-official':'Google 官方' };
 
   var POOL_MAP = {
+    'claude-opus-5-5':'anthropic-official','claude-sonnet-5-5':'anthropic-official',
     'grok-4.6':'xai-official','gpt-6-astra':'openai-official','gpt-5.6-sol':'openai-official',
     'claude-fable-5-1':'anthropic-official','claude-opus-5':'anthropic-official',
     'gemini-3.8-flash':'google-official','gemini-3.1-pro-preview':'google-official',
@@ -1467,6 +1470,11 @@ var TEAM_COLORS = {
       }
     } catch(e) {}
   }
+  var DEFAULT_TOKEN_PRICES = {
+    'grok-4.6': {input:2,output:6},
+    'claude-sonnet-5-5': {input:2,output:10},
+    'claude-opus-5-5': {input:4,output:20}
+  };
   function getSubPool(sub){ return POOL_MAP[sub] || null; }
 
   function renderAllPoolBars(){
@@ -1768,6 +1776,7 @@ var TEAM_COLORS = {
     overlay.id = 'aaPricesOverlay';
     overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:999999;background:rgba(0,0,0,0.5);display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:24px 16px;box-sizing:border-box;';
     var MODEL_LABELS = {
+      'claude-opus-5-5':'Claude Opus 5.5','claude-sonnet-5-5':'Claude Sonnet 5.5',
       'grok-4.6':'Grok 4.6',
       'gpt-6-astra':'GPT-6 Astra','gpt-5.6-sol':'GPT-5.6 Sol',
       'claude-fable-5-1':'Claude Fable 5.1','claude-opus-5':'Claude Opus 5',
@@ -1804,14 +1813,14 @@ var TEAM_COLORS = {
     var _noOutputKeys = ['grok-imagine-image-2.0','gpt-image-2.5-sunburst','gemini-3.1-flash-image','mj_imagine'];
     var PRICE_GROUPS = [
       {label:'xAI 官方', pool:'xai-official', keys:['grok-4.6','grok-imagine-image-2.0']},
-      {label:'Anthropic 官方', pool:'anthropic-official', keys:['claude-fable-5-1','claude-opus-5']},
+      {label:'Anthropic 官方', pool:'anthropic-official', keys:['claude-sonnet-5-5','claude-opus-5-5']},
       {label:'OpenAI 官方', pool:'openai-official', keys:['gpt-6-astra','gpt-5.6-sol','gpt-image-2.5-sunburst']},
       {label:'Google 官方', pool:'google-official', keys:['gemini-3.8-flash','gemini-3.1-pro-preview','gemini-3.1-flash-image']},
     ];
     var priceRows = PRICE_GROUPS.map(function(group){
       var groupId = 'pg-' + group.pool + '-' + group.label.replace(/[\s\.]+/g,'');
       var rowsHtml = group.keys.map(function(k){
-        var p = prices[k] || {input:0,output:0};
+        var p = prices[k] || DEFAULT_TOKEN_PRICES[k] || {input:0,output:0};
         var noOut = _noOutputKeys.indexOf(k) !== -1;
         return '<tr class="pg-row-'+groupId+'" style="display:none;">'
           +'<td style="padding:8px 10px 8px 24px;font-size:12px;color:'+textClr+';white-space:nowrap;width:40%;">'+MODEL_LABELS[k]+'</td>'
@@ -2117,7 +2126,7 @@ var TEAM_COLORS = {
   
   var brandSelection = {
     xai: 'grok-4.6',
-    anthropic: 'claude-fable-5-1',
+    anthropic: 'claude-sonnet-5-5',
     openai: 'gpt-6-astra',
     google: 'gemini-3.8-flash',
     mj: 'mj_imagine'
@@ -2157,7 +2166,7 @@ var TEAM_COLORS = {
         xai: 'grok-4.6',
         openai: 'gpt-6-astra',
         google: 'gemini-3.8-flash',
-        anthropic: 'claude-fable-5-1',
+        anthropic: 'claude-sonnet-5-5',
         mj: 'mj_imagine'
       };
       if(!imageMode){ activeBrands['mj'] = false; }
@@ -2172,8 +2181,18 @@ var TEAM_COLORS = {
     } catch(e){}
   }
 
+  function normalizeAvailableModels(){
+    activeBrands.openai = false; activeBrands.google = false; activeBrands.mj = false; activeBrands.kling = false;
+    if(['claude-opus-5-5','claude-sonnet-5-5'].indexOf(brandSelection.anthropic) === -1) brandSelection.anthropic = 'claude-sonnet-5-5';
+    brandSelection.xai = 'grok-4.6';
+    if(!imageMode && !activeBrands.xai && !activeBrands.anthropic) activeBrands.anthropic = true;
+    if(imageMode && imageComposerModel !== 'grok-imagine-image-2.0') imageComposerModel = 'grok-imagine-image-2.0';
+    if(debateMode === '2v2') debateMode = 'free';
+  }
+
   // === Get active submodel IDs for sending ===
   function getActiveSubmodels(){
+    normalizeAvailableModels();
     var result = [];
     if(videoMode && activeBrands['kling']){
       result.push(brandSelection['kling'] || 'kling25-i2v');
@@ -2197,6 +2216,7 @@ var TEAM_COLORS = {
 
   // === UI sync ===
   function syncBrandUI(){
+    normalizeAvailableModels();
     // Brand cards active state
     document.querySelectorAll('#ai-arena-app .aa-brand-card').forEach(function(card){
       var b = card.dataset.brand;
@@ -3621,12 +3641,7 @@ btn.classList.add('copied');
   }, {passive: true});
 
   // === Image composer: model, task and model-specific settings ===
-  var IMAGE_MODELS = [
-    {value:'grok-imagine-image-2.0', label:'Grok Image 2.0'},
-    {value:'gpt-image-2.5-sunburst', label:'GPT Image 2.5 Sunburst'},
-    {value:'gemini-3.1-flash-image', label:'Gemini 3.1 Flash Image'},
-    {value:'mj_imagine', label:'Midjourney（官方 API 未开放）', disabled:true}
-  ];
+  var IMAGE_MODELS = [{value:'grok-imagine-image-2.0', label:'Grok Image 2.0'}];
   var GROK_RATIOS = ['1:1','16:9','9:16','4:3','3:4','3:2','2:3','2:1','1:2','21:9','auto'];
   var MJ_RATIOS = ['1:1','16:9','9:16','4:3','3:4','3:2','2:3','21:9'];
 
@@ -3936,6 +3951,7 @@ btn.classList.add('copied');
 
   $('aaDebateModeBar').addEventListener('click', function(e){
     var btn = e.target.closest('[data-dmode]'); if(!btn) return;
+    if(btn.disabled) return;
     debateMode = btn.dataset.dmode;
     document.querySelectorAll('#aaDebateModeBar .aa-bar-btn').forEach(function(b){
       var isActive = b.dataset.dmode === debateMode;
@@ -5222,10 +5238,11 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
                 } else {
                   var prices = JSON.parse(localStorage.getItem('aa-model-prices') || '{}');
                   var subKey = msgObj.submodel || sub;
-                  var p = prices[subKey] || {input: 0, output: 0};
-                  cost = (usageData.input / 1000000) * p.input + (usageData.output / 1000000) * p.output;
+                  var p = prices[subKey] || DEFAULT_TOKEN_PRICES[subKey] || {input: 0, output: 0};
+                  var longContextRate = !prices[subKey] && subKey === 'grok-4.6' && usageData.input >= 200000 ? 2 : 1;
+                  cost = ((usageData.input / 1000000) * p.input + (usageData.output / 1000000) * p.output) * longContextRate;
                   msgObj.usageCost = cost;
-                  msgObj.usageStr = 'in:' + usageData.input + ' out:' + usageData.output + (cost > 0 ? ' · $' + cost.toFixed(4) : '');
+                  msgObj.usageStr = 'in:' + usageData.input + ' out:' + usageData.output + (cost > 0 ? ' · 估算 $' + cost.toFixed(4) : '');
                 }
                 if(cost > 0){ var _pool = getSubPool(msgObj.submodel || sub); if(_pool) addPoolSpent(_pool, cost); }
                 var el = document.querySelector('[data-uid="'+uid+'"]');
@@ -6112,20 +6129,10 @@ if(debateMode === '2v2'){
     if(!debate && !imageMode && !videoMode) $('aaTopic').placeholder = '回复 AI 大舞台…';
   }
   function renderArenaModelMenu(){
-    var groups = [
-      {name: 'Anthropic', models: ['claude-fable-5-1', 'claude-opus-5']},
-      {name: 'xAI', models: ['grok-4.6']},
-      {name: 'OpenAI', models: ['gpt-6-astra', 'gpt-5.6-sol']},
-      {name: 'Google', models: ['gemini-3.8-flash', 'gemini-3.1-pro-preview']}
-    ];
     var h = '<div class="arena-model-menu-title">' + (debate ? '选择参与辩论的模型' : '选择模型') + '</div>';
-    groups.forEach(function(group){
-      h += '<div class="arena-model-group">'+group.name+'</div>';
-      group.models.forEach(function(id){
-        h += '<button type="button" class="arena-model-option" data-arena-model="'+id+'" aria-pressed="false"><span>'+SUBS[id].name+'</span><span class="arena-model-check" aria-hidden="true">✓</span></button>';
-      });
+    AVAILABLE_CHAT_MODELS.forEach(function(id){
+      h += '<button type="button" class="arena-model-option" data-arena-model="'+id+'" aria-pressed="false"><span>'+SUBS[id].name+'</span><span class="arena-model-check" aria-hidden="true">✓</span></button>';
     });
-    h += '<div class="arena-menu-note">官方 API · 模型可用性取决于服务商账户状态</div>';
     $('aaChatModelPop').innerHTML = h;
     syncArenaLayout();
   }
@@ -6213,6 +6220,9 @@ if(debateMode === '2v2'){
   });
 
   loadState();
+  normalizeAvailableModels();
+  var unavailable2v2 = document.querySelector('#aaDebateModeBar [data-dmode="2v2"]');
+  if(unavailable2v2){ unavailable2v2.disabled = true; unavailable2v2.title = '需要 4 个可用模型'; }
   if(debate){
     $('aaBarDebateBtn').classList.add('active'); $('aaBarChatBtn').classList.remove('active');
     $('aaBarDebateBtn').style.background='rgba(255,255,255,0.1)'; $('aaBarDebateBtn').style.color='#e8e8ee';
