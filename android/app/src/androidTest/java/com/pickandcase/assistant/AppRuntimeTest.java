@@ -160,6 +160,7 @@ public class AppRuntimeTest {
         }
     }
     void workspace(ActivityScenario<MainActivity> scene) throws Exception {
+        String search="?offline-native-test="+SystemClock.elapsedRealtimeNanos();
         scene.onActivity(a -> {
             WebViewClient client=a.web.getWebViewClient();
             a.web.setWebViewClient(new WebViewClient(){
@@ -169,17 +170,17 @@ public class AppRuntimeTest {
                         if(path.startsWith("/mock-api"))return new WebResourceResponse("application/json","UTF-8",new ByteArrayInputStream("{\"ok\":true,\"chats\":[],\"projects\":[],\"memory\":\"\",\"instructions\":\"\",\"prompt\":\"\"}".getBytes()));
                         if(!OriginPolicy.trusted(req.getUrl().toString()))return new WebResourceResponse("text/plain","UTF-8",new ByteArrayInputStream(new byte[0]));
                         String file=path.equals("/")?"index.html":path.substring(1);
-                        String mime=file.endsWith(".js")?"application/javascript":file.endsWith(".css")?"text/css":file.endsWith(".json")?"application/json":file.endsWith(".png")?"image/png":"text/html";
+                        String mime=file.endsWith(".js")?"application/javascript":file.endsWith(".css")?"text/css":file.endsWith(".json")?"application/json":file.endsWith(".png")?"image/png":file.endsWith(".webp")?"image/webp":"text/html";
                         return new WebResourceResponse(mime,"UTF-8",inst.getContext().getAssets().open(file));
                     }catch(Exception e){return new WebResourceResponse("text/plain","UTF-8",new ByteArrayInputStream(new byte[0]));}
                 }
                 @Override public void onPageCommitVisible(WebView v,String url){client.onPageCommitVisible(v,url);}
                 @Override public void onReceivedError(WebView v,WebResourceRequest r,android.webkit.WebResourceError e){client.onReceivedError(v,r,e);}
             });
-            a.web.loadUrl(BuildConfig.SITE_URL+"?offline-native-test");
+            a.web.loadUrl(BuildConfig.SITE_URL+search);
         });
-        until(scene,"document.getElementById('aaLoginUser') && document.documentElement.classList.contains('arena-android-app') && document.readyState==='complete'");
-        js(scene,"document.getElementById('aaLoginUser').value='android-synthetic-qa';document.getElementById('aaLoginPass').value='offline-fixture';document.getElementById('aaLoginBtn').click()");
+        until(scene,"location.search==="+JSONObject.quote(search)+" && document.getElementById('aaLoginUser') && document.documentElement.classList.contains('arena-android-app') && document.readyState==='complete'");
+        js(scene,"if(document.getElementById('aaLoginOverlay').style.display!=='none'){document.getElementById('aaLoginUser').value='android-synthetic-qa';document.getElementById('aaLoginPass').value='offline-fixture';document.getElementById('aaLoginBtn').click()}");
         until(scene,"document.getElementById('aaLoginOverlay').style.display==='none'");
         // Each fixture starts in chat even when a preceding test saved image mode.
         js(scene,"document.getElementById('aaBarChatBtn').click()");
@@ -217,6 +218,77 @@ public class AppRuntimeTest {
             screenshot("mobile-keyboard.png");
         }
     }
+    JSONObject traceEffortTap(ActivityScenario<MainActivity> scene,int index,int max) throws Exception {
+        JSONArray rect=new JSONArray(js(scene,"(()=>{let r=document.getElementById('aaEffortSlider').getBoundingClientRect();return [r.x,r.y,r.width,r.height,innerWidth]})()"));
+        AtomicReference<Float> ratio=new AtomicReference<>();scene.onActivity(a -> ratio.set(a.web.getWidth()/(float)rect.optDouble(4)));
+        float factor=ratio.get(),width=(float)rect.getDouble(2);
+        float x=((float)rect.getDouble(0)+16+(width-32)*index/max)*factor,y=(float)(rect.getDouble(1)+rect.getDouble(3)/2)*factor;
+        js(scene,"""
+            (()=>{
+              const label=document.getElementById('aaEffortValue'), slider=document.getElementById('aaEffortSlider');
+              const trace=window.qaEffortTrace={release:null,frames:[],mutations:[]};let active=true;
+              const onRelease=e=>{if(e.target.closest?.('#aaEffortScale')) trace.release=performance.now()};
+              document.addEventListener('pointerup',onRelease);
+              const observer=new MutationObserver(()=>trace.mutations.push(label.textContent));
+              observer.observe(label,{childList:true,characterData:true,subtree:true});
+              function frame(){if(!active)return;trace.frames.push({at:performance.now(),label:label.textContent,
+                x:new DOMMatrix(getComputedStyle(document.querySelector('.arena-effort-thumb')).transform).m41,
+                fill:new DOMMatrix(getComputedStyle(document.querySelector('.arena-effort-fill')).transform).a,
+                value:slider.value,aria:slider.getAttribute('aria-valuetext'),composer:document.getElementById('aaCurrentEffort').textContent});requestAnimationFrame(frame)}
+              requestAnimationFrame(frame);
+              window.qaStopEffortTrace=()=>{active=false;observer.disconnect();document.removeEventListener('pointerup',onRelease);return trace};
+            })()
+        """);
+        long start=SystemClock.uptimeMillis();touch(scene,start,MotionEvent.ACTION_DOWN,x,y);touch(scene,start,MotionEvent.ACTION_UP,x,y);
+        until(scene,"qaEffortTrace.release!==null && qaEffortTrace.frames.some(f=>f.at>qaEffortTrace.release)");Thread.sleep(180);
+        JSONObject trace=new JSONObject(js(scene,"qaStopEffortTrace()"));trace.put("targetX",(width-32)*index/max);trace.put("width",width);return trace;
+    }
+    void assertEffortTap(ActivityScenario<MainActivity> scene,int index,int max,String label,String model,String value) throws Exception {
+        JSONObject trace=traceEffortTap(scene,index,max);JSONArray frames=trace.getJSONArray("frames");int afterRelease=0;
+        double target=trace.getDouble("targetX"),release=trace.getDouble("release"),width=trace.getDouble("width");
+        for(int i=0;i<frames.length();i++){
+            JSONObject frame=frames.getJSONObject(i);if(frame.getDouble("at")<=release)continue;afterRelease++;
+            assertEquals("label after release",label,frame.getString("label"));
+            assertEquals("slider must not flash back after release",target,frame.getDouble("x"),2);
+            assertEquals("fill must stay with thumb",(target+16)/width,frame.getDouble("fill"),.015);
+            assertEquals("range and label agree",String.valueOf(index),frame.getString("value"));
+            assertEquals("accessibility label agrees",label,frame.getString("aria"));
+            assertEquals("composer label agrees",label,frame.getString("composer"));
+        }
+        assertTrue("captured rendered frames after release",afterRelease>0);
+        JSONArray mutations=trace.getJSONArray("mutations");
+        for(int i=0;i<mutations.length();i++)assertEquals("no stale label mutation",label,mutations.getString(i));
+        assertEquals("stored provider level",JSONObject.quote(value),js(scene,"JSON.parse(localStorage.getItem('aa-effort-selection'))["+JSONObject.quote(model)+"]"));
+    }
+    @Test public void effortTapsNeverFlashBackToThePreviousLevel() throws Exception {
+        try(ActivityScenario<MainActivity> scene=ActivityScenario.launch(MainActivity.class)){
+            workspace(scene);
+            until(scene,"document.getElementById('aaWelcome')?.dataset.animationState==='playing' && document.getElementById('aaWelcomePet')?.naturalWidth>0");
+            tap(scene,"#aaChatModelBtn");until(scene,"document.querySelector('.arena-effort-gesture')");tap(scene,"#aaModelPickerBtn");
+            until(scene,"!document.getElementById('aaModelsSubmenu').hidden && document.querySelector('[data-arena-model=\"claude-fable-5-1\"]')");
+            tap(scene,"[data-arena-model='claude-fable-5-1']");until(scene,"document.getElementById('aaEffortSlider').max==='4'");
+            assertEffortTap(scene,3,4,"Extra high","claude-fable-5-1","xhigh");
+            assertEffortTap(scene,1,4,"Medium","claude-fable-5-1","medium");
+            assertEffortTap(scene,3,4,"Extra high","claude-fable-5-1","xhigh");
+            assertEffortTap(scene,2,4,"High","claude-fable-5-1","high");
+            // Interrupt an in-flight release spring with another tap.
+            JSONArray rect=new JSONArray(js(scene,"(()=>{let r=document.getElementById('aaEffortSlider').getBoundingClientRect();return [r.x,r.y,r.width,r.height,innerWidth]})()"));
+            AtomicReference<Float> ratio=new AtomicReference<>();scene.onActivity(a -> ratio.set(a.web.getWidth()/(float)rect.optDouble(4)));
+            float factor=ratio.get(),left=(float)rect.getDouble(0),width=(float)rect.getDouble(2),y=(float)(rect.getDouble(1)+rect.getDouble(3)/2)*factor;
+            long start=SystemClock.uptimeMillis();
+            touch(scene,start,MotionEvent.ACTION_DOWN,(left+16+(width-32)*.5f)*factor,y);
+            touch(scene,start,MotionEvent.ACTION_MOVE,(left+16+(width-32)*.63f)*factor,y);
+            touch(scene,start,MotionEvent.ACTION_UP,(left+16+(width-32)*.63f)*factor,y);
+            assertEffortTap(scene,1,4,"Medium","claude-fable-5-1","medium");
+            JSONObject repeat=traceEffortTap(scene,1,4);
+            assertEquals("selecting the same level does not replace the label",0,repeat.getJSONArray("mutations").length());
+            tap(scene,"#aaModelPickerBtn");until(scene,"!document.getElementById('aaModelsSubmenu').hidden");tap(scene,"[data-arena-model='grok-4.7']");until(scene,"document.getElementById('aaEffortSlider').max==='3'");
+            assertEffortTap(scene,3,3,"Extra high","grok-4.7","xhigh");
+            assertEffortTap(scene,1,3,"Medium","grok-4.7","medium");
+            assertEffortTap(scene,3,3,"Extra high","grok-4.7","xhigh");
+            assertEffortTap(scene,2,3,"High","grok-4.7","high");
+        }
+    }
     @Test public void continuousDragDoesNotRestartFeedbackOrPersistBetweenFrames() throws Exception {
         try(ActivityScenario<MainActivity> scene=ActivityScenario.launch(MainActivity.class)){
             workspace(scene);tap(scene,"#aaChatModelBtn");
@@ -240,8 +312,20 @@ public class AppRuntimeTest {
             assertEquals("0",js(scene,"qaDrag.animations"));assertEquals("0",js(scene,"qaDrag.saves"));
             assertEquals(1.08,Double.parseDouble(js(scene,"new DOMMatrix(getComputedStyle(document.querySelector('.arena-effort-thumb>span')).transform).a")),.005);
             screenshot("mobile-smooth-drag.png");
+            js(scene,"""
+                (()=>{qaDrag.release=null;qaDrag.frames=[];document.addEventListener('pointerup',()=>qaDrag.release=performance.now(),{once:true});
+                  function sample(){if(qaDrag.frames.length<80){qaDrag.frames.push({at:performance.now(),x:new DOMMatrix(getComputedStyle(document.querySelector('.arena-effort-thumb')).transform).m41});requestAnimationFrame(sample)}}requestAnimationFrame(sample)})()
+            """);
             touch(scene,start,MotionEvent.ACTION_UP,(left+16+(width-32)*.37f)*factor,y*factor);
             until(scene,"qaDrag.saves===1");
+            until(scene,"qaDrag.release!==null && qaDrag.frames.some(f=>f.at>qaDrag.release)");Thread.sleep(180);
+            JSONObject releaseTrace=new JSONObject(js(scene,"({release:qaDrag.release,frames:qaDrag.frames})"));
+            JSONArray releaseFrames=releaseTrace.getJSONArray("frames");int sampled=0;
+            for(int i=0;i<releaseFrames.length();i++){
+                JSONObject sample=releaseFrames.getJSONObject(i);if(sample.getDouble("at")<=releaseTrace.getDouble("release"))continue;sampled++;
+                assertTrue("drag release must start at the finger, not an older stop",sample.getDouble("x")>=(width-32)/3-8 && sample.getDouble("x")<=(width-32)*.37+8);
+            }
+            assertTrue("sampled the release",sampled>0);
             double jump=Double.parseDouble(js(scene,"(()=>{let t=document.querySelector('.arena-effort-thumb'),before=t.getBoundingClientRect().left;ArenaEffort.sync();return t.getBoundingClientRect().left-before})()"));
             assertEquals("unrelated sync must preserve the release spring",0,jump,.1);
             assertEquals("false",js(scene,"document.getElementById('aaEffortScale').classList.contains('is-dragging')"));
