@@ -67,7 +67,7 @@ test('unavailable legacy routes still normalize to supported models', () => {
   assert.deepEqual(Array.from(context.getActiveSubmodels()), ['grok-imagine-image-2.0']);
 });
 
-test('Gemini 4 menu exposes its three supported thinking levels and medium default', () => {
+test('the model card has a discrete effort slider and a flat model picker', () => {
   const context = browser();
   const elements = new Map();
   context.$ = id => {
@@ -78,16 +78,41 @@ test('Gemini 4 menu exposes its three supported thinking levels and medium defau
   vm.runInContext(browserFunction('renderArenaModelMenu'), context);
   context.renderArenaModelMenu();
   const menu = elements.get('aaChatModelPop').innerHTML;
-  assert.match(menu, /Gemini 4 Argon/);
+  assert.match(menu, /Gemini 4/);
+  assert.doesNotMatch(menu, /Argon|更多模型/);
   assert.doesNotMatch(menu, /undefined/);
-  assert.match(menu, /id="aaEffortMenuBtn"/);
+  assert.match(menu, /id="aaEffortSlider" type="range" min="0" max="2" step="1" value="1"/);
+  assert.match(menu, /aria-valuetext="Medium"/);
   assert.deepEqual(Array.from(context.EFFORT_LEVELS['gemini-4-argon']), ['low', 'medium', 'high']);
   assert.equal(context.effortSelection['gemini-4-argon'], 'medium');
   assert.match(elements.get('aaModelsSubmenu').innerHTML, /gemini-4-argon/);
   assert.doesNotMatch(elements.get('aaModelsSubmenu').innerHTML, /gemini-3\.8-flash|gemini-3\.1-pro-preview/);
   context.activeBrands = { anthropic: true };
+  context.brandSelection.anthropic='claude-fable-5-1';
   context.renderArenaModelMenu();
-  assert.match(elements.get('aaChatModelPop').innerHTML, /id="aaEffortMenuBtn"/);
+  assert.match(elements.get('aaChatModelPop').innerHTML, /max="4" step="1" value="2"/);
+  assert.match(elements.get('aaModelsSubmenu').innerHTML,/返回思考强度/);
+  context.activeBrands={xai:true};
+  context.renderArenaModelMenu();
+  assert.match(elements.get('aaChatModelPop').innerHTML,/max="3" step="1" value="2"/);
+});
+
+test('effort slider updates only valid levels, keeps per-model choices and supports default reset',()=>{
+  const context=browser();let saves=0;
+  Object.assign(context,{aaRunning:false,saveState:()=>saves++,syncArenaLayout:()=>{}});
+  vm.runInContext(browserFunction('setArenaEffort')+'\n'+browserFunction('updateArenaEffortFromSlider'),context);
+  const slide=(model,value)=>context.updateArenaEffortFromSlider({dataset:{effortModel:model},value:String(value)});
+  assert.equal(slide('gemini-4-argon',2),true);assert.equal(context.effortFor('gemini-4-argon'),'high');
+  assert.equal(slide('grok-4.7',3),true);assert.equal(context.effortFor('grok-4.7'),'xhigh');
+  assert.equal(slide('claude-fable-5-1',4),true);assert.equal(context.effortFor('claude-fable-5-1'),'max');
+  assert.equal(context.effortFor('gemini-4-argon'),'high');assert.equal(saves,3);
+  assert.equal(slide('gemini-4-argon',2),true);assert.equal(saves,3,'same stop is not saved repeatedly');
+  for(const value of [-1,3,1.5,'invalid'])assert.equal(slide('gemini-4-argon',value),false);
+  assert.equal(context.setArenaEffort('gemini-4-argon','max'),false);
+  context.aaRunning=true;assert.equal(slide('gemini-4-argon',0),false);assert.equal(saves,3);
+  context.aaRunning=false;assert.equal(context.setArenaEffort('gemini-4-argon',context.defaultEffortFor('gemini-4-argon')),true);
+  assert.equal(context.effortFor('gemini-4-argon'),'medium');assert.equal(context.effortFor('claude-fable-5-1'),'max');
+  assert.equal(context.defaultEffortFor('claude-opus-5-5'),'medium');assert.equal(context.defaultEffortFor('grok-4.7'),'high');
 });
 
 test('Nano Banana controls build the actual outgoing request and remove unsupported 512px', () => {
