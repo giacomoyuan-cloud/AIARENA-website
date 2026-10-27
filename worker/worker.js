@@ -478,6 +478,7 @@ var worker_default = {
         if (userData) {
           const parsed = JSON.parse(userData);
           chatAuthOk = parsed.hash === password2;
+          if(!chatAuthOk)return projectReply({error:"账号密码错误"},401);
         }
       }
       if (!chatAuthOk) {
@@ -610,6 +611,7 @@ var worker_default = {
       if (memUserData) {
         const p = JSON.parse(memUserData);
         memAuthOk = p.hash === pass;
+        if(!memAuthOk)return projectReply({error:"账号密码错误"},401);
       }
       if (!memAuthOk) {
         const expectedHash = await hashText(env.PASSWORD);
@@ -637,6 +639,7 @@ var worker_default = {
         if (memPData) {
           const pp = JSON.parse(memPData);
           memPAuthOk = pp.hash === password2;
+          if(!memPAuthOk)return projectReply({error:"账号密码错误"},401);
         }
       }
       if (!memPAuthOk) {

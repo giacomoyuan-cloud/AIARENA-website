@@ -58,6 +58,14 @@ test('another account cannot claim current, stable or retired login names',async
   assert.equal(data.get('login:first.alias'),'tester');assert.equal((await auth(env,'first.alias')).status,401);
   assert.equal((await update(env,{loginName:'first.alias'})).status,200);assert.equal((await auth(env,'first.alias')).status,200);
 });
+test('the previous password cannot fall back to a shared password to access private chats or memory',async t=>{
+  const {env,data}=setup();env.PASSWORD='synthetic-current-password';data.set('mem:tester','PRIVATE_MEMORY');data.set('chats:tester:list','[]');
+  await update(env,{newPasswordHash:newPassword});
+  t.mock.method(globalThis,'fetch',()=>{throw new Error('Rejected private-memory updates must not call a provider');});
+  const requests=[post('/chats',{username:'tester',password,action:'list'}),post('/chats',{username:'tester',password,action:'save',chatId:'private-123',messages:[]}),post('/memory',{user:'tester',password,conversation:'REJECTED'}),new Request('https://api.pickandcase.com/memory?user=tester&pass='+password)];
+  for(const request of requests)assert.equal((await worker.fetch(request,env)).status,401);
+  assert.equal(data.get('mem:tester'),'PRIVATE_MEMORY');assert.equal(data.has('chats:tester:private-123'),false);
+});
 test('Oakley can rename without moving legacy storage keys or other accounts',async()=>{
   const {env,data}=setup();data.set('user:oakleyyuen',JSON.stringify({hash:password,created:1}));data.set('mem:oakleyyuen','LEGACY_MEMORY');
   assert.equal((await account(env,{user:'Oakley'})).profile.loginName,'Oakley');
