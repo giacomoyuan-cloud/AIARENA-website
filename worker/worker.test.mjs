@@ -153,3 +153,55 @@ test('failed official memory requests leave the existing saved memory unchanged'
   const response=await worker.fetch(new Request('https://api.pickandcase.com/memory',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user:'tester',password,conversation:'A test-only conversation'})}),env);
   assert.equal(response.status,500); assert.equal(data.get('mem:tester'),'Existing memory');
 });
+
+test('optional Cloudflare native gateway keeps OpenAI credentials, streaming and privacy controls',async t=>{
+  const {env}=setup(); env.OPENAI_GATEWAY_ID='aiarena-official';
+  const directCalls=mockFetch(t,()=>{throw new Error('unexpected direct or proxy fallback');});
+  const gatewayCalls=[];
+  env.AI={async fetch(url,options){
+    assert.equal(this,env.AI);
+    gatewayCalls.push({url,options});
+    assert.equal(url,'https://workers-binding.ai/ai-gateway/gateways/aiarena-official/openai/v1/responses');
+    assert.equal(options.headers.get('authorization'),'Bearer '+env.OPENAI_API_KEY);
+    assert.equal(options.headers.get('cf-aig-collect-log'),'false');
+    assert.equal(options.headers.get('cf-aig-collect-log-payload'),'false');
+    assert.equal(options.headers.get('cf-aig-no-wholesale'),'true');
+    assert.equal(options.headers.get('cf-aig-max-attempts'),'1');
+    assert.equal(options.redirect,'manual');
+    assert.equal(JSON.parse(options.body).model,'gpt-6-astra');
+    return responses();
+  }};
+  const output=events(await (await worker.fetch(request('gpt-6-astra'),env)).text());
+  assert.equal(output.filter(value=>value.t).map(value=>value.t).join(''),'你好 world');
+  assert.equal(gatewayCalls.length,1); assert.equal(directCalls.length,0);
+});
+
+test('optional gateway uploads OpenAI edit files without converting multipart to JSON',async t=>{
+  const {env}=setup(); env.OPENAI_GATEWAY_ID='aiarena-official';
+  const directCalls=mockFetch(t,()=>{throw new Error('unexpected fallback');});
+  let calls=0;
+  env.AI={async fetch(url,options){
+    calls++;
+    assert.ok(url.endsWith('/openai/v1/images/edits'));
+    assert.ok(options.body instanceof FormData);
+    assert.equal(options.body.getAll('image[]').length,2);
+    assert.equal(options.headers.has('Content-Type'),false);
+    assert.equal(options.headers.get('authorization'),'Bearer '+env.OPENAI_API_KEY);
+    return Response.json({data:[{b64_json:'aGVsbG8='}]});
+  }};
+  const output=events(await (await worker.fetch(request('gpt-image-2.5-sunburst',{imageTask:'multi-edit',images:[{data:'aGVsbG8=',mime:'image/png'},{data:'aGVsbG8=',mime:'image/jpeg'}]}),env)).text());
+  assert.ok(output.some(value=>value.img)); assert.equal(calls,1); assert.equal(directCalls.length,0);
+});
+
+test('missing gateway binding or rejected gateway authentication never falls back',async t=>{
+  const {env}=setup(); env.OPENAI_GATEWAY_ID='aiarena-official';
+  const directCalls=mockFetch(t,()=>{throw new Error('unexpected fallback');});
+  const missing=await (await worker.fetch(request('gpt-6-astra'),env)).text();
+  assert.match(missing,/绑定尚未配置/);
+  let calls=0;
+  env.AI={async fetch(){calls++;return Response.json({error:{message:'Rejected '+env.OPENAI_API_KEY}},{status:403});}};
+  const rejected=await (await worker.fetch(request('gpt-6-astra'),env)).text();
+  assert.match(rejected,/HTTP 403/); assert.match(rejected,/\[redacted\]/);
+  assert.ok(!rejected.includes(env.OPENAI_API_KEY));
+  assert.equal(calls,1); assert.equal(directCalls.length,0);
+});

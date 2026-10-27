@@ -581,10 +581,28 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
       return [{ role: "user", content }];
     }
     __name(buildOpenAIResponsesInput, "buildOpenAIResponsesInput");
+    async function fetchOfficial(url, options) {
+      const target = new URL(url);
+      if (target.hostname === "api.openai.com" && env.OPENAI_GATEWAY_ID) {
+        const gatewayId = String(env.OPENAI_GATEWAY_ID);
+        if (!/^[a-z0-9][a-z0-9_-]{0,63}$/.test(gatewayId)) throw new Error("OpenAI 官方网关名称配置无效");
+        if (typeof env.AI?.fetch !== "function") throw new Error("OpenAI 官方网关的 Worker 绑定尚未配置");
+        const headers = new Headers(options.headers);
+        headers.set("cf-aig-collect-log", "false");
+        headers.set("cf-aig-collect-log-payload", "false");
+        headers.set("cf-aig-skip-cache", "true");
+        headers.set("cf-aig-no-wholesale", "true");
+        headers.set("cf-aig-max-attempts", "1");
+        // Cloudflare's native binding preserves the provider's response stream and multipart uploads.
+        return env.AI.fetch("https://workers-binding.ai/ai-gateway/gateways/" + encodeURIComponent(gatewayId) + "/openai" + target.pathname + target.search,
+          { ...options, headers, redirect: "manual" });
+      }
+      return fetch(url, { ...options, redirect: "manual" });
+    }
     async function fetchRetry(url, options) {
       let response;
       for (let attempt = 0; attempt < 2; attempt++) {
-        response = await fetch(url, { ...options, redirect: "manual" });
+        response = await fetchOfficial(url, options);
         if (response.ok || ![429, 500, 502, 503, 504].includes(response.status)) return response;
         if (attempt === 0) {
           await response.body?.cancel();
@@ -712,7 +730,7 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
         requestBody = JSON.stringify(payload);
       }
       // Image generation is never retried automatically: a retry could duplicate billing.
-      const response = await fetch(endpoint, { method: "POST", headers, body: requestBody, redirect: "manual" });
+      const response = await fetchOfficial(endpoint, { method: "POST", headers, body: requestBody });
       if (!response.ok) throw new Error(await getUpstreamError(response, config.provider + " 官方图片接口请求失败"));
       const data = await response.json();
       if (config.provider === "google") {

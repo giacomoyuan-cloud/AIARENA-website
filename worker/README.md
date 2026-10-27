@@ -18,7 +18,7 @@ Midjourney has no generally available public official API. Its option is disable
 ## Deployment and verification
 
 1. Check that each official account and its server region are supported by its provider.
-2. Deploy the backend before publishing the changed browser page. The Wrangler configuration preserves the Worker name, custom domain, compatibility date, secrets and both existing KV namespaces. It does not request a placement change. Verify production behavior before deciding whether any server-region change is necessary.
+2. Deploy the backend before publishing the changed browser page. The Wrangler configuration preserves the Worker name, custom domain, compatibility date, secrets and both existing KV namespaces, and retains the user-authorized US placement.
 3. Verify model-list authentication from the actual deployed environment. The root GET response reports **key presence only**, not successful authentication or available credit.
 4. Check text streaming, image generation/editing, and existing chat/memory functions. Do not infer a successful generation from a successful model-list request.
 5. Publish the browser page after backend verification.
@@ -33,7 +33,15 @@ node --test worker/worker.test.mjs
 
 These tests mock provider responses and do not charge any provider account. Never commit API key values or local `.dev.vars` files.
 
-Cloudflare placement labels such as `aws:us-east-1` are geographic references for Cloudflare's own data centers. They do not move the Worker into AWS or require an AWS account. Such a placement hint is not a requirement for this integration and is not configured in this change.
+Cloudflare placement labels such as `aws:us-east-1` are geographic references for Cloudflare's own data centers. They do not move the Worker into AWS or require an AWS account. The current configuration retains the US placement authorized by the user. Placement alone does not establish that a provider accepts requests.
+
+### Optional OpenAI transport through Cloudflare AI Gateway
+
+The default OpenAI transport calls `api.openai.com`. The optional `OPENAI_GATEWAY_ID` setting uses the existing OpenAI key through the Worker's Cloudflare `AI` binding. Creating the gateway and adding that binding require authorization and are not configured automatically by this source change.
+
+The gateway must require authentication. The Worker requests no request/response logging, no cache, no automatic gateway retries, and no fallback to Cloudflare-managed provider credentials (`cf-aig-no-wholesale: true`). Responses streaming and image multipart uploads retain the provider's native schema. A missing binding or provider rejection produces an error; the Worker never falls back to an aggregator.
+
+The native binding transport follows [Cloudflare's official Agents SDK implementation](https://github.com/cloudflare/agents/blob/main/packages/agents/src/models/core/transport.ts).
 
 ## Official references
 

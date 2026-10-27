@@ -5,6 +5,7 @@
   "compatibility_date": "2026-02-28",
   "keep_vars": true,
   "workers_dev": true,
+  "placement": { "region": "aws:us-east-1" },
   "routes": [{ "pattern": "api.pickandcase.com", "custom_domain": true }],
   "kv_namespaces": [
     { "binding": "BIZ_KV", "id": "e1932cff9d0440eb9453164653340d2f" },
