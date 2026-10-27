@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
 const vm = require('node:vm');
+const ArenaImage = require('./arena-image.js');
 
 const source = readFileSync(require('node:path').join(__dirname, 'index.html'), 'utf8');
 function browserFunction(name) {
@@ -12,6 +13,7 @@ function browserFunction(name) {
 function browser(saved = {}) {
   const storage = new Map(Object.entries(saved));
   const context = vm.createContext({
+    ArenaImage,
     localStorage: { getItem: key => storage.get(key) ?? null },
     document: { querySelectorAll: () => ['xai', 'anthropic', 'openai', 'google'].map(brand => ({ dataset: { brand } })) },
     imageMode: false, videoMode: false, debate: false, debateMode: 'free',
@@ -39,9 +41,9 @@ for (const model of ['gemini-4-argon', 'gemini-3.8-flash', 'gemini-3.1-pro-previ
 test('Gemini image generation and editing never silently switch to Grok', () => {
   const context = browser();
   context.imageMode = true;
-  context.imageComposerModel = 'gemini-3.1-flash-image';
+  context.imageComposerModel = 'gemini-nano-banana-2.1';
   assert.ok(context.IMAGE_MODELS.some(model => model.value === context.imageComposerModel));
-  for (let i = 0; i < 3; i++) assert.deepEqual(Array.from(context.getActiveSubmodels()), ['gemini-3.1-flash-image']);
+  for (let i = 0; i < 3; i++) assert.deepEqual(Array.from(context.getActiveSubmodels()), ['gemini-nano-banana-2.1']);
 });
 
 test('unavailable legacy routes still normalize to supported models', () => {
@@ -78,19 +80,40 @@ test('Gemini 4 menu exposes its three supported thinking levels and medium defau
   assert.match(elements.get('aaChatModelPop').innerHTML, /id="aaEffortMenuBtn"/);
 });
 
-test('Gemini image settings reach the request, including 512px, thinking and image-only', () => {
+test('Nano Banana controls build the actual outgoing request and remove unsupported 512px', () => {
   const context = browser();
   const start = source.indexOf('var _nbExtraOpts =');
   const end = source.indexOf('var _skillSys =', start);
   Object.assign(context, {
-    sub: 'gemini-3.1-flash-image', imageComposerTask: 'multi-edit', nbImageSize: '512',
-    nbAspectRatio: '3:4', nbThinkingLevel: 'high', nbImageOnly: true,
-    _imgs: [{ data: 'first', mime: 'image/png' }, { data: 'second', mime: 'image/png' }]
+    sub: ArenaImage.GOOGLE_MODEL, imageMode:true, imageComposerTask:'multi-edit', imageEditParentUid:null,
+    imageSettingsState:()=>({size:'4K',ratio:'3:4',thinking:'medium',imageOnly:true,grounding:'web-image'}),
+    _imgs:[{data:'aGVsbG8=',mime:'image/png'},{data:'aGVsbG8=',mime:'image/jpeg'}]
   });
   vm.runInContext(source.slice(start, end), context);
   assert.deepEqual(JSON.parse(JSON.stringify(context._nbExtraOpts)), {
-    imageTask: 'multi-edit', imageSize: '512', resolution: '512', aspectRatio: '3:4',
-    thinkingLevel: 'high', imageOnly: true, quality: 'auto', n: 1, _imgs: context._imgs
+    imageTask:'multi-edit',imageSize:'4K',aspectRatio:'3:4',thinkingLevel:'medium',
+    imageOnly:true,grounding:'web-image',n:1,_imgs:context._imgs
   });
-  assert.match(source, /value:'512',label:'512px'/);
+  assert.doesNotMatch(ArenaImage.settingsMarkup(ArenaImage.GOOGLE_MODEL,'generation',{}),/512/);
+  assert.equal(ArenaImage.canonical('gemini-3.1-flash-image'),ArenaImage.GOOGLE_MODEL);
+});
+
+test('one click starts generation and a later click stops it without installing a second click listener',()=>{
+  const element=new EventTarget();let starts=0,stops=0;
+  const context=vm.createContext({$:()=>element,aaRunning:false,stopActiveGeneration:null});
+  context.aaStart=()=>{starts++;context.aaRunning=true;context.stopActiveGeneration=()=>{stops++;context.aaRunning=false;};};
+  const start=source.indexOf("  $('aaSendBtn').addEventListener('click'");
+  vm.runInContext(source.slice(start,source.indexOf('\n  });',start)+6),context);
+  element.dispatchEvent(new Event('click'));assert.equal(starts,1);assert.equal(stops,0);
+  element.dispatchEvent(new Event('click'));assert.equal(starts,1);assert.equal(stops,1);
+  assert.doesNotMatch(source,/btn\.onclick\s*=/,'send and stop must share the same click handler');
+});
+
+test('saved image turns keep one copy of generated image bytes and retain signed edit metadata',()=>{
+  const context=browser(),image={data:'aGVsbG8=',mime:'image/png'};
+  context.msgs=[{uid:1,submodel:ArenaImage.GOOGLE_MODEL,imgData:image.data,imgMime:image.mime,imgItems:[image],imageTurn:{prompt:'blue cube',parentUid:null,references:[]},imageResponse:[{imageIndex:0,thoughtSignature:'unaltered-signature'}]}];
+  vm.runInContext(browserFunction('serializeMsgs'),context);
+  const saved=JSON.parse(JSON.stringify(context.serializeMsgs()));
+  assert.equal(saved[0].imgData,undefined);assert.equal(saved[0].imgItems[0].data,image.data);
+  assert.equal(ArenaImage.historyFor(saved,1)[1].parts[0].thoughtSignature,'unaltered-signature');
 });

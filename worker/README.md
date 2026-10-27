@@ -8,12 +8,20 @@ The browser remains on Cloudflare Pages. `worker.js` serves the existing `ai` Wo
 | --- | --- | --- |
 | Grok 4.7, Grok Imagine Image 2.0 | `api.x.ai` | `GROK_API_KEY` |
 | GPT-6 Astra, GPT-5.6 Sol, GPT Image 2.5 Sunburst | `api.openai.com` | `OPENAI_API_KEY` |
-| Claude Opus 5.5, Claude Sonnet 5.5 (earlier Fable/Opus routes retained for compatibility); memory extraction with the existing Haiku model | `api.anthropic.com` | `ANTHROPIC_API_KEY` |
-| Gemini 4 Argon, Gemini 3.1 Flash Image (earlier Gemini 3 chat routes retained for compatibility) | `generativelanguage.googleapis.com` | `GEMINI_API_KEY` |
+| Claude Fable 5.1, Claude Opus 5.5, Claude Sonnet 5.5 (earlier Opus routes retained for compatibility); memory extraction with the existing Haiku model | `api.anthropic.com` | `ANTHROPIC_API_KEY` |
+| Gemini 4 Argon, Nano Banana 2.1 (earlier Gemini image/chat routes retained for compatibility) | `generativelanguage.googleapis.com` | `GEMINI_API_KEY` |
 
 There is no third-party fallback. Missing official keys produce a 503; provider errors reach the page. The Worker no longer references `QUICK`, `JIEKOU_API_KEY`, `HAJIMI_API_KEY` or `MJ_API_KEY`. Existing secret bindings are retained in Cloudflare and do not need to be deleted to stop their use.
 
-The browser model menu uses a deployment allowlist for Claude, Grok and Gemini 4 Argon (`gemini-4-argon`). Gemini 4 supports image understanding with text output; it does not generate images. The image menu separately offers Grok Image 2.0 and Gemini 3.1 Flash Image, including generation, single-image editing and 2–5 reference image editing. Gemini image settings forward 512px/1K/2K/4K resolution, aspect ratio, thinking level and image-only output to the existing official Google route. Historical conversation labels remain readable for compatibility. Cached requests using `grok-4.6` upgrade to `grok-4.7`; returned model names and new usage records identify 4.7. Earlier Claude and Gemini 3 backend routes remain available for compatibility.
+The browser model menu offers current Claude Fable 5.1 / Opus 5.5 / Sonnet 5.5, Grok 4.7 and Gemini 4 Argon (`gemini-4-argon`). Gemini 4 understands images but outputs text; image creation uses a separate model. The image menu offers Grok Imagine 2.0 and Nano Banana 2.1 (`gemini-nano-banana-2.1`). Old Google image selections upgrade to Nano Banana 2.1; old conversation labels remain readable and old backend routes remain available to cached clients.
+
+Nano Banana 2.1 forwards 1K/2K/4K, 14 aspect ratios, minimal/medium/high thinking (medium default), text+image or image-only output, and explicit off/web/image/web+image Google grounding. It does not expose 512px. Up to 14 references are supported; Grok supports 5. Current generation is limited by this website to 4 images for Grok and one image for Google; edit tasks return one image. Unsupported settings fail before a provider call, rather than silently changing size, quality or effort. Uploading references changes the browser task to edit/multi-edit instead of silently dropping those references.
+
+Grok uses native `aspect_ratio`, `resolution` (1k/2k), `quality` (auto/low/medium), `n` and image/images edit fields. All 16 documented ratios are exposed. The November 2 retirement applies to the old `grok-imagine-image-quality` slug, not the quality parameter on Imagine 2.0.
+
+Google edits preserve role/parts history and exact thought signatures. Response image bytes are stored once in `imgItems`; compact signed parts refer to them by index. The next edit rebuilds the native history. Each scope retains its own pending image edit; loading another chat clears that pointer. Incognito keeps this context in memory only and does not save it to chat storage. More than 20 prior image turns returns an explicit error; it does not silently truncate signed context. Grounded results expose containing-page attribution and Google's search suggestions in a sandboxed, scriptless iframe. Thinking token counts are included in Google output usage. No automatic image generation retries are performed.
+
+See [the dated model/settings audit](../MODEL_SETTINGS_AUDIT.md) for official references and verification boundaries.
 
 Midjourney has no generally available public official API. It is not shown in the active model menu. The already inactive legacy Kling route remains unavailable until an official integration and its credentials are configured.
 
@@ -29,7 +37,7 @@ Authenticated text requests may set `maxOutputTokens` to an integer between 32 a
 
 ### Thinking effort and progress
 
-Authenticated requests may set `effort`. Claude Opus 5.5 and Sonnet 5.5 accept `low`, `medium`, `high`, `xhigh`, and `max`, forwarded as `output_config.effort`. Grok 4.7 accepts `low`, `medium`, `high`, and `xhigh`, forwarded as `reasoning.effort`. Gemini 4 Argon accepts `low`, `medium`, and `high`, forwarded as `generationConfig.thinkingConfig.thinkingLevel`. Unsupported values are rejected before an upstream request. Omission preserves the provider default, including for cached clients. The browser remembers each model's selection separately and starts at the provider defaults: medium for Opus 5.5 and Gemini 4 Argon, high for Sonnet 5.5 and Grok 4.7. Higher effort can use more tokens and take longer; it is not a fixed time or spending budget.
+Authenticated requests may set `effort`. Claude Fable 5.1, Opus 5.5 and Sonnet 5.5 accept `low`, `medium`, `high`, `xhigh`, and `max`, forwarded as `output_config.effort`. Grok 4.7 accepts `low`, `medium`, `high`, and `xhigh`, forwarded as `reasoning.effort`. Gemini 4 Argon accepts `low`, `medium`, and `high`, forwarded as the uppercase REST enum in `generationConfig.thinkingConfig.thinkingLevel`. Unsupported values are rejected before an upstream request. Omission preserves the provider default, including for cached clients. The browser remembers each model's selection separately and starts at the provider defaults: medium for Opus 5.5 and Gemini 4 Argon, high for Fable 5.1, Sonnet 5.5 and Grok 4.7. Higher effort can use more tokens and take longer; it is not a fixed time or spending budget.
 
 Streaming `status` events reflect provider thinking, web search and answer events. The browser measures elapsed time locally and only displays thinking summaries returned by the provider, in a collapsed details section. It does not synthesize reasoning text or infer a search merely because the search option is enabled.
 
@@ -40,7 +48,7 @@ New usage records include `official~` in their model key so earlier aggregate re
 Run the offline routing and streaming tests with:
 
 ```sh
-node --test arena-models.test.cjs arena-markdown.test.cjs worker/worker.test.mjs
+node --test arena-*.test.cjs worker/*.test.mjs
 ```
 
 These tests mock provider responses and do not charge any provider account. Never commit API key values or local `.dev.vars` files.

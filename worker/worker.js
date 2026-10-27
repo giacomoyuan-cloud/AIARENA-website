@@ -146,21 +146,72 @@ const OFFICIAL_MODELS = {
   "claude-sonnet-5-5": { provider: "anthropic", binding: "ANTHROPIC_API_KEY", name: "Claude Sonnet 5.5", maxTokens: 128000 },
   "gpt-6-astra": { provider: "openai", binding: "OPENAI_API_KEY", name: "GPT-6 Astra", maxTokens: 128000 },
   "gpt-5.6-sol": { provider: "openai", binding: "OPENAI_API_KEY", name: "GPT-5.6 Sol", maxTokens: 128000 },
-  "claude-fable-5-1": { provider: "anthropic", binding: "ANTHROPIC_API_KEY", name: "Claude Fable 5.1", maxTokens: 64000 },
+  "claude-fable-5-1": { provider: "anthropic", binding: "ANTHROPIC_API_KEY", name: "Claude Fable 5.1", maxTokens: 128000 },
   "claude-opus-5": { provider: "anthropic", binding: "ANTHROPIC_API_KEY", name: "Claude Opus 5", maxTokens: 128000 },
   "gemini-3.8-flash": { provider: "google", binding: "GEMINI_API_KEY", name: "Gemini 3.8 Flash", maxTokens: 65536 },
   "gemini-3.1-pro-preview": { provider: "google", binding: "GEMINI_API_KEY", name: "Gemini 3.1 Pro", maxTokens: 65536 },
   "gemini-4-argon": { provider: "google", binding: "GEMINI_API_KEY", name: "Gemini 4 Argon", maxTokens: 65536 },
   "grok-imagine-image-2.0": { provider: "xai", binding: "GROK_API_KEY", name: "Grok Imagine Image 2.0", image: true },
   "gpt-image-2.5-sunburst": { provider: "openai", binding: "OPENAI_API_KEY", name: "GPT Image 2.5 Sunburst", image: true },
-  "gemini-3.1-flash-image": { provider: "google", binding: "GEMINI_API_KEY", name: "Gemini 3.1 Flash Image", image: true }
+  "gemini-3.1-flash-image": { provider: "google", binding: "GEMINI_API_KEY", name: "Gemini 3.1 Flash Image", image: true },
+  "gemini-nano-banana-2.1": { provider: "google", binding: "GEMINI_API_KEY", name: "Nano Banana 2.1", image: true }
 };
 const MODEL_EFFORT_LEVELS = {
+  "claude-fable-5-1": ["low", "medium", "high", "xhigh", "max"],
   "claude-opus-5-5": ["low", "medium", "high", "xhigh", "max"],
   "claude-sonnet-5-5": ["low", "medium", "high", "xhigh", "max"],
   "grok-4.7": ["low", "medium", "high", "xhigh"],
   "gemini-4-argon": ["low", "medium", "high"]
 };
+
+const GOOGLE_IMAGE_RATIOS = ["1:1","16:9","9:16","3:2","2:3","4:3","3:4","4:5","5:4","21:9","4:1","1:4","8:1","1:8"];
+const GROK_IMAGE_RATIOS = ["1:1","16:9","9:16","4:3","3:4","3:2","2:3","2:1","1:2","21:9","5:2","19.5:9","9:19.5","20:9","9:20","auto"];
+function validImage(source) {
+  return source && typeof source.data === "string" && source.data.length > 0 && source.data.length <= 14*1024*1024
+    && /^[A-Za-z0-9+/]+={0,2}$/.test(source.data) && ["image/png","image/jpeg","image/webp","image/gif"].includes(source.mime || "image/jpeg");
+}
+function nativeImageHistory(history) {
+  if(history === undefined)return [];
+  if(!Array.isArray(history)||history.length>40||history.length%2)throw new Error("图片编辑上下文过长或格式无效，请重新上传图片开始编辑");
+  return history.map((turn,index)=>{
+    if(!turn||turn.role!==(index%2?"model":"user")||!Array.isArray(turn.parts)||!turn.parts.length||turn.parts.length>40)throw new Error("图片编辑上下文格式无效");
+    return {role:turn.role,parts:turn.parts.map(part=>{
+      const out={};
+      if(typeof part.text === "string"&&part.text.length<=50000)out.text=part.text;
+      if(part.inlineData){
+        if(!validImage({data:part.inlineData.data,mime:part.inlineData.mimeType}))throw new Error("图片编辑上下文中有无效图片");
+        out.inlineData={data:part.inlineData.data,mimeType:part.inlineData.mimeType};
+      }
+      if(typeof part.thoughtSignature === "string")out.thoughtSignature=part.thoughtSignature;
+      if(!("text" in out)&&!out.inlineData)throw new Error("图片编辑上下文中有不支持的内容");
+      return out;
+    })};
+  });
+}
+function validateImageRequest(config,model,body,images) {
+  const task=body.imageTask===undefined?"generation":body.imageTask;
+  if(!["generation","edit","multi-edit"].includes(task))throw new Error("不支持的图片任务");
+  if(!Array.isArray(images)||images.some(source=>!validImage(source)))throw new Error("参考图格式无效或超过 10MB");
+  const max=config.provider==="google"?14:5;
+  if(task==="generation"&&images.length)throw new Error("已上传参考图，请选择编辑图片或多图编辑");
+  if(task==="edit"&&images.length!==1)throw new Error("编辑图片需要且仅支持 1 张参考图");
+  if(task==="multi-edit"&&(images.length<2||images.length>max))throw new Error(`多图编辑需要 2–${max} 张参考图`);
+  if(body.n!==undefined&&(!Number.isInteger(body.n)||body.n<1||body.n>(task!=="generation"||config.provider==="google"?1:4)))throw new Error("此任务不支持所选图片数量");
+  const check=(value,allowed,name)=>{if(value!==undefined&&!allowed.includes(value))throw new Error(`此模型不支持所选${name}`);};
+  if(config.provider==="google"){
+    check(body.aspectRatio,GOOGLE_IMAGE_RATIOS,"画面比例");
+    check(body.imageSize,model==="gemini-nano-banana-2.1"?["1K","2K","4K"]:["512","1K","2K","4K"],"分辨率");
+    check(body.thinkingLevel,model==="gemini-nano-banana-2.1"?["minimal","medium","high"]:["minimal","high"],"思考强度");
+    check(body.grounding,["off","web","image","web-image"],"搜索方式");
+    if(body.imageOnly!==undefined&&typeof body.imageOnly!=="boolean")throw new Error("输出方式格式无效");
+    nativeImageHistory(body.imageHistory);
+    if(task==="generation"&&body.imageHistory?.length)throw new Error("生成新图片不能附带上次编辑上下文");
+  }else if(config.provider==="xai"){
+    check(body.aspectRatio,GROK_IMAGE_RATIOS,"画面比例");
+    check(body.resolution,["1k","2k"],"分辨率");check(body.quality,["low","medium","auto"],"质量");
+    if(body.grounding&&body.grounding!=="off"||body.thinkingLevel!==undefined||body.imageHistory!==undefined)throw new Error("Grok 图片模型不支持此思考或搜索选项");
+  }
+}
 
 function projectReply(data,status=200){
   return new Response(JSON.stringify(data),{status,headers:{"Content-Type":"application/json","Access-Control-Allow-Origin":"*","Cache-Control":"no-store"}});
@@ -633,6 +684,9 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
         : "该模型未启用官方 API，请刷新后选择当前官方模型";
       return new Response(JSON.stringify({ error: reason }), { status: 400, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
     }
+    if(modelConfig.image){
+      try{validateImageRequest(modelConfig,model,body,allImages);}catch(error){return projectReply({error:error.message},400);}
+    }
     if(projectId&&!modelConfig.image&&!body.chat)return projectReply({error:"请刷新后在项目内重新发送"},400);
     const outputLimit = body.maxOutputTokens === undefined ? modelConfig.maxTokens : body.maxOutputTokens;
     const effort = body.effort;
@@ -689,6 +743,18 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
     }
     async function sendImage(b64, mime) {
       await writer.write(encoder.encode("data: " + JSON.stringify({ img: b64, mime }) + "\n\n"));
+    }
+    async function sendGoogleGrounding(metadata) {
+      if(!metadata)return;
+      const sources=[];
+      for(const chunk of metadata.groundingChunks||[]){
+        const value=chunk.web||chunk.image;
+        const source=publicSource({url:value?.uri,title:value?.title});
+        if(source&&!sources.some(item=>item.url===source.url)){sources.push(source);await sendCitation(source,false);}
+      }
+      const queries=[...(metadata.webSearchQueries||[]),...(metadata.imageSearchQueries||[])].filter(value=>typeof value==="string");
+      if(sources.length||queries.length)await sendActivity({kind:"search_results",label:"Google 搜索",query:queries.join(" · ").slice(0,512),sources});
+      await writer.write(encoder.encode("data: "+JSON.stringify({grounding:{html:typeof metadata.searchEntryPoint?.renderedContent==="string"?metadata.searchEntryPoint.renderedContent.slice(0,32768):""}})+"\n\n"));
     }
     __name(sendImage, "sendImage");
     async function sendButtons(taskId, buttons) {
@@ -836,6 +902,7 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
       let usage;
       await readOfficialStream(response, async event => {
         if (event.usageMetadata) usage = event.usageMetadata;
+        await sendGoogleGrounding(event.candidates?.[0]?.groundingMetadata);
         for (const part of event.candidates?.[0]?.content?.parts || []) {
           if (part.thought && part.text) await sendReasoning(part.text);
           else if (part.text) await sendChunk(part.text);
@@ -1038,7 +1105,7 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
         headers = { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY };
         payload = { contents: [{ parts: buildGeminiParts(prompt, image, imageMime) }], generationConfig: { maxOutputTokens: outputLimit } };
         if(scoped){payload.systemInstruction={parts:[{text:scoped.system}]};payload.contents=scoped.messages.map((message,index)=>({role:message.role==="assistant"?"model":"user",parts:index===scoped.messages.length-1?buildGeminiParts(message.content,image,imageMime):[{text:message.content}]}));}
-        if (effort !== undefined) payload.generationConfig.thinkingConfig = { thinkingLevel: effort };
+        if (effort !== undefined) payload.generationConfig.thinkingConfig = { thinkingLevel: effort.toUpperCase() };
         if (search) payload.tools = [{ google_search: {} }];
       } else {
         const isXai = config.provider === "xai";
@@ -1061,7 +1128,7 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
         : config.provider === "google" ? await parseGeminiStream(response) : await parseResponsesStream(response);
       if (usage) {
         const input = usage.input_tokens ?? usage.promptTokenCount ?? 0;
-        const output = usage.output_tokens ?? usage.candidatesTokenCount ?? 0;
+        const output = usage.output_tokens ?? ((usage.candidatesTokenCount || 0) + (usage.thoughtsTokenCount || 0));
         await recordUsage(model, input, output);
         await sendUsage(input, output);
       }
@@ -1087,8 +1154,9 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
       if (!cleanPrompt) throw new Error("请输入图片描述");
       const task = ["edit", "multi-edit"].includes(body.imageTask) ? body.imageTask : "generation";
       if (task === "edit" && allImages.length < 1) throw new Error("编辑图片需要 1 张参考图");
-      if (task === "multi-edit" && (allImages.length < 2 || allImages.length > 5)) throw new Error("多图编辑需要 2–5 张参考图");
-      const references = task === "generation" ? [] : allImages.slice(0, task === "edit" ? 1 : 5);
+      const maxReferences=config.provider==="google"?14:5;
+      if (task === "multi-edit" && (allImages.length < 2 || allImages.length > maxReferences)) throw new Error(`多图编辑需要 2–${maxReferences} 张参考图`);
+      const references = task === "generation" ? [] : allImages;
       const count = task === "generation" ? Math.max(1, Math.min(4, Number.parseInt(body.n || 1, 10) || 1)) : 1;
       const ratio = body.aspectRatio || "1:1";
       let endpoint;
@@ -1125,14 +1193,21 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
           }
         }
       } else {
-        endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image:generateContent";
+        endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
         headers = { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY };
         const parts = references.map(source => ({ inlineData: { mimeType: source.mime || "image/jpeg", data: source.data } }));
         parts.push({ text: cleanPrompt });
-        const imageSize = ["512", "1K", "2K", "4K"].includes(body.imageSize) ? body.imageSize : "1K";
-        const payload = { contents: [{ parts }], generationConfig: { responseModalities: body.imageOnly ? ["IMAGE"] : ["TEXT", "IMAGE"], imageConfig: { aspectRatio: ratio, imageSize } } };
-        if (["minimal", "high"].includes(body.thinkingLevel)) payload.generationConfig.thinkingConfig = { thinkingLevel: body.thinkingLevel };
-        if (search) payload.tools = [{ google_search: {} }];
+        const imageSize = body.imageSize || "1K";
+        const payload = { contents: [...nativeImageHistory(body.imageHistory),{ role:"user",parts }], generationConfig: { responseModalities: body.imageOnly ? ["IMAGE"] : ["TEXT", "IMAGE"], imageConfig: { aspectRatio: ratio, imageSize } } };
+        if (body.thinkingLevel!==undefined) payload.generationConfig.thinkingConfig = { thinkingLevel: body.thinkingLevel.toUpperCase() };
+        // An explicit image setting always overrides the unrelated chat-search toggle.
+        const grounding=body.grounding===undefined?(search?"web":"off"):body.grounding;
+        if(grounding!=="off"){
+          const searchTypes={};
+          if(grounding==="web"||grounding==="web-image")searchTypes.webSearch={};
+          if(grounding==="image"||grounding==="web-image")searchTypes.imageSearch={};
+          payload.tools=[{google_search:{searchTypes}}];
+        }
         requestBody = JSON.stringify(payload);
       }
       // Image generation is never retried automatically: a retry could duplicate billing.
@@ -1141,22 +1216,30 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
       const data = await response.json();
       if (config.provider === "google") {
         const parts = data.candidates?.[0]?.content?.parts || [];
+        const contextParts=[];
         let imageCount = 0;
         for (const part of parts) {
           if (part.thought) continue;
+          const saved={};
+          if(part.thoughtSignature||part.thought_signature)saved.thoughtSignature=part.thoughtSignature||part.thought_signature;
+          if(typeof part.text==="string")saved.text=part.text;
           if (part.text && !body.imageOnly) await sendChunk(part.text);
           if (part.inlineData?.data) {
+            saved.imageIndex=imageCount;
             imageCount++;
             await sendImage(part.inlineData.data, part.inlineData.mimeType || "image/png");
           }
+          if(saved.text!==undefined||saved.imageIndex!==undefined)contextParts.push(saved);
         }
         if (!imageCount) throw new Error("Google 官方接口未返回图片：" + (data.promptFeedback?.blockReason || data.candidates?.[0]?.finishReason || "请调整描述后重试"));
+        await writer.write(encoder.encode("data: "+JSON.stringify({imageContext:{parts:contextParts}})+"\n\n"));
+        await sendGoogleGrounding(data.candidates?.[0]?.groundingMetadata);
       } else await sendOfficialImages(data, config.provider === "xai" ? "image/jpeg" : "image/png");
       const usage = data.usageMetadata || data.usage;
       let tokenCallCounted = false;
       if (usage) {
         const input = usage.input_tokens ?? usage.promptTokenCount ?? 0;
-        const output = usage.output_tokens ?? usage.candidatesTokenCount ?? 0;
+        const output = usage.output_tokens ?? ((usage.candidatesTokenCount || 0) + (usage.thoughtsTokenCount || 0));
         tokenCallCounted = !!(input || output);
         await recordUsage(model, input, output);
         await sendUsage(input, output);
@@ -1189,7 +1272,7 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
         if (modelConfig.image) await callOfficialImage(modelConfig);
         else await callOfficialChat(modelConfig);
       } catch (error) {
-        let message = String(error.message || "官方接口请求失败");
+        let message = String(error?.message || error || "官方接口请求失败");
         for (const binding of ["ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GROK_API_KEY", "GEMINI_API_KEY"]) {
           if (env[binding]) message = message.split(env[binding]).join("[redacted]");
         }

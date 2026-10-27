@@ -132,7 +132,7 @@ test('Gemini 4 thinking levels, image input and search use the official Google s
   const {env}=setup();let level;
   const calls=mockFetch(t,(_url,options)=>{
     const body=JSON.parse(options.body);
-    assert.deepEqual(body.generationConfig,{maxOutputTokens:65536,thinkingConfig:{thinkingLevel:level}});
+    assert.deepEqual(body.generationConfig,{maxOutputTokens:65536,thinkingConfig:{thinkingLevel:level.toUpperCase()}});
     assert.deepEqual(body.contents[0].parts,[{inline_data:{mime_type:'image/png',data:'aGVsbG8='}},{text:'Test prompt'}]);
     assert.deepEqual(body.tools,[{google_search:{}}]);
     return stream([{candidates:[{content:{parts:[{text:'Gemini 4'}]}}]}]);
@@ -182,7 +182,7 @@ test('Gemini multi-image edits forward resolution, thinking and image-only setti
   mockFetch(t,(_url,options)=>{
     const body=JSON.parse(options.body);
     assert.deepEqual(body.contents[0].parts.slice(0,2),images.map(image=>({inlineData:{mimeType:image.mime,data:image.data}})));
-    assert.deepEqual(body.generationConfig,{responseModalities:['IMAGE'],imageConfig:{aspectRatio:'3:4',imageSize:'512'},thinkingConfig:{thinkingLevel:'high'}});
+    assert.deepEqual(body.generationConfig,{responseModalities:['IMAGE'],imageConfig:{aspectRatio:'3:4',imageSize:'512'},thinkingConfig:{thinkingLevel:'HIGH'}});
     return Response.json({candidates:[{content:{parts:[
       {thought:true,inlineData:{data:'dGhvdWdodA==',mimeType:'image/png'}},
       {text:'Do not include this in image-only output'},
