@@ -102,3 +102,7 @@ npm --prefix worker test
 ```
 
 `arena-context.js` is the canonical shared context implementation. Run `node worker/sync-shared-context.mjs` after changing it; the test script verifies that the single-file Worker copy matches.
+
+## Input composition and prompt inspection
+
+The composer and login fields ignore Enter actions during IME composition, including Safari's composition-end-before-keydown sequence with key code 229. Shift+Enter and mobile Enter retain newline behavior. The account menu's read-only “提示词与记忆” dialog shows the current chat's fixed instructions and its own scoped memory using the existing authenticated memory-read route. It makes no model call and does not edit memories or credentials. It is a view of current settings, not a stored full-request snapshot; recent messages, old summaries, retrieved excerpts, material fragments and provider tool descriptions can also contribute to an actual request.
