@@ -8,3 +8,9 @@
   Cache-Control: no-cache, max-age=0, must-revalidate
 /manifest.json
   Cache-Control: no-cache, max-age=0, must-revalidate
+/arena-context.js
+  Cache-Control: no-cache, max-age=0, must-revalidate
+/arena-workspace.js
+  Cache-Control: no-cache, max-age=0, must-revalidate
+/arena-workspace.css
+  Cache-Control: no-cache, max-age=0, must-revalidate
