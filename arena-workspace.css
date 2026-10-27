@@ -1,4 +1,8 @@
 #ai-arena-app.arena-shell { --arena-ease-out: cubic-bezier(.23,1,.32,1); }
+#ai-arena-app.arena-shell .arena-account-action { display:flex;align-items:center;justify-content:space-between;width:100%;padding:12px 0;border:0;border-bottom:1px solid var(--arena-border);background:transparent;color:var(--arena-text);font:13px/1.5 var(--arena-ui-font);text-align:left;cursor:pointer; }
+#ai-arena-app.arena-shell .arena-prompt-content { padding:20px 24px; }
+#ai-arena-app.arena-shell .arena-prompt-content h3 { margin:20px 0 8px;font-size:14px;font-weight:550; }
+#ai-arena-app.arena-shell .arena-prompt-content pre { padding:14px;margin:0;border:1px solid var(--arena-border);border-radius:8px;background:var(--arena-sidebar);white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.8 var(--arena-ui-font);user-select:text; }
 #ai-arena-app.arena-shell .arena-notice { position:fixed;z-index:100050;top:72px;left:50%;transform:translateX(-50%);padding:8px 13px;border-radius:8px;color:var(--arena-bg);background:var(--arena-text);font:12px/1.5 var(--arena-ui-font);box-shadow:0 3px 12px #0002;max-width:min(420px,85vw); }
 #ai-arena-app.arena-shell [hidden] { display:none !important; }
 #ai-arena-app.arena-shell .aa-msg.user-msg > .arena-user-actions { justify-content:flex-end;margin-top:6px;opacity:0; }
