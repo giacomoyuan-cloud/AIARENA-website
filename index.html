@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>AI 助手</title>
-<meta name="app-version" content="20261028-smooth2">
+<meta name="app-version" content="20261028-knead1">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -864,7 +864,7 @@
   #ai-arena-app #aaSkillEditPrompt::placeholder { color: #888; opacity: 1; }
 
 </style>
-<link rel="stylesheet" href="/arena.css?v=20261028-smooth2">
+<link rel="stylesheet" href="/arena.css?v=20261028-knead1">
 <link rel="stylesheet" href="/arena-workspace.css?v=20261028-smooth2">
 
 <!-- Login overlay -->
@@ -955,9 +955,8 @@
     <div id="aaProjectBar" class="arena-project-bar" hidden><div><span>项目</span><strong id="aaProjectName"></strong><span class="arena-scope-note">记忆独立</span></div><div><button id="aaProjectMaterials">资料</button><button id="aaProjectSettings" aria-label="项目设置">•••</button><button id="aaProjectExit">普通聊天</button></div></div>
     <button id="aaScrollBottomBtn" class="arena-jump-latest" aria-label="回到最下面" title="回到最下面" style="display:none"><span class="arena-jump-dots" aria-hidden="true"><i></i><i></i><i></i></span><svg class="arena-jump-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v15M6 13l6 6 6-6"/></svg><span class="arena-jump-hint">回到最下面</span></button>
     <div id="aaWelcome" class="aa-welcome">
-      <svg class="arena-welcome-mark" viewBox="0 0 40 40" aria-hidden="true"><path d="M20 3v34M3 20h34M8 8l24 24M8 32 32 8"/><path d="m13 4 14 32M4 13l32 14M4 27 32 13M13 36 27 4"/></svg>
+      <img id="aaWelcomePet" class="arena-welcome-pet" src="/welcome-media/jiujiu-poster-v1.png" data-poster="/welcome-media/jiujiu-poster-v1.png" data-animation="/welcome-media/jiujiu-knead-v1.webp" width="220" height="220" alt="袁啾啾正在踩奶" decoding="async">
       <h1>今天，想聊点什么？</h1>
-      <p>从一个问题开始。</p>
     </div>
     <div class="aa-messages" id="aaMessages" tabindex="0" aria-label="对话消息">
       <div id="aaThinkingArea"></div>
@@ -1213,6 +1212,7 @@
 <script src="/arena-context.js?v=20261027-account1"></script>
 <script src="/arena-workspace.js?v=20261027-account1"></script>
 <script src="/arena-account.js?v=20261027-account2"></script>
+<script src="/arena-welcome.js?v=20261028-knead1"></script>
 <script>
 (function(){
   (function(){
@@ -2436,6 +2436,7 @@ var TEAM_COLORS = {
     }
     if(_passHash) $('aaGearBtn').classList.add('unlocked');
     else $('aaGearBtn').classList.remove('unlocked');
+    if(typeof welcomeAnimation!=='undefined'&&welcomeAnimation)welcomeAnimation.update();
   }
   var _lightMode = localStorage.getItem('aa-light-mode') !== '0';
   function applyLightMode(){
@@ -3993,6 +3994,7 @@ function initPersonaDragDrop(){
     currentChatId = genChatId();
     _bizMode = false;
     imageEditParentUid=null;msgs = []; render(); hideThink(); $('aaTopic').value = ''; $('aaTopic').style.height = ''; clearPreview(); closeHistory(); $('aaTopic').focus();
+    if(welcomeAnimation)welcomeAnimation.update();
     _memoryLoaded = false; loadMemory();
     $('aaBizBanner').style.display = 'none'; //
   });
@@ -5295,6 +5297,8 @@ if(debateMode === '2v2'){
   $('aaLoginPass').addEventListener('keydown', function(e){ if(!loginPassImeGuard(e)&&e.key === 'Enter') attemptLogin(); });
   $('aaLoginUser').addEventListener('keydown', function(e){ if(!loginUserImeGuard(e)&&e.key === 'Enter') $('aaLoginPass').focus(); });
 
+  var welcomeAnimation=ArenaWelcome.mount({image:$('aaWelcomePet'),input:$('aaTopic'),welcome:$('aaWelcome'),active:function(){return !!getPass()&&!msgs.length&&!debate&&!imageMode&&!videoMode;}});
+
   // === Init ===
   $('aaExpandBarBtn').addEventListener('click', function(){
     $('aaBrandBar').style.display = '';
@@ -5827,6 +5831,7 @@ if(debateMode === '2v2'){
   }
   function syncArenaLayout(){
     var app = $('ai-arena-app');
+    if(typeof welcomeAnimation!=='undefined'&&welcomeAnimation)welcomeAnimation.update();
     if(!$('aaConversationTitle')) return;
     syncArenaNavigation();
     app.classList.toggle('arena-debate-mode', debate);
