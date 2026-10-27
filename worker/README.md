@@ -83,7 +83,11 @@ Anthropic search queries/results and citation deltas, and Responses search items
 
 ## Account display and login name
 
-The public login and display name is `Oakley`. Existing sessions normalize the legacy name without changing their password hash. If `user:oakley` is absent, requests using Oakley resolve to the existing account and its historical KV keys. A separately registered Oakley account takes precedence to avoid account collisions. No credential records are rewritten.
+The initial public login and display name is `Oakley`. If `user:oakley` is absent, Oakley resolves to the existing account's historical KV keys. A separately registered Oakley account takes precedence. Account storage IDs never change when the public login name changes.
+
+The left account menu opens 账号设置. A signed-in user can upload a square avatar, set a separate display name, rename their login, or set a new password without an additional verification step. Leaving the password field empty preserves the password. `POST /account` authenticates the existing account on both reads and writes. The browser hashes a new password before sending it and updates its current session only after success. Old password hashes no longer authenticate after replacement. Only the current public login is accepted by `/auth` after a rename; stable account IDs continue to identify existing authenticated sessions and all historical data. Login aliases remain reserved to their original owner, including retired aliases, and collisions are rejected. These KV-backed name reservations are not a globally transactional username registry; KV's propagation behavior applies.
+
+Display names and avatar data are stored in a separate account profile in BIZ_KV. Avatars accept PNG, JPEG or WebP source files up to 5 MB, crop to a square and re-encode at 256 pixels in the browser. The Worker rejects external image URLs, SVG, invalid signatures and oversized payloads. Profile responses never include password hashes. No model calls, email/SMS checks, account-data migration or extra service bindings are involved.
 
 ## Projects and bounded context
 

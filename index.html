@@ -864,7 +864,7 @@
 
 </style>
 <link rel="stylesheet" href="/arena.css?v=20261027-effort1">
-<link rel="stylesheet" href="/arena-workspace.css?v=20261027-prompt1">
+<link rel="stylesheet" href="/arena-workspace.css?v=20261027-account1">
 
 <!-- Login overlay -->
 <div id="aaLoginOverlay" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:999999;background:linear-gradient(160deg,#0c1222 0%,#151d35 40%,#1a1030 100%);flex-direction:column;align-items:center;justify-content:center;padding:32px;">
@@ -942,12 +942,9 @@
       <button class="arena-icon-btn" id="aaAccountClose" aria-label="关闭账户面板"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
     </div>
     <div class="arena-appearance"><span>外观</span><button id="aaLightModeBtn" type="button">浅色</button></div>
+    <button id="aaAccountSettingsBtn" class="arena-account-action" type="button">账号设置<span aria-hidden="true">›</span></button>
     <button id="aaPromptInfoBtn" class="arena-account-action" type="button">提示词与记忆<span aria-hidden="true">›</span></button>
-    <details class="arena-login-settings"><summary>登录设置</summary>
-      <label>用户名<input type="text" class="aa-key-input" id="aaUsername" placeholder="用户名" autocomplete="username"></label>
-      <label>密码<input type="password" class="aa-key-input" id="aaPassword" placeholder="密码" autocomplete="current-password"></label>
-      <p>登录信息保存在当前会话</p>
-    </details>
+    <div hidden><input type="text" id="aaUsername" autocomplete="off"><input type="password" id="aaPassword" autocomplete="off"></div>
   </div>
 
 <div class="aa-main">
@@ -1209,10 +1206,11 @@
 </div>
 </div>
 
-<script src="/arena-markdown.js?v=20261027-prompt1"></script>
-<script src="/arena-image.js?v=20261027-prompt1"></script>
-<script src="/arena-context.js?v=20261027-prompt1"></script>
-<script src="/arena-workspace.js?v=20261027-prompt1"></script>
+<script src="/arena-markdown.js?v=20261027-account1"></script>
+<script src="/arena-image.js?v=20261027-account1"></script>
+<script src="/arena-context.js?v=20261027-account1"></script>
+<script src="/arena-workspace.js?v=20261027-account1"></script>
+<script src="/arena-account.js?v=20261027-account1"></script>
 <script>
 (function(){
   (function(){
@@ -1412,7 +1410,7 @@ var TEAM_COLORS = {
     plain=_storedSelection;_storedSelection=null;
     var _qName = ($('aaUsername').value.trim() || '用户').toLowerCase();
     var _qDisplayNames = {'oakleyyuen':'Oakley','oakley':'Oakley','doctor.wang':'Doctor.Wang','zty007007990':'Zty'};
-    var author = msg.isUser ? (_qDisplayNames[_qName] || $('aaUsername').value.trim() || '用户') : (msg.name || 'AI');
+    var author = msg.isUser ? (_accountProfile?accountDisplayName():(_qDisplayNames[_qName] || $('aaUsername').value.trim() || '用户')) : (msg.name || 'AI');
     setQuote(author, plain, msg.color || '#818cf8');
   };
   var nbImageSize = localStorage.getItem('aa-nb-size') || '1K';
@@ -2397,38 +2395,41 @@ var TEAM_COLORS = {
   });
 
   // === Password ===
-  var _passHash = null;
+  var _passHash = null,_accountProfile=null,accountController=null,_accountLoginEpoch=0;
   async function hashText(t){
     var buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t));
     return Array.from(new Uint8Array(buf)).map(function(b){ return b.toString(16).padStart(2,'0'); }).join('');
   }
   function getPass(){ return _passHash; }
   function loginName(value){
-    var name = String(value || '').trim();
-    return /^(oakley|oakleyyuen)$/i.test(name) ? 'Oakley' : name;
+    return String(value || '').trim();
   }
-  async function savePass(){
-    var raw = $('aaPassword').value;
-    sessionStorage.setItem('ai-arena-user', loginName($('aaUsername').value));
-    if(raw.length >= 8){
-      _passHash = await hashText(raw);
-      sessionStorage.setItem('ai-arena-hash', _passHash);
-    }
-    updateGearBtn();
+  function accountDisplayName(){
+    var user=$('aaUsername').value.trim();
+    return _accountProfile&&_accountProfile.displayName||(/^(oakley|oakleyyuen)$/i.test(user)?'Oakley':user)||'我的账号';
+  }
+  function applyAccountProfile(profile,newHash){
+    _accountProfile=profile;$('aaUsername').value=profile.accountId;
+    if(newHash){_passHash=newHash;sessionStorage.setItem('ai-arena-hash',newHash);}
+    $('aaPassword').value='••••••••';
+    sessionStorage.setItem('ai-arena-user',profile.accountId);
+    try{sessionStorage.setItem('ai-arena-profile',JSON.stringify(profile));}catch{sessionStorage.removeItem('ai-arena-profile');}
+    $('aaLoginUser').value=profile.loginName;updateGearBtn();
   }
   function loadPass(){
     var h = sessionStorage.getItem('ai-arena-hash');
     if(h){ _passHash = h; $('aaPassword').value = '••••••••'; }
     var u = sessionStorage.getItem('ai-arena-user');
     if(u){ u = loginName(u); $('aaUsername').value = u; sessionStorage.setItem('ai-arena-user', u); }
+    try{var profile=JSON.parse(sessionStorage.getItem('ai-arena-profile'));if(profile&&profile.accountId===u)_accountProfile=profile;}catch{}
   }
   function updateGearBtn(){
     if($('aaAccountName')){
-      var accountName = loginName($('aaUsername').value) || '我的账号';
+      var accountName = accountDisplayName();
       $('aaAccountName').textContent = accountName;
-      $('aaAccountAvatar').textContent = accountName.slice(0,1).toUpperCase();
+      ArenaAccount.paintAvatar($('aaAccountAvatar'),accountName,_accountProfile&&_accountProfile.avatar);
       $('aaPanelAccountName').textContent = accountName;
-      $('aaPanelAvatar').textContent = accountName.slice(0,1).toUpperCase();
+      ArenaAccount.paintAvatar($('aaPanelAvatar'),accountName,_accountProfile&&_accountProfile.avatar);
     }
     if(_passHash) $('aaGearBtn').classList.add('unlocked');
     else $('aaGearBtn').classList.remove('unlocked');
@@ -2461,14 +2462,7 @@ var TEAM_COLORS = {
     }
   });
   loadPass(); updateGearBtn();
-  $('aaUsername').addEventListener('input', function(){ sessionStorage.setItem('ai-arena-user', loginName(this.value)); updateGearBtn(); });
-  $('aaUsername').addEventListener('blur', function(){ this.value = loginName(this.value); sessionStorage.setItem('ai-arena-user', this.value); updateGearBtn(); });
   $('aaLoginUser').addEventListener('blur', function(){ this.value = loginName(this.value); });
-  $('aaPassword').addEventListener('input', function(){
-    _passHash = null;
-    savePass();
-    if($('aaPassword').value.length >= 8){ $('aaSidebar').classList.add('hidden'); $('aaGearBtn').classList.remove('active'); }
-  });
   $('aaGearBtn').addEventListener('click', function(e){
     e.stopPropagation(); closeArenaModelMenu(false);
     $('aaSidebar').classList.toggle('hidden');
@@ -4131,7 +4125,8 @@ function initPersonaDragDrop(){
   // === Render messages ===
   function render(){
     msgs.forEach(function(message){
-      if(message.isUser && /^(oakley|oakleyyuen|oakley suen)$/i.test(message.name || '')) message.name = 'Oakley';
+      if(message.isUser && _accountProfile)message.name=accountDisplayName();
+      else if(message.isUser && /^(oakley|oakleyyuen|oakley suen)$/i.test(message.name || '')) message.name = 'Oakley';
     });
     syncArenaLayout();
     renderHistoryList();
@@ -4449,7 +4444,7 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
     $('aaSidebar').classList.add('hidden'); $('aaGearBtn').classList.remove('active');
     var _rawName = $('aaUsername').value.trim() || '用户';
     var CHAT_DISPLAY_NAMES = {'oakleyyuen':'Oakley','oakley':'Oakley','doctor.wang':'Doctor.Wang','zty007007990':'Zty'};
-    var userName = CHAT_DISPLAY_NAMES[_rawName.toLowerCase()] || _rawName;
+    var userName = _accountProfile?accountDisplayName():(CHAT_DISPLAY_NAMES[_rawName.toLowerCase()] || _rawName);
     var _isSwap = false;
     var _swapImgs = _isSwap ? sentImgs.slice(0,2) : null;
     var _imgs = _swapImgs || sentImgs.slice(), _img = _imgs.length ? _imgs[0].data : null, _imgMime = _imgs.length ? _imgs[0].mime : null, _texts = sentTexts.slice();
@@ -5252,10 +5247,13 @@ if(debateMode === '2v2'){
       return;
     }
     $('aaUsername').value = user;
-    $('aaPassword').value = pass;
+    $('aaPassword').value = '••••••••';
     _passHash = hash;
     sessionStorage.setItem('ai-arena-hash', hash);
     sessionStorage.setItem('ai-arena-user', user);
+    _accountProfile=null;_accountLoginEpoch++;
+    if(data.profile)applyAccountProfile(data.profile);
+    else sessionStorage.removeItem('ai-arena-profile');
     updateGearBtn();
     $('aaLoginBtn').textContent = '进入'; $('aaLoginBtn').disabled = false;
     showMainUI();
@@ -6293,6 +6291,14 @@ if(imageMode){
   }
 
 
+  accountController=ArenaAccount.mount({
+    host:$('ai-arena-app'),worker:WORKER,auth:function(){return {user:$('aaUsername').value.trim(),password:getPass()};},
+    commit:applyAccountProfile,hash:hashText,busy:function(){return aaRunning;},notice:arenaNotice,
+    focus:function(){$('aaGearBtn').focus();},hidePanel:function(){$('aaSidebar').classList.add('hidden');$('aaGearBtn').setAttribute('aria-expanded','false');}
+  });
+  $('aaAccountSettingsBtn').addEventListener('click',accountController.open);
+  accountController.refresh();
+
   async function systemPromptApi(action,scope,account,prompt){
     var payload={action:action,projectId:scope,user:account.user,password:account.password};
     if(action==='save')payload.prompt=prompt;
@@ -6312,13 +6318,13 @@ if(imageMode){
       promptInfoDialog.addEventListener('close',function(){promptDialogEpoch++;});
     }
     var epoch=++promptDialogEpoch,scope=activeProjectId,scopeName=scope&&activeProject?'项目：'+activeProject.name:'普通聊天';
-    var account={user:$('aaUsername').value.trim().toLowerCase(),password:getPass()};
+    var account={user:$('aaUsername').value.trim().toLowerCase(),password:getPass(),loginEpoch:_accountLoginEpoch};
     var content=promptInfoDialog.querySelector('.arena-prompt-content');
     var extra=scope?(activeProject&&activeProject.instructions||''):(chatSystemMode(getActiveSubmodels()[0])!=='default'?currentChatSystemPrompt(getActiveSubmodels()[0]):'');
     content.innerHTML='<div class="arena-prompt-scope">'+esc(scopeName)+'</div><label class="arena-prompt-label" for="aaSystemPromptEditor">系统提示词</label><p id="aaSystemPromptHint" class="arena-workspace-muted">'+(scope?'只用于这个项目；项目隔离规则始终保留。':'只用于你账号的普通聊天，不会进入项目。')+' 保存后从下一条消息生效。</p><textarea id="aaSystemPromptEditor" class="arena-prompt-editor" aria-describedby="aaSystemPromptHint" maxlength="12000" rows="8" disabled placeholder="正在读取已保存的提示词…"></textarea><div class="arena-prompt-meta"><span data-prompt-status role="status" aria-live="polite">加载中…</span><span data-prompt-count>0 / 12000</span></div><div class="arena-prompt-actions"><button type="button" data-prompt-reset disabled>恢复默认</button><button type="button" data-prompt-save class="arena-workspace-primary" disabled>保存修改</button></div>'+(extra?'<details class="arena-prompt-extra"><summary>'+(scope?'项目说明（在项目设置中修改）':'当前手动选择的附加指令')+'</summary><pre>'+esc(extra)+'</pre></details>':'')+'<h3>当前范围记忆 <span class="arena-prompt-readonly">只读</span></h3><pre data-prompt-memory role="status">'+(_incognitoMode?'无痕模式：本轮不读取或发送已保存的记忆；系统提示词仍然生效。':'加载中…')+'</pre><p class="arena-workspace-muted">提示词与记忆分别保存，修改或恢复提示词不会清空记忆。手动选择的 Skills 会作为附加指令。发送时还可能加入当前对话、较早摘要、检索命中的旧原文及相关资料片段；网页搜索开启时，服务商还会加入工具说明。</p>';
     var editor=content.querySelector('#aaSystemPromptEditor'),status=content.querySelector('[data-prompt-status]'),count=content.querySelector('[data-prompt-count]'),save=content.querySelector('[data-prompt-save]'),reset=content.querySelector('[data-prompt-reset]');
     var saved=null,busy=false;
-    function isCurrent(){return epoch===promptDialogEpoch&&scope===activeProjectId&&account.user===$('aaUsername').value.trim().toLowerCase();}
+    function isCurrent(){return epoch===promptDialogEpoch&&scope===activeProjectId&&account.loginEpoch===_accountLoginEpoch&&account.password===getPass();}
     function sync(){
       var dirty=saved&&editor.value!==saved.prompt;
       count.textContent=editor.value.length+' / 12000';
@@ -6365,7 +6371,7 @@ if(imageMode){
     var message=msgs.find(function(m){return String(m.uid)===row.dataset.uid;});if(!message)return;
     var range=selection.getRangeAt(0),rects=Array.from(range.getClientRects()).filter(function(r){return r.width>0&&r.height>0;});
     var rect=rects.find(function(r){return r.bottom>56&&r.top<window.innerHeight;});if(!rect)return hideSelectionMenu();
-    selectionQuote={text:text,author:message.isUser?loginName($('aaUsername').value):(message.name||'AI'),color:message.color};
+    selectionQuote={text:text,author:message.isUser?accountDisplayName():(message.name||'AI'),color:message.color};
     selectionMenu.querySelectorAll('button').forEach(function(button){button.disabled=text.length>6000;button.title=text.length>6000?'选区过长，请缩小到 6000 字以内':'';});
     if(!selectionMenu.matches(':popover-open'))selectionMenu.showPopover();
     var width=selectionMenu.offsetWidth,height=selectionMenu.offsetHeight;

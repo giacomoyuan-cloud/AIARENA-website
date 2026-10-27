@@ -125,10 +125,13 @@ async function hashText(t) {
 __name(hashText, "hashText");
 // Public login names may change without moving credentials or historical KV keys.
 async function storageAccountName(value, env) {
-  if (typeof value !== "string" || !/^oakley$/i.test(value.trim())) return value;
-  // Never redirect a separately registered Oakley account to another identity.
-  const registered = await env.MEMORY_KV.get("user:oakley");
-  return registered ? "oakley" : "oakleyyuen";
+  if(typeof value!=="string")return value;
+  const name=value.trim().toLowerCase();
+  // Stable account keys take precedence over aliases and never move during a rename.
+  if(await env.MEMORY_KV.get("user:"+name))return name;
+  const alias=await env.MEMORY_KV.get("login:"+name);
+  if(alias)return alias;
+  return name==="oakley"?"oakleyyuen":name;
 }
 async function accountRequestBody(body, env) {
   if (!body || typeof body !== "object") return body;
@@ -230,6 +233,55 @@ async function registeredAccount(env,user,password){
   if(!user||!password)return false;
   const record=await env.MEMORY_KV.get("user:"+user);
   return !!record&&JSON.parse(record).hash===password;
+}
+function accountProfile(user,record,profile={}){
+  const loginName=record.loginName||publicAccountName(user);
+  return {accountId:user,loginName,displayName:profile.displayName||publicAccountName(user),avatar:profile.avatar||""};
+}
+function validLoginName(value){return typeof value==="string"&&value.length>=2&&value.length<=40&&/^[\p{L}\p{N}][\p{L}\p{N}_.-]*$/u.test(value);}
+function validAvatar(value){
+  if(value==="")return true;
+  if(typeof value!=="string"||value.length>180000)return false;
+  const match=value.match(/^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/]+={0,2})$/);
+  if(!match)return false;
+  try{
+    const bytes=atob(match[2]);
+    if(match[1]==="png")return bytes.startsWith("\x89PNG\r\n\x1a\n");
+    if(match[1]==="jpeg")return bytes.startsWith("\xff\xd8\xff");
+    return bytes.startsWith("RIFF")&&bytes.slice(8,12)==="WEBP";
+  }catch{return false;}
+}
+async function handleAccountRequest(request,env){
+  try{
+    const body=await accountRequestBody(await request.json(),env),user=String(body.user||body.username||"").trim().toLowerCase();
+    if(!await registeredAccount(env,user,body.password||body.passwordHash))return projectReply({error:"请先登录账号"},401);
+    const record=JSON.parse(await env.MEMORY_KV.get("user:"+user)),key="profile:"+user;
+    const profile=JSON.parse(await env.BIZ_KV.get(key)||"{}");
+    if((body.action||"get")==="get")return projectReply({profile:accountProfile(user,record,profile)});
+    if(body.action!=="update")return projectReply({error:"未知账号操作"},400);
+    const displayName=typeof body.displayName==="string"?body.displayName.trim():"",loginName=typeof body.loginName==="string"?body.loginName.trim():"";
+    if(!displayName||displayName.length>60||/[\u0000-\u001f\u007f]/.test(displayName))return projectReply({error:"显示名需为 1–60 字"},400);
+    if(!validLoginName(loginName))return projectReply({error:"登录名需为 2–40 位，支持中文、字母、数字、点、下划线和短横线"},400);
+    if(body.avatar!==undefined&&!validAvatar(body.avatar))return projectReply({error:"头像格式无效，请上传 PNG、JPG 或 WebP 图片"},400);
+    if(body.newPasswordHash!==undefined&&(typeof body.newPasswordHash!=="string"||! /^[a-f0-9]{64}$/.test(body.newPasswordHash)))return projectReply({error:"新密码格式无效"},400);
+    const currentLogin=record.loginName||publicAccountName(user),loginChanged=loginName!==currentLogin;
+    if(loginChanged){
+      const target=await storageAccountName(loginName,env),targetRecord=await env.MEMORY_KV.get("user:"+target);
+      // Old aliases stay reserved to their original account, even after renaming again.
+      if(targetRecord&&target!==user)return projectReply({error:"这个登录名已被使用，请换一个"},409);
+      const reserved=await env.MEMORY_KV.get("login:"+loginName.toLowerCase());
+      if(reserved&&reserved!==user)return projectReply({error:"这个登录名已被使用，请换一个"},409);
+      await putProjectKV(env.MEMORY_KV,"login:"+loginName.toLowerCase(),user);
+    }
+    const updated={...profile,displayName,avatar:body.avatar===undefined?profile.avatar||"":body.avatar,updatedAt:Date.now()};
+    await putProjectKV(env.BIZ_KV,key,JSON.stringify(updated));
+    if(loginChanged||body.newPasswordHash!==undefined){
+      if(loginChanged)record.loginName=loginName;
+      if(body.newPasswordHash!==undefined)record.hash=body.newPasswordHash;
+      await putProjectKV(env.MEMORY_KV,"user:"+user,JSON.stringify(record));
+    }
+    return projectReply({ok:true,profile:accountProfile(user,record,updated)});
+  }catch(error){return projectReply({error:error instanceof SyntaxError?"账号请求无效":"保存失败，请稍后重试"},error instanceof SyntaxError?400:500);}
 }
 async function ownedProject(env,user,id,includeArchived=false){
   if(!validResourceId(id))throw Object.assign(new Error("项目不存在"),{status:404});
@@ -410,6 +462,7 @@ var worker_default = {
     }
     if (url.pathname === "/projects" && request.method === "POST") return handleProjectRequest(request,env);
     if (url.pathname === "/system-prompt" && request.method === "POST") return handleSystemPromptRequest(request,env);
+    if (url.pathname === "/account" && request.method === "POST") return handleAccountRequest(request,env);
     if (url.pathname === "/chats" && request.method === "POST") {
       let body2;
       try {
@@ -425,6 +478,7 @@ var worker_default = {
         if (userData) {
           const parsed = JSON.parse(userData);
           chatAuthOk = parsed.hash === password2;
+          if(!chatAuthOk)return projectReply({error:"账号密码错误"},401);
         }
       }
       if (!chatAuthOk) {
@@ -490,21 +544,26 @@ var worker_default = {
     if (request.method === "POST" && url.pathname === "/admin/create-user") {
       let body2;
       try {
-        body2 = await accountRequestBody(await request.json(), env);
+        body2 = await request.json();
       } catch {
         return new Response("Invalid JSON", { status: 400 });
       }
       const { adminKey, username, password: password2 } = body2;
       if (adminKey !== env.ADMIN_KEY) return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
       if (!username || !password2 || password2.length < 8) return new Response(JSON.stringify({ error: "username and password (8+ chars) required" }), { status: 400, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
+      if(!validLoginName(username.trim()))return projectReply({error:"Invalid login name"},400);
+      const reservedOwner=await storageAccountName(username,env);
+      if(await env.MEMORY_KV.get("user:"+reservedOwner)||await env.MEMORY_KV.get("login:"+username.trim().toLowerCase()))return projectReply({error:"Login name already exists"},409);
       const passHash = await hashText(password2);
-      await env.MEMORY_KV.put("user:" + username.toLowerCase(), JSON.stringify({ hash: passHash, created: Date.now() }));
+      await env.MEMORY_KV.put("user:" + username.trim().toLowerCase(), JSON.stringify({ hash: passHash, created: Date.now() }));
       return new Response(JSON.stringify({ ok: true, username: publicAccountName(username.toLowerCase()) }), { status: 200, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
     }
     if (request.method === "POST" && url.pathname === "/auth") {
       let body2;
+      let requestedLogin;
       try {
-        body2 = await accountRequestBody(await request.json(), env);
+        body2 = await request.json();requestedLogin=String(body2.username||"").trim();
+        body2 = await accountRequestBody(body2, env);
       } catch {
         return new Response("Invalid JSON", { status: 400 });
       }
@@ -513,8 +572,10 @@ var worker_default = {
       const userData = await env.MEMORY_KV.get("user:" + username.toLowerCase());
       if (!userData) return new Response(JSON.stringify({ error: "\u7528\u6237\u4E0D\u5B58\u5728" }), { status: 401, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
       const parsed = JSON.parse(userData);
+      if(parsed.loginName&&parsed.loginName.toLowerCase()!==requestedLogin.toLowerCase())return projectReply({error:"登录名或密码错误"},401);
       if (parsed.hash !== passwordHash) return new Response(JSON.stringify({ error: "\u5BC6\u7801\u9519\u8BEF" }), { status: 401, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
-      return new Response(JSON.stringify({ ok: true, username: publicAccountName(username) }), { status: 200, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
+      const profile=accountProfile(username.toLowerCase(),parsed,JSON.parse(await env.BIZ_KV.get("profile:"+username.toLowerCase())||"{}"));
+      return projectReply({ok:true,username:profile.loginName,profile});
     }
     if (url.pathname === "/skills" && request.method === "GET") {
       const user = url.searchParams.get("user");
@@ -550,6 +611,7 @@ var worker_default = {
       if (memUserData) {
         const p = JSON.parse(memUserData);
         memAuthOk = p.hash === pass;
+        if(!memAuthOk)return projectReply({error:"账号密码错误"},401);
       }
       if (!memAuthOk) {
         const expectedHash = await hashText(env.PASSWORD);
@@ -577,6 +639,7 @@ var worker_default = {
         if (memPData) {
           const pp = JSON.parse(memPData);
           memPAuthOk = pp.hash === password2;
+          if(!memPAuthOk)return projectReply({error:"账号密码错误"},401);
         }
       }
       if (!memPAuthOk) {
