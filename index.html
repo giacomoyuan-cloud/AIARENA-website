@@ -863,7 +863,8 @@
   #ai-arena-app #aaSkillEditPrompt::placeholder { color: #888; opacity: 1; }
 
 </style>
-<link rel="stylesheet" href="/arena.css?v=20261027-oakley">
+<link rel="stylesheet" href="/arena.css?v=20261027-projects1">
+<link rel="stylesheet" href="/arena-workspace.css?v=20261027-projects1">
 
 <!-- Login overlay -->
 <div id="aaLoginOverlay" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:999999;background:linear-gradient(160deg,#0c1222 0%,#151d35 40%,#1a1030 100%);flex-direction:column;align-items:center;justify-content:center;padding:32px;">
@@ -885,6 +886,7 @@
 <div class="liquid-blob-3"></div>
 
 <!-- Claude-inspired app navigation; conversation data still uses the existing API. -->
+<div id="aaNotice" class="arena-notice" role="status" aria-live="polite" hidden></div>
 <div class="aa-history-overlay" id="aaHistoryOverlay"></div>
 <aside class="aa-history-panel" id="aaHistoryPanel" aria-label="侧边栏">
   <div class="arena-brand-row">
@@ -894,6 +896,7 @@
   <nav class="arena-navigation" aria-label="功能">
     <button class="arena-nav-item" id="aaNewBtn"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span>新建对话</span></button>
     <button class="arena-nav-item" id="aaSearchHistoryBtn" aria-expanded="false" aria-controls="aaHistorySearchWrap"><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4.5 4.5"/></svg><span>搜索对话</span></button>
+    <button class="arena-nav-item" id="aaProjectsBtn"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v10H3Z"/></svg><span>项目</span></button>
     <div class="arena-nav-modes" id="aaModeToggle">
       <button class="arena-nav-item aa-bar-btn active" id="aaBarChatBtn"><svg viewBox="0 0 24 24"><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5H4l-1 1v-9.5A8.5 8.5 0 0 1 11.5 3h1A8.5 8.5 0 0 1 21 11.5Z"/><path d="M8 10h8M8 14h5"/></svg><span>对话</span></button>
       <button class="arena-nav-item aa-bar-btn" id="aaBarDebateBtn"><svg viewBox="0 0 24 24"><path d="M9 5v14M4 19h10M15 8h5M17.5 5v3M5 8h8L9 3Z"/><path d="m16 8-3 6h9l-3-6M3 8l-2 6h8l-2-6"/></svg><span>多 AI 辩论</span></button>
@@ -906,7 +909,7 @@
       <div class="aa-card-dropdown" id="aaSkillsDrop"></div>
     </div>
   </nav>
-  <div class="arena-history-label"><span>对话和任务</span><svg viewBox="0 0 24 24"><path d="M7 8h10M7 12h7M7 16h4"/></svg></div>
+  <div class="arena-history-label"><span id="aaHistoryLabel">对话和任务</span><svg viewBox="0 0 24 24"><path d="M7 8h10M7 12h7M7 16h4"/></svg></div>
   <div id="aaHistorySearchWrap" class="arena-history-search" hidden><input id="aaHistorySearch" type="search" placeholder="搜索对话…" aria-label="搜索历史对话" autocomplete="off"></div>
   <div class="aa-history-list" id="aaHistoryList"><div class="aa-history-empty">你的对话会显示在这里</div></div>
   <div class="arena-sidebar-footer">
@@ -928,7 +931,6 @@
   </div>
   <div class="arena-header-actions">
     <button class="aa-gear-btn" id="aaScrollTopBtn" aria-label="回到对话顶部" style="display:none;">↑</button>
-    <button class="aa-gear-btn" id="aaScrollBottomBtn" aria-label="回到最新消息" style="display:none;">↓</button>
     <button class="aa-gear-btn" id="aaIncognitoBtn" aria-pressed="false">开启无痕模式</button>
   </div>
 </div>
@@ -949,12 +951,14 @@
 
 <div class="aa-main">
   <div class="aa-chat">
+    <div id="aaProjectBar" class="arena-project-bar" hidden><div><span>项目</span><strong id="aaProjectName"></strong><span class="arena-scope-note">记忆独立</span></div><div><button id="aaProjectMaterials">资料</button><button id="aaProjectSettings" aria-label="项目设置">•••</button><button id="aaProjectExit">普通聊天</button></div></div>
+    <button id="aaScrollBottomBtn" class="arena-jump-latest" aria-label="回到最下面" title="回到最下面" style="display:none"><span class="arena-jump-dots" aria-hidden="true"><i></i><i></i><i></i></span><svg class="arena-jump-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v15M6 13l6 6 6-6"/></svg><span class="arena-jump-hint">回到最下面</span></button>
     <div id="aaWelcome" class="aa-welcome">
       <svg class="arena-welcome-mark" viewBox="0 0 40 40" aria-hidden="true"><path d="M20 3v34M3 20h34M8 8l24 24M8 32 32 8"/><path d="m13 4 14 32M4 13l32 14M4 27 32 13M13 36 27 4"/></svg>
       <h1>今天，想聊点什么？</h1>
       <p>从一个问题开始。</p>
     </div>
-    <div class="aa-messages" id="aaMessages">
+    <div class="aa-messages" id="aaMessages" tabindex="0" aria-label="对话消息">
       <div id="aaThinkingArea"></div>
     </div>
     <div class="aa-input-area">
@@ -1205,7 +1209,9 @@
 </div>
 </div>
 
-<script src="/arena-markdown.js?v=20261027-oakley"></script>
+<script src="/arena-markdown.js?v=20261027-projects1"></script>
+<script src="/arena-context.js?v=20261027-projects1"></script>
+<script src="/arena-workspace.js?v=20261027-projects1"></script>
 <script>
 (function(){
   (function(){
@@ -1328,6 +1334,8 @@
   '【语言】必须使用简体中文回复。'
 ].join('\n');
   var SYS_CHAT = 'You are a helpful AI assistant. Answer the user question directly and thoroughly. Write in the same language the human used.';
+  var activeProjectId=sessionStorage.getItem('aa-active-project')||null,activeProject=null;
+  var activeStreamControllers=new Set();
   var rounds = 1, msgs = [], debate = false, aaRunning = false, abortF = false, searchOn = true;
 var debateMode = 'free'; // 'free' | '2v2'
 var imageMode = false;
@@ -1381,14 +1389,8 @@ var TEAM_COLORS = {
     for(var i = 0; i < msgs.length; i++){ if(msgs[i].uid === uid){ msg = msgs[i]; break; } }
     if(!msg) return;
     var plain;
-    if(_storedSelection){
-      plain = _storedSelection;
-      _storedSelection = null;
-    } else {
-      var rawText = msg.text || '';
-      plain = rawText.replace(/[\s\S]*?```/g,'[代码]').replace(/\*\*(.+?)\*\*/g,'$1').replace(/^#{1,4}\s+/gm,'').trim();
-      plain = plain.slice(0, 300) + (plain.length > 300 ? '...' : '');
-    }
+    if(!_storedSelection)return;
+    plain=_storedSelection;_storedSelection=null;
     var _qName = ($('aaUsername').value.trim() || '用户').toLowerCase();
     var _qDisplayNames = {'oakleyyuen':'Oakley','oakley':'Oakley','doctor.wang':'Doctor.Wang','zty007007990':'Zty'};
     var author = msg.isUser ? (_qDisplayNames[_qName] || $('aaUsername').value.trim() || '用户') : (msg.name || 'AI');
@@ -1517,6 +1519,7 @@ var TEAM_COLORS = {
   var currentChatId = null;
   var chatList = [];
   var _saveTimer = null;
+  var scopeEpoch = 0, chatLoadEpoch = 0, chatListEpoch = 0;
   var _skipNextChatSave = false;
   var CHAT_REPLY_TIMES_KEY = 'aa-chat-last-reply-times';
 
@@ -1553,7 +1556,7 @@ var TEAM_COLORS = {
 
   function serializeMsgs(){
     return msgs.map(function(m){
-      var obj = {uid:m.uid, brand:m.brand, name:m.name, text:m.text, color:m.color, isUser:m.isUser, isError:m.isError, round:m.round, _team:m._team, _liked:m._liked, _comment:m._comment, topicText:m.topicText, pastedTexts:m.pastedTexts, reasoning:m.reasoning, activity:m.activity, citations:m.citations, _feedback:m._feedback, effort:m.effort, submodel:m.submodel, completedAt:m.completedAt, moderationHelp:m.moderationHelp, suggestedPrompt:m.suggestedPrompt, moderationTask:m.moderationTask};
+      var obj = {uid:m.uid, brand:m.brand, name:m.name, text:m.text, color:m.color, isUser:m.isUser, isError:m.isError, round:m.round, _team:m._team, _liked:m._liked, _comment:m._comment, topicText:m.topicText, pastedTexts:m.pastedTexts, _quote:m._quote, context:m.context, reasoning:m.reasoning, activity:m.activity, citations:m.citations, _feedback:m._feedback, effort:m.effort, submodel:m.submodel, completedAt:m.completedAt, moderationHelp:m.moderationHelp, suggestedPrompt:m.suggestedPrompt, moderationTask:m.moderationTask};
       if(m.imgData){ obj.imgData = m.imgData; obj.imgMime = m.imgMime; }
       if(m.imgItems && m.imgItems.length){ obj.imgItems = m.imgItems; }
       return obj;
@@ -1564,7 +1567,7 @@ var TEAM_COLORS = {
     var pass = getPass();
     var user = $('aaUsername').value.trim();
     if(!pass || !user) return Promise.resolve(null);
-    var payload = Object.assign({ password: pass, username: user, action: action }, extra || {});
+    var payload = Object.assign({ password: pass, username: user, action: action, projectId:activeProjectId }, extra || {});
     return fetch(WORKER + '/chats', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
@@ -1576,6 +1579,7 @@ var TEAM_COLORS = {
     if(_bizMode || _incognitoMode) return;
     if(!currentChatId || !msgs.length) return;
     if(_saveTimer) clearTimeout(_saveTimer);
+    var saveScope = activeProjectId;
     var saveChatId = currentChatId;
     var saveTitle = getChatTitle();
     var saveMessages = serializeMsgs();
@@ -1584,13 +1588,14 @@ var TEAM_COLORS = {
     _saveTimer = setTimeout(function(){
       if(aaRunning) return;
       _saveTimer = null;
-      chatApiCall('save', { chatId: saveChatId, title: saveTitle, messages: saveMessages, lastReplyAt: lastReplyAt || null }).then(function(){ loadChatList(); });
+      chatApiCall('save', { projectId:saveScope, chatId: saveChatId, title: saveTitle, messages: saveMessages, lastReplyAt: lastReplyAt || null }).then(function(){ loadChatList(); });
     }, 2000);
   }
 
   function loadChatList(){
+    var scope=activeProjectId,epoch=scopeEpoch,listEpoch=++chatListEpoch;
     chatApiCall('list').then(function(data){
-      if(!data || !data.chats) return;
+      if(epoch!==scopeEpoch||listEpoch!==chatListEpoch||scope!==activeProjectId||!data || !data.chats) return;
       chatList = data.chats;
       var knownTimes = getStoredReplyTimes();
       var changed = false;
@@ -1611,9 +1616,11 @@ var TEAM_COLORS = {
   }
 
   function loadChat(chatId){
+    if(aaRunning){arenaNotice('回答完成后可以切换对话');return Promise.resolve(false);}
+    var loadScope=activeProjectId,epoch=scopeEpoch,loadEpoch=++chatLoadEpoch;
     if(_saveTimer){ clearTimeout(_saveTimer); _saveTimer = null; }
     return chatApiCall('load', { chatId: chatId }).then(function(data){
-      if(!data) return false;
+      if(epoch!==scopeEpoch||loadEpoch!==chatLoadEpoch||loadScope!==activeProjectId||!data||data.error) return false;
       currentChatId = chatId;
       msgs = data.messages || [];
       var loadedReplyAt = getLastAssistantReplyAt(msgs);
@@ -2478,11 +2485,12 @@ var TEAM_COLORS = {
   async function loadMemory(){
     if(_memoryLoaded) return _cachedMemory;
     var user = $('aaUsername').value.trim().toLowerCase();
-    var pass = getPass();
+    var pass = getPass(),memoryScope=activeProjectId;
     if(!user || !pass) return '';
     try {
-      var res = await fetch(WORKER + '/memory?user=' + encodeURIComponent(user) + '&pass=' + encodeURIComponent(pass));
+      var res = await fetch(WORKER + '/memory',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'get',user:user,password:pass,projectId:memoryScope})});
       var data = await res.json();
+      if(memoryScope!==activeProjectId)return '';
       _cachedMemory = data.memory || '';
       _memoryLoaded = true;
       return _cachedMemory;
@@ -2492,21 +2500,22 @@ var TEAM_COLORS = {
   async function updateMemory(conversationText){
     var user = $('aaUsername').value.trim().toLowerCase();
     var pass = getPass();
+    var memoryScope=activeProjectId;
     if(!user || !pass || !conversationText) return;
     try {
       var res = await fetch(WORKER + '/memory', {
         method: 'POST',
         headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({password: pass, user: user, conversation: conversationText})
+        body: JSON.stringify({password: pass, user: user, projectId:memoryScope, conversation: conversationText})
       });
       var data = await res.json();
-      if(data.memory){ _cachedMemory = data.memory; _memoryLoaded = true; }
+      if(memoryScope===activeProjectId&&data.memory){ _cachedMemory = data.memory; _memoryLoaded = true; }
     } catch(e){}
   }
 
   function buildConversationText(){
-    return msgs.map(function(m){
-      return (m.isUser ? '用户' : m.name) + ': ' + plainMessageText(m).slice(0, 500);
+    return msgs.slice(-8).map(function(m){
+      return (m.isUser ? '用户' : m.name) + ': ' + plainMessageText(m).slice(0, 650);
     }).join('\n');
   }
 
@@ -2516,10 +2525,11 @@ var TEAM_COLORS = {
   }
 
   function fetchWithRetry(url, opts, maxRetries){
-    maxRetries = maxRetries || 2;
+    maxRetries = maxRetries === undefined ? 0 : maxRetries;
     return new Promise(function(resolve, reject){
       function attempt(n){
         fetch(url, opts).then(resolve).catch(function(err){
+          if(err.name==='AbortError'){reject(err);return;}
           if(n < maxRetries){ setTimeout(function(){ attempt(n+1); }, 900 * (n+1)); }
           else reject(err);
         });
@@ -2551,8 +2561,14 @@ var TEAM_COLORS = {
       imageMime: imgMime || null,
       images: (typeof extraOpts !== 'undefined' && extraOpts && extraOpts._imgs) ? extraOpts._imgs : null
     };
+    payload.projectId=activeProjectId;
     if(effortFor(submodel)) payload.effort = effortFor(submodel);
     if(extraOpts) Object.assign(payload, extraOpts);
+    if(activeProjectId&&!payload.chat&&!imageMode)payload.chat={scope:activeProjectId,chatId:currentChatId,question:ArenaContext.clip(prompt,16000),history:[],incognito:!!_incognitoMode};
+    if(payload.chat)payload.prompt='';
+    var controller=new AbortController();activeStreamControllers.add(controller);
+    function completed(){activeStreamControllers.delete(controller);onDone();}
+
 
     
 
@@ -2560,7 +2576,7 @@ var TEAM_COLORS = {
     fetchWithRetry(WORKER, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),signal:controller.signal
     }).then(function(res){
       if(!res.ok){
         return res.text().then(function(t){
@@ -2580,21 +2596,21 @@ var TEAM_COLORS = {
   (async function pump(){
     try {
       while(true){
-        if(abortF){ reader.cancel(); onDone(); return; }
+        if(abortF){ reader.cancel(); completed(); return; }
         var result = await reader.read();
-        if(result.done){ onDone(); return; }
+        if(result.done){ completed(); return; }
         buf += decoder.decode(result.value, {stream: true});
         var lines = buf.split('\n'); buf = lines.pop();
         for(var i = 0; i < lines.length; i++){
           var line = lines[i];
           if(!line.startsWith('data: ')) continue;
           var raw = line.slice(6).trim();
-          if(raw === '[DONE]'){ onDone(); return; }
+          if(raw === '[DONE]'){ completed(); return; }
           try{
             var obj = JSON.parse(raw);
             if(obj.modelName && onModelName) onModelName(obj.modelName);
             if(obj.status) updateThinkStatus(submodel, obj.status);
-            if(onMeta && (obj.status || obj.activity || obj.citation)) onMeta(obj);
+            if(onMeta && (obj.status || obj.activity || obj.citation || obj.context)) onMeta(obj);
             if(obj.t) onChunk(obj.t);
             if(obj.r){
               appendThinkSummary(submodel, obj.r);
@@ -2607,18 +2623,22 @@ var TEAM_COLORS = {
           } catch(e){ console.warn('SSE parse error:', raw, e); }
         }
       }
-    } catch(e){ onError(e); }
+    } catch(e){activeStreamControllers.delete(controller);if(e.name==='AbortError')completed();else onError(e); }
   })();
-    }).catch(onError);
+    }).catch(function(error){activeStreamControllers.delete(controller);if(error.name==='AbortError')completed();else onError(error);});
   }
 
   function renderMessageActivity(msg){
     var entries = msg.activity || [];
     if(!entries.length && !msg.reasoning) return '';
     var searched = entries.some(function(item){return item.kind==='search_results';});
+    var usedFiles=entries.some(function(item){return item.kind==='project_files';});
     var attempted = entries.some(function(item){return /search/.test(item.kind);});
-    var h = '<details class="arena-operation-details"><summary>'+(searched?'已思考，已搜索网页':attempted?'思考与搜索过程':'思考记录')+'</summary><div class="arena-operation-card">';
+    var h = '<details class="arena-operation-details"><summary>'+ (usedFiles?'已查阅项目资料':searched?'已思考，已搜索网页':attempted?'思考与搜索过程':'思考记录')+'</summary><div class="arena-operation-card">';
     entries.forEach(function(item){
+      if(item.kind==='project_files'){
+        h+='<div class="arena-operation-row">已查阅项目资料 · '+Number(item.fragments||0)+' 个片段 '+(item.files||[]).map(function(file){return '<button data-context-file="'+esc(file.id)+'" data-project="'+esc((msg.context||{}).scope||activeProjectId||'')+'">'+esc(file.name)+'</button>';}).join(' ')+'</div>';return;
+      }
       if(item.kind==='thinking' && msg.reasoning) return;
       var extra = '';
       if(item.query) extra += '<p>'+esc(item.query)+'</p>';
@@ -2633,7 +2653,15 @@ var TEAM_COLORS = {
   }
 
   // === Live update & finalize ===
-  function liveUpdate(uid, text, reasoning){
+  var liveFrames=new Map();
+  function liveUpdate(uid,text,reasoning){
+    var pending=liveFrames.get(uid);
+    if(pending){pending.text=text;pending.reasoning=reasoning;return;}
+    pending={text:text,reasoning:reasoning};
+    pending.frame=requestAnimationFrame(function(){liveFrames.delete(uid);paintLiveUpdate(uid,pending.text,pending.reasoning);});
+    liveFrames.set(uid,pending);
+  }
+  function paintLiveUpdate(uid, text, reasoning){
     var c = $('aaMessages');
     var el = c.querySelector('[data-uid="'+uid+'"]');
     if(!el) return;
@@ -2658,19 +2686,17 @@ var TEAM_COLORS = {
     var body = el.querySelector('.aa-msg-body');
     if(body){
       var _liveText = (text || '').replace(/\[MJ_IMAGE\]([\s\S]*?)\[\/MJ_IMAGE\]/g, '').replace(/\[MJ_BUTTONS\]([\s\S]*?)\[\/MJ_BUTTONS\]/g, '').replace(/\[KLING_VIDEO\]([\s\S]*?)\[\/KLING_VIDEO\]/g, '').trim();
-      if(!body._renderTimer){
-    body._renderTimer = setTimeout(function(){
-      body._renderTimer = null;
-      var __text = (body._pendingText || '');
-      if(__text) body.innerHTML = renderMd(__text, (msgs.find(function(m){return m.uid===uid;})||{}).citations) + '<span style="display:inline-block;width:2px;height:13px;background:#888;margin-left:2px;vertical-align:middle;animation:aa-pulse 0.8s infinite;"></span>';
-      else body.innerHTML = '<span style="display:inline-block;width:2px;height:13px;background:#888;margin-left:2px;vertical-align:middle;animation:aa-pulse 0.8s infinite;"></span>';
-    }, 50);
-  }
-  body._pendingText = _liveText;
+      body.innerHTML=renderMd(_liveText,message&&message.citations)+'<span class="arena-stream-caret" aria-hidden="true">▍</span>';
+      body.dataset.streamChunks=String(message&&message._streamChunks||0);
+      body.dataset.textUpdates=String(Number(body.dataset.textUpdates||0)+1);
+      if(!userScrolledUp)c.scrollTop=c.scrollHeight;
+
     }
     if(!userScrolledUp) c.scrollTop = c.scrollHeight;
   }
   function finalizeMsg(uid, text, isError, reasoning){
+    var pending=liveFrames.get(uid);if(pending){cancelAnimationFrame(pending.frame);liveFrames.delete(uid);}
+
     var completedMsg = msgs.find(function(m){ return m.uid === uid; });
     if(completedMsg && !completedMsg.isUser && !isError && !completedMsg.completedAt){
       completedMsg.completedAt = Date.now();
@@ -2804,7 +2830,7 @@ var TEAM_COLORS = {
       +'<button onclick="window._aaCancelEditMsg()" style="padding:5px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.06);color:#6b6b88;font-size:11px;cursor:pointer;font-family:\'Sora\',sans-serif;">取消</button>'
       +'<button onclick="window._aaConfirmEditMsg(\''+uid+'\')" style="padding:5px 12px;border-radius:8px;border:1px solid rgba(99,102,241,0.4);background:linear-gradient(135deg,rgba(99,102,241,0.3),rgba(139,92,246,0.25));color:#a5b4fc;font-size:11px;font-weight:600;cursor:pointer;font-family:\'Sora\',sans-serif;">发送</button>'
       +'</div>';
-    var editBtn = el.querySelector('button[onclick*="_aaStartEditMsg"]');
+    var editBtn = el.querySelector('[data-edit-message]');
     if(editBtn) editBtn.style.display = 'none';
     var ta = document.getElementById('aaEditMsgTA-'+uid);
     if(ta){ ta.value = originalText; ta.style.height = '80px'; ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
@@ -3884,6 +3910,8 @@ function initPersonaDragDrop(){
   $('aaHistoryClose').addEventListener('click', function(){ closeHistory(); if(window.matchMedia('(min-width: 901px)').matches) $('ai-arena-app').classList.add('arena-sidebar-collapsed'); syncArenaNavigation(); $('aaHistoryBtn').focus(); });
   $('aaHistoryOverlay').addEventListener('click', closeHistory);
   $('aaNewBtn').addEventListener('click', function(){
+    if(aaRunning){arenaNotice('回答完成后可以新建对话');return;}
+    ++chatLoadEpoch;
     if(msgs.length && currentChatId) saveCurrentChat();
     currentChatId = genChatId();
     _bizMode = false;
@@ -4122,10 +4150,9 @@ function initPersonaDragDrop(){
         }
         if(msg.text && msg.text.indexOf('[img]') !== -1){ if(msg.imgSrcs && msg.imgSrcs.length){ h += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;">'; msg.imgSrcs.forEach(function(src, si){ var storeKey = 'msgimg_'+msg.uid+'_'+si; window._aaImgClickStore = window._aaImgClickStore||{}; window._aaImgClickStore[storeKey]=src; h += '<img src="'+src+'" onclick="window._aaLightbox(window._aaImgClickStore[\''+storeKey+'\'])" style="width:70px;height:70px;object-fit:cover;border-radius:8px;border:1px solid rgba(255,255,255,0.1);cursor:pointer;">'; }); h += '</div>'; } else if(msg.imgSrc){ var storeKey0 = 'msgimg_'+msg.uid+'_0'; window._aaImgClickStore = window._aaImgClickStore||{}; window._aaImgClickStore[storeKey0]=msg.imgSrc; h += '<img src="'+msg.imgSrc+'" onclick="window._aaLightbox(window._aaImgClickStore[\''+storeKey0+'\'])" style="width:100px;height:100px;object-fit:cover;border-radius:8px;margin-top:6px;display:block;border:1px solid rgba(255,255,255,0.1);cursor:pointer;">'; } }
         h += '</div>';
-      h += '<div style="display:flex;gap:6px;margin-top:5px;">'
-          +'<button onclick="window._aaStartEditMsg(\''+msg.uid+'\')" style="padding:3px 10px;border-radius:7px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.08);color:#a0a0b8;font-size:11px;font-weight:500;cursor:pointer;font-family:\'Sora\',sans-serif;letter-spacing:0.02em;">编辑</button>'
-          +'<button onmousedown="window._aaStoreSelection()" onclick="window._aaQuoteMsg(\''+msg.uid+'\')" style="padding:3px 10px;border-radius:7px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.08);color:#a0a0b8;font-size:11px;font-weight:500;cursor:pointer;font-family:\'Sora\',sans-serif;letter-spacing:0.02em;">引用</button>'
-          +'</div>';
+      h += '<div class="arena-message-actions arena-user-actions">'
+          +'<button type="button" class="arena-message-action" data-copy-message="'+msg.uid+'" data-copy-label="复制消息" aria-label="复制消息" data-hint="复制"><svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V4H4v12h4"/></svg></button>'
+          +'<button type="button" class="arena-message-action" data-edit-message="'+msg.uid+'" aria-label="编辑消息" title="编辑消息"><svg viewBox="0 0 24 24"><path d="m4 16 12-12 4 4L8 20H4v-4ZM14 6l4 4"/></svg></button></div>';
       } else if(msg.videoUrl){
         h += '<div class="aa-msg-body ai-bubble" style="border-color:'+brandInfo.border+';padding:12px;">';
         if(msg.text && msg.text.indexOf('视频生成中') === -1) h += '<p style="margin:0 0 8px;font-size:13px;color:#c8c8dd;">'+esc(msg.text.replace(/\[KLING_VIDEO\].*\[\/KLING_VIDEO\]/,'').trim())+'</p>';
@@ -4201,12 +4228,10 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
         h += '</div>';
 
         if(msg.usageStr) h += '<div class="aa-usage-tag" style="font-size:10px;color:#555;margin-top:4px;margin-left:13px;letter-spacing:0.02em;font-family:\'Sora\',sans-serif;">'+esc(msg.usageStr)+'</div>';
+        h += renderContextInfo(msg);
         h += '<div class="arena-message-actions">'
-          +'<button type="button" class="arena-message-action" data-copy-message="'+msg.uid+'" aria-label="复制回复" title="复制回复"><svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V4H4v12h4"/></svg></button>'
-          +'<button type="button" class="arena-message-action" data-feedback="up" data-message="'+msg.uid+'" aria-label="有帮助" title="有帮助" aria-pressed="'+String(msg._feedback==='up')+'"><svg viewBox="0 0 24 24"><path d="M7 10v10H3V10h4Zm0 0 5-7c3 0 3 3 2 6h5c2 0 2 1 2 3l-2 7c0 1-1 1-2 1H7"/></svg></button>'
-          +'<button type="button" class="arena-message-action" data-feedback="down" data-message="'+msg.uid+'" aria-label="没有帮助" title="没有帮助" aria-pressed="'+String(msg._feedback==='down')+'"><svg viewBox="0 0 24 24"><path d="M7 14V4H3v10h4Zm0 0 5 7c3 0 3-3 2-6h5c2 0 2-1 2-3l-2-7c0-1-1-1-2-1H7"/></svg></button>'
+          +'<button type="button" class="arena-message-action" data-copy-message="'+msg.uid+'" data-copy-label="复制回复" data-hint="复制" aria-label="复制回复" title="复制回复"><svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V4H4v12h4"/></svg></button>'
           +(!debate&&!msg.imgData&&!msg.videoUrl?'<button type="button" class="arena-message-action" data-retry-message="'+msg.uid+'" aria-label="重新回答" title="重新回答，保留原回复"><svg viewBox="0 0 24 24"><path d="M20 7v5h-5M20 12a8 8 0 1 0-2 6"/></svg></button>':'')
-          +'<button type="button" class="arena-message-action" onmousedown="window._aaStoreSelection()" onclick="window._aaQuoteMsg(\''+msg.uid+'\')" aria-label="引用回复" title="引用回复"><svg viewBox="0 0 24 24"><path d="M4 5h7v7H6c0 3-1 4-3 5M14 5h7v7h-5c0 3-1 4-3 5"/></svg></button>'
           +'</div>';
 
       }
@@ -4228,14 +4253,6 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
   }
 
   $('aaMessages').addEventListener('click',function(e){
-    var feedback=e.target.closest('[data-feedback]');
-    if(feedback){
-      var message=msgs.find(function(m){return String(m.uid)===feedback.dataset.message;});if(!message)return;
-      message._feedback=message._feedback===feedback.dataset.feedback?null:feedback.dataset.feedback;
-      var row=feedback.closest('.aa-msg');
-      row.querySelectorAll('[data-feedback]').forEach(function(button){button.setAttribute('aria-pressed',String(button.dataset.feedback===message._feedback));});
-      saveCurrentChat();return;
-    }
     var retry=e.target.closest('[data-retry-message]');if(!retry||aaRunning)return;
     if($('aaTopic').value.trim()||sentImgs.length||sentTexts.length){$('aaTopic').focus();return;}
     var index=msgs.findIndex(function(m){return String(m.uid)===retry.dataset.retryMessage;});if(index<0)return;
@@ -4341,6 +4358,7 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
       $('aaSidebar').classList.remove('hidden'); $('aaGearBtn').classList.add('active');
       return;
     }
+    if(!imageMode&&topic.length+sentTexts.join('').length+(activeQuote?activeQuote.text.length:0)>50000){arenaNotice('内容较长，请保存到项目资料后按需查阅');return;}
     var act = getActiveSubmodels();
     if(!act.length){ alert('请至少选择一个模型。'); return; }
     if(imageMode){
@@ -4358,11 +4376,12 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
   } else {
     $('aaBizBanner').style.display = 'none';
   }
+    var finished=false;
     aaRunning = true; abortF = false; userScrolledUp = false;
     hideThink();
     var btn = $('aaSendBtn');
     btn.textContent = '■'; btn.className = 'aa-send stop'; btn.disabled = false;
-    btn.onclick = function(){ abortF = true; hideThink(); finish(); };
+    btn.onclick = function(){ abortF = true;activeStreamControllers.forEach(function(controller){controller.abort();});activeStreamControllers.clear(); hideThink(); finish(); };
     $('aaSidebar').classList.add('hidden'); $('aaGearBtn').classList.remove('active');
     var _rawName = $('aaUsername').value.trim() || '用户';
     var CHAT_DISPLAY_NAMES = {'oakleyyuen':'Oakley','oakley':'Oakley','doctor.wang':'Doctor.Wang','zty007007990':'Zty'};
@@ -4696,7 +4715,7 @@ function build2v2Prompt(topic, history, speakerInfo, rnd){
       act.forEach(function(sub){
         var info = SUBS[sub]; var brandInfo = BRANDS[info.brand];
         showThink(sub);
-        var history = msgs.filter(function(m){ return !m.isError; }).map(function(m){ return (m.isUser?'[Human]':m.name)+': '+plainMessageText(m); }).join('\n');
+        var history = '';
 var uid = newUid();
 var msgObj = {uid:uid, submodel:sub, effort:effortFor(sub), brand:info.brand, name:info.name, text:'', color:brandInfo.color, activity:[], citations:[]};
 var firstChunk = true;
@@ -4721,9 +4740,8 @@ var memText = (_bizMode || _incognitoMode || imageMode) ? '' : (_cachedMemory ||
 var _topicWithStyle = (sub === 'gemini-3.1-flash-image' && _nbStylePrefix) ? _nbStylePrefix + topic : topic;
 var _topicForPrompt = _topicWithStyle.replace(' [img]', _imgs.length ? '（已附图'+_imgs.length+'张）' : '');
 if(sub === 'mj_imagine' && mjAspectRatio && _topicForPrompt.indexOf('--ar ') === -1) _topicForPrompt += ' --ar ' + mjAspectRatio;
-var fullPrompt = _bizMode
-  ? (history ? history + '\n\n[Human]: ' + _topicForPrompt : _topicForPrompt)
-  : (imageMode ? _topicForPrompt : (memText ? '【关于这个用户的已知信息】\n' + memText + '\n\n---\n\n' : '') + sysPrompt + '\n\n' + history + '\n\n[Human]: ' + _topicForPrompt);
+var fullPrompt = imageMode ? _topicForPrompt : topicWithQuote;
+if(!imageMode)_nbExtraOpts.chat=scopedChatInput(topicWithQuote,sysPrompt,_topicText);
 callWorkerStream(sub, fullPrompt, _img, _imgMime,
           function(chunk){
             if(chunk.indexOf('\x00MJB\x00') === 0){
@@ -4792,6 +4810,7 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
               return;
             }
             if(firstChunk){ firstChunk=false; hideThink(sub); msgObj.reasoning = msgObj.reasoning||''; msgs.push(msgObj); render(); }
+            msgObj._streamChunks=(msgObj._streamChunks||0)+1;
             msgObj.text += chunk; liveUpdate(uid, msgObj.text, msgObj.reasoning||undefined);
           },
           function(){
@@ -4824,6 +4843,7 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
           function(r){ msgObj.reasoning = (msgObj.reasoning||'') + r; if(!firstChunk) liveUpdate(uid, msgObj.text, msgObj.reasoning); },
           _nbExtraOpts,
           function(meta){
+            if(meta.context)msgObj.context=meta.context;
             if(meta.citation){
               var source = meta.citation;
               var index = msgObj.citations.findIndex(function(item){return item.url===source.url;});
@@ -4844,6 +4864,7 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
     }
 
     function finish(){
+      if(finished)return;finished=true;
       if(judgeModel !== 'none' && debate && msgs.filter(function(m){ return !m.isUser; }).length > 0){
         var debateMsgs = msgs.filter(function(m){ return !m.isUser; });
        var _judgeBase = debateMsgs.map(function(m){ return '[' + m.name + ']:\n' + plainMessageText(m); }).join('\n\n---\n\n');
@@ -4899,7 +4920,8 @@ if(debateMode === '2v2'){
       // 后台静默更新 memory
       if(!_bizMode && !_incognitoMode && !debate && !imageMode){
         var convText = buildConversationText();
-        if(convText && msgs.length >= 2) updateMemory(convText);
+        var scopeKey=activeProjectId||'general',turns=(memoryTurnCounts.get(scopeKey)||0)+1;memoryTurnCounts.set(scopeKey,turns);
+        if(convText && (turns%4===0||/记住|请牢记|remember/i.test(_topicText))) updateMemory(convText);
       }
       }
     }
@@ -5614,10 +5636,11 @@ if(debateMode === '2v2'){
     if(!message) return;
     try {
       await navigator.clipboard.writeText(plainMessageText(message));
-      button.setAttribute('aria-label', '已复制'); button.title = '已复制';
-      button.classList.add('copied');
-      setTimeout(function(){ button.classList.remove('copied'); button.setAttribute('aria-label','复制回复'); button.title='复制回复'; },1500);
-    } catch(error){ button.title = '复制失败，请选择文本后复制'; }
+      var original=button.innerHTML,label=button.dataset.copyLabel||'复制回复';if(e.detail===0)button.classList.add('copy-keyboard');
+      button.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>';
+      button.setAttribute('aria-label','已复制');button.dataset.hint='已复制';button.classList.add('copied');arenaNotice('已复制');
+      setTimeout(function(){button.innerHTML=original;button.classList.remove('copied','copy-keyboard');button.setAttribute('aria-label',label);button.dataset.hint='复制';},1800);
+    } catch(error){button.dataset.hint='复制失败';arenaNotice('复制失败，请选择文本后复制');}
   });
 
   // Layout controls share the existing conversation, model and authentication state.
@@ -5905,6 +5928,8 @@ if(imageMode){
     var atBottom = msgBox.scrollHeight - msgBox.scrollTop - msgBox.clientHeight < 80;
     scrollTopBtn.style.display = atTop ? 'none' : 'flex';
     scrollBottomBtn.style.display = atBottom ? 'none' : 'flex';
+    scrollBottomBtn.dataset.streaming=String(aaRunning);
+    var composer=document.querySelector('#ai-arena-app .aa-input-area');if(composer)msgBox.parentElement.style.setProperty('--arena-composer-height',composer.offsetHeight+'px');
   }
   msgBox.addEventListener('scroll', function(){
     updateScrollBtns();
@@ -5912,7 +5937,7 @@ if(imageMode){
     userScrolledUp = !atBottom;
   });
   scrollTopBtn.addEventListener('click', function(){ msgBox.scrollTo({top:0,behavior:'smooth'}); });
-  scrollBottomBtn.addEventListener('click', function(){ msgBox.scrollTo({top:msgBox.scrollHeight,behavior:'smooth'}); });
+  scrollBottomBtn.addEventListener('click', function(){userScrolledUp=false;msgBox.scrollTo({top:msgBox.scrollHeight,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'}); });
   setInterval(updateScrollBtns, 500);
 
   // === Health check ===
@@ -6133,6 +6158,124 @@ if(imageMode){
     overlay.addEventListener('click', function(){ document.body.removeChild(overlay); });
     document.body.appendChild(overlay);
   };
+  // Project scope is captured on every request and delayed save.
+  var workspaceViews=new Map(),workspaceController=null,memoryTurnCounts=new Map(),scopeSwitchEpoch=0;
+  var noticeTimer=null;
+  function arenaNotice(message){
+    var element=$('aaNotice');element.textContent=message;element.hidden=false;
+    clearTimeout(noticeTimer);noticeTimer=setTimeout(function(){element.hidden=true;},2600);
+  }
+  async function projectApi(action,extra){
+    var payload=Object.assign({action:action,username:loginName($('aaUsername').value),password:getPass()},extra||{});
+    var response=await fetch(WORKER+'/projects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    var data=await response.json();if(!response.ok)throw new Error(data.error||'项目请求失败');return data;
+  }
+  function updateProjectBar(){
+    $('aaProjectBar').hidden=!activeProjectId;
+    $('aaProjectName').textContent=activeProject?activeProject.name:'项目';
+    $('aaHistoryLabel').textContent=activeProjectId?'项目对话':'对话和任务';
+    $('aaProjectsBtn').classList.toggle('active',!!activeProjectId);
+    $('aaSkillsWrap').style.display=activeProjectId||debate||imageMode||videoMode?'none':'';
+  }
+  async function switchProject(project){
+    if(aaRunning){arenaNotice('回答完成后可以切换项目');return;}
+    var switchEpoch=++scopeSwitchEpoch;
+    if(_saveTimer){clearTimeout(_saveTimer);_saveTimer=null;if(currentChatId&&msgs.length&&!_incognitoMode)await chatApiCall('save',{projectId:activeProjectId,chatId:currentChatId,title:getChatTitle(),messages:serializeMsgs()});}
+    if(switchEpoch!==scopeSwitchEpoch||aaRunning)return;
+    var oldKey=activeProjectId||'general';
+    workspaceViews.set(oldKey,{msgs:msgs,currentChatId:currentChatId,draft:$('aaTopic').value,sentImgs:sentImgs,sentTexts:sentTexts,quote:activeQuote,skill:activeSkill,scroll:$('aaMessages').scrollTop,mode:{debate:debate,image:imageMode,video:videoMode,debateMode:debateMode,brands:Object.assign({},activeBrands),selection:Object.assign({},brandSelection)}});
+    ++scopeEpoch;++chatLoadEpoch;
+    activeProject=project;activeProjectId=project?project.id:null;
+    if(activeProjectId)sessionStorage.setItem('aa-active-project',activeProjectId);else sessionStorage.removeItem('aa-active-project');
+    _cachedMemory=null;_memoryLoaded=false;clearQuote();hideSelectionMenu();selectionQuote=null;
+    if(workspaceController)workspaceController.closeFile();
+    var view=workspaceViews.get(activeProjectId||'general');
+    msgs=view?view.msgs:[];currentChatId=view?view.currentChatId:null;
+    sentImgs=view?view.sentImgs:[];sentTexts=view?view.sentTexts:[];
+    activeSkill=activeProjectId?null:(view?view.skill:null);
+    var mode=view&&view.mode;
+    debate=mode?mode.debate:false;imageMode=mode?mode.image:false;videoMode=mode?mode.video:false;debateMode=mode?mode.debateMode:'free';
+    if(mode){activeBrands=mode.brands;brandSelection=mode.selection;}
+    else{activeBrands={xai:true,anthropic:false,openai:false,google:false,mj:false,kling:false};brandSelection.xai='grok-4.7';}
+    ['Chat','Debate','Image','Video'].forEach(function(name){var button=$('aaBar'+name+'Btn'),selected=name==='Chat'?!debate&&!imageMode&&!videoMode:name==='Debate'?debate:name==='Image'?imageMode:videoMode;if(button){button.classList.toggle('active',selected);button.style.background=selected?'rgba(255,255,255,0.1)':'transparent';button.style.color=selected?'#e8e8ee':'#6b6b88';}});
+    $('aaDebateModeBar').style.display=debate?'flex':'none';$('aaRoundsBar').style.display='none';
+    $('aaTopic').value=view?view.draft:'';$('aaTopic').style.height='';
+    if(view&&view.quote)setQuote(view.quote.author,view.quote.text,view.quote.color);
+    _skipNextChatSave=true;render();renderImgPreviews();renderTextPreviews();syncImageCards();syncBrandUI();sync2v2UI();updateModeBadge();updateSkillsBtn();updateProjectBar();loadChatList();loadMemory();syncArenaLayout();
+    if(view)$('aaMessages').scrollTop=view.scroll;
+    closeHistory();$('aaTopic').focus();
+  }
+  function scopedChatInput(question,system,query){
+    var previous=msgs.slice(0,-1),recent=ArenaContext.selectRecent(previous);
+    return {scope:activeProjectId||'general',chatId:currentChatId,question:question,query:query||question,system:activeProjectId?'':system,history:recent.messages,historyLength:previous.length,historyEndUid:previous.length?String(previous[previous.length-1].uid):null,incognito:!!_incognitoMode,
+      notes:_incognitoMode?ArenaContext.notes(recent.earlier,1400):'',
+      excerpts:_incognitoMode?ArenaContext.excerpts(recent.earlier,query||question,{maxChars:1800}):[]};
+  }
+  function renderContextInfo(message){
+    var context=message.context;if(!context)return '';
+    var labels=['最近 '+context.historyCount+' 条'];
+    if(context.olderSummary)labels.push('较早'+context.summaryKind);
+    if(context.retrievedMessages)labels.push('旧原文 '+context.retrievedMessages+' 段');
+    if(context.fileFragments)labels.push('资料 '+context.fileFragments+' 段');
+    return '<details class="arena-context-info"><summary>本轮上下文 · '+esc(labels.join(' · '))+'</summary><p>原聊天记录完整保留。较早内容通过摘要和按问题检索的原文补充，摘要可能省略细节。'+(context.scope!=='general'?'记忆和资料仅限当前项目。':'')+'</p>'+(context.files||[]).map(function(file){return '<button data-context-file="'+esc(file.id)+'" data-project="'+esc(context.scope)+'">'+esc(file.name)+'</button>';}).join('')+'</details>';
+  }
+  workspaceController=ArenaWorkspace.mount({
+    host:$('ai-arena-app'),api:projectApi,busy:function(){return aaRunning;},notice:arenaNotice,currentProject:function(){return activeProject;},
+    switchScope:switchProject,refreshProject:function(project){activeProject=project;_memoryLoaded=false;_cachedMemory=null;updateProjectBar();},
+  });
+  $('aaProjectsBtn').addEventListener('click',workspaceController.list);
+  $('aaProjectMaterials').addEventListener('click',workspaceController.materials);
+  $('aaProjectSettings').addEventListener('click',workspaceController.settings);
+  $('aaProjectExit').addEventListener('click',function(){switchProject(null);});
+  $('aaMessages').addEventListener('click',function(event){
+    var file=event.target.closest('[data-context-file]');
+    if(file)workspaceController.preview(file.dataset.contextFile,file.dataset.project);
+    var edit=event.target.closest('[data-edit-message]');
+    if(edit)window._aaStartEditMsg(edit.dataset.editMessage);
+  });
+  updateProjectBar();
+  if(activeProjectId){
+    var initialProjectId=activeProjectId,initialScopeEpoch=scopeEpoch;
+    projectApi('get',{projectId:initialProjectId}).then(function(data){if(initialScopeEpoch!==scopeEpoch||activeProjectId!==initialProjectId)return;activeProject=data.project;updateProjectBar();}).catch(function(error){if(initialScopeEpoch!==scopeEpoch||activeProjectId!==initialProjectId)return;arenaNotice(error.message);switchProject(null);});
+  }
+
+  var selectionMenu=document.createElement('div'),selectionQuote=null,selectingText=false;
+  selectionMenu.id='aaSelectionMenu';selectionMenu.className='arena-selection-menu';selectionMenu.setAttribute('popover','manual');selectionMenu.setAttribute('role','toolbar');selectionMenu.setAttribute('aria-label','所选文字操作');
+  selectionMenu.innerHTML='<button data-selection-action="quote">引用</button><button data-selection-action="followup">追问</button>';
+  $('ai-arena-app').appendChild(selectionMenu);
+  function hideSelectionMenu(){if(selectionMenu.matches(':popover-open'))selectionMenu.hidePopover();}
+  function showSelectionMenu(){
+    if(selectingText||selectionMenu.contains(document.activeElement))return;
+    var selection=window.getSelection();
+    if(!selection||selection.isCollapsed||!selection.rangeCount){hideSelectionMenu();return;}
+    var anchor=selection.anchorNode&& (selection.anchorNode.nodeType===1?selection.anchorNode:selection.anchorNode.parentElement);
+    var focus=selection.focusNode&& (selection.focusNode.nodeType===1?selection.focusNode:selection.focusNode.parentElement);
+    var body=anchor&&anchor.closest('.aa-msg-body'),endBody=focus&&focus.closest('.aa-msg-body');
+    var text=selection.toString().trim(),row=body&&body.closest('.aa-msg');
+    if(!body||body!==endBody||!row||text.length<2){hideSelectionMenu();return;}
+    var message=msgs.find(function(m){return String(m.uid)===row.dataset.uid;});if(!message)return;
+    var range=selection.getRangeAt(0),rects=Array.from(range.getClientRects()).filter(function(r){return r.width>0&&r.height>0;});
+    var rect=rects.find(function(r){return r.bottom>56&&r.top<window.innerHeight;});if(!rect)return hideSelectionMenu();
+    selectionQuote={text:text,author:message.isUser?loginName($('aaUsername').value):(message.name||'AI'),color:message.color};
+    selectionMenu.querySelectorAll('button').forEach(function(button){button.disabled=text.length>6000;button.title=text.length>6000?'选区过长，请缩小到 6000 字以内':'';});
+    if(!selectionMenu.matches(':popover-open'))selectionMenu.showPopover();
+    var width=selectionMenu.offsetWidth,height=selectionMenu.offsetHeight;
+    selectionMenu.style.left=Math.max(8,Math.min(window.innerWidth-width-8,rect.left+rect.width/2-width/2))+'px';
+    selectionMenu.style.top=Math.max(62,Math.min(window.innerHeight-height-8,rect.top-height-9))+'px';
+  }
+  document.addEventListener('selectionchange',function(){clearTimeout(selectionMenu._timer);selectionMenu._timer=setTimeout(showSelectionMenu,90);});
+  document.addEventListener('pointerdown',function(event){if(selectionMenu.contains(event.target))return;selectingText=true;hideSelectionMenu();});
+  document.addEventListener('pointerup',function(){selectingText=false;showSelectionMenu();});
+  document.addEventListener('keyup',function(event){if(event.key==='Escape')hideSelectionMenu();else showSelectionMenu();});
+  $('aaMessages').addEventListener('scroll',hideSelectionMenu);
+  selectionMenu.addEventListener('pointerdown',function(event){event.preventDefault();});
+  selectionMenu.addEventListener('click',function(event){
+    var button=event.target.closest('[data-selection-action]');if(!button||!selectionQuote||selectionQuote.text.length>6000)return;
+    setQuote(selectionQuote.author,selectionQuote.text,selectionQuote.color);
+    if(button.dataset.selectionAction==='followup'&&!$('aaTopic').value.trim()){$('aaTopic').value='请进一步解释这段内容。';$('aaTopic').dispatchEvent(new Event('input',{bubbles:true}));}
+    hideSelectionMenu();$('aaTopic').focus();
+  });
+
 })();
 </script>
 
