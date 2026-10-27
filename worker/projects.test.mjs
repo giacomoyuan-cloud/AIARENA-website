@@ -122,6 +122,13 @@ test('files can be previewed, soft removed and restored only in their owning pro
   await project(env,'archive',{projectId:a.id});assert.equal((await project(env,'get',{projectId:a.id})).status,404);
   await project(env,'archive',{projectId:a.id,archived:false});assert.equal((await project(env,'get',{projectId:a.id})).status,200);
 });
+test('generic project wording in a memory question does not pull unrelated file chunks',async t=>{
+  const {env,reads}=setup(),a=await create(env,'A'),calls=[];upstream(t,calls);
+  await project(env,'upload',{projectId:a.id,file:{name:'项目背景.docx',size:3,type:'application/octet-stream',text:'项目代号 AURORA-Z9。退款窗口为 37 天。',data:'YWJj'}});
+  reads.length=0;const result=await(await worker.fetch(root(a.id,'本项目记忆中的验收暗号是什么？'),env)).text();
+  assert.ok(!reads.some(k=>k.includes(':chunk:')));assert.ok(result.includes('"fileFragments":0'));
+  assert.ok(!JSON.stringify(calls).includes('37 天'));
+});
 test('large conversation context is summarized and retrieves exact older facts without resending all history',async t=>{
   const {env,data}=setup(),calls=[];upstream(t,calls);
   const messages=Array.from({length:40},(_,i)=>({uid:i+1,isUser:i%2===0,text:i===0?'蓝莓项目预算为 73921.50 元，截止日期 2027-03-19。':'一般对话 '+i+' '+('其他资料。'.repeat(80))}));

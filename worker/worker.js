@@ -6,8 +6,8 @@ var __name = (target, value) => __defProp(target, "name", { value, configurable:
 /* Shared bounded context and exact-text retrieval; history stays in storage. */
 (function(root){
   'use strict';
-  var STOP = new Set(('the and this that with from have what when where which please would could should about hello thanks thank you '+
-    '你好 谢谢 请问 一下 什么 怎么 如何 可以 这个 那个 我们 你们 他们 是否 需要 一个 一些 根据 相关 内容 介绍 详细 分析 多少 还有 现在 进行 以及 其中').split(/\s+/));
+  var STOP = new Set(('the and this that with from have what when where which please would could should about hello thanks thank you project projects file files document documents '+
+    '你好 谢谢 请问 一下 什么 怎么 如何 可以 这个 那个 我们 你们 他们 是否 需要 一个 一些 根据 相关 内容 介绍 详细 分析 多少 还有 现在 进行 以及 其中 项目 资料 文件 文档 本项 本轮 本次').split(/\s+/));
   function terms(value){
     var text=String(value||'').normalize('NFKC').toLowerCase(), seen=new Set();
     (text.match(/[a-z0-9][a-z0-9_-]{1,48}/g)||[]).forEach(function(t){if(!STOP.has(t))seen.add(t);});
