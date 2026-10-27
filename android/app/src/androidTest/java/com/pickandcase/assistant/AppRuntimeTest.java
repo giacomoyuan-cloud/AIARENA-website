@@ -200,6 +200,7 @@ public class AppRuntimeTest {
             touch(scene,start,MotionEvent.ACTION_DOWN,(left+16+(width-32)*2/3)*scale,(top+height/2)*scale);
             touch(scene,start,MotionEvent.ACTION_MOVE,(left+16+(width-32)*.37f)*scale,(top+height/2)*scale);
             assertEquals("true",js(scene,"document.getElementById('aaEffortScale').classList.contains('is-dragging')"));
+            until(scene,"Number(document.getElementById('aaEffortSlider').value)===1");
             assertEquals("1",js(scene,"Number(document.getElementById('aaEffortSlider').value)"));
             double visual=Double.parseDouble(js(scene,"new DOMMatrix(getComputedStyle(document.querySelector('.arena-effort-thumb')).transform).m41"));
             assertEquals((width-32)*.37,visual,2);
@@ -214,6 +215,39 @@ public class AppRuntimeTest {
             until(scene,"visualViewport.height < "+before+" - 100");
             assertEquals("true",js(scene,"document.getElementById('aaSendBtn').getBoundingClientRect().bottom<=visualViewport.height+2"));
             screenshot("mobile-keyboard.png");
+        }
+    }
+    @Test public void continuousDragDoesNotRestartFeedbackOrPersistBetweenFrames() throws Exception {
+        try(ActivityScenario<MainActivity> scene=ActivityScenario.launch(MainActivity.class)){
+            workspace(scene);tap(scene,"#aaChatModelBtn");
+            until(scene,"document.querySelector('.arena-effort-gesture')");
+            js(scene,"(()=>{let original=Element.prototype.animate,store=Storage.prototype.setItem;window.qaDrag={animations:0,saves:0};Element.prototype.animate=function(...args){if(this.closest?.('#aaEffortScale'))qaDrag.animations++;return original.apply(this,args)};Storage.prototype.setItem=function(key,...args){if(key==='aa-effort-selection')qaDrag.saves++;return store.call(this,key,...args)}})()");
+            JSONArray rect=new JSONArray(js(scene,"(()=>{let r=document.getElementById('aaEffortSlider').getBoundingClientRect();return [r.x,r.y,r.width,r.height,innerWidth]})()"));
+            AtomicReference<Float> ratio=new AtomicReference<>();scene.onActivity(a -> ratio.set(a.web.getWidth()/(float)rect.optDouble(4)));
+            float factor=ratio.get(),left=(float)rect.getDouble(0),y=(float)(rect.getDouble(1)+rect.getDouble(3)/2),width=(float)rect.getDouble(2);
+            long start=SystemClock.uptimeMillis();
+            touch(scene,start,MotionEvent.ACTION_DOWN,(left+16+(width-32)*.67f)*factor,y*factor);
+            for(int i=0;i<24;i++){
+                float fraction=.15f+.7f*i/23;
+                touch(scene,start,MotionEvent.ACTION_MOVE,(left+16+(width-32)*fraction)*factor,y*factor);Thread.sleep(8);
+            }
+            for(int i=0;i<24;i++){
+                float fraction=.85f-(.85f-.37f)*i/23;
+                touch(scene,start,MotionEvent.ACTION_MOVE,(left+16+(width-32)*fraction)*factor,y*factor);Thread.sleep(8);
+            }
+            until(scene,"document.getElementById('aaEffortSlider').value==='1'");
+            Thread.sleep(180);
+            assertEquals("0",js(scene,"qaDrag.animations"));assertEquals("0",js(scene,"qaDrag.saves"));
+            assertEquals(1.08,Double.parseDouble(js(scene,"new DOMMatrix(getComputedStyle(document.querySelector('.arena-effort-thumb>span')).transform).a")),.005);
+            screenshot("mobile-smooth-drag.png");
+            touch(scene,start,MotionEvent.ACTION_UP,(left+16+(width-32)*.37f)*factor,y*factor);
+            until(scene,"qaDrag.saves===1");
+            double jump=Double.parseDouble(js(scene,"(()=>{let t=document.querySelector('.arena-effort-thumb'),before=t.getBoundingClientRect().left;ArenaEffort.sync();return t.getBoundingClientRect().left-before})()"));
+            assertEquals("unrelated sync must preserve the release spring",0,jump,.1);
+            assertEquals("false",js(scene,"document.getElementById('aaEffortScale').classList.contains('is-dragging')"));
+            assertTrue(Integer.parseInt(js(scene,"qaDrag.animations"))<=4);
+            Thread.sleep(650);
+            assertEquals((width-32)/3,Double.parseDouble(js(scene,"new DOMMatrix(getComputedStyle(document.querySelector('.arena-effort-thumb')).transform).m41")),.5);
         }
     }
     @Test public void mobileImageControlsFitAndKeepModelSpecificOptions() throws Exception {
