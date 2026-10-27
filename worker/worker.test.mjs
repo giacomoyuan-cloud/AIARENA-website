@@ -356,3 +356,75 @@ test('Anthropic citations render after their text block rather than before a wor
   const output=events(await (await worker.fetch(request('claude-sonnet-5-5'),env)).text());
   assert.deepEqual(output.filter(event=>event.t||event.citation).map(event=>event.t?'text':'citation'),['text','citation']);
 });
+
+function accountRequest(path, body) {
+  return new Request('https://api.pickandcase.com'+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+}
+
+test('Oakley signs in with the existing password without rewriting any credential', async()=>{
+  const {env,data}=setup();
+  const ownerHash=await sha('existing-owner-password');
+  const original=JSON.stringify({hash:ownerHash,created:123});
+  data.set('user:oakleyyuen',original);
+  for(const username of ['Oakley','OAKLEY','oakleyyuen']) {
+    const response=await worker.fetch(accountRequest('/auth',{username,passwordHash:ownerHash}),env);
+    assert.equal(response.status,200);
+    assert.deepEqual(await response.json(),{ok:true,username:'Oakley'});
+  }
+  assert.equal((await worker.fetch(accountRequest('/auth',{username:'Oakley',passwordHash:await sha('wrong-password')}),env)).status,401);
+  assert.equal(data.get('user:oakleyyuen'),original);
+  assert.equal(data.has('user:oakley'),false);
+});
+
+test('Oakley retains historical chat lists, messages, skills and memory keys',async()=>{
+  const {env,data}=setup();const ownerHash=await sha('existing-owner-password');
+  data.set('user:oakleyyuen',JSON.stringify({hash:ownerHash}));
+  const list=[{id:'existing-chat',title:'An existing conversation'}];
+  const messages=[{uid:1,isUser:true,text:'Keep this history'}];
+  data.set('chats:oakleyyuen:list',JSON.stringify(list));
+  data.set('chats:oakleyyuen:existing-chat',JSON.stringify(messages));
+  data.set('skills:oakleyyuen',JSON.stringify([{id:'saved-skill'}]));
+  data.set('mem:oakleyyuen','Existing memory');
+  const before=new Map(data);
+  const listResponse=await worker.fetch(accountRequest('/chats',{username:'Oakley',password:ownerHash,action:'list'}),env);
+  assert.deepEqual(await listResponse.json(),{chats:list});
+  const chat=await worker.fetch(accountRequest('/chats',{username:'Oakley',password:ownerHash,action:'load',chatId:'existing-chat'}),env);
+  assert.deepEqual(await chat.json(),{messages});
+  const query='?user=Oakley&pass='+ownerHash;
+  assert.deepEqual(await (await worker.fetch(new Request('https://api.pickandcase.com/skills'+query),env)).json(),{skills:[{id:'saved-skill'}]});
+  assert.deepEqual(await (await worker.fetch(new Request('https://api.pickandcase.com/memory'+query),env)).json(),{memory:'Existing memory'});
+  assert.deepEqual(data,before);
+});
+
+test('Oakley requests retain the original usage ownership and reject a wrong account password',async t=>{
+  const {env,data}=setup();const ownerHash=await sha('existing-owner-password');
+  data.set('user:oakleyyuen',JSON.stringify({hash:ownerHash}));
+  const calls=mockFetch(t,()=>responses());
+  await (await worker.fetch(request('grok-4.7',{user:'Oakley',password:ownerHash}),env)).text();
+  assert.equal(JSON.parse(data.get('usage:user:oakleyyuen:official~grok-4.7')).calls,1);
+  assert.equal(data.has('usage:user:oakley:official~grok-4.7'),false);
+  const rejected=await worker.fetch(request('grok-4.7',{user:'Oakley',password:await sha('wrong-password')}),env);
+  assert.equal(rejected.status,401);assert.equal(calls.length,1);
+});
+
+test('a separately registered Oakley account cannot be redirected to the legacy account',async()=>{
+  const {env,data}=setup();
+  const legacyHash=await sha('legacy-owner-password'), nativeHash=await sha('different-native-password');
+  data.set('user:oakleyyuen',JSON.stringify({hash:legacyHash}));
+  data.set('user:oakley',JSON.stringify({hash:nativeHash}));
+  data.set('chats:oakley:list',JSON.stringify([{id:'native-only'}]));
+  assert.equal((await worker.fetch(accountRequest('/auth',{username:'Oakley',passwordHash:legacyHash}),env)).status,401);
+  assert.equal((await worker.fetch(accountRequest('/auth',{username:'Oakley',passwordHash:nativeHash}),env)).status,200);
+  const list=await worker.fetch(accountRequest('/chats',{username:'Oakley',password:nativeHash,action:'list'}),env);
+  assert.deepEqual(await list.json(),{chats:[{id:'native-only'}]});
+});
+
+test('removed balance and manual cost settings endpoints do not read billing data or call providers',async t=>{
+  const {env,data}=setup();const before=new Map(data);
+  const calls=mockFetch(t,()=>{throw new Error('No provider call expected');});
+  for(const path of ['/account-balances','/topup','/topup-edit','/topups','/pool-spent','/model-prices']) {
+    assert.equal((await worker.fetch(new Request('https://api.pickandcase.com'+path),env)).status,410);
+    assert.equal((await worker.fetch(accountRequest(path,{username:'tester',password}),env)).status,410);
+  }
+  assert.deepEqual(data,before);assert.equal(calls.length,0);
+});

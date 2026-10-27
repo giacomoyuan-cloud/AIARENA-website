@@ -7,6 +7,23 @@ async function hashText(t) {
   return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 __name(hashText, "hashText");
+// Public login names may change without moving credentials or historical KV keys.
+async function storageAccountName(value, env) {
+  if (typeof value !== "string" || !/^oakley$/i.test(value.trim())) return value;
+  // Never redirect a separately registered Oakley account to another identity.
+  const registered = await env.MEMORY_KV.get("user:oakley");
+  return registered ? "oakley" : "oakleyyuen";
+}
+async function accountRequestBody(body, env) {
+  if (!body || typeof body !== "object") return body;
+  for (const field of ["user", "username"]) {
+    if (typeof body[field] === "string") body[field] = await storageAccountName(body[field], env);
+  }
+  return body;
+}
+function publicAccountName(value) {
+  return /^(oakley|oakleyyuen)$/i.test(String(value || "").trim()) ? "Oakley" : value;
+}
 const OFFICIAL_MODELS = {
   "grok-4.7": { provider: "xai", binding: "GROK_API_KEY", name: "Grok 4.7", maxTokens: 128000 },
   "claude-opus-5-5": { provider: "anthropic", binding: "ANTHROPIC_API_KEY", name: "Claude Opus 5.5", maxTokens: 128000 },
@@ -39,10 +56,16 @@ var worker_default = {
       });
     }
     const url = new URL(request.url);
+    if (url.searchParams.has("user")) {
+      url.searchParams.set("user", await storageAccountName(url.searchParams.get("user"), env));
+    }
+    if (["/account-balances", "/topup", "/topup-edit", "/topups", "/pool-spent", "/model-prices"].includes(url.pathname)) {
+      return new Response(JSON.stringify({ error: "This feature has been removed" }), { status: 410, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
+    }
     if (url.pathname === "/chats" && request.method === "POST") {
       let body2;
       try {
-        body2 = await request.json();
+        body2 = await accountRequestBody(await request.json(), env);
       } catch {
         return new Response("Invalid JSON", { status: 400, headers: { "Access-Control-Allow-Origin": "*" } });
       }
@@ -119,7 +142,7 @@ var worker_default = {
     if (request.method === "POST" && url.pathname === "/admin/create-user") {
       let body2;
       try {
-        body2 = await request.json();
+        body2 = await accountRequestBody(await request.json(), env);
       } catch {
         return new Response("Invalid JSON", { status: 400 });
       }
@@ -128,12 +151,12 @@ var worker_default = {
       if (!username || !password2 || password2.length < 8) return new Response(JSON.stringify({ error: "username and password (8+ chars) required" }), { status: 400, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
       const passHash = await hashText(password2);
       await env.MEMORY_KV.put("user:" + username.toLowerCase(), JSON.stringify({ hash: passHash, created: Date.now() }));
-      return new Response(JSON.stringify({ ok: true, username: username.toLowerCase() }), { status: 200, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
+      return new Response(JSON.stringify({ ok: true, username: publicAccountName(username.toLowerCase()) }), { status: 200, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
     }
     if (request.method === "POST" && url.pathname === "/auth") {
       let body2;
       try {
-        body2 = await request.json();
+        body2 = await accountRequestBody(await request.json(), env);
       } catch {
         return new Response("Invalid JSON", { status: 400 });
       }
@@ -143,7 +166,7 @@ var worker_default = {
       if (!userData) return new Response(JSON.stringify({ error: "\u7528\u6237\u4E0D\u5B58\u5728" }), { status: 401, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
       const parsed = JSON.parse(userData);
       if (parsed.hash !== passwordHash) return new Response(JSON.stringify({ error: "\u5BC6\u7801\u9519\u8BEF" }), { status: 401, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
-      return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
+      return new Response(JSON.stringify({ ok: true, username: publicAccountName(username) }), { status: 200, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
     }
     if (url.pathname === "/skills" && request.method === "GET") {
       const user = url.searchParams.get("user");
@@ -158,7 +181,7 @@ var worker_default = {
     if (url.pathname === "/skills" && request.method === "POST") {
       let body2;
       try {
-        body2 = await request.json();
+        body2 = await accountRequestBody(await request.json(), env);
       } catch {
         return new Response("Invalid JSON", { status: 400 });
       }
@@ -190,7 +213,7 @@ var worker_default = {
     if (request.method === "POST" && url.pathname === "/memory") {
       let body2;
       try {
-        body2 = await request.json();
+        body2 = await accountRequestBody(await request.json(), env);
       } catch {
         return new Response("Invalid JSON", { status: 400 });
       }
@@ -265,104 +288,6 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
       }
       return new Response(JSON.stringify(result), { headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
     }
-    if (url.pathname === "/topup" && request.method === "POST") {
-      let body2;
-      try {
-        body2 = await request.json();
-      } catch {
-        return new Response("Invalid JSON", { status: 400 });
-      }
-      const { username: tuUser, password: tuPass, pool, amount, date } = body2;
-      if (!tuUser || !tuPass || !pool || !amount) return new Response(JSON.stringify({ error: "missing params" }), { status: 400, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
-      const tuData = await env.MEMORY_KV.get("user:" + tuUser.toLowerCase());
-      if (!tuData || JSON.parse(tuData).hash !== tuPass) return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
-      const tuKey = "topups:" + tuUser.toLowerCase() + ":" + pool;
-      const tuExisting = JSON.parse(await env.BIZ_KV.get(tuKey) || "[]");
-      tuExisting.push({ amount: parseFloat(amount), date: date || (/* @__PURE__ */ new Date()).toISOString() });
-      await env.BIZ_KV.put(tuKey, JSON.stringify(tuExisting));
-      return new Response(JSON.stringify({ ok: true }), { headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
-    }
-    if (url.pathname === "/topup-edit" && request.method === "POST") {
-      let teBody;
-      try {
-        teBody = await request.json();
-      } catch {
-        return new Response("Invalid JSON", { status: 400 });
-      }
-      const { username: teUser, password: tePass, pool: tePool, index: teIndex, amount: teAmount } = teBody;
-      if (!teUser || !tePass || !tePool || teIndex === void 0 || teAmount === void 0) return new Response(JSON.stringify({ error: "missing params" }), { status: 400, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
-      const teData = await env.MEMORY_KV.get("user:" + teUser.toLowerCase());
-      if (!teData || JSON.parse(teData).hash !== tePass) return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
-      const teKey = "topups:" + teUser.toLowerCase() + ":" + tePool;
-      const teList = JSON.parse(await env.BIZ_KV.get(teKey) || "[]");
-      if (teIndex < 0 || teIndex >= teList.length) return new Response(JSON.stringify({ error: "index out of range" }), { status: 400, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
-      teList[teIndex].amount = parseFloat(teAmount);
-      await env.BIZ_KV.put(teKey, JSON.stringify(teList));
-      return new Response(JSON.stringify({ ok: true }), { headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
-    }
-    if (url.pathname === "/topups" && request.method === "GET") {
-      const tuUser2 = url.searchParams.get("user");
-      const tuPass2 = url.searchParams.get("pass");
-      if (!tuUser2 || !tuPass2) return new Response(JSON.stringify({ error: "missing params" }), { status: 400, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
-      const tuData2 = await env.MEMORY_KV.get("user:" + tuUser2.toLowerCase());
-      if (!tuData2 || JSON.parse(tuData2).hash !== tuPass2) return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
-      const pools = ["xai-official", "anthropic-official", "openai-official", "google-official", "quick", "aipro", "ly", "ai-proxy", "mj"];
-      const tuResult = {};
-      for (const p of pools) {
-        const raw = await env.BIZ_KV.get("topups:" + tuUser2.toLowerCase() + ":" + p);
-        tuResult[p] = raw ? JSON.parse(raw) : [];
-      }
-      return new Response(JSON.stringify(tuResult), { headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
-    }
-    if (url.pathname === "/pool-spent" && request.method === "GET") {
-      const psUser = url.searchParams.get("user");
-      const psPass = url.searchParams.get("pass");
-      if (!psUser || !psPass) return new Response(JSON.stringify({ error: "missing params" }), { status: 400, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
-      const psData = await env.MEMORY_KV.get("user:" + psUser.toLowerCase());
-      if (!psData || JSON.parse(psData).hash !== psPass) return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
-      const psRaw = await env.BIZ_KV.get("pool-spent:" + psUser.toLowerCase());
-      return new Response(JSON.stringify({ spent: psRaw ? JSON.parse(psRaw) : {} }), { headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
-    }
-    if (url.pathname === "/pool-spent" && request.method === "POST") {
-      let psBody;
-      try {
-        psBody = await request.json();
-      } catch {
-        return new Response("Invalid JSON", { status: 400 });
-      }
-      const { username: psUser2, password: psPass2, pool: psPool, amount: psAmount } = psBody;
-      if (!psUser2 || !psPass2 || !psPool || psAmount === void 0) return new Response(JSON.stringify({ error: "missing params" }), { status: 400, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
-      const psData2 = await env.MEMORY_KV.get("user:" + psUser2.toLowerCase());
-      if (!psData2 || JSON.parse(psData2).hash !== psPass2) return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
-      const psKey = "pool-spent:" + psUser2.toLowerCase();
-      const psExisting = JSON.parse(await env.BIZ_KV.get(psKey) || "{}");
-      psExisting[psPool] = (psExisting[psPool] || 0) + parseFloat(psAmount);
-      await env.BIZ_KV.put(psKey, JSON.stringify(psExisting));
-      return new Response(JSON.stringify({ ok: true }), { headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
-    }
-    if (request.method === "GET" && url.pathname === "/model-prices") {
-      const mpUser = url.searchParams.get("user");
-      const mpPass = url.searchParams.get("pass");
-      if (!mpUser || !mpPass) return new Response(JSON.stringify({ error: "missing params" }), { status: 400, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
-      const mpData = await env.MEMORY_KV.get("user:" + mpUser.toLowerCase());
-      if (!mpData || JSON.parse(mpData).hash !== mpPass) return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
-      const prices = await env.BIZ_KV.get("model-prices:" + mpUser.toLowerCase());
-      return new Response(JSON.stringify({ prices: prices ? JSON.parse(prices) : {} }), { headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
-    }
-    if (request.method === "POST" && url.pathname === "/model-prices") {
-      let body2;
-      try {
-        body2 = await request.json();
-      } catch {
-        return new Response("Invalid JSON", { status: 400 });
-      }
-      const { username: mpUser2, password: mpPass2, prices } = body2;
-      if (!mpUser2 || !mpPass2 || !prices) return new Response(JSON.stringify({ error: "missing params" }), { status: 400, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
-      const mpData2 = await env.MEMORY_KV.get("user:" + mpUser2.toLowerCase());
-      if (!mpData2 || JSON.parse(mpData2).hash !== mpPass2) return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
-      await env.BIZ_KV.put("model-prices:" + mpUser2.toLowerCase(), JSON.stringify(prices));
-      return new Response(JSON.stringify({ ok: true }), { headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
-    }
     if (request.method === "GET" && url.pathname !== "/memory") {
       return new Response(JSON.stringify({ mode: "official", xai: !!env.GROK_API_KEY, openai: !!env.OPENAI_API_KEY, anthropic: !!env.ANTHROPIC_API_KEY, google: !!env.GEMINI_API_KEY, mj: false }), {
         status: 200,
@@ -374,7 +299,7 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
     }
     let body;
     try {
-      body = await request.json();
+      body = await accountRequestBody(await request.json(), env);
     } catch {
       return new Response("Invalid JSON", { status: 400 });
     }

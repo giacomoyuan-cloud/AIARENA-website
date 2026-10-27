@@ -7,9 +7,9 @@
 
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="AI Arena">
+<meta name="apple-mobile-web-app-title" content="AI 助手">
 <meta name="theme-color" content="#faf9f7">
-<link rel="manifest" href="/manifest.json">
+<link rel="manifest" href="/manifest.json?v=20261027-oakley">
 <link rel="apple-touch-icon" href="/icon-192.png">
 </head>
 <body>
@@ -863,7 +863,7 @@
   #ai-arena-app #aaSkillEditPrompt::placeholder { color: #888; opacity: 1; }
 
 </style>
-<link rel="stylesheet" href="/arena.css">
+<link rel="stylesheet" href="/arena.css?v=20261027-oakley">
 
 <!-- Login overlay -->
 <div id="aaLoginOverlay" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:999999;background:linear-gradient(160deg,#0c1222 0%,#151d35 40%,#1a1030 100%);flex-direction:column;align-items:center;justify-content:center;padding:32px;">
@@ -871,7 +871,7 @@
     <h2 style="font-size:20px;font-weight:700;letter-spacing:-0.03em;margin-bottom:4px;background:linear-gradient(135deg,#e8e8ee,#818cf8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;text-align:center;">AI 助手</h2>
     <p style="font-size:11px;color:#6b6b88;text-align:center;margin-bottom:36px;font-weight:400;"></p>
     <div style="background:rgba(20,25,45,0.92);backdrop-filter:blur(28px) saturate(1.3);-webkit-backdrop-filter:blur(28px) saturate(1.3);border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:16px;box-shadow:inset 0 1px 0 rgba(255,255,255,0.06),0 8px 32px rgba(0,0,0,0.4);">
-      <input type="text" id="aaLoginUser" placeholder="用户名" autocomplete="off" class="aa-key-input" style="margin-bottom:8px;width:100%;box-sizing:border-box;text-align:left;direction:ltr;">
+      <input type="text" id="aaLoginUser" placeholder="用户名" autocomplete="username" value="Oakley" class="aa-key-input" style="margin-bottom:8px;width:100%;box-sizing:border-box;text-align:left;direction:ltr;">
       <input type="password" id="aaLoginPass" placeholder="密码" class="aa-key-input" style="width:100%;box-sizing:border-box;text-align:left;direction:ltr;">
       <div id="aaLoginErr" style="font-size:10px;color:#f87171;min-height:16px;margin-top:6px;padding-left:2px;"></div>
     </div>
@@ -910,7 +910,6 @@
   <div id="aaHistorySearchWrap" class="arena-history-search" hidden><input id="aaHistorySearch" type="search" placeholder="搜索对话…" aria-label="搜索历史对话" autocomplete="off"></div>
   <div class="aa-history-list" id="aaHistoryList"><div class="aa-history-empty">你的对话会显示在这里</div></div>
   <div class="arena-sidebar-footer">
-    <button id="aaPricesBtn" class="arena-nav-item arena-settings-btn"><svg viewBox="0 0 24 24"><path d="m9 3-.5 3-2 .9L4 5.5 1.5 10 4 12v2l-2.5 2 2.5 4.5L6.5 19l2 .9L9 23h5l.5-3 2-.9 2.5 1.5 2.5-4.5-2.5-2v-2l2.5-2L19 5.5 16.5 7l-2-.9L14 3Z" transform="translate(1 -1) scale(.92)"/><circle cx="12" cy="12" r="3"/></svg><span>费用设置</span></button>
     <button class="aa-gear-btn arena-account" id="aaGearBtn" aria-controls="aaSidebar" aria-expanded="false"><span class="arena-avatar" id="aaAccountAvatar">A</span><span class="arena-account-copy"><span id="aaAccountName">我的账号</span><span class="arena-account-sub">AI 助手</span></span><svg viewBox="0 0 24 24"><path d="m8 10 4 4 4-4"/></svg></button>
   </div>
 </aside>
@@ -1020,19 +1019,19 @@
 <!-- Brand cards -->
       <div class="aa-brand-bar" id="aaBrandBar">
         <div class="aa-brand-card" data-brand="xai">
-          <div class="aa-card-head"><span class="aa-card-brand">xAI</span><span class="aa-card-sub" id="aaCardSub-xai">Grok 4.7</span><span class="aa-card-dot" id="aaCardDot-xai"></span><span class="aa-team-label" id="aaTeam-xai"></span><div id="aaPoolBar-xai" style="display:none;position:absolute;bottom:0;left:6px;right:6px;"></div></div>
+          <div class="aa-card-head"><span class="aa-card-brand">xAI</span><span class="aa-card-sub" id="aaCardSub-xai">Grok 4.7</span><span class="aa-card-dot" id="aaCardDot-xai"></span><span class="aa-team-label" id="aaTeam-xai"></span></div>
         </div>
         <div class="aa-brand-card" data-brand="openai">
-          <div class="aa-card-head"><span class="aa-card-brand">OpenAI</span><span class="aa-card-sub" id="aaCardSub-openai">GPT-6 Astra</span><span class="aa-card-dot" id="aaCardDot-openai"></span><span class="aa-team-label" id="aaTeam-openai"></span><div id="aaPoolBar-openai" style="display:none;position:absolute;bottom:0;left:6px;right:6px;"></div></div>
+          <div class="aa-card-head"><span class="aa-card-brand">OpenAI</span><span class="aa-card-sub" id="aaCardSub-openai">GPT-6 Astra</span><span class="aa-card-dot" id="aaCardDot-openai"></span><span class="aa-team-label" id="aaTeam-openai"></span></div>
         </div>
         <div class="aa-brand-card" data-brand="google">
-          <div class="aa-card-head"><span class="aa-card-brand">Google</span><span class="aa-card-sub" id="aaCardSub-google">Gemini 3.8 Flash</span><span class="aa-card-dot" id="aaCardDot-google"></span><span class="aa-team-label" id="aaTeam-google"></span><div id="aaPoolBar-google" style="display:none;position:absolute;bottom:0;left:6px;right:6px;"></div></div>
+          <div class="aa-card-head"><span class="aa-card-brand">Google</span><span class="aa-card-sub" id="aaCardSub-google">Gemini 3.8 Flash</span><span class="aa-card-dot" id="aaCardDot-google"></span><span class="aa-team-label" id="aaTeam-google"></span></div>
         </div>
         <div class="aa-brand-card" data-brand="anthropic">
-          <div class="aa-card-head"><span class="aa-card-brand">Anthropic</span><span class="aa-card-sub" id="aaCardSub-anthropic">Claude Sonnet 5.5</span><span class="aa-card-dot" id="aaCardDot-anthropic"></span><span class="aa-team-label" id="aaTeam-anthropic"></span><div id="aaPoolBar-anthropic" style="display:none;position:absolute;bottom:0;left:6px;right:6px;"></div></div>
+          <div class="aa-card-head"><span class="aa-card-brand">Anthropic</span><span class="aa-card-sub" id="aaCardSub-anthropic">Claude Sonnet 5.5</span><span class="aa-card-dot" id="aaCardDot-anthropic"></span><span class="aa-team-label" id="aaTeam-anthropic"></span></div>
         </div>
         <div class="aa-brand-card" data-brand="mj" id="aaMjCard" style="display:none;">
-          <div class="aa-card-head" style="--bc:#38bdf8;--bcbg:rgba(56,189,248,0.1);--bcglow:rgba(56,189,248,0.15);"><span class="aa-card-brand">MJ</span><span class="aa-card-sub" id="aaCardSub-mj">生图</span><span class="aa-card-dot" id="aaCardDot-mj"></span><div id="aaPoolBar-mj" style="display:none;position:absolute;bottom:0;left:6px;right:6px;"></div></div>
+          <div class="aa-card-head" style="--bc:#38bdf8;--bcbg:rgba(56,189,248,0.1);--bcglow:rgba(56,189,248,0.15);"><span class="aa-card-brand">MJ</span><span class="aa-card-sub" id="aaCardSub-mj">生图</span><span class="aa-card-dot" id="aaCardDot-mj"></span></div>
         </div>
         <div id="aaJudgeCard" style="flex-shrink:0;display:none;">
           <div id="aaJudgeHead" class="aa-card-head" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);transition:all 0.2s;">
@@ -1207,7 +1206,7 @@
 </div>
 </div>
 
-<script src="/arena-markdown.js"></script>
+<script src="/arena-markdown.js?v=20261027-oakley"></script>
 <script>
 (function(){
   (function(){
@@ -1386,7 +1385,7 @@ var TEAM_COLORS = {
       plain = plain.slice(0, 300) + (plain.length > 300 ? '...' : '');
     }
     var _qName = ($('aaUsername').value.trim() || '用户').toLowerCase();
-    var _qDisplayNames = {'oakleyyuen':'Oakley Suen','doctor.wang':'Doctor.Wang','zty007007990':'Zty'};
+    var _qDisplayNames = {'oakleyyuen':'Oakley','oakley':'Oakley','doctor.wang':'Doctor.Wang','zty007007990':'Zty'};
     var author = msg.isUser ? (_qDisplayNames[_qName] || $('aaUsername').value.trim() || '用户') : (msg.name || 'AI');
     setQuote(author, plain, msg.color || '#818cf8');
   };
@@ -1438,96 +1437,11 @@ var TEAM_COLORS = {
   var _incognitoMode = false;
   var judgeModel = 'none';
 
-  var POOL_LABELS = { 'xai-official':'xAI 官方', 'anthropic-official':'Anthropic 官方', 'openai-official':'OpenAI 官方', 'google-official':'Google 官方' };
-
-  var POOL_MAP = {
-    'grok-4.6':'xai-official',
-    'claude-opus-5-5':'anthropic-official','claude-sonnet-5-5':'anthropic-official',
-    'grok-4.7':'xai-official','gpt-6-astra':'openai-official','gpt-5.6-sol':'openai-official',
-    'claude-fable-5-1':'anthropic-official','claude-opus-5':'anthropic-official',
-    'gemini-3.8-flash':'google-official','gemini-3.1-pro-preview':'google-official',
-    'grok-imagine-image-2.0':'xai-official','gpt-image-2.5-sunburst':'openai-official',
-    'gemini-3.1-flash-image':'google-official','mj_imagine':'quick',
-    'grok41-official':'xai-official','grok41-biz-official':'xai-official','grok420-multiagent':'xai-official','grok-image-2':'xai-official',
-    'sonnet46-official':'anthropic-official','opus46-official':'anthropic-official',
-    'sonnet-thinking':'aipro','opus-thinking':'aipro','gemini31high-official':'aipro',
-    'gpt52-official':'openai-official','gpt54-official':'openai-official','gpt-4o-mini-search-preview':'openai-official','codex-official':'openai-official',
-    'gemini31-official':'google-official','nanbanana2-official':'google-official',
-    
-    'grok41-proxy':'ai-proxy','sonnet46-proxy':'ai-proxy','opus46-proxy':'ai-proxy',
-    'gpt52-proxy':'ai-proxy','gpt54-proxy':'ai-proxy','gpt4o-proxy':'ai-proxy','codex-proxy':'ai-proxy',
-    'gemini31-proxy':'ai-proxy','gemini3-proxy':'ai-proxy','kling25-i2v':'ai-proxy',
-    'mj-imagine':'mj','mj-describe':'mj','mj-blend':'mj','mj-variation':'mj',
-    'mj-upscale':'mj','mj-zoom':'mj','swap-face':'mj'
-  };
-
-
-  function getPoolBudget(poolId){
-    var budgets = JSON.parse(localStorage.getItem('aa-pool-budgets') || '{}');
-    return budgets[poolId] || 0;
-  }
-  function getPoolSpent(poolId){
-    var spent = JSON.parse(localStorage.getItem('aa-pool-spent') || '{}');
-    return spent[poolId] || 0;
-  }
-  function addPoolSpent(poolId, amount){
-    if(!poolId || !amount) return;
-    var spent = JSON.parse(localStorage.getItem('aa-pool-spent') || '{}');
-    spent[poolId] = (spent[poolId] || 0) + amount;
-    localStorage.setItem('aa-pool-spent', JSON.stringify(spent));
-    renderAllPoolBars();
-    try {
-      var _spUser = sessionStorage.getItem('ai-arena-user') || '';
-      var _spPass = sessionStorage.getItem('ai-arena-hash') || '';
-      if (_spUser && _spPass) {
-        fetch(WORKER + '/pool-spent', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username: _spUser, password: _spPass, pool: poolId, amount: amount })
-        }).catch(function(){});
-      }
-    } catch(e) {}
-  }
   var DEFAULT_TOKEN_PRICES = {
     'grok-4.7': {input:2,output:6},
     'claude-sonnet-5-5': {input:2,output:10},
     'claude-opus-5-5': {input:4,output:20}
   };
-  function getSubPool(sub){ return POOL_MAP[sub] || null; }
-
-  function renderAllPoolBars(){
-    ['xai','anthropic','openai','google','mj'].forEach(function(brand){
-      var bar = document.getElementById('aaPoolBar-'+brand);
-      if(!bar) return;
-      var sub = brandSelection[brand];
-      var pool = getSubPool(sub);
-      // 用当前选中子模型对应的 health dot 颜色
-      var dropItem = document.querySelector('#ai-arena-app .aa-drop-item[data-sub="'+sub+'"]');
-      var refDot = dropItem ? dropItem.querySelector('.aa-drop-dot') : null;
-      var healthColor = (refDot && refDot.style.background) ? refDot.style.background : '#555';
-      bar.style.display = 'block';
-      bar.dataset.healthColor = healthColor;
-      renderPoolBar(bar, pool);
-    });
-    var klingBar = document.getElementById('aaPoolBar-kling');
-    if(klingBar) renderPoolBar(klingBar, getSubPool('kling25-i2v'));
-  }
-
-  function renderPoolBar(barEl, poolId){
-    if(!poolId){ barEl.style.display='none'; return; }
-    var topups = JSON.parse(localStorage.getItem('aa-pool-topups') || '{}');
-    var totalTopup = (topups[poolId] || []).reduce(function(a,b){ return a+b.amount; }, 0);
-    var spent = getPoolSpent(poolId);
-    if(totalTopup <= 0){ barEl.style.display='none'; return; }
-    var remaining = Math.max(totalTopup - spent, 0);
-    var fillPct = Math.min(remaining / totalTopup, 1);
-    var healthColor = barEl.dataset.healthColor || (barEl.dataset.healthy === '1' ? '#22c55e' : (barEl.dataset.healthy === '0' ? '#ef4444' : '#555'));
-    barEl.style.display = 'block';
-    barEl.innerHTML = '<div style="height:3px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;margin-top:2px;">'
-      +'<div style="height:100%;width:'+(fillPct*100)+'%;background:'+healthColor+';border-radius:2px;transition:width 0.4s,background 0.4s;"></div>'
-      +'</div>';
-  }
-
   function syncJudgeUI(){
     var area = $('aaJudgeCard');
     if(!area) return;
@@ -1771,375 +1685,6 @@ var TEAM_COLORS = {
 
   function openHistory(){ $('ai-arena-app').classList.remove('arena-sidebar-collapsed'); $('aaHistoryPanel').classList.add('open'); $('aaHistoryOverlay').classList.add('open'); $('aaHistoryBtn').setAttribute('aria-expanded','true'); syncArenaNavigation(); if(window.matchMedia('(max-width: 900px)').matches) $('aaNewBtn').focus(); loadChatList(); }
   function closeHistory(){ $('aaHistoryPanel').classList.remove('open'); $('aaHistoryOverlay').classList.remove('open'); $('aaHistoryBtn').setAttribute('aria-expanded','false'); syncArenaNavigation(); }
-
-  async function showPricesPanel(){
-    closeHistory();
-    var _preUser = ($('aaUsername') ? $('aaUsername').value : '').trim();
-    var _prePass = getPass();
-    if(_preUser && _prePass){
-      try {
-        var _tr = await fetch(WORKER+'/topups?user='+encodeURIComponent(_preUser)+'&pass='+encodeURIComponent(_prePass));
-        var _td = await _tr.json();
-        if(_td && !_td.error) localStorage.setItem('aa-pool-topups', JSON.stringify(_td));
-      } catch(e){}
-    }
-    var isLight = document.getElementById('ai-arena-app').classList.contains('light-mode');
-    var bg = isLight ? 'rgba(245,240,235,0.99)' : 'rgba(14,20,38,0.98)';
-    var border = isLight ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)';
-    var textClr = isLight ? '#1a1a28' : '#c8c8dd';
-    var subClr = isLight ? '#6b6b88' : '#555';
-    var inputBg = isLight ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.07)';
-    var inputBorder = isLight ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.12)';
-    var overlay = document.createElement('div');
-    overlay.id = 'aaPricesOverlay';
-    overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:999999;background:rgba(0,0,0,0.5);display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:24px 16px;box-sizing:border-box;';
-    var MODEL_LABELS = {
-      'grok-4.6':'Grok 4.6',
-      'claude-opus-5-5':'Claude Opus 5.5','claude-sonnet-5-5':'Claude Sonnet 5.5',
-      'grok-4.7':'Grok 4.7',
-      'gpt-6-astra':'GPT-6 Astra','gpt-5.6-sol':'GPT-5.6 Sol',
-      'claude-fable-5-1':'Claude Fable 5.1','claude-opus-5':'Claude Opus 5',
-      'gemini-3.8-flash':'Gemini 3.8 Flash','gemini-3.1-pro-preview':'Gemini 3.1 Pro',
-      'grok-imagine-image-2.0':'Grok Image 2.0','gpt-image-2.5-sunburst':'GPT Image 2.5 Sunburst',
-      'gemini-3.1-flash-image':'Gemini 3.1 Flash Image','mj_imagine':'Midjourney Imagine',
-      'grok41-official':'G-4.1-官方','grok41-proxy':'G-4.1-JK','grok41-biz-official':'G-4.1-越狱','grok420-multiagent':'Grok-4.2-官方',
-      'sonnet46-official':'S-4.6-官方','opus46-official':'O-4.6-官方',
-      'sonnet46-proxy':'S-4.6-JK','opus46-proxy':'O-4.6-JK','sonnet-thinking':'S-4.6-哈基米','opus-thinking':'O-4.6-哈基米',
-      
-      'gpt52-official':'G-5.2-官方','gpt54-official':'G-5.4-官方','gpt-4o-mini-search-preview':'G-4o-官方','codex-official':'G-5.3-官方',
-      'gpt52-proxy':'G-5.2-JK','gpt54-proxy':'G-5.4-JK','gpt4o-proxy':'G-5 Mini-JK','codex-proxy':'G-5.3-JK',
-      'gemini31-official':'G-3.1-官方','gemini31high-official':'G-3.1-哈基米',
-      'gemini31-proxy':'G-3.1-JK','gemini3-proxy':'G-3-JK',
-      'nb2-512px':'NB-2 · 512px','nb2-1K':'NB-2 · 1K','nb2-2K':'NB-2 · 2K','nb2-4K':'NB-2 · 4K',
-      'mj-imagine':'MJ 生图','mj-describe':'MJ 风格分析','mj-variation':'MJ 变体','mj-upscale':'MJ 高清放大',
-      'kling25-i2v':'Kling V2.5'
-    };
-    var _mpUser2 = sessionStorage.getItem('ai-arena-user') || '';
-    var _mpPass2 = sessionStorage.getItem('ai-arena-hash') || '';
-    var prices = JSON.parse(localStorage.getItem('aa-model-prices') || '{}');
-    if (_mpUser2 && _mpPass2) {
-      try {
-        var _mpRes2 = await fetch(WORKER + '/model-prices?user=' + encodeURIComponent(_mpUser2) + '&pass=' + encodeURIComponent(_mpPass2));
-        if (_mpRes2.ok) {
-          var _mpJson2 = await _mpRes2.json();
-          if (_mpJson2.prices && Object.keys(_mpJson2.prices).length > 0) {
-            prices = Object.assign({}, prices, _mpJson2.prices);
-            localStorage.setItem('aa-model-prices', JSON.stringify(prices));
-          }
-        }
-      } catch(e) {}
-    }
-    var _noOutputKeys = ['grok-imagine-image-2.0','gpt-image-2.5-sunburst','gemini-3.1-flash-image','mj_imagine'];
-    var PRICE_GROUPS = [
-      {label:'xAI 官方', pool:'xai-official', keys:['grok-4.7','grok-imagine-image-2.0']},
-      {label:'Anthropic 官方', pool:'anthropic-official', keys:['claude-sonnet-5-5','claude-opus-5-5']},
-      {label:'OpenAI 官方', pool:'openai-official', keys:['gpt-6-astra','gpt-5.6-sol','gpt-image-2.5-sunburst']},
-      {label:'Google 官方', pool:'google-official', keys:['gemini-3.8-flash','gemini-3.1-pro-preview','gemini-3.1-flash-image']},
-    ];
-    var priceRows = PRICE_GROUPS.map(function(group){
-      var groupId = 'pg-' + group.pool + '-' + group.label.replace(/[\s\.]+/g,'');
-      var rowsHtml = group.keys.map(function(k){
-        var p = prices[k] || DEFAULT_TOKEN_PRICES[k] || {input:0,output:0};
-        var noOut = _noOutputKeys.indexOf(k) !== -1;
-        return '<tr class="pg-row-'+groupId+'" style="display:none;">'
-          +'<td style="padding:8px 10px 8px 24px;font-size:12px;color:'+textClr+';white-space:nowrap;width:40%;">'+MODEL_LABELS[k]+'</td>'
-          +'<td style="padding:8px 6px;width:30%;text-align:right;"><input data-model="'+k+'" data-type="input" type="number" step="0.01" value="'+(p.input||0)+'" style="width:80px;background:'+inputBg+';border:1px solid '+inputBorder+';border-radius:6px;padding:4px 8px;color:'+textClr+';font-size:11px;font-family:\'Sora\',sans-serif;text-align:right;box-sizing:border-box;"></td>'
-          +(noOut?'<td style="padding:8px 6px;width:30%;"></td>':'<td style="padding:8px 6px;width:30%;text-align:right;"><input data-model="'+k+'" data-type="output" type="number" step="0.01" value="'+(p.output||0)+'" style="width:80px;background:'+inputBg+';border:1px solid '+inputBorder+';border-radius:6px;padding:4px 8px;color:'+textClr+';font-size:11px;font-family:\'Sora\',sans-serif;text-align:right;box-sizing:border-box;"></td>')
-          +'</tr>';
-      }).join('');
-      var headerRow = '<tr class="pg-header-'+groupId+'" style="cursor:pointer;" onclick="(function(){'
-        +'var rows=document.querySelectorAll(\'.pg-row-'+groupId+'\');'
-        +'var arrow=document.getElementById(\'pga-'+groupId+'\');'
-        +'var open=rows[0]&&rows[0].style.display!==\'none\';'
-        +'rows.forEach(function(r){r.style.display=open?\'none\':\'\'});'
-        +'if(arrow)arrow.textContent=open?\'▶\':\'▼\';'
-        +'})()">'
-        +'<td colspan="3" style="padding:8px 10px;font-size:12px;font-weight:600;color:'+textClr+';background:rgba(255,255,255,0.04);border-radius:6px;">'
-        +'<span id="pga-'+groupId+'" style="font-size:9px;color:#555;margin-right:6px;">▶</span>'
-        +group.label
-        +'<span style="font-size:10px;color:#555;font-weight:400;margin-left:6px;">· '+POOL_LABELS[group.pool]+'</span>'
-        +'</td>'
-        +'</tr>';
-      return headerRow + rowsHtml;
-    }).join('');
-    var panel = document.createElement('div');
-    panel.style.cssText = 'background:'+bg+';border:1px solid '+border+';border-radius:16px;padding:20px;width:100%;max-width:500px;box-shadow:0 16px 48px rgba(0,0,0,0.4);margin:auto;';
-    panel.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">'
-      +'<span style="font-size:15px;font-weight:700;color:'+textClr+';">💰 费用设置 & 用量</span>'
-      +'<button id="aaPricesClose" style="width:28px;height:28px;border-radius:8px;border:1px solid '+border+';background:rgba(255,255,255,0.05);color:'+subClr+';font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>'
-      +'</div>'
-      +'<div style="font-size:11px;color:'+subClr+';margin-bottom:10px;">单价 $/1M tokens，留0表示不计费</div>'
-      +'<div style="font-size:12px;font-weight:600;color:'+textClr+';margin-bottom:8px;margin-top:4px;">池子余额</div>'
-      +'<div style="margin-bottom:14px;">'
-      +Object.keys(POOL_LABELS).map(function(pid){
-        var topups = JSON.parse(localStorage.getItem('aa-pool-topups') || '{}');
-        var topupList = topups[pid] || [];
-        var totalTopup = topupList.reduce(function(a,b){ return a+b.amount; }, 0);
-        var s = getPoolSpent(pid);
-        var remaining = Math.max(totalTopup - s, 0);
-        return '<div style="background:rgba(255,255,255,0.03);border:1px solid '+border+';border-radius:10px;padding:10px 12px;margin-bottom:10px;">'
-          +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">'
-          +'<span style="font-size:12px;font-weight:600;color:'+textClr+';">'+POOL_LABELS[pid]+'</span>'
-          +'<span style="font-size:11px;color:'+(remaining>0?'#22c55e':subClr)+';font-weight:600;">余额 $'+remaining.toFixed(5)+'</span>'
-          +'</div>'
-          +'<div style="display:flex;gap:6px;margin-bottom:8px;">'
-          +'<div style="flex:1;text-align:center;background:rgba(99,102,241,0.08);border-radius:7px;padding:5px 4px;">'
-          +'<div style="font-size:9px;color:'+subClr+';margin-bottom:2px;">累计充值</div>'
-          +'<div style="font-size:11px;color:#a5b4fc;font-weight:600;">$'+totalTopup.toFixed(5)+'</div>'
-          +'</div>'
-          +'<div style="flex:1;text-align:center;background:rgba(239,68,68,0.06);border-radius:7px;padding:5px 4px;">'
-          +'<div style="font-size:9px;color:'+subClr+';margin-bottom:2px;">已消耗</div>'
-          +'<div style="font-size:11px;color:#f87171;font-weight:600;">$'+s.toFixed(5)+'</div>'
-          +'</div>'
-          +'</div>'
-          +'<div style="display:flex;gap:6px;align-items:center;">'
-          +'<input data-pool="'+pid+'" data-ptype="topup-amount" type="number" step="0.01" min="0" placeholder="充值金额 $" style="flex:1;background:'+inputBg+';border:1px solid '+inputBorder+';border-radius:6px;padding:4px 8px;color:'+textClr+';font-size:11px;font-family:\'Sora\',sans-serif;text-align:right;">'
-          +'<button data-pool="'+pid+'" data-action="do-topup" style="padding:4px 10px;border-radius:6px;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.3);color:#22c55e;font-size:11px;font-weight:600;cursor:pointer;font-family:\'Sora\',sans-serif;white-space:nowrap;">+ 充值</button>'
-          +'<button data-pool="'+pid+'" data-action="reset-spent" style="padding:4px 10px;border-radius:6px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);color:#f87171;font-size:11px;cursor:pointer;font-family:\'Sora\',sans-serif;white-space:nowrap;">重置用量</button>'
-          +'</div>'
-          +(topupList.length > 0 ? '<div style="margin-top:8px;border-top:1px solid '+border+';padding-top:6px;">'
-          +topupList.slice(-3).reverse().map(function(t, ri){
-            var actualIdx = topupList.length - 1 - ri;
-            return '<div id="aa-tr-'+pid+'-'+actualIdx+'" style="display:flex;justify-content:space-between;align-items:center;font-size:9px;color:'+subClr+';padding:2px 0;">'
-              +'<span>'+t.date+'</span>'
-              +'<span style="display:flex;align-items:center;gap:4px;">'
-              +'<span id="aa-ta-'+pid+'-'+actualIdx+'" style="color:#a5b4fc;">+$'+t.amount.toFixed(2)+'</span>'
-              +'<button onclick="window._aaTPEdit(\''+pid+'\','+actualIdx+','+t.amount+')" style="background:none;border:none;color:#555;font-size:10px;cursor:pointer;padding:0 2px;line-height:1;">✎</button>'
-              +'</span>'
-              +'</div>';
-          }).join('')
-          +(topupList.length > 3 ? '<div style="font-size:9px;color:'+subClr+';text-align:right;">...共'+topupList.length+'笔</div>' : '')
-          +'</div>' : '')
-          +'</div>';
-      }).join('')
-      +'</div>'
-      +'<div style="overflow-x:auto;margin-bottom:14px;">'
-      +'<table style="width:100%;border-collapse:collapse;">'
-      +'<thead><tr>'
-      +'<th style="padding:6px 10px;font-size:10px;color:'+subClr+';text-align:left;font-weight:600;letter-spacing:0.04em;width:40%;">模型</th>'
-      +'<th style="padding:6px 6px;font-size:10px;color:'+subClr+';text-align:right;font-weight:600;letter-spacing:0.04em;width:30%;">输入 $/1M</th>'
-      +'<th style="padding:6px 6px;font-size:10px;color:'+subClr+';text-align:right;font-weight:600;letter-spacing:0.04em;width:30%;">输出 $/1M</th>'
-      +'</tr></thead>'
-      +'<tbody>'+priceRows+'</tbody>'
-      +'</table>'
-      +'</div>'
-      +'<button id="aaPricesSave" style="width:100%;padding:9px;border-radius:10px;background:linear-gradient(135deg,rgba(99,102,241,0.3),rgba(139,92,246,0.25));border:1px solid rgba(139,92,246,0.5);color:#a5b4fc;font-size:13px;font-weight:600;cursor:pointer;font-family:\'Sora\',sans-serif;margin-bottom:20px;">保存单价</button>'
-      +'<div style="font-size:12px;font-weight:600;color:'+textClr+';margin-bottom:10px;border-top:1px solid '+border+';padding-top:16px;">累计用量</div>'
-      +'<div id="aaPricesUsage" style="font-size:12px;color:'+subClr+';text-align:center;padding:16px 0;">加载中...</div>';
-    overlay.appendChild(panel);
-    window._aaTPEdit = function(pid, idx, cur){
-      var el = document.getElementById('aa-ta-'+pid+'-'+idx);
-      if(!el) return;
-      var row = el.parentElement;
-      row.innerHTML = '<input id="aa-ti-'+pid+'-'+idx+'" type="number" step="0.01" value="'+cur+'" style="width:60px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);border-radius:4px;padding:2px 4px;color:#e8e8ee;font-size:9px;font-family:\'Sora\',sans-serif;text-align:right;">'
-        +'<button onclick="window._aaTPConfirm(\''+pid+'\','+idx+')" style="background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);border-radius:4px;padding:1px 5px;color:#86efac;font-size:9px;cursor:pointer;font-family:\'Sora\',sans-serif;margin-left:3px;">✓</button>';
-    };
-    window._aaTPConfirm = function(pid, idx){
-      var inp = document.getElementById('aa-ti-'+pid+'-'+idx);
-      if(!inp) return;
-      var newAmt = parseFloat(inp.value);
-      if(isNaN(newAmt)){ inp.style.borderColor='#ef4444'; return; }
-      var topups = JSON.parse(localStorage.getItem('aa-pool-topups') || '{}');
-      if(!topups[pid] || topups[pid][idx] === undefined){ return; }
-      topups[pid][idx].amount = newAmt;
-      localStorage.setItem('aa-pool-topups', JSON.stringify(topups));
-      var _u = sessionStorage.getItem('ai-arena-user') || '';
-      var _p = sessionStorage.getItem('ai-arena-hash') || '';
-      if(_u && _p){
-        fetch(WORKER + '/topup-edit', {
-          method: 'POST',
-          headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({username:_u, password:_p, pool:pid, index:idx, amount:newAmt})
-        }).catch(function(){});
-      }
-      var ov = document.getElementById('aaPricesOverlay');
-      if(ov) document.body.removeChild(ov);
-      showPricesPanel();
-    };
-    overlay.addEventListener('click', function(e){ if(e.target === overlay){ document.body.removeChild(overlay); } });
-    document.body.appendChild(overlay);
-    panel.querySelector('#aaPricesClose').addEventListener('click', function(){ document.body.removeChild(overlay); });
-    panel.querySelector('#aaPricesSave').addEventListener('click', function(){
-      var saved = JSON.parse(localStorage.getItem('aa-model-prices') || '{}');
-      panel.querySelectorAll('input[data-model]').forEach(function(inp){
-        var m = inp.dataset.model; var t = inp.dataset.type;
-        if(!saved[m]) saved[m] = {input:0,output:0};
-        saved[m][t] = parseFloat(inp.value) || 0;
-      });
-      localStorage.setItem('aa-model-prices', JSON.stringify(saved));
-      try {
-        var _mpUser = sessionStorage.getItem('ai-arena-user') || '';
-        var _mpPass = sessionStorage.getItem('ai-arena-hash') || '';
-        if (_mpUser && _mpPass) {
-          fetch(WORKER + '/model-prices', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username: _mpUser, password: _mpPass, prices: saved })
-          }).catch(function(){});
-        }
-      } catch(e) {}
-      var budgets = JSON.parse(localStorage.getItem('aa-pool-budgets') || '{}');
-      panel.querySelectorAll('input[data-pool][data-ptype="budget"]').forEach(function(inp){
-        budgets[inp.dataset.pool] = parseFloat(inp.value) || 0;
-      });
-      localStorage.setItem('aa-pool-budgets', JSON.stringify(budgets));
-      renderAllPoolBars();
-      var btn = panel.querySelector('#aaPricesSave');
-      btn.textContent = '✓ 已保存';
-      setTimeout(function(){ btn.textContent = '保存单价'; }, 1500);
-    });
-    panel.addEventListener('click', function(e){
-      var btn = e.target.closest('[data-action]');
-      if(!btn) return;
-      var pid = btn.dataset.pool;
-      var action = btn.dataset.action;
-      if(action === 'reset-spent'){
-        var spent = JSON.parse(localStorage.getItem('aa-pool-spent') || '{}');
-        spent[pid] = 0;
-        localStorage.setItem('aa-pool-spent', JSON.stringify(spent));
-        renderAllPoolBars();
-        document.body.removeChild(overlay);
-        showPricesPanel();
-      } else if(action === 'do-topup'){
-        var inp = panel.querySelector('input[data-pool="'+pid+'"][data-ptype="topup-amount"]');
-        var amount = parseFloat(inp ? inp.value : 0);
-        if(!amount || amount <= 0){ inp.style.borderColor='#ef4444'; setTimeout(function(){ inp.style.borderColor=''; },1000); return; }
-        var now = new Date();
-        var dateStr = now.getFullYear()+'/'+(now.getMonth()+1)+'/'+now.getDate();
-        var pass2 = getPass(); var user2 = ($('aaUsername').value || '').trim();
-        btn.textContent = '保存中...'; btn.disabled = true;
-        fetch(WORKER + '/topup', {
-          method: 'POST',
-          headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({username: user2, password: pass2, pool: pid, amount: amount, date: dateStr})
-        }).then(function(r){ return r.json(); })
-        .then(function(res){
-          if(res.ok){
-            var topups = JSON.parse(localStorage.getItem('aa-pool-topups') || '{}');
-            if(!topups[pid]) topups[pid] = [];
-            topups[pid].push({amount: amount, date: dateStr});
-            localStorage.setItem('aa-pool-topups', JSON.stringify(topups));
-            renderAllPoolBars();
-            document.body.removeChild(overlay);
-            showPricesPanel();
-          } else {
-            btn.textContent = '失败'; btn.disabled = false;
-            setTimeout(function(){ btn.textContent = '+ 充值'; }, 1500);
-          }
-        }).catch(function(){
-          btn.textContent = '网络错误'; btn.disabled = false;
-          setTimeout(function(){ btn.textContent = '+ 充值'; }, 1500);
-        });
-      }
-    });
-    // 加载用量
-    var pass = getPass(); var user = ($('aaUsername').value || '').trim();
-    if(!pass || !user){ document.getElementById('aaPricesUsage').textContent = '请先登录'; return; }
-    fetch(WORKER + '/pool-spent?user='+encodeURIComponent(user)+'&pass='+encodeURIComponent(pass))
-      .then(function(r){ return r.json(); })
-      .then(function(spentData){
-        if(spentData && spentData.spent){
-          localStorage.setItem('aa-pool-spent', JSON.stringify(spentData.spent));
-          renderAllPoolBars();
-        }
-      }).catch(function(){});
-    // 加载用量
-    var _usageUrl = WORKER + '/usage?user='+encodeURIComponent(user)+'&pass='+encodeURIComponent(pass);
-    if(user.toLowerCase() === 'oakleyyuen') _usageUrl += '&all=1';
-    fetch(_usageUrl)
-      .then(function(r){ return r.json(); })
-      .then(function(data){
-        var usageEl = document.getElementById('aaPricesUsage');
-        if(!usageEl) return;
-       var models = data.models || data;
-        if(!models || typeof models !== 'object' || !Object.keys(models).length || models.error){
-          usageEl.innerHTML = '<span style="color:'+subClr+';">暂无记录</span>'; return;
-        }
-        var prices2 = JSON.parse(localStorage.getItem('aa-model-prices') || '{}');
-        var USAGE_KEY_MAP = {
-          'claude-opus-4-6':'opus46-official','claude-sonnet-4-6':'sonnet46-official',
-          'gemini3-official':'gemini3-proxy'
-        };
-        var _isAdmin = user.toLowerCase() === 'oakleyyuen';
-
-        // Step 1: Parse into {userName: {frontendKey: {input,output,calls}}}
-        var byUser = {};
-        Object.keys(models).forEach(function(k){
-          var m = models[k];
-          if(!m || typeof m !== 'object') return;
-          var userMatch = k.match(/^usage:user:([^:]+):/);
-          var globalMatch = k.match(/^usage:global:/);
-          if(globalMatch) return; // skip global, we only want per-user
-          var userName = userMatch ? userMatch[1] : '_unknown';
-          var cleanKey = k.replace(/^usage:(user:[^:]+|global):/, '');
-          var frontendKey = USAGE_KEY_MAP[cleanKey] || cleanKey;
-          if(!byUser[userName]) byUser[userName] = {};
-          byUser[userName][frontendKey] = m;
-        });
-
-        // Step 2: Build nested structure: user → pool → models with costs
-        var USAGE_POOL_MAP = {
-          'grok-4.6':'quick','gpt-6-astra':'quick','gpt-5.6-sol':'quick',
-          'claude-fable-5-1':'quick','claude-opus-5':'quick',
-          'gemini-3.8-flash':'quick','gemini-3.1-pro-preview':'quick',
-          'grok-imagine-image-2.0':'quick','gpt-image-2.5-sunburst':'quick',
-          'gemini-3.1-flash-image':'quick','mj_imagine':'quick',
-          'grok41-official':'xai-official','grok41-biz-official':'xai-official','grok420-multiagent':'xai-official','grok-image-2':'xai-official',
-          'sonnet46-official':'anthropic-official','opus46-official':'anthropic-official',
-          'sonnet-thinking':'aipro','opus-thinking':'aipro','gemini31high-official':'aipro',
-          'gpt52-official':'openai-official','gpt54-official':'openai-official','gpt-4o-mini-search-preview':'openai-official','codex-official':'openai-official',
-          'gemini31-official':'google-official','nanbanana2-official':'google-official',
-          'grok41-proxy':'ai-proxy','sonnet46-proxy':'ai-proxy','opus46-proxy':'ai-proxy',
-          'gpt52-proxy':'ai-proxy','gpt54-proxy':'ai-proxy','gpt4o-proxy':'ai-proxy','codex-proxy':'ai-proxy',
-          'gemini31-proxy':'ai-proxy','gemini3-proxy':'ai-proxy','kling25-i2v':'ai-proxy',
-          'mj-imagine':'mj','mj-describe':'mj','mj-blend':'mj','mj-variation':'mj',
-          'mj-upscale':'mj','mj-zoom':'mj','swap-face':'mj'
-        };
-        var USAGE_POOL_LABELS = {
-          'quick':'切换前历史接口（含中转）',
-          'xai-official':'xAI 官方','anthropic-official':'Anthropic 官方','openai-official':'OpenAI 官方',
-          'google-official':'Google 官方','ai-proxy':'Jiekou.ai','aipro':'哈基米','mj':'Patrovia'
-        };
-
-        var grandTotal = 0;
-        var mergedPools = {};
-        Object.keys(byUser).forEach(function(uname){
-          var userModels = byUser[uname];
-          Object.keys(userModels).forEach(function(fk){
-            var m = userModels[fk];
-            var officialUsage = fk.indexOf('official~') === 0;
-            var modelKey = officialUsage ? fk.slice(9) : fk;
-            var poolId = (officialUsage ? POOL_MAP[modelKey] : USAGE_POOL_MAP[fk]) || 'other';
-            var p2 = prices2[modelKey] || {input:0,output:0};
-            var cost = typeof m.cost === 'number' ? m.cost : ((m.input||0)/1000000)*p2.input + ((m.output||0)/1000000)*p2.output;
-            if(!mergedPools[poolId]) mergedPools[poolId] = 0;
-            mergedPools[poolId] += cost;
-            grandTotal += cost;
-          });
-        });
-
-        var usageHtml = '<div style="margin-bottom:12px;border:1px solid '+border+';border-radius:10px;overflow:hidden;padding:8px;">';
-        var poolOrder = ['xai-official','anthropic-official','openai-official','google-official','quick','ai-proxy','aipro','mj','other'];
-        poolOrder.forEach(function(pid){
-          if(mergedPools[pid] === undefined) return;
-          var poolLabel = USAGE_POOL_LABELS[pid] || pid;
-          usageHtml += '<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:rgba(255,255,255,0.04);border-radius:7px;margin-top:6px;">'
-            +'<span style="font-size:12px;font-weight:600;color:'+textClr+';">'+esc(poolLabel)+'</span>'
-            +'<span style="font-size:12px;color:#a5b4fc;font-weight:600;">$'+mergedPools[pid].toFixed(4)+'</span>'
-            +'</div>';
-        });
-        usageHtml += '</div>';
-
-        // Grand total
-        usageHtml += '<div style="display:flex;justify-content:space-between;padding:10px 14px;border-top:2px solid '+border+';margin-top:8px;">'
-          +'<span style="font-size:13px;font-weight:700;color:'+textClr+';">总计</span>'
-          +'<span style="font-size:14px;font-weight:700;color:#f59e0b;">$'+grandTotal.toFixed(4)+'</span>'
-          +'</div>';
-
-        usageEl.innerHTML = usageHtml;
-      })
-      .catch(function(err){ console.error('Usage render error:', err); var el=document.getElementById('aaPricesUsage'); if(el) el.textContent='加载失败：'+err.message; });
-  }
 
   // Track which brand is expanded and which submodel is selected per brand
   
@@ -2820,9 +2365,13 @@ var TEAM_COLORS = {
     return Array.from(new Uint8Array(buf)).map(function(b){ return b.toString(16).padStart(2,'0'); }).join('');
   }
   function getPass(){ return _passHash; }
+  function loginName(value){
+    var name = String(value || '').trim();
+    return /^(oakley|oakleyyuen)$/i.test(name) ? 'Oakley' : name;
+  }
   async function savePass(){
     var raw = $('aaPassword').value;
-    sessionStorage.setItem('ai-arena-user', $('aaUsername').value);
+    sessionStorage.setItem('ai-arena-user', loginName($('aaUsername').value));
     if(raw.length >= 8){
       _passHash = await hashText(raw);
       sessionStorage.setItem('ai-arena-hash', _passHash);
@@ -2833,11 +2382,11 @@ var TEAM_COLORS = {
     var h = sessionStorage.getItem('ai-arena-hash');
     if(h){ _passHash = h; $('aaPassword').value = '••••••••'; }
     var u = sessionStorage.getItem('ai-arena-user');
-    if(u) $('aaUsername').value = u;
+    if(u){ u = loginName(u); $('aaUsername').value = u; sessionStorage.setItem('ai-arena-user', u); }
   }
   function updateGearBtn(){
     if($('aaAccountName')){
-      var accountName = $('aaUsername').value.trim() || '我的账号';
+      var accountName = loginName($('aaUsername').value) || '我的账号';
       $('aaAccountName').textContent = accountName;
       $('aaAccountAvatar').textContent = accountName.slice(0,1).toUpperCase();
       $('aaPanelAccountName').textContent = accountName;
@@ -2874,7 +2423,9 @@ var TEAM_COLORS = {
     }
   });
   loadPass(); updateGearBtn();
-  $('aaUsername').addEventListener('input', savePass);
+  $('aaUsername').addEventListener('input', function(){ sessionStorage.setItem('ai-arena-user', loginName(this.value)); updateGearBtn(); });
+  $('aaUsername').addEventListener('blur', function(){ this.value = loginName(this.value); sessionStorage.setItem('ai-arena-user', this.value); updateGearBtn(); });
+  $('aaLoginUser').addEventListener('blur', function(){ this.value = loginName(this.value); });
   $('aaPassword').addEventListener('input', function(){
     _passHash = null;
     savePass();
@@ -3189,8 +2740,6 @@ var TEAM_COLORS = {
           var _nbSavedP2 = JSON.parse(localStorage.getItem('aa-model-prices') || '{}');
           var _nbSizeKey2 = 'nb2-' + size;
           var _nbCost2 = (_nbSavedP2[_nbSizeKey2] && _nbSavedP2[_nbSizeKey2].input) ? _nbSavedP2[_nbSizeKey2].input : 0;
-          var _nbPool2 = getSubPool('nanbanana2-official');
-          if(_nbPool2 && _nbCost2 > 0) addPoolSpent(_nbPool2, _nbCost2);
           msgObj.usageStr = size + (_nbCost2 > 0 ? ' · $' + _nbCost2.toFixed(4) : '');
           if(firstChunk){ firstChunk=false; hideThink('nanbanana2-official'); msgs.push(msgObj); }
           render(); return;
@@ -4328,7 +3877,6 @@ function initPersonaDragDrop(){
   $('aaHistoryBtn').addEventListener('click', openHistory);
   $('aaHistoryClose').addEventListener('click', function(){ closeHistory(); if(window.matchMedia('(min-width: 901px)').matches) $('ai-arena-app').classList.add('arena-sidebar-collapsed'); syncArenaNavigation(); $('aaHistoryBtn').focus(); });
   $('aaHistoryOverlay').addEventListener('click', closeHistory);
-  document.addEventListener('click', function(e){ if(e.target && e.target.closest('#aaPricesBtn')) showPricesPanel(); });
   $('aaNewBtn').addEventListener('click', function(){
     if(msgs.length && currentChatId) saveCurrentChat();
     currentChatId = genChatId();
@@ -4490,6 +4038,9 @@ function initPersonaDragDrop(){
 
   // === Render messages ===
   function render(){
+    msgs.forEach(function(message){
+      if(message.isUser && /^(oakley|oakleyyuen|oakley suen)$/i.test(message.name || '')) message.name = 'Oakley';
+    });
     syncArenaLayout();
     renderHistoryList();
     if(_skipNextChatSave) _skipNextChatSave = false;
@@ -4808,7 +4359,7 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
     btn.onclick = function(){ abortF = true; hideThink(); finish(); };
     $('aaSidebar').classList.add('hidden'); $('aaGearBtn').classList.remove('active');
     var _rawName = $('aaUsername').value.trim() || '用户';
-    var CHAT_DISPLAY_NAMES = {'oakleyyuen':'Oakley Suen','doctor.wang':'Doctor.Wang','zty007007990':'Zty'};
+    var CHAT_DISPLAY_NAMES = {'oakleyyuen':'Oakley','oakley':'Oakley','doctor.wang':'Doctor.Wang','zty007007990':'Zty'};
     var userName = CHAT_DISPLAY_NAMES[_rawName.toLowerCase()] || _rawName;
     var _isSwap = false;
     var _swapImgs = _isSwap ? sentImgs.slice(0,2) : null;
@@ -5193,15 +4744,11 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
               if(sub === 'kling25-i2v'){
                 var _klingSavedPrices = JSON.parse(localStorage.getItem('aa-model-prices') || '{}');
                 var _klingCost = (_klingSavedPrices['kling25-i2v'] && _klingSavedPrices['kling25-i2v'].input) ? _klingSavedPrices['kling25-i2v'].input : 0;
-                var _klingPool = getSubPool('kling25-i2v');
-                if(_klingPool && _klingCost > 0) addPoolSpent(_klingPool, _klingCost);
                 msgObj.usageStr = 'Kling V2.5' + (_klingCost > 0 ? ' · $' + _klingCost.toFixed(4) : '');
               }
               var _imageSavedPrices = JSON.parse(localStorage.getItem('aa-model-prices') || '{}');
               if(['grok-imagine-image-2.0','gpt-image-2.5-sunburst','gemini-3.1-flash-image','mj_imagine'].indexOf(sub) !== -1){
                 var _imageCost = (_imageSavedPrices[sub] && _imageSavedPrices[sub].input) ? _imageSavedPrices[sub].input : 0;
-                var _imagePool = getSubPool(sub);
-                if(_imagePool && _imageCost > 0) addPoolSpent(_imagePool, _imageCost);
                 if(_imageCost > 0) msgObj.usageStr += ' · $' + _imageCost.toFixed(4);
               }
               if(firstChunk){ firstChunk=false; hideThink(sub); msgs.push(msgObj); }
@@ -5225,7 +4772,6 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
                   msgObj.usageCost = cost;
                   msgObj.usageStr = 'in:' + usageData.input + ' out:' + usageData.output + (cost > 0 ? ' · 估算 $' + cost.toFixed(4) : '');
                 }
-                if(cost > 0){ var _pool = getSubPool(msgObj.submodel || sub); if(_pool) addPoolSpent(_pool, cost); }
                 var el = document.querySelector('[data-uid="'+uid+'"]');
                 if(el){
                   var existing = el.querySelector('.aa-usage-tag');
@@ -5589,7 +5135,8 @@ if(debateMode === '2v2'){
     setTimeout(function(){ $('aaLoginUser').focus(); }, 100);
   }
  async function attemptLogin(){
-    var user = $('aaLoginUser').value.trim();
+    var user = loginName($('aaLoginUser').value);
+    $('aaLoginUser').value = user;
     var pass = $('aaLoginPass').value;
     if(!user){ $('aaLoginErr').textContent = '请输入用户名'; return; }
     if(pass.length < 8){ $('aaLoginErr').textContent = '密码至少 8 位'; return; }
@@ -5995,8 +5542,6 @@ if(debateMode === '2v2'){
         var _mjActSavedPrices = JSON.parse(localStorage.getItem('aa-model-prices') || '{}');
         var _mjActSub = brandSelection['mj'] || 'mj-imagine';
         var _mjActCost = (_mjActSavedPrices[_mjActSub] && _mjActSavedPrices[_mjActSub].input) ? _mjActSavedPrices[_mjActSub].input : 0;
-        var _mjActPool = getSubPool('mj-imagine');
-        if(_mjActPool && _mjActCost > 0) addPoolSpent(_mjActPool, _mjActCost);
         msgObj.usageStr = (SUBS[_mjActSub] ? SUBS[_mjActSub].name : _mjActSub) + (_mjActCost > 0 ? ' · $' + _mjActCost.toFixed(4) : '');
         if(firstChunk){ firstChunk=false; hideThink('mj-imagine'); msgs.push(msgObj); }
         render(); return;
@@ -6055,7 +5600,7 @@ if(debateMode === '2v2'){
     syncImageComposer();
   }
   var _origSyncBrandUI = syncBrandUI;
-  syncBrandUI = function(){ _origSyncBrandUI(); syncNbOptions(); syncJudgeUI(); renderAllPoolBars(); syncArenaLayout(); };
+  syncBrandUI = function(){ _origSyncBrandUI(); syncNbOptions(); syncJudgeUI(); syncArenaLayout(); };
   $('aaMessages').addEventListener('click', async function(e){
     var button = e.target.closest('[data-copy-message]');
     if(!button) return;
@@ -6369,30 +5914,7 @@ if(imageMode){
       dot.style.background = ok ? '#22c55e' : '#ef4444';
       dot.style.boxShadow = ok ? '0 0 5px rgba(34,197,94,0.7)' : '0 0 5px rgba(239,68,68,0.7)';
     });
-    var healthVal = ok ? '1' : '0';
-    var poolMap = {
-      'quick': 'quick',
-      'official-xai': 'xai-official',
-      'official-anthropic': 'anthropic-official',
-      'official-openai': 'openai-official',
-      'official-google': 'google-official',
-      'proxy': 'ai-proxy',
-      'mj-pool': 'mj',
-      'hajimi': 'aipro'
-    };
-    var poolId = poolMap[selector];
-    if(poolId){
-      ['xai','anthropic','openai','google','mj'].forEach(function(brand){
-        var bar = document.getElementById('aaPoolBar-'+brand);
-        if(!bar) return;
-        var sub = brandSelection[brand];
-        var barPool = getSubPool(sub);
-        if(barPool === poolId){
-          bar.dataset.healthy = healthVal;
-          renderPoolBar(bar, poolId);
-        }
-      });
-    }
+
   }
   function checkStatus(){
     fetch(WORKER, { method: 'GET' })

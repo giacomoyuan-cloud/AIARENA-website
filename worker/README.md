@@ -1,6 +1,6 @@
 # AI 助手 official API Worker
 
-The browser remains on Cloudflare Pages. `worker.js` serves the existing `ai` Worker at `api.pickandcase.com` and keeps its existing login, chats, memory, price settings and KV bindings.
+The browser remains on Cloudflare Pages. `worker.js` serves the existing `ai` Worker at `api.pickandcase.com` and keeps its existing login, chats, memory and KV bindings.
 
 ## Provider routes
 
@@ -13,7 +13,7 @@ The browser remains on Cloudflare Pages. `worker.js` serves the existing `ai` Wo
 
 There is no third-party fallback. Missing official keys produce a 503; provider errors reach the page. The Worker no longer references `QUICK`, `JIEKOU_API_KEY`, `HAJIMI_API_KEY` or `MJ_API_KEY`. Existing secret bindings are retained in Cloudflare and do not need to be deleted to stop their use.
 
-The browser model menu is a flat deployment allowlist and hides provider routes that have not completed live acceptance. The image menu exposes only the verified image route. Historical conversation labels remain readable for compatibility. Cached requests using `grok-4.6` upgrade to `grok-4.7`; returned model names and new usage records identify 4.7. Earlier Claude backend routes remain available for compatibility.
+The browser model menu uses a deployment allowlist and hides provider routes that have not completed live acceptance. The image menu exposes only the verified image route. Historical conversation labels remain readable for compatibility. Cached requests using `grok-4.6` upgrade to `grok-4.7`; returned model names and new usage records identify 4.7. Earlier Claude backend routes remain available for compatibility.
 
 Midjourney has no generally available public official API. It is not shown in the active model menu. The already inactive legacy Kling route remains unavailable until an official integration and its credentials are configured.
 
@@ -35,7 +35,7 @@ Streaming `status` events reflect provider thinking, web search and answer event
 
 The shared Markdown renderer keeps currency literal, preserves repeated source lines, supports inline formatting in table cells, and escapes raw HTML. Check it with `node --test arena-markdown.test.cjs` from the repository root, in addition to the Worker tests.
 
-New usage records include `official~` in their model key so earlier aggregate records are not reclassified as official traffic. Earlier records remain in place. User-entered prices remain estimates; this migration does not replace provider billing records.
+New usage records include `official~` in their model key so earlier aggregate records are not reclassified as official traffic. Earlier records remain in place. Per-message cost amounts remain estimates, not provider billing records. Manual credit pools and cost settings have been removed; their old stored data is left untouched.
 
 Run the offline routing and streaming tests with:
 
@@ -71,3 +71,7 @@ The native binding transport follows [Cloudflare's official Agents SDK implement
 ## Source and activity rendering
 
 Anthropic search queries/results and citation deltas, and Responses search items/URL annotations, are forwarded as separate metadata. Only HTTP(S) source URLs without embedded credentials are linked. Encrypted search content and encrypted citation indexes are omitted. The client stores citation and public activity metadata with the message and renders source chips, focus/hover preview cards, and expandable activity rows. Source previews use returned metadata and do not fetch arbitrary websites. Existing cached clients may ignore the additional stream fields.
+
+## Account display and login name
+
+The public login and display name is `Oakley`. Existing sessions normalize the legacy name without changing their password hash. If `user:oakley` is absent, requests using Oakley resolve to the existing account and its historical KV keys. A separately registered Oakley account takes precedence to avoid account collisions. No credential records are rewritten.
