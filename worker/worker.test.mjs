@@ -24,7 +24,7 @@ function request(model, extra={}) { return new Request('https://api.pickandcase.
 function events(text) { return text.split('\n').filter(line=>line.startsWith('data: ')&&line!=='data: [DONE]').map(line=>JSON.parse(line.slice(6))); }
 function mockFetch(t, handler) {
   const calls=[];
-  t.mock.method(globalThis,'fetch',async (url,options={})=>{ calls.push({url:String(url),options}); assert.ok(['api.anthropic.com','api.openai.com','api.x.ai','generativelanguage.googleapis.com'].includes(new URL(url).hostname),'outbound requests must go to an official host'); return handler(String(url),options); });
+  t.mock.method(globalThis,'fetch',async (url,options={})=>{ calls.push({url:String(url),options}); assert.ok(['api.anthropic.com','api.openai.com','api.x.ai','generativelanguage.googleapis.com'].includes(new URL(url).hostname),'outbound requests must go to an official host'); assert.equal(options.redirect,'manual','credentials must not follow redirects; this mode is supported by the production runtime'); return handler(String(url),options); });
   return calls;
 }
 
@@ -43,7 +43,7 @@ for(const [model,host,binding] of [
 
 for(const model of ['claude-fable-5-1','claude-opus-5']) test(model+' uses Anthropic and merges stream token usage',async t=>{
   const {env}=setup();
-  mockFetch(t,(url,options)=>{ assert.equal(url,'https://api.anthropic.com/v1/messages'); assert.equal(options.headers['x-api-key'],env.ANTHROPIC_API_KEY); assert.equal(JSON.parse(options.body).model,model); return stream([{type:'message_start',message:{usage:{input_tokens:23,output_tokens:1}}},{type:'content_block_delta',delta:{type:'text_delta',text:'Claude 官方'}},{type:'message_delta',usage:{output_tokens:9}}]); });
+  mockFetch(t,(url,options)=>{ assert.equal(url,'https://api.anthropic.com/v1/messages'); assert.equal(options.headers.Authorization,'Bearer '+env.ANTHROPIC_API_KEY); assert.equal(JSON.parse(options.body).model,model); return stream([{type:'message_start',message:{usage:{input_tokens:23,output_tokens:1}}},{type:'content_block_delta',delta:{type:'text_delta',text:'Claude 官方'}},{type:'message_delta',usage:{output_tokens:9}}]); });
   const output=events(await (await worker.fetch(request(model),env)).text());
   assert.equal(output.filter(value=>value.t).map(value=>value.t).join(''),'Claude 官方');
   assert.deepEqual(output.find(value=>value.usage).usage,{input:23,output:9});
@@ -114,6 +114,15 @@ test('stream errors reach the page instead of being swallowed',async t=>{
   const text=await (await worker.fetch(request('claude-opus-5'),env)).text(); assert.match(text,/upstream stream failure/);
 });
 
+test('provider redirects fail once without forwarding credentials to another host',async t=>{
+  const {env}=setup();
+  const calls=mockFetch(t,()=>new Response(null,{status:307,headers:{Location:'https://example.invalid/redirect'}}));
+  const text=await (await worker.fetch(request('claude-opus-5'),env)).text();
+  assert.equal(calls.length,1);
+  assert.match(text,/HTTP 307/);
+  assert.ok(!text.includes(env.ANTHROPIC_API_KEY));
+});
+
 test('worker contains no third-party credential or API references',async()=>{
   const source=await readFile(new URL('./worker.js',import.meta.url),'utf8');
   assert.doesNotMatch(source,/env\.(QUICK|JIEKOU_API_KEY|HAJIMI_API_KEY|MJ_API_KEY)\b/);
@@ -132,7 +141,7 @@ test('new official usage does not overwrite the previous aggregate',async t=>{
 
 test('memory extraction retains the official Anthropic route and stores text only',async t=>{
   const {env,data}=setup();
-  mockFetch(t,(url,options)=>{ assert.equal(url,'https://api.anthropic.com/v1/messages'); assert.equal(options.headers['x-api-key'],env.ANTHROPIC_API_KEY); return Response.json({content:[{type:'thinking',thinking:'not memory'},{type:'text',text:'User prefers concise answers.'}]}); });
+  mockFetch(t,(url,options)=>{ assert.equal(url,'https://api.anthropic.com/v1/messages'); assert.equal(options.headers.Authorization,'Bearer '+env.ANTHROPIC_API_KEY); return Response.json({content:[{type:'thinking',thinking:'not memory'},{type:'text',text:'User prefers concise answers.'}]}); });
   const response=await worker.fetch(new Request('https://api.pickandcase.com/memory',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user:'tester',password,conversation:'A test-only conversation'})}),env);
   assert.equal(response.status,200);
   assert.equal(data.get('mem:tester'),'User prefers concise answers.');

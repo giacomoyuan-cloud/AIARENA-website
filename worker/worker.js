@@ -224,7 +224,8 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
       try {
         const res = await fetch("https://api.anthropic.com/v1/messages", {
           method: "POST",
-          headers: { "Content-Type": "application/json", "x-api-key": env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
+          redirect: "manual",
+          headers: { "Content-Type": "application/json", Authorization: "Bearer " + env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
           body: JSON.stringify({
             model: "claude-haiku-4-5-20251001",
             max_tokens: 1024,
@@ -583,7 +584,7 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
     async function fetchRetry(url, options) {
       let response;
       for (let attempt = 0; attempt < 2; attempt++) {
-        response = await fetch(url, options);
+        response = await fetch(url, { ...options, redirect: "manual" });
         if (response.ok || ![429, 500, 502, 503, 504].includes(response.status)) return response;
         if (attempt === 0) {
           await response.body?.cancel();
@@ -615,7 +616,7 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
       let payload;
       if (config.provider === "anthropic") {
         endpoint = "https://api.anthropic.com/v1/messages";
-        headers = { "Content-Type": "application/json", "x-api-key": env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" };
+        headers = { "Content-Type": "application/json", Authorization: "Bearer " + env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" };
         payload = { model, max_tokens: config.maxTokens, stream: true, messages: [{ role: "user", content: buildAnthropicContent(prompt, image, imageMime) }] };
         if (search) payload.tools = [{ type: "web_search_20250305", name: "web_search", max_uses: 3 }];
       } else if (config.provider === "google") {
@@ -711,7 +712,7 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
         requestBody = JSON.stringify(payload);
       }
       // Image generation is never retried automatically: a retry could duplicate billing.
-      const response = await fetch(endpoint, { method: "POST", headers, body: requestBody });
+      const response = await fetch(endpoint, { method: "POST", headers, body: requestBody, redirect: "manual" });
       if (!response.ok) throw new Error(await getUpstreamError(response, config.provider + " 官方图片接口请求失败"));
       const data = await response.json();
       if (config.provider === "google") {
