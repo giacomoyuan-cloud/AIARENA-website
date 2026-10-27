@@ -8,7 +8,9 @@ async function hashText(t) {
 }
 __name(hashText, "hashText");
 const OFFICIAL_MODELS = {
-  "grok-4.6": { provider: "xai", binding: "GROK_API_KEY", name: "Grok 4.6", maxTokens: 128000 },
+  "grok-4.7": { provider: "xai", binding: "GROK_API_KEY", name: "Grok 4.7", maxTokens: 128000 },
+  "claude-opus-5-5": { provider: "anthropic", binding: "ANTHROPIC_API_KEY", name: "Claude Opus 5.5", maxTokens: 128000 },
+  "claude-sonnet-5-5": { provider: "anthropic", binding: "ANTHROPIC_API_KEY", name: "Claude Sonnet 5.5", maxTokens: 128000 },
   "gpt-6-astra": { provider: "openai", binding: "OPENAI_API_KEY", name: "GPT-6 Astra", maxTokens: 128000 },
   "gpt-5.6-sol": { provider: "openai", binding: "OPENAI_API_KEY", name: "GPT-5.6 Sol", maxTokens: 128000 },
   "claude-fable-5-1": { provider: "anthropic", binding: "ANTHROPIC_API_KEY", name: "Claude Fable 5.1", maxTokens: 64000 },
@@ -371,7 +373,9 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
     } catch {
       return new Response("Invalid JSON", { status: 400 });
     }
-    const { password, model, prompt, search, image = null, imageMime = null, images = null } = body;
+    const { password, model: requestedModel, prompt, search, image = null, imageMime = null, images = null } = body;
+    // Cached clients using the previous Grok ID upgrade to the same canonical model and usage key.
+    const model = requestedModel === "grok-4.6" ? "grok-4.7" : requestedModel;
     const allImages = images && images.length ? images : image ? [{ data: image, mime: imageMime || "image/jpeg" }] : [];
     const MAX_IMAGE_BASE64_LEN = 14 * 1024 * 1024;
     if (image && image.length > MAX_IMAGE_BASE64_LEN) {
@@ -407,6 +411,10 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
         ? "Midjourney 未提供通用公开官方 API，本网站已停止中转调用"
         : "该模型未启用官方 API，请刷新后选择当前官方模型";
       return new Response(JSON.stringify({ error: reason }), { status: 400, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
+    }
+    const outputLimit = body.maxOutputTokens === undefined ? modelConfig.maxTokens : body.maxOutputTokens;
+    if (!modelConfig.image && (!Number.isInteger(outputLimit) || outputLimit < 32 || outputLimit > modelConfig.maxTokens)) {
+      return new Response(JSON.stringify({ error: "maxOutputTokens must be an integer between 32 and the model output limit" }), {status:400,headers:{"Content-Type":"application/json","Access-Control-Allow-Origin":"*"}});
     }
     if (!env[modelConfig.binding]) {
       return new Response(JSON.stringify({ error: modelConfig.provider + " 官方密钥尚未配置：" + modelConfig.binding }), { status: 503, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
@@ -635,18 +643,18 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
       if (config.provider === "anthropic") {
         endpoint = "https://api.anthropic.com/v1/messages";
         headers = { "Content-Type": "application/json", Authorization: "Bearer " + env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" };
-        payload = { model, max_tokens: config.maxTokens, stream: true, messages: [{ role: "user", content: buildAnthropicContent(prompt, image, imageMime) }] };
+        payload = { model, max_tokens: outputLimit, stream: true, messages: [{ role: "user", content: buildAnthropicContent(prompt, image, imageMime) }] };
         if (search) payload.tools = [{ type: "web_search_20250305", name: "web_search", max_uses: 3 }];
       } else if (config.provider === "google") {
         endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse`;
         headers = { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY };
-        payload = { contents: [{ parts: buildGeminiParts(prompt, image, imageMime) }], generationConfig: { maxOutputTokens: config.maxTokens } };
+        payload = { contents: [{ parts: buildGeminiParts(prompt, image, imageMime) }], generationConfig: { maxOutputTokens: outputLimit } };
         if (search) payload.tools = [{ google_search: {} }];
       } else {
         const isXai = config.provider === "xai";
         endpoint = isXai ? "https://api.x.ai/v1/responses" : "https://api.openai.com/v1/responses";
         headers = { "Content-Type": "application/json", Authorization: "Bearer " + env[config.binding] };
-        payload = { model, input: buildOpenAIResponsesInput(prompt, image, imageMime), stream: true, store: false, max_output_tokens: config.maxTokens };
+        payload = { model, input: buildOpenAIResponsesInput(prompt, image, imageMime), stream: true, store: false, max_output_tokens: outputLimit };
         if (search) payload.tools = [{ type: "web_search" }];
       }
       const response = await fetchRetry(endpoint, { method: "POST", headers, body: JSON.stringify(payload) });
