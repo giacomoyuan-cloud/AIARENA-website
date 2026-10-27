@@ -24,7 +24,7 @@ function request(model, extra={}) { return new Request('https://api.pickandcase.
 function events(text) { return text.split('\n').filter(line=>line.startsWith('data: ')&&line!=='data: [DONE]').map(line=>JSON.parse(line.slice(6))); }
 function mockFetch(t, handler) {
   const calls=[];
-  t.mock.method(globalThis,'fetch',async (url,options={})=>{ calls.push({url:String(url),options}); assert.ok(['api.anthropic.com','api.openai.com','api.x.ai','generativelanguage.googleapis.com'].includes(new URL(url).hostname),'outbound requests must go to an official host'); assert.equal(options.redirect,'manual','credentials must not follow redirects; this mode is supported by the production runtime'); return handler(String(url),options); });
+  t.mock.method(globalThis,'fetch',async (url,options={})=>{ calls.push({url:String(url),options}); assert.ok(['api.anthropic.com','api.openai.com','api.x.ai','management-api.x.ai','generativelanguage.googleapis.com'].includes(new URL(url).hostname),'outbound requests must go to an official host'); assert.equal(options.redirect,'manual','credentials must not follow redirects; this mode is supported by the production runtime'); return handler(String(url),options); });
   return calls;
 }
 
@@ -309,4 +309,123 @@ test('cached Grok 4.6 clients upgrade to 4.7 with the actual model name and usag
   assert.equal(output.find(row=>row.modelName).modelName,'Grok 4.7');
   assert.equal(JSON.parse(data.get('usage:user:tester:official~grok-4.7')).calls,1);
   assert.equal(data.has('usage:user:tester:official~grok-4.6'),false);
+});
+
+function balanceSetup() {
+  const {env,data}=setup();
+  data.set('user:owner',JSON.stringify({hash:password}));
+  data.set('user:other',JSON.stringify({hash:password}));
+  env.BALANCE_VIEWERS='owner';
+  env.XAI_TEAM_ID='00000000-1111-2222-3333-444444444444';
+  env.XAI_MANAGEMENT_API_KEY='test-only-management-key';
+  return {env,data};
+}
+function balanceRequest(body={user:'owner',password}, method='POST') {
+  return new Request('https://api.pickandcase.com/account-balances',{method,headers:{'Content-Type':'application/json'},...(method==='POST'?{body:JSON.stringify(body)}:{})});
+}
+
+test('balances require a registered account and never trust the shared site password alone',async t=>{
+  const {env}=balanceSetup();const calls=mockFetch(t,()=>{throw new Error('unexpected fetch');});
+  for(const body of [{},{user:'missing',password},{user:'owner',password:'wrong'},null,[]]) {
+    const response=await worker.fetch(balanceRequest(body),env);
+    assert.ok([400,401].includes(response.status));
+  }
+  assert.equal((await worker.fetch(balanceRequest(undefined,'GET'),env)).status,405);
+  assert.equal(calls.length,0);
+});
+
+test('other accounts cannot view owner balances or trigger management requests',async t=>{
+  const {env}=balanceSetup();const calls=mockFetch(t,()=>{throw new Error('unexpected fetch');});
+  const response=await worker.fetch(balanceRequest({user:'other',password}),env),body=await response.json();
+  assert.equal(body.canViewBalances,false);
+  assert.ok(body.providers.every(provider=>provider.balanceUSD===null));
+  assert.equal(calls.length,0);
+  assert.equal(response.headers.get('Cache-Control'),'no-store');
+});
+
+test('missing management access is represented as unconnected rather than zero credit',async t=>{
+  const {env}=balanceSetup();delete env.XAI_MANAGEMENT_API_KEY;
+  const calls=mockFetch(t,()=>{throw new Error('unexpected fetch');});
+  const body=await (await worker.fetch(balanceRequest(),env)).json();
+  assert.equal(body.providers[1].status,'needs_setup');assert.equal(body.providers[1].balanceUSD,null);
+  assert.equal(calls.length,0);
+});
+
+test('an unconfigured viewer allowlist fails closed without exposing financial data',async t=>{
+  const {env}=balanceSetup();delete env.BALANCE_VIEWERS;
+  const calls=mockFetch(t,()=>{throw new Error('unexpected fetch');});
+  const body=await (await worker.fetch(balanceRequest(),env)).json();
+  assert.equal(body.canViewBalances,false);assert.equal(body.setupRequired,true);
+  assert.ok(body.providers.every(provider=>provider.balanceUSD===null));assert.equal(calls.length,0);
+});
+
+test('xAI balance requests use only the management key and preserve ledger sign and cents',async t=>{
+  const {env}=balanceSetup();let value;
+  const calls=mockFetch(t,(url,options)=>{
+    assert.equal(url,'https://management-api.x.ai/v1/billing/teams/'+env.XAI_TEAM_ID+'/prepaid/balance');
+    assert.equal(options.method,'GET');assert.equal(options.headers.Authorization,'Bearer '+env.XAI_MANAGEMENT_API_KEY);
+    assert.ok(!JSON.stringify(options).includes(env.GROK_API_KEY));
+    return Response.json({total:{val:value},changes:[{private:'must not be returned'}]});
+  });
+  for(const [raw,expected] of [['-2050','20.50'],['0','0.00'],['250','-2.50'],['-900719925474099301','9007199254740993.01']]) {
+    value=raw;const response=await worker.fetch(balanceRequest(),env),body=await response.json();
+    assert.equal(body.providers[1].balanceUSD,expected);assert.equal(body.providers[1].status,'live');
+    assert.ok(Number.isFinite(Date.parse(body.providers[1].checkedAt)));
+    assert.ok(!JSON.stringify(body).includes('must not be returned'));
+  }
+  assert.equal(calls.length,4);
+});
+
+test('malformed balance responses never become a fabricated zero',async t=>{
+  const {env}=balanceSetup();let payload;
+  mockFetch(t,()=>Response.json(payload));
+  for(payload of [{},{total:{val:null}},{total:{val:'NaN'}},{total:{val:0}}]) {
+    const body=await (await worker.fetch(balanceRequest(),env)).json();
+    assert.equal(body.providers[1].balanceUSD,null);assert.equal(body.providers[1].status,'unavailable');
+  }
+});
+
+test('rejected or redirected management calls do not retry, follow redirects or leak provider errors',async t=>{
+  const {env}=balanceSetup();let status;
+  const calls=mockFetch(t,()=>new Response(env.XAI_MANAGEMENT_API_KEY,{status,headers:{Location:'https://example.com/'}}));
+  for(status of [403,302,500]) {
+    const response=await worker.fetch(balanceRequest(),env),text=await response.text(),body=JSON.parse(text);
+    assert.equal(body.providers[1].status,status===403?'access_required':'unavailable');
+    assert.ok(!text.includes(env.XAI_MANAGEMENT_API_KEY));assert.equal(body.providers[1].balanceUSD,null);
+  }
+  assert.equal(calls.length,3);
+});
+
+test('Anthropic streams public search activity and safe citations without encrypted tool content',async t=>{
+  const {env}=setup();
+  mockFetch(t,()=>stream([
+    {type:'content_block_start',index:0,content_block:{type:'server_tool_use',name:'web_search',input:{}}},
+    {type:'content_block_delta',index:0,delta:{type:'input_json_delta',partial_json:'{"query":"official '}},
+    {type:'content_block_delta',index:0,delta:{type:'input_json_delta',partial_json:'documentation"}'}},
+    {type:'content_block_stop',index:0},
+    {type:'content_block_start',index:1,content_block:{type:'web_search_tool_result',content:[{url:'https://example.com/docs',title:'Official docs',encrypted_content:'private-ciphertext'},{url:'javascript:alert(1)',title:'Unsafe'}]}},
+    {type:'content_block_delta',delta:{type:'text_delta',text:'Result'}},
+    {type:'content_block_delta',delta:{type:'citations_delta',citation:{type:'web_search_result_location',url:'https://example.com/docs',title:'Official docs',encrypted_index:'private-index'}}},
+    {type:'content_block_delta',delta:{type:'citations_delta',citation:{url:'https://user:password@example.com',title:'Unsafe'}}}
+  ]));
+  const text=await (await worker.fetch(request('claude-sonnet-5-5'),env)).text(),output=events(text);
+  assert.equal(output.find(event=>event.activity?.kind==='search').activity.query,'official documentation');
+  assert.equal(output.find(event=>event.activity?.kind==='search_results').activity.sources.length,1);
+  assert.deepEqual(output.filter(event=>event.citation).map(event=>event.citation),[{url:'https://example.com/docs',title:'Official docs'}]);
+  assert.doesNotMatch(text,/private-ciphertext|private-index|javascript:|user:password/);
+  assert.equal(output.find(event=>event.t).t,'Result');
+});
+
+test('Responses citation events and completed-message annotations are deduplicated',async t=>{
+  const {env}=setup();
+  const citation={type:'url_citation',url:'https://example.com/',title:'Example',start_index:0,end_index:6};
+  mockFetch(t,()=>stream([
+    {type:'response.output_item.done',item:{type:'web_search_call',action:{query:'example search',sources:[{url:'https://example.com/',title:'Example'}]}}},
+    {type:'response.output_text.delta',delta:'Result'},
+    {type:'response.output_text.annotation.added',annotation:citation},
+    {type:'response.completed',response:{output:[{content:[{annotations:[citation,{type:'url_citation',url:'https://example.org/',title:'Second'}]}]}]}}
+  ]));
+  const output=events(await (await worker.fetch(request('grok-4.7'),env)).text());
+  assert.equal(output.filter(event=>event.citation).length,2);
+  assert.equal(output.find(event=>event.activity).activity.query,'example search');
 });
