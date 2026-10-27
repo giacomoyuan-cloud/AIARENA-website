@@ -21,7 +21,7 @@ function browser(env){
    fetchWithRetry:async(url,opts)=>{payloads.push(JSON.parse(opts.body));return worker.fetch(new Request(url,opts),env);}
  });
  vm.runInContext(source.slice(source.indexOf('  function callWorkerStream'),source.indexOf('  function renderGoogleGrounding')),context);
- return {payloads,output,meta,context,send:(model,opts={})=>new Promise((resolve,reject)=>context.callWorkerStream(model,'synthetic contract test',null,null,t=>output.push(t),resolve,reject,()=>{},()=>{},opts,event=>meta.push(event)))};
+ return {payloads,output,meta,context,send:(model,opts={},prompt='synthetic contract test')=>new Promise((resolve,reject)=>context.callWorkerStream(model,prompt,null,null,t=>output.push(t),resolve,reject,()=>{},()=>{},opts,event=>meta.push(event)))};
 }
 function imageResponse(){return Response.json({candidates:[{content:{parts:[{text:'result',thoughtSignature:'text-signature'},{inlineData:{data:image.data,mimeType:image.mime},thoughtSignature:'encrypted-signature+/='}]}}],usageMetadata:{promptTokenCount:5,candidatesTokenCount:6,thoughtsTokenCount:7}});}
 
@@ -54,6 +54,45 @@ test('browser → Worker → xAI uses every exposed ratio, resolution, quality a
   assert.equal(upstream[{size:'resolution',ratio:'aspect_ratio',quality:'quality',count:'n'}[key]],value);
   assert.equal(upstream.model,model);assert.equal(upstream.response_format,'b64_json');
  }
+});
+
+test('Grok single-image and multi-image edits reach the official edit endpoint',async t=>{
+ const b=browser(setup());let actual;
+ t.mock.method(globalThis,'fetch',async(url,options)=>{
+  assert.equal(url,'https://api.x.ai/v1/images/edits');actual=JSON.parse(options.body);
+  return Response.json({data:[{b64_json:image.data}]});
+ });
+ for(const [task,count] of [['edit',1],['multi-edit',2],['multi-edit',5]]){
+  await b.send('grok-imagine-image-2.0',A.requestOptions('grok-imagine-image-2.0',task,{size:'2k',ratio:'2:3',quality:'medium',count:4},Array(count).fill(image)));
+  const references=task==='edit'?[actual.image]:actual.images;
+  assert.equal(references.length,count);assert.ok(references.every(x=>x.url==='data:image/png;base64,'+image.data));
+  assert.equal(actual.n,undefined);assert.equal(actual.aspect_ratio,'2:3');assert.equal(actual.quality,'medium');
+ }
+});
+
+test('selected style reaches Google in the actual prompt and does not leak into Grok',async t=>{
+ const b=browser(setup());let actual;
+ const style=vm.createContext({sub:A.GOOGLE_MODEL,nbStylePreset:'photo',topic:'A blue ceramic cup',_imgs:[],imageMode:true,topicWithQuote:'A blue ceramic cup'});
+ vm.runInContext(source.slice(source.indexOf('  var NB_STYLE_PROMPTS'),source.indexOf('  var NB_STYLE_TEMPLATES')),style);
+ const code=['_nbStylePrefix','_topicWithStyle','_topicForPrompt','fullPrompt'].map(name=>source.match(new RegExp('var '+name+' = [^\\n]+'))[0]).join('\n');
+ t.mock.method(globalThis,'fetch',async(url,options)=>{actual=JSON.parse(options.body);return imageResponse();});
+ vm.runInContext(code,style);
+ await b.send(A.GOOGLE_MODEL,A.requestOptions(A.GOOGLE_MODEL,'generation',{},[]),style.fullPrompt);
+ assert.equal(actual.contents[0].parts.at(-1).text,style.NB_STYLE_PROMPTS.photo+style.topic);
+ style.nbStylePreset='none';vm.runInContext(code,style);assert.equal(style.fullPrompt,style.topic);
+ style.nbStylePreset='photo';style.sub='grok-imagine-image-2.0';vm.runInContext(code,style);assert.equal(style.fullPrompt,style.topic);
+});
+
+test('the attachment search switch toggles actual Google tools, not just its visual state',async t=>{
+ const b=browser(setup());b.context.imageMode=false;let click,actual;const attributes={};
+ b.context.$=id=>id==='aaPlusSearch'?{addEventListener:(name,handler)=>{click=handler;},setAttribute:(name,value)=>{attributes[name]=value;}}:{value:'synthetic-tester'};
+ const start=source.indexOf("  $('aaPlusSearch').addEventListener('click'");
+ vm.runInContext(source.slice(start,source.indexOf('\n  });',start)+6),b.context);
+ t.mock.method(globalThis,'fetch',async(url,options)=>{actual=JSON.parse(options.body);return new Response('data: '+JSON.stringify({candidates:[{content:{parts:[{text:'ok'}]}}]})+'\n\n');});
+ click();assert.equal(attributes['aria-checked'],'false');await b.send('gemini-4-argon');
+ assert.equal(b.payloads.at(-1).search,false);assert.equal(actual.tools,undefined);
+ click();assert.equal(attributes['aria-checked'],'true');await b.send('gemini-4-argon');
+ assert.equal(b.payloads.at(-1).search,true);assert.deepEqual(actual.tools,[{google_search:{}}]);
 });
 
 test('all chat effort controls reach their provider; unsupported levels fail before fetch',async t=>{
