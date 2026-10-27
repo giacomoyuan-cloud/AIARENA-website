@@ -9,11 +9,11 @@ The browser remains on Cloudflare Pages. `worker.js` serves the existing `ai` Wo
 | Grok 4.7, Grok Imagine Image 2.0 | `api.x.ai` | `GROK_API_KEY` |
 | GPT-6 Astra, GPT-5.6 Sol, GPT Image 2.5 Sunburst | `api.openai.com` | `OPENAI_API_KEY` |
 | Claude Opus 5.5, Claude Sonnet 5.5 (earlier Fable/Opus routes retained for compatibility); memory extraction with the existing Haiku model | `api.anthropic.com` | `ANTHROPIC_API_KEY` |
-| Gemini 3.8 Flash, Gemini 3.1 Pro, Gemini 3.1 Flash Image | `generativelanguage.googleapis.com` | `GEMINI_API_KEY` |
+| Gemini 4 Argon, Gemini 3.1 Flash Image (earlier Gemini 3 chat routes retained for compatibility) | `generativelanguage.googleapis.com` | `GEMINI_API_KEY` |
 
 There is no third-party fallback. Missing official keys produce a 503; provider errors reach the page. The Worker no longer references `QUICK`, `JIEKOU_API_KEY`, `HAJIMI_API_KEY` or `MJ_API_KEY`. Existing secret bindings are retained in Cloudflare and do not need to be deleted to stop their use.
 
-The browser model menu uses a deployment allowlist and hides provider routes that have not completed live acceptance. The image menu exposes only the verified image route. Historical conversation labels remain readable for compatibility. Cached requests using `grok-4.6` upgrade to `grok-4.7`; returned model names and new usage records identify 4.7. Earlier Claude backend routes remain available for compatibility.
+The browser model menu uses a deployment allowlist for Claude, Grok and Gemini 4 Argon (`gemini-4-argon`). Gemini 4 supports image understanding with text output; it does not generate images. The image menu separately offers Grok Image 2.0 and Gemini 3.1 Flash Image, including generation, single-image editing and 2–5 reference image editing. Gemini image settings forward 512px/1K/2K/4K resolution, aspect ratio, thinking level and image-only output to the existing official Google route. Historical conversation labels remain readable for compatibility. Cached requests using `grok-4.6` upgrade to `grok-4.7`; returned model names and new usage records identify 4.7. Earlier Claude and Gemini 3 backend routes remain available for compatibility.
 
 Midjourney has no generally available public official API. It is not shown in the active model menu. The already inactive legacy Kling route remains unavailable until an official integration and its credentials are configured.
 
@@ -29,7 +29,7 @@ Authenticated text requests may set `maxOutputTokens` to an integer between 32 a
 
 ### Thinking effort and progress
 
-Authenticated requests may set `effort`. Claude Opus 5.5 and Sonnet 5.5 accept `low`, `medium`, `high`, `xhigh`, and `max`, forwarded as `output_config.effort`. Grok 4.7 accepts `low`, `medium`, `high`, and `xhigh`, forwarded as `reasoning.effort`. Unsupported values are rejected before an upstream request. Omission preserves the provider default, including for cached clients. The browser remembers each model's selection separately and starts at the provider defaults: medium for Opus 5.5, high for Sonnet 5.5 and Grok 4.7. Higher effort can use more tokens and take longer; it is not a fixed time or spending budget.
+Authenticated requests may set `effort`. Claude Opus 5.5 and Sonnet 5.5 accept `low`, `medium`, `high`, `xhigh`, and `max`, forwarded as `output_config.effort`. Grok 4.7 accepts `low`, `medium`, `high`, and `xhigh`, forwarded as `reasoning.effort`. Gemini 4 Argon accepts `low`, `medium`, and `high`, forwarded as `generationConfig.thinkingConfig.thinkingLevel`. Unsupported values are rejected before an upstream request. Omission preserves the provider default, including for cached clients. The browser remembers each model's selection separately and starts at the provider defaults: medium for Opus 5.5 and Gemini 4 Argon, high for Sonnet 5.5 and Grok 4.7. Higher effort can use more tokens and take longer; it is not a fixed time or spending budget.
 
 Streaming `status` events reflect provider thinking, web search and answer events. The browser measures elapsed time locally and only displays thinking summaries returned by the provider, in a collapsed details section. It does not synthesize reasoning text or infer a search merely because the search option is enabled.
 
@@ -40,7 +40,7 @@ New usage records include `official~` in their model key so earlier aggregate re
 Run the offline routing and streaming tests with:
 
 ```sh
-node --test worker/worker.test.mjs
+node --test arena-models.test.cjs arena-markdown.test.cjs worker/worker.test.mjs
 ```
 
 These tests mock provider responses and do not charge any provider account. Never commit API key values or local `.dev.vars` files.
@@ -65,6 +65,7 @@ The native binding transport follows [Cloudflare's official Agents SDK implement
 - [xAI Responses](https://docs.x.ai/developers/rest-api-reference/inference/chat)
 - [xAI image request settings](https://docs.x.ai/developers/model-capabilities/images/prompting-guide)
 - [Gemini image generation](https://ai.google.dev/gemini-api/docs/image-generation)
+- [Gemini 4 Argon API and thinking levels](https://ai.google.dev/gemini-api/docs/generate-content/latest-model)
 - [Cloudflare placement](https://developers.cloudflare.com/workers/configuration/placement/)
 - [Midjourney API availability](https://docs.midjourney.com/hc/en-us/articles/32013696484109-Community-Guidelines)
 

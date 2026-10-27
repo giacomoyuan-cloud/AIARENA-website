@@ -1025,7 +1025,7 @@
           <div class="aa-card-head"><span class="aa-card-brand">OpenAI</span><span class="aa-card-sub" id="aaCardSub-openai">GPT-6 Astra</span><span class="aa-card-dot" id="aaCardDot-openai"></span><span class="aa-team-label" id="aaTeam-openai"></span></div>
         </div>
         <div class="aa-brand-card" data-brand="google">
-          <div class="aa-card-head"><span class="aa-card-brand">Google</span><span class="aa-card-sub" id="aaCardSub-google">Gemini 3.8 Flash</span><span class="aa-card-dot" id="aaCardDot-google"></span><span class="aa-team-label" id="aaTeam-google"></span></div>
+          <div class="aa-card-head"><span class="aa-card-brand">Google</span><span class="aa-card-sub" id="aaCardSub-google">Gemini 4 Argon</span><span class="aa-card-dot" id="aaCardDot-google"></span><span class="aa-team-label" id="aaTeam-google"></span></div>
         </div>
         <div class="aa-brand-card" data-brand="anthropic">
           <div class="aa-card-head"><span class="aa-card-brand">Anthropic</span><span class="aa-card-sub" id="aaCardSub-anthropic">Claude Sonnet 5.5</span><span class="aa-card-dot" id="aaCardDot-anthropic"></span><span class="aa-team-label" id="aaTeam-anthropic"></span></div>
@@ -1113,8 +1113,7 @@
         <div class="aa-drop-item" data-sub="gpt-5.6-sol"><span class="aa-drop-dot" data-health="official-openai"></span>GPT-5.6 Sol</div>
       </div>
       <div class="aa-card-dropdown" id="aaDrop-google">
-        <div class="aa-drop-item selected" data-sub="gemini-3.8-flash"><span class="aa-drop-dot" data-health="official-google"></span>Gemini 3.8 Flash</div>
-        <div class="aa-drop-item" data-sub="gemini-3.1-pro-preview"><span class="aa-drop-dot" data-health="official-google"></span>Gemini 3.1 Pro</div>
+        <div class="aa-drop-item selected" data-sub="gemini-4-argon"><span class="aa-drop-dot" data-health="official-google"></span>Gemini 4 Argon</div>
         <div class="aa-drop-item" data-sub="nanbanana2-official" style="display:none;"><span class="aa-drop-dot" data-health="official-google"></span>NB-2</div>
       </div>
       <div class="aa-card-dropdown" id="aaDrop-mj">
@@ -1233,15 +1232,20 @@
   };
 
   // Submodel → brand mapping and display names
-  var AVAILABLE_CHAT_MODELS = ['claude-opus-5-5','claude-sonnet-5-5','grok-4.7'];
+  var AVAILABLE_CHAT_MODELS = ['claude-opus-5-5','claude-sonnet-5-5','grok-4.7','gemini-4-argon'];
+  var IMAGE_MODELS = [
+    {value:'grok-imagine-image-2.0', label:'Grok Image 2.0'},
+    {value:'gemini-3.1-flash-image', label:'Gemini 3.1 Flash Image'}
+  ];
   var EFFORT_LEVELS = {
     'claude-opus-5-5': ['low','medium','high','xhigh','max'],
     'claude-sonnet-5-5': ['low','medium','high','xhigh','max'],
-    'grok-4.7': ['low','medium','high','xhigh']
+    'grok-4.7': ['low','medium','high','xhigh'],
+    'gemini-4-argon': ['low','medium','high']
   };
   var EFFORT_LABELS = {low:'低',medium:'中等',high:'高',xhigh:'超高',max:'最高'};
   var EFFORT_DESCRIPTIONS = {low:'快速处理简单问题，减少等待。',medium:'兼顾思考深度与响应速度。',high:'适合较复杂的分析、写作和编程。',xhigh:'更深入地思考，通常需要更长时间。',max:'最高思考强度，可能消耗更多 token。'};
-  var effortSelection = {'claude-opus-5-5':'medium','claude-sonnet-5-5':'high','grok-4.7':'high'};
+  var effortSelection = {'claude-opus-5-5':'medium','claude-sonnet-5-5':'high','grok-4.7':'high','gemini-4-argon':'medium'};
   function effortFor(model){ return EFFORT_LEVELS[model] ? effortSelection[model] : undefined; }
 
   var SUBS = {
@@ -1255,6 +1259,7 @@
     'claude-opus-5':        {brand:'anthropic', name:'Claude Opus 5'},
     'gemini-3.8-flash':     {brand:'google',    name:'Gemini 3.8 Flash'},
     'gemini-3.1-pro-preview': {brand:'google',  name:'Gemini 3.1 Pro'},
+    'gemini-4-argon':       {brand:'google',    name:'Gemini 4 Argon'},
     'grok-imagine-image-2.0': {brand:'xai',     name:'Grok Imagine Image 2.0'},
     'gpt-image-2.5-sunburst': {brand:'openai',  name:'GPT Image 2.5 Sunburst'},
     'gemini-3.1-flash-image': {brand:'google',  name:'Gemini 3.1 Flash Image'},
@@ -1692,7 +1697,7 @@ var TEAM_COLORS = {
     xai: 'grok-4.7',
     anthropic: 'claude-sonnet-5-5',
     openai: 'gpt-6-astra',
-    google: 'gemini-3.8-flash',
+    google: 'gemini-4-argon',
     mj: 'mj_imagine'
   };
   // Track which brands are active (for debate mode, multiple; for chat, one)
@@ -1730,7 +1735,7 @@ var TEAM_COLORS = {
       brandSelection = {
         xai: 'grok-4.7',
         openai: 'gpt-6-astra',
-        google: 'gemini-3.8-flash',
+        google: 'gemini-4-argon',
         anthropic: 'claude-sonnet-5-5',
         mj: 'mj_imagine'
       };
@@ -1740,6 +1745,7 @@ var TEAM_COLORS = {
       });
       var savedSelection = JSON.parse(localStorage.getItem('aa-brand-selection') || '{}');
       if(['claude-opus-5-5','claude-sonnet-5-5'].indexOf(savedSelection.anthropic) !== -1) brandSelection.anthropic = savedSelection.anthropic;
+      if(savedSelection.google === 'gemini-4-argon') brandSelection.google = savedSelection.google;
       if(!imageMode){ activeBrands['mj'] = false; }
       var ab = JSON.parse(localStorage.getItem('aa-active-brands'));
       if(ab){ activeBrands = ab; if(activeBrands.kling === undefined) activeBrands.kling = false; }
@@ -1753,11 +1759,12 @@ var TEAM_COLORS = {
   }
 
   function normalizeAvailableModels(){
-    activeBrands.openai = false; activeBrands.google = false; activeBrands.mj = false; activeBrands.kling = false;
+    activeBrands.openai = false; activeBrands.mj = false; activeBrands.kling = false;
     if(['claude-opus-5-5','claude-sonnet-5-5'].indexOf(brandSelection.anthropic) === -1) brandSelection.anthropic = 'claude-sonnet-5-5';
+    brandSelection.google = 'gemini-4-argon';
     brandSelection.xai = 'grok-4.7';
-    if(!imageMode && !activeBrands.xai && !activeBrands.anthropic) activeBrands.anthropic = true;
-    if(imageMode && imageComposerModel !== 'grok-imagine-image-2.0') imageComposerModel = 'grok-imagine-image-2.0';
+    if(!imageMode && !activeBrands.xai && !activeBrands.anthropic && !activeBrands.google) activeBrands.anthropic = true;
+    if(imageMode && !IMAGE_MODELS.some(function(m){ return m.value === imageComposerModel; })) imageComposerModel = IMAGE_MODELS[0].value;
     if(debateMode === '2v2') debateMode = 'free';
   }
 
@@ -1845,7 +1852,7 @@ var TEAM_COLORS = {
     var klingItem = drop.querySelector('[data-sub="kling25-i2v"]');
     if(klingItem) klingItem.style.display = videoMode ? '' : 'none';
     // 图像模式下隐藏所有非图像Google选项
-    ['gemini-3.8-flash','gemini-3.1-pro-preview','gemini3-official','gemini31-official','gemini31high-official','gemini3-proxy','gemini31-proxy'].forEach(function(sub){
+    ['gemini-4-argon','gemini-3.8-flash','gemini-3.1-pro-preview','gemini3-official','gemini31-official','gemini31high-official','gemini3-proxy','gemini31-proxy'].forEach(function(sub){
       var item = drop.querySelector('[data-sub="'+sub+'"]');
       if(item) item.style.display = imageMode ? 'none' : '';
     });
@@ -3146,7 +3153,6 @@ var TEAM_COLORS = {
   }, {passive: true});
 
   // === Image composer: model, task and model-specific settings ===
-  var IMAGE_MODELS = [{value:'grok-imagine-image-2.0', label:'Grok Image 2.0'}];
   var GROK_RATIOS = ['1:1','16:9','9:16','4:3','3:4','3:2','2:3','2:1','1:2','21:9','auto'];
   var MJ_RATIOS = ['1:1','16:9','9:16','4:3','3:4','3:2','2:3','21:9'];
 
@@ -3348,7 +3354,7 @@ var TEAM_COLORS = {
    $('aaBarDebateBtn').addEventListener('click', function(){
     debate = true; imageMode = false; videoMode = false;
     if(brandSelection['xai'] === 'grok41-biz-official') brandSelection['xai'] = 'grok-4.7';
-    if(brandSelection['google'] === 'nanbanana2-official' || brandSelection['google'] === 'nanbanana2-custom') brandSelection['google'] = 'gemini-3.8-flash';
+    if(brandSelection['google'] === 'nanbanana2-official' || brandSelection['google'] === 'nanbanana2-custom') brandSelection['google'] = 'gemini-4-argon';
     activeBrands = {xai:true, anthropic:true, openai:true, google:true, mj:false, kling:false};
     $('aaBarDebateBtn').classList.add('active');
     $('aaBarChatBtn').classList.remove('active');
@@ -3358,7 +3364,7 @@ var TEAM_COLORS = {
     $('aaBarChatBtn').style.background='transparent'; $('aaBarChatBtn').style.color='#6b6b88';
     $('aaBarImageBtn').style.background='transparent'; $('aaBarImageBtn').style.color='#6b6b88';
     if($('aaBarVideoBtn')){ $('aaBarVideoBtn').style.background='transparent'; $('aaBarVideoBtn').style.color='#6b6b88'; }
-    brandSelection['google'] = 'gemini-3.8-flash';
+    brandSelection['google'] = 'gemini-4-argon';
     brandSelection['kling'] = 'kling25-i2v';
     activeBrands['kling'] = false;
     $('aaRoundsBar').style.display = 'none';
@@ -3391,7 +3397,7 @@ var TEAM_COLORS = {
     activeBrands = {xai:true, anthropic:false, openai:false, google:false, kling:false};
     brandSelection['kling'] = 'kling25-i2v';
     // 退出图像模式：重置google，隐藏图像专用卡片，恢复对话卡片
-    if(brandSelection['google'] === 'nanbanana2-official' || brandSelection['google'] === 'nanbanana2-custom') brandSelection['google'] = 'gemini-3.8-flash';
+    if(brandSelection['google'] === 'nanbanana2-official' || brandSelection['google'] === 'nanbanana2-custom') brandSelection['google'] = 'gemini-4-argon';
     activeBrands['mj'] = false;
     // 恢复上次对话模式的激活状态：如果之前没有任何brand激活，默认xai
     var anyActive = ['xai','anthropic','openai','google'].some(function(b){ return activeBrands[b]; });
@@ -4697,7 +4703,7 @@ var firstChunk = true;
 var _nbStylePrefix = (sub === 'gemini-3.1-flash-image' && nbStylePreset !== 'none') ? (NB_STYLE_PROMPTS[nbStylePreset] || '') : '';
 var _nbExtraOpts = { _imgs: _imgs };
 if(sub === 'gemini-3.1-flash-image'){
-  _nbExtraOpts = { imageTask:imageComposerTask, imageSize:nbImageSize, resolution:nbImageSize, aspectRatio:nbAspectRatio, quality:'auto', n:1, _imgs:_imgs };
+  _nbExtraOpts = { imageTask:imageComposerTask, imageSize:nbImageSize, resolution:nbImageSize, aspectRatio:nbAspectRatio, thinkingLevel:nbThinkingLevel, imageOnly:nbImageOnly, quality:'auto', n:1, _imgs:_imgs };
 } else if(sub === 'grok-imagine-image-2.0' || sub === 'gpt-image-2.5-sunburst'){
   _nbExtraOpts = { imageTask:imageComposerTask, resolution:grokImageResolution, aspectRatio:grokAspectRatio, quality:grokImageQuality, n:(imageComposerTask==='generation'?grokImageCount:1), _imgs:_imgs };
 } else if(sub === 'mj_imagine'){
@@ -5204,7 +5210,7 @@ if(debateMode === '2v2'){
 
   var _nbSizeOptions = [
 
-    {value:'512px',label:'512px'},{value:'1K',label:'1K'},{value:'2K',label:'2K'},{value:'4K',label:'4K'}
+    {value:'512',label:'512px'},{value:'1K',label:'1K'},{value:'2K',label:'2K'},{value:'4K',label:'4K'}
 
   ];
 
@@ -5574,7 +5580,7 @@ if(debateMode === '2v2'){
 
   function syncNbOptions(){
     if(!imageMode && brandSelection['google'] === 'nanbanana2-official'){
-      brandSelection['google'] = 'gemini-3.8-flash';
+      brandSelection['google'] = 'gemini-4-argon';
     }
     if(!videoMode && brandSelection['kling'] === 'kling25-i2v'){
       activeBrands['kling'] = false;
@@ -5695,7 +5701,7 @@ if(debateMode === '2v2'){
     $('aaCurrentEffort').hidden = !EFFORT_LEVELS[effortModel] || debate;
     $('aaCurrentEffort').textContent = EFFORT_LABELS[effortFor(effortModel)] || '';
     $('aaChatModelBtn').disabled = aaRunning;
-    $('aaChatModelBtn').setAttribute('aria-label', '选择模型与思考强度：'+(SUBS[models[0]] ? SUBS[models[0]].name : '')+'，'+(EFFORT_LABELS[effortFor(effortModel)] || ''));
+    $('aaChatModelBtn').setAttribute('aria-label', '选择模型：'+(SUBS[models[0]] ? SUBS[models[0]].name : '')+(EFFORT_LEVELS[effortModel] ? '，思考强度：'+EFFORT_LABELS[effortFor(effortModel)] : ''));
     document.querySelectorAll('#aaEffortSubmenu input[data-effort-model]').forEach(function(input){ input.checked = effortSelection[input.dataset.effortModel] === input.value; input.disabled = aaRunning; });
     var effortDescription = $('aaEffortDescription');
     if(effortDescription) effortDescription.textContent = EFFORT_DESCRIPTIONS[effortFor(effortDescription.dataset.model)] || '';
@@ -5710,17 +5716,18 @@ if(debateMode === '2v2'){
   }
   function renderArenaModelMenu(){
     var model = getActiveSubmodels()[0], info = SUBS[model];
-    var subtitles = {'claude-opus-5-5':'适用于复杂工作与深入分析','claude-sonnet-5-5':'适用于日常工作与高效交流','grok-4.7':'适用于问答、检索与探索'};
+    var subtitles = {'claude-opus-5-5':'适用于复杂工作与深入分析','claude-sonnet-5-5':'适用于日常工作与高效交流','grok-4.7':'适用于问答、检索与探索','gemini-4-argon':'适用于复杂推理、编程与多模态任务'};
     var arrow = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>';
     var check = '<svg class="arena-model-check" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>';
     $('aaChatModelPop').innerHTML = '<div class="arena-current-model"><div><strong>'+(info?info.name.replace(/^Claude /,''):'选择模型')+'</strong><small>'+(subtitles[model]||'')+'</small></div>'+check+'</div>'
-      +'<div class="arena-menu-divider"></div><button class="arena-menu-nav" type="button" id="aaEffortMenuBtn" aria-haspopup="dialog" aria-controls="aaEffortSubmenu" aria-expanded="false"><span>思考强度</span><small>'+EFFORT_LABELS[effortFor(model)]+'</small>'+arrow+'</button>'
+      +'<div class="arena-menu-divider"></div>'
+      +(EFFORT_LEVELS[model] ? '<button class="arena-menu-nav" type="button" id="aaEffortMenuBtn" aria-haspopup="dialog" aria-controls="aaEffortSubmenu" aria-expanded="false"><span>思考强度</span><small>'+EFFORT_LABELS[effortFor(model)]+'</small>'+arrow+'</button>' : '')
       +'<button class="arena-menu-nav" type="button" id="aaMoreModelsBtn" aria-haspopup="dialog" aria-controls="aaModelsSubmenu" aria-expanded="false"><span>更多模型</span>'+arrow+'</button>'
       +'<p class="arena-model-billing-note">官方 API · 按实际用量计费</p>';
     var back = '<button class="arena-submenu-back" type="button" data-arena-sub-back>‹ 返回</button>';
     var h = back+'<fieldset class="arena-effort-list"><legend>投入程度越高，通常越耗时，也可能使用更多 token。</legend>';
     (EFFORT_LEVELS[model]||[]).forEach(function(level){
-      var defaultLevel = model === 'claude-opus-5-5' ? 'medium' : 'high';
+      var defaultLevel = model === 'claude-opus-5-5' || model === 'gemini-4-argon' ? 'medium' : 'high';
       h += '<label><input class="arena-sr-only" type="radio" name="arena-effort" data-effort-model="'+model+'" value="'+level+'"><span>'+EFFORT_LABELS[level]+'</span>'+(level===defaultLevel?'<small>默认</small>':'')+check+'</label>';
     });
     $('aaEffortSubmenu').innerHTML = h+'</fieldset>';
