@@ -189,5 +189,16 @@
     ]
   },
   "portrait": "/assets/kitten/motion/portrait.png?v=e87a728b7c4f-face2",
-  "playbackPolicy": "continuous-state-loop"
+  "playbackPolicy": "stateful-idle-playlist",
+  "idleSequence": [
+    "wand-watch",
+    "wand-bat",
+    "wand-jump",
+    "wand-pounce",
+    "wand-kick",
+    "knead",
+    "lick-paw",
+    "yawn",
+    "head-tilt"
+  ]
 }

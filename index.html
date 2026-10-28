@@ -866,7 +866,7 @@
 </style>
 <link rel="stylesheet" href="/arena.css?v=20261029-nav1">
 <link rel="stylesheet" href="/arena-workspace.css?v=20261029-nav1">
-<link rel="stylesheet" href="/arena-pet.css?v=20261028-pet3">
+<link rel="stylesheet" href="/arena-pet.css?v=20261029-petcycle1">
 <link rel="preload" as="image" href="/assets/kitten/motion/knead-14b49069b5fd.png">
 
 <!-- Login overlay -->
@@ -1225,8 +1225,8 @@
 <script src="/arena-chat-runs.js?v=20261028-resume1"></script>
 <script src="/arena-workspace.js?v=20261029-nav1"></script>
 <script src="/arena-account.js?v=20261027-account2"></script>
-<script src="/arena-pet-catalog.js?v=20261028-pet5-work"></script>
-<script src="/arena-pet.js?v=20261028-pet5-work"></script>
+<script src="/arena-pet-catalog.js?v=20261029-petcycle1"></script>
+<script src="/arena-pet.js?v=20261029-petcycle1"></script>
 <script src="/arena-stream.js?v=20261028-read15"></script>
 <script>
 (function(){
@@ -4229,6 +4229,8 @@ function initPersonaDragDrop(){
     setTimeout(function(){ $('aaTopic').focus(); }, 220);
   };
 
+  // A pending cat can move into its reply without restarting the video.
+  var pendingKittenTransfers = new Map();
   // === Render messages ===
   function render(){
     msgs.forEach(function(message){
@@ -4248,6 +4250,14 @@ function initPersonaDragDrop(){
     // Keep the live pending rows and their video decoders when message HTML changes.
     if(!thinkArea){ thinkArea = document.createElement('div'); thinkArea.id = 'aaThinkingArea'; }
     else thinkArea.remove();
+    var retainedKittens = new Map();
+    c.querySelectorAll('.aa-msg [data-aa-kitten="live"]').forEach(function(el){
+      var row = el.closest('.aa-msg[data-uid]');
+      if(row) retainedKittens.set(row.getAttribute('data-uid'),el);
+    });
+    var pendingModels = new Set(Array.from(thinkArea.querySelectorAll('[data-think]'),function(row){return row.getAttribute('data-think');}));
+    var kittenSnapshot = window.ArenaKitten ? window.ArenaKitten.snapshot() : null;
+    var liveKittenIds = window.ArenaKitten ? window.ArenaKitten.liveReplyIds(msgs,aaRunning,kittenSnapshot.phases,pendingModels,function(uid){return liveReplies.has(uid);}) : new Set();
     if(!msgs.length){
       chatEl.classList.add('empty-state');
       c.replaceChildren(thinkArea);
@@ -4274,7 +4284,7 @@ function initPersonaDragDrop(){
       }
       h += '<div class="aa-msg'+(msg.isUser?' user-msg':'')+'" data-uid="'+msg.uid+'" style="animation-delay:'+(i%4)*0.05+'s">';
       h += '<div class="aa-msg-head">';
-      h += !msg.isUser && window.ArenaKitten ? window.ArenaKitten.markup('portrait', 'welcome') : '<div class="aa-msg-dot" style="background:'+msg.color+';box-shadow:0 0 6px '+msg.color+'40"></div>';
+      h += !msg.isUser && window.ArenaKitten ? window.ArenaKitten.markup(liveKittenIds.has(msg.uid)?'reply':'portrait', 'welcome',liveKittenIds.has(msg.uid)?msg.submodel:null) : '<div class="aa-msg-dot" style="background:'+msg.color+';box-shadow:0 0 6px '+msg.color+'40"></div>';
       var authorName = !msg.isUser && msg.submodel === 'gemini-4-argon' ? SUBS[msg.submodel].name : msg.name;
       h += '<span class="aa-msg-name" style="color:'+msg.color+'">'+esc(authorName)+'</span>';
       if(msg.round !== undefined) h += '<span class="aa-msg-round">R'+(msg.round+1)+'</span>';
@@ -4407,6 +4417,15 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
     });
     c.innerHTML = h;
     c.appendChild(thinkArea);
+    c.querySelectorAll('.aa-msg[data-uid] .aa-kitten--reply[data-aa-kitten="live"]').forEach(function(placeholder){
+      var row = placeholder.closest('.aa-msg[data-uid]'), model = placeholder.getAttribute('data-aa-kitten-model');
+      var existing = retainedKittens.get(row.getAttribute('data-uid')) || pendingKittenTransfers.get(model);
+      if(!existing || existing.getAttribute('data-aa-kitten-model')!==model) return;
+      pendingKittenTransfers.delete(model);
+      existing.removeAttribute('data-aa-kitten-transfer');
+      existing.classList.remove('aa-kitten--progress'); existing.classList.add('aa-kitten--reply');
+      placeholder.replaceWith(existing);
+    });
     if(!userScrolledUp) c.scrollTop = c.scrollHeight;
     else c.scrollTop = savedScrollTop;
     highlightCodeBlocks();
@@ -4481,7 +4500,18 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
   }
   function hideThink(submodel){
     var area = $('aaThinkingArea'); if(!area) return;
-    if(submodel){ var row = area.querySelector('[data-think="'+submodel+'"]'); if(row) row.remove(); }
+    if(submodel){
+      var row = area.querySelector('[data-think="'+submodel+'"]');
+      if(row){
+        var kitten = row.querySelector('[data-aa-kitten="live"]');
+        if(kitten){
+          kitten.setAttribute('data-aa-kitten-transfer','pending');
+          pendingKittenTransfers.set(submodel,kitten);
+          Promise.resolve().then(function(){if(pendingKittenTransfers.get(submodel)===kitten){pendingKittenTransfers.delete(submodel);kitten.removeAttribute('data-aa-kitten-transfer');}});
+        }
+        row.remove();
+      }
+    }
     else area.innerHTML = '';
     tickThinkingClock();
   }

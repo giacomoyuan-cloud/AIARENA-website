@@ -3,6 +3,7 @@
 #ai-arena-app .aa-kitten { display:inline-block;position:relative;flex:0 0 auto;width:60px;height:60px;vertical-align:middle;pointer-events:none;user-select:none;-webkit-user-select:none; }
 #ai-arena-app .aa-kitten-viewport { position:absolute;inset:0;overflow:hidden; }
 #ai-arena-app .aa-kitten-poster,#ai-arena-app .aa-kitten-motion { display:block;position:absolute;inset:0;width:100%;height:100%;max-width:none;object-fit:contain;border:0;border-radius:0;background:transparent;animation:aa-pet-reveal 140ms ease-out; }
+#ai-arena-app .aa-kitten-previous { position:absolute;inset:0;width:100%;height:100%;max-width:none;object-fit:contain;z-index:2;pointer-events:none;transition:opacity 180ms var(--aa-kitten-ease-out); }
 #ai-arena-app .aa-kitten [hidden] { display:none!important; }
 #ai-arena-app .aa-kitten[data-aa-kitten=still] img { animation:none; }
 @keyframes aa-pet-reveal { from { opacity:0 } to { opacity:1 } }
@@ -24,6 +25,7 @@
 #ai-arena-app .aa-kitten--welcome { width: clamp(116px, 23dvh, 184px); height: clamp(116px, 23dvh, 184px); }
 #ai-arena-app .aa-kitten--login { width: 140px; height: 140px; }
 #ai-arena-app .aa-kitten--portrait { width: 32px; height: 32px; }
+#ai-arena-app .aa-kitten--reply { width: 76px; height: 76px; }
 #ai-arena-app .aa-kitten--progress { width: 76px; height: 76px; }
 #ai-arena-app.arena-shell .aa-welcome { z-index: 2; top: calc((100% - 170px) / 2); transform: translateY(-50%); }
 #ai-arena-app.arena-shell .aa-welcome h1 { margin-top: 2px; }
@@ -42,6 +44,7 @@
   #ai-arena-app .arena-kitten-dock .aa-kitten { width: 46px; height: 46px; }
   #ai-arena-app .aa-kitten--welcome { width: 152px; height: 152px; }
   #ai-arena-app .aa-kitten--progress { width: 68px; height: 68px; }
+  #ai-arena-app .aa-kitten--reply { width: 68px; height: 68px; }
   #ai-arena-app.arena-shell .aa-welcome h1 { font-size: 27px; }
   #ai-arena-app.arena-shell .arena-topbar { gap: 4px; }
 }
@@ -51,6 +54,7 @@
 }
 @media (prefers-reduced-motion: reduce) {
   #ai-arena-app .aa-kitten-poster, #ai-arena-app .aa-kitten-motion { animation: none; }
+  #ai-arena-app .aa-kitten-previous { transition: none; }
   #ai-arena-app .arena-kitten-greeting { transition: none; transform: none; }
   #ai-arena-app .arena-kitten-greeting:hover,
   #ai-arena-app .arena-kitten-greeting:active { transform: none; }
