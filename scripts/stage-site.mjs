@@ -9,6 +9,8 @@ const publicFiles=(await readdir(root)).filter(name => /^(index|android|pitch-an
   || ['manifest.json','sw.js','app-version.json','_headers','THIRD_PARTY_LICENSES.txt'].includes(name));
 for(const name of await readdir(target)) await rm(resolve(target,name),{recursive:true,force:true});
 for(const name of [...publicFiles,'songs','downloads','welcome-media'])await cp(resolve(root,name),resolve(target,name),{recursive:true});
+// Isolated design exploration; no production entry point imports these files.
+if((await readdir(root)).includes('design-review'))await cp(resolve(root,'design-review'),resolve(target,'design-review'),{recursive:true});
 if(publicFiles.includes('arena-pet.js')){
   const folder='assets/kitten/motion';
   const manifest=JSON.parse(await readFile(resolve(root,folder,'manifest.json'),'utf8'));

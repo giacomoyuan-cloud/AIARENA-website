@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+  <meta name="color-scheme" content="light dark">
+  <meta name="robots" content="noindex,nofollow">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob:; media-src 'self' blob:; connect-src 'none'; form-action 'none'; object-src 'none'; base-uri 'self'">
+  <meta name="theme-color" content="#f0f1f5">
+  <title>AI 助手 · 五种整站设计</title>
+  <link rel="stylesheet" href="./design.css">
+  <script type="module" src="./design.js"></script>
+</head>
+<body data-theme="air">
+  <header class="review-bar" aria-label="设计方案切换">
+    <a class="review-brand" href="#air/chat" aria-label="整站设计预览"><span class="review-dot"></span><strong>AI 助手</strong><span>设计探索</span></a>
+    <nav id="themes" class="theme-picker" aria-label="五套设计方案"></nav>
+    <button class="review-pages" data-action="page-picker" aria-haspopup="dialog"><span>全站页面</span><span aria-hidden="true">↗</span></button>
+  </header>
+  <div class="review-caption"><p id="direction"></p><span>交互预览 · 示例数据 · 不调用 API</span></div>
+  <div class="stage" id="stage"><div id="app" class="app"></div></div>
+  <dialog id="modal" class="modal" aria-labelledby="modal-title"></dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  <input id="file-picker" type="file" hidden multiple>
+  <noscript>请启用 JavaScript，以浏览五套可交互的整站设计。</noscript>
+</body>
+</html>

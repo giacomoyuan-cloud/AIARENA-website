@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">
+<defs><linearGradient id="sky" x2="0" y2="1"><stop stop-color="#c3d4d8"/><stop offset=".55" stop-color="#e8e5d9"/><stop offset="1" stop-color="#eee7d5"/></linearGradient><linearGradient id="mount" x2=".6" y2="1"><stop stop-color="#718c8a"/><stop offset="1" stop-color="#a6b2a6"/></linearGradient><linearGradient id="water" x2="0" y2="1"><stop stop-color="#b3c7c3"/><stop offset="1" stop-color="#e7e4cf"/></linearGradient><linearGradient id="front" x2=".8" y2="1"><stop stop-color="#627f79"/><stop offset="1" stop-color="#849787"/></linearGradient><filter id="noise"><feTurbulence baseFrequency=".85" numOctaves="3" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/><feComponentTransfer><feFuncA type="linear" slope=".045"/></feComponentTransfer></filter></defs>
+<path fill="url(#sky)" d="M0 0h1200v800H0Z"/><circle cx="854" cy="234" r="81" fill="#fff2c8" opacity=".86"/>
+<path d="M0 424 190 268l76 69 120-144 197 231 95-90 95 70 129-141 298 213v324H0Z" fill="#9fb3b0" opacity=".65"/>
+<path d="M0 506 155 382l85 63 137-187 141 134 72-46 162 168 115-64 118-160 215 246v264H0Z" fill="url(#mount)"/>
+<path d="m325 330 52-72 74 71-50-23-25 15-19-14Z" fill="#eef1e6" opacity=".8"/>
+<path d="M0 517c191-36 350 5 521 4 252-1 448-20 679 15v264H0Z" fill="url(#water)"/>
+<path d="M0 527c138-17 295-6 405 4m116 14c206-13 365-9 581 1m-744 31c243-11 458-7 661 2M86 623c189-11 311-10 516-2m-5 40c139-10 337-9 503-1" fill="none" stroke="#e3ebe1" stroke-width="3" opacity=".55"/>
+<path d="M0 664c145-93 209-74 329-35 147 48 239 90 362 75s292-131 509-96v192H0Z" fill="url(#front)"/>
+<path d="M0 771c214-72 366 6 576-18 257-30 379-45 624-17v64H0Z" fill="#9eaa91"/>
+<g fill="#4b6961"><path d="m113 684 17-77 18 77h-11v40h-14v-40Zm-47 18 11-55 14 55h-8v31H74v-31Zm950-58 20-94 24 94h-16v54h-16v-54Z"/><path d="m1075 652 15-70 17 70h-11v43h-12v-43Z"/></g>
+<path d="M760 800c-1-43 14-61 7-92-6-27-40-36-47-62" stroke="#e2d7b5" fill="none" stroke-width="25"/>
+<path d="M0 0h1200v800H0Z" filter="url(#noise)" opacity=".7"/>
+</svg>
