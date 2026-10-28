@@ -5,7 +5,7 @@ const {createPlayer,createController}=require('./arena-pet.js');
 function fixture({formats={webm:true},hevc=false,rejectPlay=false,transitions=false,frameCallbacks=false}={}){
   let now=0,serial=0,visible=true,ended=0;
   const queue=new Map(),frameQueue=new Map(),document={hidden:false,createElement(){return {getContext(){return {drawImage(){},globalAlpha:1};}};}},reduced={matches:false};
-  const attrs=new Map(),element={isConnected:true,getClientRects:()=>visible?[{}]:[],getAttribute:k=>attrs.get(k),setAttribute:(k,v)=>attrs.set(k,v)};
+  const attrs=new Map(),element={isConnected:true,getClientRects:()=>visible?[{}]:[],getAttribute:k=>attrs.get(k),setAttribute:(k,v)=>attrs.set(k,v),removeAttribute:k=>attrs.delete(k)};
   const image={hidden:false,complete:false,naturalWidth:0,src:'',getAttribute(k){return this[k];}};
   const previous=transitions?{hidden:true,style:{},offsetWidth:1,draws:0,getContext(){return {drawImage:()=>{this.draws++;}};}}:null;
   const video={paused:true,ended:false,loop:false,currentTime:0,hidden:true,src:'',loads:0,plays:0,videoWidth:512,videoHeight:512,
@@ -77,36 +77,41 @@ test('an old decode or rejected play cannot replace a newer action',async()=>{
   const f=fixture();f.player.set(loop,'idle');const stale=f.video.onloadeddata;f.player.set(once,'welcome');stale();assert.equal(f.attrs.get('data-motion-status'),'loading');assert.equal(f.video.src,once.webm);
   f.ready();await settle();assert.equal(f.attrs.get('data-motion-status'),'playing');assert.equal(f.attrs.get('data-motion-id'),'wave');
 });
-test('changing actions keeps the decoded old frame until the new video frame is presented',async()=>{
+test('changing actions keeps one old frame until the new video frame is presented, then swaps without overlap',async()=>{
   const f=fixture({transitions:true,frameCallbacks:true});f.player.set(loop,'idle');f.ready();await settle();f.present();
   f.player.set(once,'working');assert.equal(f.previous.hidden,false);assert.equal(f.previous.style.opacity,'1');
-  assert.ok(f.previous.draws>0);assert.equal(f.attrs.get('data-motion-status'),'loading');
-  f.ready();await settle();assert.equal(f.previous.style.opacity,'1','playing does not prove a frame is on screen');
-  f.present();assert.equal(f.previous.style.opacity,'0');assert.equal(f.previous.hidden,false);
-  f.advance(260);assert.equal(f.previous.hidden,true);
-  f.player.set(loop,'thinking');assert.equal(f.previous.hidden,false);
-  f.reduced.matches=true;f.player.refresh();assert.equal(f.previous.hidden,true);
+  assert.ok(f.previous.draws>0);assert.equal(f.attrs.get('data-motion-status'),'loading');assert.equal(f.attrs.has('data-motion-hold'),true);
+  f.ready();await settle();assert.equal(f.previous.hidden,false,'playing does not prove a frame is on screen');
+  assert.equal(f.attrs.has('data-motion-hold'),true);assert.equal(f.image.hidden,true);
+  f.present();assert.equal(f.previous.hidden,true);assert.equal(f.attrs.has('data-motion-hold'),false);assert.equal(f.video.hidden,false);
+  f.player.set(loop,'thinking');assert.equal(f.previous.hidden,false);assert.equal(f.attrs.has('data-motion-hold'),true);
+  f.reduced.matches=true;f.player.refresh();assert.equal(f.previous.hidden,true);assert.equal(f.attrs.has('data-motion-hold'),false);
 });
 test('a late frame callback from an interrupted action cannot reveal its replacement',async()=>{
   const f=fixture({transitions:true,frameCallbacks:true});f.player.set(loop,'idle');f.ready();await settle();f.present();
   f.player.set(once,'working');f.ready();await settle();const stale=[...f.frameQueue.values()][0];
   f.player.set(loop,'thinking');f.ready();await settle();stale();
-  assert.equal(f.previous.style.opacity,'1');assert.equal(f.previous.hidden,false);
-  f.present();assert.equal(f.previous.style.opacity,'0');
+  assert.equal(f.previous.hidden,false);assert.equal(f.attrs.has('data-motion-hold'),true);
+  f.present();assert.equal(f.previous.hidden,true);assert.equal(f.attrs.has('data-motion-hold'),false);
 });
-test('an interrupted fade keeps a snapshot visible until the replacement is presented',async()=>{
+test('an interrupted transition retains one snapshot until the latest replacement is presented',async()=>{
   const f=fixture({transitions:true,frameCallbacks:true});f.player.set(loop,'idle');f.ready();await settle();f.present();
-  f.player.set(once,'working');f.ready();await settle();f.present();
-  assert.equal(f.previous.style.opacity,'0');f.advance(100);
-  f.player.set(loop,'thinking');assert.equal(f.previous.hidden,false);assert.equal(f.previous.style.opacity,'1');
-  f.advance(300);assert.equal(f.previous.hidden,false,'the previous fade timer cannot hide the new snapshot');
-  f.ready();await settle();f.present();assert.equal(f.previous.style.opacity,'0');
+  f.player.set(once,'working');f.ready();await settle();const draws=f.previous.draws;
+  f.player.set(loop,'thinking');assert.equal(f.previous.hidden,false);assert.equal(f.previous.draws,draws);
+  assert.equal(f.attrs.has('data-motion-hold'),true);f.advance(300);assert.equal(f.previous.hidden,false);
+  f.ready();await settle();f.present();assert.equal(f.previous.hidden,true);assert.equal(f.attrs.has('data-motion-hold'),false);
 });
 test('a video that never presents a frame keeps the old frame while WebP loads',async()=>{
   const f=fixture({transitions:true,frameCallbacks:true});f.player.set(loop,'idle');f.ready();await settle();f.present();
   f.player.set(once,'working');f.ready();await settle();f.advance(800);
-  assert.equal(f.image.src,once.webp);assert.equal(f.previous.hidden,false);assert.equal(f.previous.style.opacity,'1');
-  f.image.onload();assert.equal(f.previous.style.opacity,'0');f.advance(260);assert.equal(f.previous.hidden,true);
+  assert.equal(f.image.src,once.webp);assert.equal(f.previous.hidden,false);assert.equal(f.attrs.has('data-motion-hold'),true);
+  f.image.onload();assert.equal(f.previous.hidden,true);assert.equal(f.attrs.has('data-motion-hold'),false);
+});
+test('if animated fallback fails, its loaded poster replaces the held frame without overlap',async()=>{
+  const f=fixture({transitions:true,frameCallbacks:true});f.player.set(loop,'idle');f.ready();await settle();f.present();
+  f.player.set(once,'working');f.ready();await settle();f.advance(800);f.image.onerror();
+  assert.equal(f.image.src,once.poster);assert.equal(f.previous.hidden,false);assert.equal(f.attrs.has('data-motion-hold'),true);
+  f.image.onload();assert.equal(f.previous.hidden,true);assert.equal(f.attrs.has('data-motion-hold'),false);
 });
 test('a queued ended event from the previous source cannot end a newly playing action',()=>{
   const f=fixture();f.player.set(loop,'idle');f.ready();f.player.set(once,'welcome');f.ready();
