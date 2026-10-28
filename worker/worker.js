@@ -1,4 +1,6 @@
 import { createChatRunClass } from './chat-runs.js';
+import { createDebateRunClass } from './debate-runs.js';
+import DebateCore from '../arena-debate.js';
 var __defProp = Object.defineProperty;
 var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
 
@@ -460,6 +462,53 @@ async function retrieveProjectMaterials(env,user,project,query){
   return {text:snippets.join("\n\n"),files:selected,fragments:snippets.length};
 }
 
+async function handleDebateRunRequest(request, env) {
+  try {
+    const body = await accountRequestBody(await request.json(), env);
+    const user = String(body.user || body.username || '').trim().toLowerCase();
+    if (!await registeredAccount(env, user, body.password || body.passwordHash)) return projectReply({ error: '请先登录账号。' }, 401);
+    if (!['start','status','stop','resume','retry','skip','finish'].includes(body.action) || !validResourceId(body.runId) || !validResourceId(body.chatId)) return projectReply({ error: '讨论信息无效。' }, 400);
+    const projectId = body.projectId || null;
+    if (projectId) await ownedProject(env, user, projectId);
+    if (!env.CHAT_RUNS) return projectReply({ error: '后台恢复服务尚未部署，请稍后再试。' }, 503);
+    if (!['start','status'].includes(body.action) && !validResourceId(body.operationId)) return projectReply({ error: '操作编号无效。' }, 400);
+    const internal = { kind: 'debate', action: body.action, runId: body.runId, after: body.after, operationId: body.operationId, turn: body.turn, attempt: body.attempt };
+    if (body.action === 'start') {
+      const data = body.input, config = data?.config;
+      if (!data || !config || !Array.isArray(config.members)) return projectReply({ error: '缺少讨论设置。' }, 400);
+      const models = Object.fromEntries(Object.entries(OFFICIAL_MODELS).filter(([, value]) => !value.image).map(([id, value]) => [id, { name: value.name, brand: value.provider,
+        color: ({anthropic:'#C96442',xai:'#777777',google:'#4285F4',openai:'#10A37F'})[value.provider] || '#777777' }]));
+      const members = config.members.map(member => {
+        if (!member || !/^[a-zA-Z0-9_-]{1,40}$/.test(member.id) || member.id === 'summary') throw new Error('席位标识无效。');
+        return { id: member.id, model: member.model, label: String(member.label || member.id).slice(0,80), role: String(member.role || '').slice(0,500), desc: String(member.desc || '').slice(0,1500), ...(member.team ? { team: member.team } : {}) };
+      });
+      const cleanConfig = { id: body.runId, mode: config.mode, rounds: config.rounds, members, summaryModel: config.summaryModel, topic: String(config.topic || ''), models: Object.keys(models) };
+      const plan = DebateCore.plan(cleanConfig), message = data.userMessage;
+      if (!Number.isSafeInteger(message?.uid) || typeof message.text !== 'string' || message.text.length > 60000 || !Array.isArray(data.replyUids)
+        || data.replyUids.length !== plan.turns.length || data.replyUids.some(uid => !Number.isSafeInteger(uid)) || new Set([message.uid,...data.replyUids]).size !== data.replyUids.length + 1) return projectReply({ error: '讨论消息编号或内容无效。' }, 400);
+      if (data.historyEndUid !== null && !Number.isSafeInteger(data.historyEndUid)) return projectReply({ error: '聊天位置已变化，请重新发送。' }, 400);
+      const images = data.images || [];
+      if (!Array.isArray(images) || images.length > 10 || images.some(i => !validImage(i)) || images.reduce((n,i) => n+i.data.length,0) > 12*1024*1024) return projectReply({ error: '参考图片过多或过大，请压缩后重试。' }, 413);
+      const efforts = {};
+      for (const turn of plan.turns) {
+        const model = turn.member.model, effort = data.efforts?.[model];
+        if (effort !== undefined && !MODEL_EFFORT_LEVELS[model]?.includes(effort)) return projectReply({ error: '该模型不支持所选思考档位。' }, 400);
+        if (effort !== undefined) efforts[model] = effort;
+      }
+      const userMessage = { uid: message.uid, isUser: true, brand: 'user', color: '#A78BFA', name: String(message.name || '用户').slice(0,60), text: message.text, topicText: String(message.topicText || '').slice(0,16000) };
+      if (Array.isArray(message.pastedTexts)) userMessage.pastedTexts = message.pastedTexts.filter(x => typeof x === 'string').slice(0,10).map(x => x.slice(0,16000));
+      if (message._quote && typeof message._quote.text === 'string') userMessage._quote = { author: String(message._quote.author || '').slice(0,100), text: message._quote.text.slice(0,6000) };
+      const record = JSON.parse(await env.MEMORY_KV.get('user:' + user));
+      const seed = { config: cleanConfig, user, authVersion: await hashText(record.hash), projectId, chatId: body.chatId, incognito: !!data.incognito,
+        images: images.map(i => ({ data:i.data,mime:i.mime || 'image/jpeg' })), search: !!data.search, efforts, models, userMessage, replyUids: data.replyUids,
+        historyEndUid: data.historyEndUid, title: String(data.title || cleanConfig.topic).replace(/\s+/g,' ').slice(0,80) };
+      internal.fingerprint = await hashText(JSON.stringify({ ...seed, authVersion:undefined, models:undefined, config:{...cleanConfig,models:undefined} })); internal.seed = seed;
+    }
+    const id = env.CHAT_RUNS.idFromName('debate:' + user + ':' + (projectId || 'general') + ':' + body.chatId);
+    return env.CHAT_RUNS.get(id, { locationHint:'enam' }).fetch(new Request('https://debate-run.internal/', { method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(internal) }));
+  } catch (error) { return projectReply({ error: error.status ? error.message : error instanceof SyntaxError ? '讨论请求无效。' : error.message || '讨论连接暂时不可用。' }, error.status || (error instanceof SyntaxError || /请选择|请为|讨论|辩题|席位/.test(error.message) ? 400 : 503)); }
+}
+
 async function handleChatRunRequest(request, env) {
   try {
     const body = await accountRequestBody(await request.json(), env);
@@ -506,6 +555,7 @@ var worker_default = {
       });
     }
     const url = new URL(request.url);
+    if (url.pathname === '/debate-runs' && request.method === 'POST') return handleDebateRunRequest(request, env);
     if (url.pathname === '/chat-runs' && request.method === 'POST') return handleChatRunRequest(request, env);
     if (url.searchParams.has("user")) {
       url.searchParams.set("user", await storageAccountName(url.searchParams.get("user"), env));
@@ -1156,7 +1206,7 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
       let response;
       for (let attempt = 0; attempt < 2; attempt++) {
         response = await fetchOfficial(url, options);
-        if (response.ok || ![429, 500, 502, 503, 504].includes(response.status)) return response;
+        if (body.noAutomaticRetry || response.ok || ![429, 500, 502, 503, 504].includes(response.status)) return response;
         if (attempt === 0) {
           await response.body?.cancel();
           await new Promise(resolve => setTimeout(resolve, 500));
@@ -1473,5 +1523,14 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
     });
   }
 };
-const ChatRun = createChatRunClass((request, env) => worker_default.fetch(request, env));
+const executeRun = (request, env) => worker_default.fetch(request, env);
+const DebateRun = createDebateRunClass(executeRun, async (job, env) => {
+  const value = await env.MEMORY_KV.get('user:' + job.user);
+  const record = value ? JSON.parse(value) : null;
+  if (!record?.hash || await hashText(record.hash) !== job.authVersion) throw new Error('账号登录状态已变化，本场已暂停；请重新登录后开始新讨论。');
+  if (job.projectId) await ownedProject(env, job.user, job.projectId);
+  // Retrieve the existing credential only for this execution, never store it in a job.
+  return { user: job.user, username: job.user, password: record.hash, passwordHash: record.hash };
+}, DebateCore);
+const ChatRun = createChatRunClass(executeRun, DebateRun);
 export { worker_default as default, ChatRun };

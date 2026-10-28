@@ -80,6 +80,12 @@
       return state;
     }
     return {
+      seed: function (key, text) {
+        // Reattached answers start at the already received prefix; only new text is paced.
+        var state = write(key, String(text || ''), false);
+        if (state.timer !== null) cancel(state.timer);
+        state.timer = null; state.index = state.units.length; state.visible = state.units.join(''); state.nextAt = now() + interval;
+      },
       write: function (key, text) { write(key, text, false); },
       finish: function (key, text) {
         var state = write(key, text, true);

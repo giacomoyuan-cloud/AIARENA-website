@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>AI 助手</title>
-<meta name="app-version" content="20261029-controls2">
+<meta name="app-version" content="20261029-debateresume1">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -864,9 +864,9 @@
   #ai-arena-app #aaSkillEditPrompt::placeholder { color: #888; opacity: 1; }
 
 </style>
-<link rel="stylesheet" href="/arena.css?v=20261029-controls2">
-<link rel="stylesheet" href="/arena-workspace.css?v=20261029-controls2">
-<link rel="stylesheet" href="/arena-controls.css?v=20261029-historyicons1">
+<link rel="stylesheet" href="/arena.css?v=20261029-debateresume1">
+<link rel="stylesheet" href="/arena-workspace.css?v=20261029-debateresume1">
+<link rel="stylesheet" href="/arena-controls.css?v=20261029-debateresume1">
 <link rel="stylesheet" href="/arena-pet.css?v=20261029-petnoghost1">
 <link rel="preload" as="image" href="/assets/kitten/motion/knead-14b49069b5fd.png">
 
@@ -969,6 +969,7 @@
       <div id="aaThinkingArea"></div>
     </div>
     <div class="aa-input-area">
+      <div id="aaDebateRecovery" class="arena-debate-recovery" hidden><div><strong id="aaDebateRecoveryTitle"></strong><p id="aaDebateRecoveryNote" role="status" aria-live="polite"></p><details id="aaDebateRecoveryDetails" hidden><summary id="aaDebateRecoverySummary">本场设置</summary><div id="aaDebateRecoveryRoster"></div></details></div><div id="aaDebateRecoveryActions" class="arena-debate-recovery-actions"></div></div>
       <div class="arena-debate-controls" id="aaDebateControls" hidden>
         <div class="arena-debate-control-row">
           <div class="aa-ctrl-grp arena-debate-modes" id="aaDebateModeBar" aria-label="辩论方式" style="display:none;">
@@ -1227,13 +1228,14 @@
 <script src="/arena-effort.js?v=20261028-effortfix1"></script>
 <script src="/arena-context.js?v=20261027-account1"></script>
 <script src="/arena-chat-runs.js?v=20261028-resume1"></script>
-<script src="/arena-controls.js?v=20261029-controls2"></script>
-<script src="/arena-debate.js?v=20261029-controls2"></script>
-<script src="/arena-workspace.js?v=20261029-controls2"></script>
+<script src="/arena-controls.js?v=20261029-debateresume1"></script>
+<script src="/arena-debate.js?v=20261029-debateresume1"></script>
+<script src="/arena-debate-runs.js?v=20261029-debateresume1"></script>
+<script src="/arena-workspace.js?v=20261029-debateresume1"></script>
 <script src="/arena-account.js?v=20261027-account2"></script>
 <script src="/arena-pet-catalog.js?v=20261029-petcycle1"></script>
 <script src="/arena-pet.js?v=20261029-petnoghost1"></script>
-<script src="/arena-stream.js?v=20261028-read15"></script>
+<script src="/arena-stream.js?v=20261029-debateresume1"></script>
 <script>
 (function(){
   (function(){
@@ -1571,6 +1573,8 @@ var TEAM_COLORS = {
     return msgs.map(function(m){
       var obj = {uid:m.uid, brand:m.brand, name:m.name, text:m.text, color:m.color, isUser:m.isUser, isError:m.isError, round:m.round, _team:m._team, _liked:m._liked, _comment:m._comment, topicText:m.topicText, pastedTexts:m.pastedTexts, _quote:m._quote, context:m.context, reasoning:m.reasoning, activity:m.activity, citations:m.citations, _feedback:m._feedback, effort:m.effort, submodel:m.submodel, completedAt:m.completedAt, moderationHelp:m.moderationHelp, suggestedPrompt:m.suggestedPrompt, moderationTask:m.moderationTask, imageTurn:m.imageTurn, imageResponse:m.imageResponse, grounding:m.grounding,participantId:m.participantId,debateSessionId:m.debateSessionId,debateStage:m.debateStage};
       if(m.run) obj.run = m.run;
+      if(m.debateRun) { obj.debateRun=m.debateRun;obj.debateTurn=m.debateTurn;obj.debateAttempt=m.debateAttempt;obj.debateStatus=m.debateStatus;obj.debateError=m.debateError;obj.debateOutdated=m.debateOutdated;obj.usage=m.usage; }
+      if(m.imgSrcs && m.debateRun) obj.imgSrcs=m.imgSrcs;
       if(m.imgItems && m.imgItems.length){ obj.imgItems = m.imgItems; }
       else if(m.imgData){ obj.imgData = m.imgData; obj.imgMime = m.imgMime; }
       return obj;
@@ -1592,6 +1596,7 @@ var TEAM_COLORS = {
 
   function saveCurrentChat(){
     if(_bizMode || _incognitoMode) return;
+    if(typeof debateOwnsChat==='function'&&debateOwnsChat())return;
     if(!currentChatId || !msgs.length) return;
     if(_saveTimer) clearTimeout(_saveTimer);
     var saveScope = activeProjectId;
@@ -1602,6 +1607,7 @@ var TEAM_COLORS = {
     if(lastReplyAt) rememberChatReplyTime(saveChatId, lastReplyAt);
     _saveTimer = setTimeout(function(){
       if(aaRunning) return;
+      if(typeof debateOwnsChat==='function'&&debateOwnsChat())return;
       _saveTimer = null;
       chatApiCall('save', { projectId:saveScope, chatId: saveChatId, title: saveTitle, messages: saveMessages, lastReplyAt: lastReplyAt || null }).then(function(){ loadChatList(); });
     }, 2000);
@@ -1627,6 +1633,7 @@ var TEAM_COLORS = {
       });
       if(changed){ try { localStorage.setItem(CHAT_REPLY_TIMES_KEY, JSON.stringify(knownTimes)); } catch(e){} }
       renderHistoryList();
+      if(typeof restorePendingDebateRun==='function'&&restorePendingDebateRun())return;
       if(typeof restorePendingChatRun==='function')restorePendingChatRun();
     });
   }
@@ -1650,17 +1657,18 @@ var TEAM_COLORS = {
       var loadedReplyAt = getLastAssistantReplyAt(msgs);
       if(loadedReplyAt) rememberChatReplyTime(chatId, loadedReplyAt);
       if(msgs.length){
-        _uidCounter = Math.max.apply(null, msgs.map(function(m){ return m.uid || 0; })) + 1;
+        _uidCounter = Math.max.apply(null, msgs.map(function(m){ return Math.max(m.uid||0,m.debateRun&&m.debateRun.maxUid||0); })) + 1;
       }
       if(switched&&imageMode&&!sentImgs.length&&!sentTexts.length&&!$('aaTopic').value.trim()){
         var latestAnswer=msgs.slice().reverse().find(function(message){return !message.isUser;});
         if(latestAnswer&&!latestAnswer.isError&&latestAnswer.imgItems&&latestAnswer.imgItems.length===1&&ArenaImage.canonical(latestAnswer.submodel)===ArenaImage.canonical(imageComposerModel))setGeneratedImageReference(latestAnswer.imgItems[0],latestAnswer,true,0);
       }
       _skipNextChatSave = true;
+      if(typeof clearDebateView==='function')clearDebateView();
       render();if(imageMode){renderImgPreviews();syncImageComposer();}setImageError('');
       closeHistory();
       msgs.forEach(function(message){if(message.run&&message.run.status!=='running')forgetPendingChatRun(message.run.id);});
-      if(typeof resumeLoadedChatRun==='function')resumeLoadedChatRun();
+      if(!(typeof resumeLoadedDebateRun==='function'&&resumeLoadedDebateRun())&&typeof resumeLoadedChatRun==='function')resumeLoadedChatRun();
       return true;
     });
   }
@@ -2746,6 +2754,171 @@ var TEAM_COLORS = {
       render();syncArenaLayout();saveCurrentChat();loadChatList();
     });
   }
+
+  var durableDebateView=null,restoringDebate=false;
+  function debateOwnsChat(){return msgs.some(function(m){return m.debateRun&&m.debateRun.status==='running';})||!!(durableDebateView&&durableDebateView.ref.chatId===currentChatId&&(durableDebateView.watching||durableDebateView.busy||durableDebateView.draining));}
+  function debateRunKey(){return 'aa-debate-run:'+($('aaUsername').value||'').trim().toLowerCase()+':'+(activeProjectId||'general');}
+  function debateCredentials(ref){return {user:$('aaUsername').value.trim(),password:getPass(),runId:ref.id,chatId:ref.chatId,projectId:ref.projectId||null};}
+  function rememberDebate(ref,input){
+    if(_incognitoMode)return;
+    try{
+      var saved=Object.assign({createdAt:Date.now()},ref);
+      // Keep only a small unacknowledged request, without credentials. Once the
+      // server acknowledges it, storage contains just the recovery reference.
+      if(input&&JSON.stringify(input).length<700000)saved.input=input;
+      sessionStorage.setItem(debateRunKey(),JSON.stringify(saved));
+    }catch(ignore){}
+  }
+  function forgetDebate(ref){try{var saved=JSON.parse(sessionStorage.getItem(debateRunKey())||'null');if(saved&&saved.id===ref.id)sessionStorage.removeItem(debateRunKey());}catch(ignore){}}
+  function clearDebateView(){
+    if(durableDebateView&&durableDebateView.controller)durableDebateView.controller.abort();
+    durableDebateView=null;if($('aaDebateRecovery'))$('aaDebateRecovery').hidden=true;$('ai-arena-app').classList.remove('arena-has-debate-run');
+  }
+  function debateCurrent(view){return durableDebateView===view&&view.ref.chatId===currentChatId&&(view.ref.projectId||null)===(activeProjectId||null);}
+  function debateButton(action,label,turn,primary){return '<button type="button"'+(primary?' class="primary"':'')+' data-debate-action="'+action+'"'+(turn?' data-debate-turn="'+turn.index+'" data-debate-attempt="'+turn.attempt+'"':'')+(durableDebateView&&durableDebateView.busy?' disabled':'')+'>'+label+'</button>';}
+  function syncDebateRecovery(){
+    var view=durableDebateView,box=$('aaDebateRecovery');
+    if(!view||!debateCurrent(view)){box.hidden=true;return;}
+    $('ai-arena-app').classList.add('arena-has-debate-run');
+    box.hidden=false;var data=view.snapshot,actions='',title='正在接回讨论',note='已完成发言会保留，不会重新调用。';
+    if(data){
+      var current=data.turns.find(function(turn){return turn.status==='running';}),failed=data.turns.find(function(turn){return ['failed','interrupted','cancelled'].includes(turn.status);});
+      title=(data.status==='running'?'讨论进行中':data.status==='completed'?'讨论已完成':data.status==='partial'?'讨论已结束 · 部分席位未完成':data.status==='stopped'?'讨论已停止':'讨论已暂停')+' · '+data.completed+'/'+data.total;
+      if(data.status==='running')note=current?data.plan.turns[current.index].member.label+' · '+data.plan.turns[current.index].stage:'正在准备下一席发言';
+      else if(data.status==='completed')note='所有发言已保存。';
+      else note=data.reason||'已保留完成的发言。';
+      if(failed&&data.status!=='running')actions=debateButton('retry','重试本席',failed,true)+debateButton('skip','跳过并继续',failed);
+      else if(data.status!=='running'&&data.turns.some(function(turn){return turn.status==='pending';}))actions=debateButton('resume','继续剩余席位',null,true);
+      if(data.status!=='running'&&data.turns.some(function(turn){return turn.status==='pending';}))actions+=debateButton('finish','结束本场');
+      if(data.status==='completed'||data.status==='partial'||data.status==='stopped'&&!data.total)actions+=debateButton('configure','设置下一场');
+      if(data.saveError)note+=' 聊天列表同步暂时失败，续跑记录仍保留。';
+      if(data.incognito)note+=' 无痕讨论不保存续跑记录，服务器重启后无法恢复。';
+    }
+    if(view.connection==='reconnecting'){title='正在重新连接';note='讨论继续在后台执行，连接恢复后会接回进度。';}
+    if(view.connection==='error'){title=view.rejected?'本场尚未开始':'暂时无法接回讨论';note=view.error||'请检查网络后重新连接。';actions=view.rejected||view.expired?debateButton('configure','调整后重新发送',null,true):debateButton('reconnect','重新连接',null,true);}
+    if(view.busy)note='正在处理，请稍候…';
+    $('aaDebateRecoveryTitle').textContent=title;$('aaDebateRecoveryNote').textContent=note;
+    $('aaDebateRecoveryDetails').hidden=!data;
+    if(data){$('aaDebateRecoverySummary').textContent='本场设置 · '+data.plan.members.length+' 席 · '+data.plan.rounds+' 轮';var roster=data.plan.members.map(function(member){return '<p>'+esc(member.label)+' · '+esc(SUBS[member.model]?SUBS[member.model].name:member.model)+(member.role?' · '+esc(member.role):'')+'</p>';}).join('');if($('aaDebateRecoveryRoster').innerHTML!==roster)$('aaDebateRecoveryRoster').innerHTML=roster;}
+    var host=$('aaDebateRecoveryActions');if(host.innerHTML!==actions)host.innerHTML=actions;
+    $('aaMessages').querySelectorAll('[data-debate-retry-uid]').forEach(function(button){button.disabled=aaRunning||!!view.busy;});
+    if(data&&$('aaDebateProgress')){$('aaDebateProgress').hidden=true;}
+  }
+  function debateTurnControls(message){
+    var canRetry=['failed','interrupted','cancelled','skipped'].includes(message.debateStatus),h='';
+    if(message.debateOutdated)h+='<p class="arena-debate-turn-note">较早席位已补全；这条后续发言保留原内容。</p>';
+    if(!canRetry)return h;
+    h+='<div class="arena-debate-turn-recovery"><p>'+esc(message.debateError||'本席未完成')+'</p><button type="button" data-debate-retry-uid="'+message.uid+'"'+(aaRunning?' disabled':'')+'>重试这一席</button><small>只重试这一席，可能再次产生模型费用。</small></div>';
+    return h;
+  }
+  function applyDebateSnapshot(view,incoming,restored){
+    if(!debateCurrent(view))return;
+    if(incoming.status==='stopped'&&incoming.total===0&&!incoming.plan)incoming=Object.assign({},incoming,{plan:{members:[],turns:[],rounds:0},completed:0,reason:'已停止，本场未开始执行。'});
+    if(view.snapshot&&incoming.revision<view.snapshot.revision)return;
+    var before=view.snapshot,turns=before?before.turns.slice():[];
+    incoming.turns.forEach(function(turn){turns[turn.index]=turn;});
+    view.snapshot=Object.assign({},before||{},incoming,{turns:turns});
+    if(incoming.userMessage&&incoming.userMessage.debateRun)view.ref.maxUid=incoming.userMessage.debateRun.maxUid;
+    var data=view.snapshot,changed=false,ref=Object.assign({},view.ref,{status:data.status});
+    if(incoming.userMessage){var user=msgs.find(function(m){return m.uid===incoming.userMessage.uid;});if(user)Object.assign(user,incoming.userMessage);else{msgs.push(incoming.userMessage);changed=true;}}
+    msgs.forEach(function(message){if(message.debateRun&&message.debateRun.id===ref.id)message.debateRun=ref;});
+    incoming.turns.forEach(function(turn){
+      _uidCounter=Math.max(_uidCounter,turn.reply.uid);
+      if(turn.status==='pending'){var queued=msgs.find(function(m){return m.uid===turn.reply.uid;});if(queued&&queued.debateStatus!=='pending'){queued.debateStatus='pending';queued.debateError='';queued.isError=false;changed=true;}return;}
+      var message=msgs.find(function(m){return m.uid===turn.reply.uid;}),fresh=!message,previousStatus=message&&message.debateStatus,previousAttempt=message&&message.debateAttempt;
+      if(!message){message={uid:turn.reply.uid,text:''};msgs.push(message);changed=true;}
+      var oldText=message.text;
+      Object.assign(message,turn.reply,{debateRun:ref,debateTurn:turn.index,debateStatus:turn.status,debateAttempt:turn.attempt,debateError:turn.error||'',debateOutdated:!!turn.outdated,
+        isError:['failed','interrupted','cancelled','skipped'].includes(turn.status),completedAt:turn.status==='running'?undefined:turn.updatedAt});
+      if(message.usage&&typeof message.usage.cost==='number')message.usageStr='$'+message.usage.cost.toFixed(4);
+      message._activityDirty=true;_uidCounter=Math.max(_uidCounter,message.uid);
+      if(restored&&turn.status==='running')liveReplies.seed(message.uid,message.text);
+      else if(!restored&&(fresh||oldText!==message.text||previousAttempt!==turn.attempt))liveUpdate(message.uid,message.text,message.reasoning);
+      if(turn.status!=='running'&&(!restored||liveReplies.has(message.uid))&&(previousStatus!==turn.status||previousAttempt!==turn.attempt||liveReplies.has(message.uid)))finalizeMsg(message.uid,message.text,message.isError,message.reasoning);
+      if(previousStatus!==turn.status||previousAttempt!==turn.attempt)changed=true;
+    });
+    if(data.status==='running'){
+      var pending=data.turns.find(function(turn){return turn.status==='running';});
+      if(pending&&!pending.reply.text)showThink(pending.reply.submodel);else hideThink();
+    }else hideThink();
+    if(data.total&&(data.status==='running'||data.status==='paused'||data.status==='stopped'))rememberDebate(ref);else forgetDebate(ref);
+    if(changed){_skipNextChatSave=true;render();}
+    syncDebateRecovery();
+  }
+  function watchDurableDebate(view,input,checkpoint){
+    if(view.controller)view.controller.abort();
+    var controller=new AbortController();view.controller=controller;view.watching=true;view.connection='connected';
+    aaRunning=true;abortF=false;activeDebateRunId=view.ref.id;
+    setSendButtonIcon($('aaSendBtn'),true);$('aaSendBtn').className='aa-send stop';$('aaSendBtn').disabled=false;
+    stopActiveGeneration=function(){controlDurableDebate('stop');};
+    syncDebateRecovery();syncArenaLayout();
+    ArenaDebateRuns.watch(WORKER,debateCredentials(view.ref),{input:input,snapshot:checkpoint,signal:controller.signal,
+      onState:function(state){if(debateCurrent(view)){view.connection=state;syncDebateRecovery();}},
+      onSnapshot:function(data,meta){if(view.controller===controller){applyDebateSnapshot(view,data,meta.initial&&!!view.restoreDisplay);view.restoreDisplay=false;view.unconfirmed=null;}}
+    }).catch(function(error){
+      if(!debateCurrent(view)||error.name==='AbortError')return;
+      if(error.status===410&&view.unconfirmed&&view.unconfirmed.input&&Date.now()-view.unconfirmed.createdAt<600000){var seed=view.unconfirmed.input;view.unconfirmed=null;watchDurableDebate(view,seed);return;}
+      if(input&&error.status&&error.status<500){
+        if(!$('aaTopic').value.trim()){$('aaTopic').value=input.userMessage.topicText||input.config.topic;sentTexts=input.userMessage.pastedTexts||[];sentImgs=input.images.map(function(i){return {data:i.data,mime:i.mime,preview:'data:'+i.mime+';base64,'+i.data};});renderImgPreviews();renderTextPreviews();if(input.userMessage._quote)setQuote(input.userMessage._quote.author,input.userMessage._quote.text);}
+        msgs=msgs.filter(function(message){return !(message.uid===input.userMessage.uid&&message.debateRun&&message.debateRun.id===view.ref.id);});view.rejected=true;
+        forgetDebate(view.ref);
+      }
+      view.connection='error';view.error=error.message;arenaNotice(error.message);
+      msgs.forEach(function(message){if(message.debateRun&&message.debateRun.id===view.ref.id&&liveReplies.has(message.uid))liveReplies.finish(message.uid,message.text);});
+      if(error.status===410){view.expired=true;forgetDebate(view.ref);msgs.forEach(function(message){if(message.debateRun&&message.debateRun.id===view.ref.id)message.debateRun.status='expired';});$('aaDebateRecoveryNote').textContent=error.message;}
+    }).finally(function(){
+      if(!debateCurrent(view)||view.controller!==controller)return;
+      view.watching=false;view.draining=true;
+      liveReplies.whenIdle().then(function(){
+        if(!debateCurrent(view)||view.controller!==controller)return;
+        view.draining=false;aaRunning=false;stopActiveGeneration=null;hideThink();
+        setSendButtonIcon($('aaSendBtn'),false);$('aaSendBtn').className='aa-send'+(debate?' debate-mode':' chat-mode');$('aaSendBtn').disabled=!$('aaTopic').value.trim()&&!sentImgs.length&&!sentTexts.length;
+        _skipNextChatSave=true;render();syncDebateRecovery();loadChatList();
+      });
+    });
+  }
+  function startDurableDebate(ref,input){
+    var user=msgs[ msgs.length-1 ];user.debateRun=Object.assign({status:'running'},ref);
+    rememberDebate(ref,input);var view={ref:ref,snapshot:null};durableDebateView=view;watchDurableDebate(view,input);
+  }
+  function resumeLoadedDebateRun(){
+    var user=msgs.slice().reverse().find(function(message){return message.isUser;});
+    if(!user||!user.debateRun)return false;
+    var ref=Object.assign({},user.debateRun);if(ref.chatId!==currentChatId||(ref.projectId||null)!==(activeProjectId||null))return false;
+    durableDebateView={ref:ref,snapshot:null,restoreDisplay:true};watchDurableDebate(durableDebateView);return true;
+  }
+  function restorePendingDebateRun(){
+    if(restoringDebate||aaRunning||_incognitoMode||msgs.length||!getPass()||$('aaTopic').value.trim())return false;
+    var ref;try{ref=JSON.parse(sessionStorage.getItem(debateRunKey())||'null');}catch(ignore){}
+    if(!ref||!ref.chatId||(ref.projectId||null)!==(activeProjectId||null))return false;
+    restoringDebate=true;
+    loadChat(ref.chatId).then(function(){if(!durableDebateView&&currentChatId===ref.chatId){durableDebateView={ref:ref,snapshot:null,unconfirmed:ref,restoreDisplay:true};watchDurableDebate(durableDebateView);}}).finally(function(){restoringDebate=false;});
+    return true;
+  }
+  async function controlDurableDebate(action,turn){
+    var view=durableDebateView;if(!view||view.busy||!debateCurrent(view))return;
+    if(action==='configure'){clearDebateView();syncArenaLayout();return;}
+    if(action==='reconnect'){watchDurableDebate(view);return;}
+    view.busy=true;syncDebateRecovery();
+    try{
+      var data=await ArenaDebateRuns.control(WORKER,debateCredentials(view.ref),action,turn?{turn:turn.index,attempt:turn.attempt}:{});
+      if(!debateCurrent(view))return;
+      if(view.controller)view.controller.abort();view.busy=false;
+      view.restoreDisplay=false;
+      applyDebateSnapshot(view,data,false);
+      // Stop only the subscription. The explicit control above owns cancellation.
+      watchDurableDebate(view,null,data);
+    }catch(error){if(debateCurrent(view))arenaNotice(error.message);}
+    finally{if(debateCurrent(view)){view.busy=false;syncDebateRecovery();}}
+  }
+  $('ai-arena-app').addEventListener('click',function(event){
+    var action=event.target.closest('[data-debate-action]'),retry=event.target.closest('[data-debate-retry-uid]');
+    if(action){var turn=action.dataset.debateTurn!==undefined?{index:Number(action.dataset.debateTurn),attempt:Number(action.dataset.debateAttempt)}:null;controlDurableDebate(action.dataset.debateAction,turn);}
+    if(retry&&!aaRunning){var message=msgs.find(function(m){return String(m.uid)===retry.dataset.debateRetryUid;});if(!message)return;
+      if(!durableDebateView||durableDebateView.ref.id!==message.debateRun.id)durableDebateView={ref:message.debateRun,snapshot:null};
+      controlDurableDebate('retry',{index:message.debateTurn,attempt:message.debateAttempt});}
+  });
+  window.addEventListener('pagehide',function(){if(durableDebateView&&durableDebateView.controller)durableDebateView.controller.abort();});
 
   function renderGoogleGrounding(msg){
     if(!msg.grounding)return '';
@@ -3895,6 +4068,7 @@ var TEAM_COLORS = {
     if(aaRunning){arenaNotice('回答完成后可以新建对话');return;}
     ++chatLoadEpoch;
     if(msgs.length && currentChatId) saveCurrentChat();
+    clearDebateView();
     currentChatId = genChatId();
     $('aaDebateProgress').hidden=true;
     _bizMode = false;
@@ -4247,6 +4421,7 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
       }
 
       if(!msg.isUser)h+=renderGoogleGrounding(msg);
+      if(!msg.isUser&&msg.debateRun)h+=debateTurnControls(msg);
       h += '</div>';
     });
     c.innerHTML = h;
@@ -4378,6 +4553,7 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
 
   // === Main start ===
   function aaStart(){
+    if(!aaRunning&&msgs.some(function(m){return m.debateRun&&m.debateRun.status==='running';})){arenaNotice('这场讨论仍在后台执行，请先重新连接后停止或等待完成');return;}
     if(imageMode && imageComposerModel === 'mj_imagine'){
       alert('Midjourney 未提供通用公开官方 API，已停止中转调用。请先选择其他官方图片模型。'); return;
     }
@@ -4431,6 +4607,7 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
     $('aaBizBanner').style.display = 'none';
   }
     var finished=false,finishingDisplay=false,followupImage=null,imageFailure=false;
+    clearDebateView();
     activeDebateRunId=debatePlan?debatePlan.id:null;
     aaRunning = true; abortF = false; userScrolledUp = false;
     hideThink();
@@ -4464,15 +4641,11 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
     renderTextPreviews();
     if(debate){
       var progress=$('aaDebateProgress');progress.hidden=false;
-      ArenaDebate.run(debatePlan,{
-        stopped:function(){return abortF||activeDebateRunId!==debatePlan.id;},
-        onProgress:function(turn,step,total){progress.textContent=(turn.summary?'讨论总结':'第 '+(turn.round+1)+' / '+debatePlan.rounds+' 轮 · '+turn.stage)+' · '+turn.member.label+' · '+step+'/'+total;},
-        perform:performDebateTurn
-      }).then(function(result){
-        if(abortF||activeDebateRunId!==debatePlan.id)return;
-        progress.textContent=result.status==='failed'?'连续两席未完成，已结束本场；可检查错误后重新开始。':result.status==='partial'?'本场已结束，部分发言未完成，请查看错误说明。':'本场讨论已完成';
-        finish();
-      }).catch(function(error){arenaNotice('讨论未完成：'+error.message);finish();});
+      var debateUser=serializeMsgs().slice(-1)[0],debateInput={config:{mode:debatePlan.mode,rounds:debatePlan.rounds,members:debatePlan.members,topic:debatePlan.topic,summaryModel:judgeModel},
+        userMessage:debateUser,images:_imgs.map(function(i){return {data:i.data,mime:i.mime||'image/jpeg'};}),efforts:{},search:searchOn,incognito:!!_incognitoMode,title:getChatTitle(),
+        historyEndUid:msgs.length>1?msgs[msgs.length-2].uid:null,replyUids:debatePlan.turns.map(function(){return newUid();})};
+      debatePlan.turns.forEach(function(turn){var effort=effortFor(turn.member.model);if(effort)debateInput.efforts[turn.member.model]=effort;});
+      startDurableDebate({id:debatePlan.id,chatId:currentChatId,projectId:activeProjectId},debateInput);
     } else {
       // Chat mode: parallel calls
       var done = 0;
@@ -4647,51 +4820,6 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
       });
     }
 
-    function performDebateTurn(turn,prompt){
-      return new Promise(function(resolve){
-        if(abortF){resolve({ok:false,text:''});return;}
-        var speaker=turn.member,sub=speaker.model,info=SUBS[sub],uid=newUid(),controller,settled=false,timer=null;
-        var msgObj={uid:uid,submodel:sub,effort:effortFor(sub),brand:info.brand,name:speaker.label+' · '+info.name,text:'',reasoning:'',citations:[],activity:[],color:turn.summary?'#777770':BRANDS[info.brand].color,round:turn.round,_team:speaker.team,participantId:speaker.id,debateSessionId:debatePlan.id,debateStage:turn.stage};
-        var first=true;
-        function append(){if(first){first=false;hideThink(sub);msgs.push(msgObj);render();}}
-        function finalize(ok,error){
-          if(settled)return;settled=true;if(timer)clearTimeout(timer);
-          if(activeDebateRunId!==debatePlan.id){resolve({ok:false,text:''});return;}
-          if(controller)controller.signal.removeEventListener('abort',onAbort);
-          hideThink(sub);
-          if(!ok){msgObj.isError=true;msgObj.text+=(msgObj.text?'\n\n':'')+(error||'本席发言未完成');}
-          append();cleanThinkTags(msgObj);
-          finalizeMsg(uid,msgObj.text,!ok,msgObj.reasoning).then(function(){render();resolve({ok:ok,text:msgObj.text,error:error});});
-        }
-        function onAbort(){finalize(false,abortF?'[已停止，发言未完成]':'本席连接中断，发言未完成');}
-        showThink(sub);
-        // Each seat receives only this plan's explicit transcript. Never merge the
-        // saved chat back into the first round, including inside a project.
-        var extra={_imgs:_imgs,chat:{scope:activeProjectId||'general',chatId:currentChatId,question:prompt,query:debatePlan.topic,history:[],historyEndUid:null,incognito:!!_incognitoMode}};
-        controller=callWorkerStream(sub,prompt,_img,_imgMime,
-          function(chunk){
-            if(settled||abortF||activeDebateRunId!==debatePlan.id)return;
-            if(chunk.indexOf('%%USAGE%%')===0){try{var usage=JSON.parse(chunk.slice(9));msgObj.usage=usage;if(typeof usage.cost==='number')msgObj.usageStr='$'+usage.cost.toFixed(4);}catch(ignore){}return;}
-            append();msgObj.text+=chunk;liveUpdate(uid,msgObj.text,msgObj.reasoning||undefined);
-          },
-          function(complete){if(!settled)finalize(complete!==false&&!!msgObj.text.trim(),complete===false?'连接提前结束，发言未完成':(!msgObj.text.trim()?'模型没有返回发言':null));},
-          function(error){finalize(false,error.message||'本席请求失败');},
-          function(name){if(!settled)msgObj.name=speaker.label+' · '+name;},
-          function(reasoning){if(!settled)msgObj.reasoning+=reasoning;},extra,
-          function(meta){
-            if(settled)return;
-            if(meta.context)msgObj.context=meta.context;
-            if(meta.citation&&msgObj.citations.every(function(c){return c.url!==meta.citation.url;}))msgObj.citations.push(meta.citation);
-            if(meta.activity&&msgObj.activity.length<80)msgObj.activity.push(meta.activity);
-            msgObj._activityDirty=true;
-          }
-        );
-        if(!settled){
-          if(controller)controller.signal.addEventListener('abort',onAbort,{once:true});
-          timer=setTimeout(function(){finalize(false,'本席发言超时，请稍后重试');if(controller)controller.abort();},180000);
-        }
-      });
-    }
     function finish(){if(finished)return;finished=true;doFinish();}
     function doFinish(){
       if(finishingDisplay)return;finishingDisplay=true;
@@ -6048,9 +6176,10 @@ if(imageMode){
   async function switchProject(project){
     if(aaRunning){arenaNotice('回答完成后可以切换项目');return;}
     var switchEpoch=++scopeSwitchEpoch;
-    if(_saveTimer){clearTimeout(_saveTimer);_saveTimer=null;if(currentChatId&&msgs.length&&!_incognitoMode)await chatApiCall('save',{projectId:activeProjectId,chatId:currentChatId,title:getChatTitle(),messages:serializeMsgs()});}
+    if(_saveTimer){clearTimeout(_saveTimer);_saveTimer=null;if(currentChatId&&msgs.length&&!_incognitoMode&&!debateOwnsChat())await chatApiCall('save',{projectId:activeProjectId,chatId:currentChatId,title:getChatTitle(),messages:serializeMsgs()});}
     if(switchEpoch!==scopeSwitchEpoch||aaRunning)return;
     var oldKey=activeProjectId||'general';
+    clearDebateView();
     workspaceViews.set(oldKey,{imageEditParentUid:imageEditParentUid,msgs:msgs,currentChatId:currentChatId,draft:$('aaTopic').value,sentImgs:sentImgs,sentTexts:sentTexts,quote:activeQuote,skill:activeSkill,scroll:$('aaMessages').scrollTop,mode:{debate:debate,image:imageMode,video:videoMode,debateMode:debateMode,brands:Object.assign({},activeBrands),selection:Object.assign({},brandSelection)}});
     ++scopeEpoch;++chatLoadEpoch;
     activeProject=project;activeProjectId=project?project.id:null;
