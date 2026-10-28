@@ -53,40 +53,51 @@
     host.appendChild(pane);
     var input=document.createElement('input');input.type='file';input.multiple=true;input.hidden=true;input.accept='.txt,.md,.pdf,.docx,.xlsx,.xls,.pptx,.csv,.tsv,.json,.log';host.appendChild(input);
     var content=dialog.querySelector('#aaWorkspaceContent'),title=dialog.querySelector('#aaWorkspaceTitle'),navigationEpoch=0;
-    var listCache=new Map(),listRequests=new Map(),cacheRevision=0,pinOverrides=new Map(),pinPending=new Set();
+    var listCache=new Map(),listVersions=new Map(),listRequests=new Map(),pinErrors=new Map(),cacheRevision=0,listView=false;
+    var pins=root.ArenaControls.createPinStore({
+      write:function(context,pinned){return app.api('pin',Object.assign({projectId:context.id,pinned:pinned},context.auth));},
+      onChange:function(key,value,pending,context){
+        if(context&&context.account===accountKey()&&dialog.open&&listView&&!archived){var items=listCache.get(cacheKey(context.account,false));if(items)paintList(items,false,context.account);}
+      },
+      onError:function(error,context){if(context.account===accountKey()){var message=error.message||'置顶保存失败，请重试';pinErrors.set(context.account,message);if(dialog.open&&listView)errorInList(message);else notify(message);}}
+    });
     function notify(message){app.notice(message);}
+    function errorInList(message){var status=content.querySelector('[data-w-error]');if(status)status.textContent=message;}
     function show(){if(!dialog.open)dialog.showModal();}
     function close(){navigationEpoch++;dialog.close();}
     dialog.addEventListener('close',function(){navigationEpoch++;});
     function error(message){var element=content.querySelector('[data-w-error]');if(element)element.textContent=message;else notify(message);}
-    function setContent(label,html){title.textContent=label;content.innerHTML=html;}
+    function setContent(label,html){listView=false;title.textContent=label;content.innerHTML=html;}
     function accountKey(){return app.accountKey?app.accountKey():'';}
     function cacheKey(account,viewArchived){return account+'|'+(viewArchived?'archived':'active');}
-    function invalidate(){cacheRevision++;listCache.clear();listRequests.clear();}
+    function invalidate(){cacheRevision++;listCache.clear();listVersions.clear();listRequests.clear();}
     function fetchList(account,viewArchived){
       var key=cacheKey(account,viewArchived),existing=listRequests.get(key);if(existing)return existing;
-      var revision=cacheRevision;
+      var revision=cacheRevision,pinReadVersion=pins.version();
       var promise=app.api('list',{includeArchived:viewArchived}).then(function(data){
         if(!data||!Array.isArray(data.projects))throw new Error('项目列表格式有误，请重试');
-        data.projects.forEach(function(item){var pinKey=account+'|'+item.id;if(pinOverrides.has(pinKey)&&!!item.pinned===pinOverrides.get(pinKey))pinOverrides.delete(pinKey);});
-        if(revision===cacheRevision&&account===accountKey())listCache.set(key,data.projects);
+        if(revision===cacheRevision&&account===accountKey()){listCache.set(key,data.projects);listVersions.set(key,pinReadVersion);}
         return data.projects;
       }).finally(function(){if(listRequests.get(key)===promise)listRequests.delete(key);});
       listRequests.set(key,promise);return promise;
     }
     function preload(){var account=accountKey();if(account)fetchList(account,false).catch(function(){});}
     function paintList(items,viewArchived,account){
+      var focusedPin=content.contains(document.activeElement)&&document.activeElement.dataset.projectPin;
       var sorted=items.map(function(p){
         var copy=Object.assign({},p),key=account+'|'+p.id;
-        if(pinOverrides.has(key))copy.pinned=pinOverrides.get(key);
+        copy.pinned=pins.read(key,copy.pinned,listVersions.get(cacheKey(account,viewArchived)));
         return copy;
       }).sort(function(a,b){return Number(!!b.pinned)-Number(!!a.pinned);});
       var cards=sorted.map(function(p){
-        var key=account+'|'+p.id,disabled=pinPending.has(key)?' disabled':'';
-        var pin='<button type="button" class="arena-project-pin'+(p.pinned?' pinned':'')+'" data-project-pin="'+e(p.id)+'" data-pinned="'+!!p.pinned+'" aria-pressed="'+!!p.pinned+'" aria-label="'+(p.pinned?'取消置顶项目：':'置顶项目：')+e(p.name)+'" title="'+(p.pinned?'取消置顶':'置顶项目')+'"'+disabled+'><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 4 6 6m-7-2 8 8m-1-12 5 5-3 2-1 5-4-4-6 6 4-7-4-4 5-1Z"/></svg></button>';
+        var key=account+'|'+p.id;
+        var pin='<button type="button" class="arena-project-pin'+(p.pinned?' pinned':'')+'" data-project-pin="'+e(p.id)+'" data-pinned="'+!!p.pinned+'" aria-pressed="'+!!p.pinned+'" aria-busy="'+pins.pending(key)+'" aria-label="'+(p.pinned?'取消置顶项目：':'置顶项目：')+e(p.name)+'" title="'+(p.pinned?'取消置顶':'置顶项目')+'">'+root.ArenaControls.pinIcon+'</button>';
         return '<article class="arena-project-card"><button class="arena-project-open" data-project-open="'+e(p.id)+'"><strong>'+e(p.name)+'</strong><span>'+new Date(p.updatedAt).toLocaleDateString()+'</span></button>'+(viewArchived?'<button data-project-restore="'+e(p.id)+'">恢复项目</button>':pin+'<button class="arena-project-card-more" data-project-settings="'+e(p.id)+'" aria-label="项目设置：'+e(p.name)+'">•••</button>')+'</article>';
       }).join('');
       setContent(viewArchived?'已归档项目':'项目','<div class="arena-workspace-intro"><p>每个项目拥有独立的对话、记忆和资料，与普通聊天隔离。</p><button class="arena-workspace-primary" data-project-new>新建项目</button></div><div class="arena-project-grid">'+(cards||'<div class="arena-workspace-empty">还没有'+(viewArchived?'已归档':'')+'项目</div>')+'</div><div class="arena-workspace-footer"><button data-project-archive-toggle>'+(viewArchived?'返回项目':'查看已归档项目')+'</button><button data-project-general>返回普通聊天</button></div>');
+      var status=document.createElement('p');status.setAttribute('data-w-error','');status.setAttribute('role','alert');status.textContent=viewArchived?'':(pinErrors.get(account)||'');content.querySelector('.arena-project-grid').after(status);
+      listView=true;
+      if(focusedPin){var focused=Array.from(content.querySelectorAll('[data-project-pin]')).find(function(b){return b.dataset.projectPin===focusedPin;});if(focused)focused.focus({preventScroll:true});}
     }
     async function list(){
       if(app.busy()){notify('回答完成后可以切换项目');return;}
@@ -152,16 +163,10 @@
         if(target.hasAttribute('data-project-new'))return edit(null);
         if(target.dataset.projectOpen)return enter(target.dataset.projectOpen);
         if(target.dataset.projectPin){
-          var id=target.dataset.projectPin,account=accountKey(),key=account+'|'+id,pinned=target.dataset.pinned!=='true',pinEpoch=navigationEpoch;
-          if(pinPending.has(key))return;
-          pinPending.add(key);target.disabled=true;
-          try{
-            await app.api('pin',{projectId:id,pinned:pinned});
-            pinOverrides.set(key,pinned);
-            var cached=listCache.get(cacheKey(account,false));
-            if(cached)cached.forEach(function(item){if(item.id===id)item.pinned=pinned;});
-            if(pinEpoch===navigationEpoch&&account===accountKey()&&dialog.open&&!archived&&cached){paintList(cached,false,account);notify(pinned?'已置顶项目':'已取消置顶');}
-          }finally{pinPending.delete(key);if(target.isConnected)target.disabled=false;else if(pinEpoch===navigationEpoch&&dialog.open&&account===accountKey()&&!archived&&cached)paintList(cached,false,account);}
+          var id=target.dataset.projectPin,account=accountKey(),key=account+'|'+id;
+          pinErrors.delete(account);
+          pins.toggle(key,target.dataset.pinned==='true',{id:id,account:account,auth:app.pinContext?app.pinContext():{}});
+          if(event.detail===0){var focused=Array.from(content.querySelectorAll('[data-project-pin]')).find(function(b){return b.dataset.projectPin===id;});if(focused)focused.focus();}
           return;
         }
         if(target.dataset.projectSettings)return edit(target.dataset.projectSettings);

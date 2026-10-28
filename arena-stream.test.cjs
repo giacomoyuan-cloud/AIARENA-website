@@ -173,13 +173,13 @@ test('cancelled network events cannot append text or finish a later generation',
   }
 });
 
-test('send and pet task state stay busy until visible text drains, and stopping a coach also settles once', async () => {
+test('send and pet task state stay busy until visible text drains, and stopping a discussion also settles once', async () => {
   const source = readFileSync(require('node:path').join(__dirname, 'index.html'), 'utf8');
   for (const stopped of [false, true]) {
     const { timer, message, context } = appFixture();
     let saves = 0;
     Object.assign(context, {
-      aaRunning: true, finishingDisplay: false, finished: true, abortF: false, activeStreamControllers: new Set(),
+      aaRunning: true, finishingDisplay: false, finished: true, abortF: false, activeStreamControllers: new Set(), activeDebateRunId: 'test-discussion',
       imageMode: false, debate: true, _bizMode: true, sentImgs: [], sentTexts: [], nbRefImages: [],
       setImageError() {}, renderImgPreviews() {}, renderTextPreviews() {}, renderNbRefList() {}, syncArenaLayout() {},
       setSendButtonIcon() {}, hideThink() {}, saveCurrentChat() { saves++; }
@@ -188,9 +188,10 @@ test('send and pet task state stay busy until visible text drains, and stopping 
     context.$ = id => id === 'aaMessages' ? lookup(id) : ({ value: '', disabled: false });
     const start = source.indexOf('    function doFinish(){'), end = source.indexOf('\n  }\n// === 图像模式', start);
     vm.runInContext(source.slice(start, end), context);
+    message.debateSessionId='test-discussion';message.debateStage='独立观点';
     message.text = '等待这段文字全部显示。'; context.liveUpdate(1, message.text);
     if (stopped) {
-      vm.runInContext(source.match(/    stopActiveGeneration = function\(\)\{ abortF = true;activeStreamControllers[^\n]+/)[0], context);
+      vm.runInContext(source.match(/    stopActiveGeneration = function\(\)\{ abortF = true;[^\n]*activeStreamControllers[^\n]+/)[0], context);
       context.stopActiveGeneration();
     } else {
       context.finalizeMsg(1, message.text, false); context.doFinish();
@@ -199,6 +200,7 @@ test('send and pet task state stay busy until visible text drains, and stopping 
     }
     await Promise.resolve(); await Promise.resolve();
     assert.equal(context.aaRunning, false); assert.equal(saves, 1);
+    if(stopped){assert.equal(message.isError,true);assert.match(message.debateStage,/已停止/);}
     context.doFinish(); await Promise.resolve(); assert.equal(saves, 1);
   }
 });

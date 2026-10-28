@@ -74,10 +74,12 @@ test('free debate can send multiple models from one provider without changing th
   context.activeBrands={xai:false,anthropic:true,google:false};context.brandSelection.anthropic='claude-fable-5-1';
   assert.deepEqual(Array.from(context.getActiveSubmodels()),['claude-sonnet-5-5','claude-opus-5-5','grok-4.7']);
   assert.equal(context.brandSelection.anthropic,'claude-fable-5-1');
+  context.debateModels=['grok-4.7','grok-4.7'];
+  assert.deepEqual(Array.from(context.getActiveSubmodels()),['grok-4.7','grok-4.7']);
   context.debate=false;assert.deepEqual(Array.from(context.getActiveSubmodels()),['claude-fable-5-1']);
 });
 
-test('role and team debates use the chosen individual model IDs and require four distinct team members',()=>{
+test('role and team debates use the chosen individual model IDs and allow the same model in separate team seats',()=>{
   const context=browser();context.debate=true;
   context.debateMode='persona';context.personaState=[{brand:'anthropic',sub:'claude-opus-5-5'},{brand:'anthropic',sub:'claude-sonnet-5-5'}];
   assert.deepEqual(Array.from(context.getActiveSubmodels()),['claude-opus-5-5','claude-sonnet-5-5']);
@@ -86,7 +88,7 @@ test('role and team debates use the chosen individual model IDs and require four
   assert.equal(context.is2v2Ready(),true);
   assert.deepEqual(Array.from(context.getActiveSubmodels()),['claude-opus-5-5','claude-sonnet-5-5','grok-4.7','claude-fable-5-1']);
   assert.deepEqual(JSON.parse(JSON.stringify(context.get2v2Teams().pro)),[{brand:'anthropic',sub:'claude-opus-5-5'},{brand:'anthropic',sub:'claude-sonnet-5-5'}]);
-  context.seatState.con[1]='grok-4.7';assert.equal(context.is2v2Ready(),false);
+  context.seatState.con[1]='grok-4.7';assert.equal(context.is2v2Ready(),true);
   context.seatState.con[1]=null;assert.equal(context.is2v2Ready(),false);
 });
 
