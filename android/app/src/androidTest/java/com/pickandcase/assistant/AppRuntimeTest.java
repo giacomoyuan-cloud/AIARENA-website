@@ -218,6 +218,60 @@ public class AppRuntimeTest {
             screenshot("mobile-keyboard.png");
         }
     }
+    @Test public void imageConversationKeepsPicturesAndSignedContextAcrossEdits() throws Exception {
+        try(ActivityScenario<MainActivity> scene=ActivityScenario.launch(MainActivity.class)){
+            workspace(scene);tap(scene,"#aaHistoryBtn");until(scene,"document.getElementById('aaHistoryPanel').classList.contains('open')");
+            tap(scene,"#aaBarImageBtn");until(scene,"document.getElementById('ai-arena-app').classList.contains('arena-image-mode')");
+            js(scene,"document.getElementById('aaHistoryClose').click()");tap(scene,"#aaImageModelBtn");
+            until(scene,"document.getElementById('aaImageModelPop').classList.contains('open') && document.querySelector('#aaImageModelPop [data-value=\"gemini-nano-banana-2.1\"]')");
+            tap(scene,"#aaImageModelPop [data-value='gemini-nano-banana-2.1']");
+            until(scene,"document.getElementById('aaImageModelLabel').textContent.includes('Nano Banana') && !document.getElementById('aaImageModelPop').classList.contains('open')");
+            js(scene,"""
+                (()=>{const original=window.fetch,bytes=%s;window.qaImageRequests=[];
+                  window.fetch=(url,options={})=>{
+                    if(new URL(url,location.href).pathname!=='/mock-api')return original(url,options);
+                    const body=JSON.parse(options.body),number=qaImageRequests.push(body),enc=new TextEncoder();
+                    const events=[{modelName:body.model}];
+                    if(!body.prompt.includes('MOCK_EMPTY')){
+                      events.push({img:bytes,mime:'image/png'});
+                      if(body.model==='gemini-nano-banana-2.1'&&!body.prompt.includes('MOCK_NO_CONTEXT'))events.push({imageContext:{parts:[{imageIndex:0,thoughtSignature:'sig-'+number}]}});
+                    }
+                    const first=events.map(event=>'data: '+JSON.stringify(event)+'\\n\\n').join('');
+                    const stream=new ReadableStream({start(controller){controller.enqueue(enc.encode(first));
+                      const finish=()=>{controller.enqueue(enc.encode('data: [DONE]\\n\\n'));controller.close()};
+                      if(body.prompt.includes('MOCK_DELAY'))setTimeout(finish,1800);else finish();}});
+                    return Promise.resolve(new Response(stream,{headers:{'Content-Type':'text/event-stream'}}));
+                  };
+                })()
+            """.formatted(JSONObject.quote(image())));
+            String input="document.getElementById('aaTopic')";
+            js(scene,input+".value='画蓝色杯子';"+input+".dispatchEvent(new Event('input',{bubbles:true}))");tap(scene,"#aaSendBtn");
+            try{until(scene,"qaImageRequests.length===1 && document.querySelectorAll('.aa-generated-image').length===1 && document.querySelectorAll('#aaImgPreview img').length===1");}
+            catch(AssertionError failure){fail("First mock image state: "+js(scene,"({requests:window.qaImageRequests?.length,images:document.querySelectorAll('.aa-generated-image').length,refs:document.querySelectorAll('#aaImgPreview img').length,error:document.getElementById('aaImageError').textContent,lastError:document.querySelector('.aa-msg-body.error')?.textContent,mode:document.getElementById('aaImageTaskBtn').textContent,model:document.getElementById('aaImageModelLabel').textContent,send:document.getElementById('aaSendBtn').getAttribute('aria-label')})"));}
+            assertEquals("true",js(scene,"qaImageRequests[0].imageTask==='generation' && qaImageRequests[0].images.length===0"));
+            js(scene,input+".value='改成绿色';"+input+".dispatchEvent(new Event('input',{bubbles:true}))");tap(scene,"#aaSendBtn");
+            until(scene,"qaImageRequests.length===2 && document.querySelectorAll('.aa-generated-image').length===2 && document.querySelectorAll('#aaImgPreview img').length===1");
+            js(scene,input+".value='背景改白';"+input+".dispatchEvent(new Event('input',{bubbles:true}))");tap(scene,"#aaSendBtn");
+            until(scene,"qaImageRequests.length===3 && document.querySelectorAll('.aa-generated-image').length===3 && document.querySelectorAll('#aaImgPreview img').length===1");
+            assertEquals("true",js(scene,"qaImageRequests[1].imageTask==='edit' && qaImageRequests[1].images.length===1 && qaImageRequests[1].imageHistory.length===2 && qaImageRequests[1].imageHistory[1].parts[0].thoughtSignature==='sig-1'"));
+            assertEquals("true",js(scene,"qaImageRequests[2].imageTask==='edit' && qaImageRequests[2].imageHistory.length===4 && qaImageRequests[2].imageHistory[3].parts[0].thoughtSignature==='sig-2'"));
+            assertEquals("true",js(scene,"qaImageRequests.every(q=>!('_imgs' in q) && (!q.images||q.images.every(i=>!('preview' in i))))"));
+            js(scene,input+".value='MOCK_EMPTY 再改一次';"+input+".dispatchEvent(new Event('input',{bubbles:true}))");tap(scene,"#aaSendBtn");
+            until(scene,"document.querySelector('.aa-msg-body.error') && document.querySelector('.aa-msg-body.error').textContent.includes('没有返回图片')");
+            assertEquals("true",js(scene,"document.querySelectorAll('#aaImgPreview img').length===1 && "+input+".value==='MOCK_EMPTY 再改一次' && !document.getElementById('aaImageError').hidden"));
+            js(scene,"document.getElementById('aaImageTaskBtn').click();document.querySelector('#aaImageTaskPop [data-value=\"generation\"]').click()");
+            assertEquals("0",js(scene,"document.querySelectorAll('#aaImgPreview img').length"));
+            js(scene,input+".value='MOCK_DELAY 新图片';"+input+".dispatchEvent(new Event('input',{bubbles:true}))");tap(scene,"#aaSendBtn");
+            until(scene,"document.querySelectorAll('.aa-generated-image').length===4 && document.getElementById('aaSendBtn').getAttribute('aria-label')==='停止生成'");
+            Thread.sleep(200);assertEquals("4",js(scene,"document.querySelectorAll('.aa-generated-image').length"));
+            js(scene,input+".value='待完成的修改';"+input+".dispatchEvent(new Event('input',{bubbles:true}));document.querySelectorAll('.aa-generated-btn.edit')[3].click()");
+            until(scene,"document.getElementById('aaSendBtn').getAttribute('aria-label')==='发送消息'");
+            assertEquals("true",js(scene,input+".value==='待完成的修改' && document.querySelectorAll('#aaImgPreview img').length===1"));
+            js(scene,input+".value='MOCK_NO_CONTEXT 再改一次';"+input+".dispatchEvent(new Event('input',{bubbles:true}))");tap(scene,"#aaSendBtn");
+            until(scene,"Array.from(document.querySelectorAll('.aa-msg-body.error')).some(e=>e.textContent.includes('编辑上下文未完整返回'))");
+            assertEquals("5",js(scene,"document.querySelectorAll('.aa-generated-image').length"));
+        }
+    }
     JSONObject traceEffortTap(ActivityScenario<MainActivity> scene,int index,int max) throws Exception {
         JSONArray rect=new JSONArray(js(scene,"(()=>{let r=document.getElementById('aaEffortSlider').getBoundingClientRect();return [r.x,r.y,r.width,r.height,innerWidth]})()"));
         AtomicReference<Float> ratio=new AtomicReference<>();scene.onActivity(a -> ratio.set(a.web.getWidth()/(float)rect.optDouble(4)));

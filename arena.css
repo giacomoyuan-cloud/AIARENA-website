@@ -690,6 +690,8 @@
 #ai-arena-app.arena-shell .aa-input-row #aaPlusBtn svg,
 #ai-arena-app.arena-shell .aa-input-row #aaSendBtn svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 #ai-arena-app.arena-shell .aa-input-row.image-mode-layout { grid-template-columns: 32px minmax(0,1fr) auto 32px; grid-template-rows: auto 34px; align-items: center; }
+#ai-arena-app.arena-shell .arena-image-error { margin: 0 4px 8px; color: #b54e3f; font-size: 13px; line-height: 1.5; }
+#ai-arena-app.arena-shell:not(.light-mode) .arena-image-error { color: #f19b8c; }
 #ai-arena-app.arena-shell .aa-image-dock { grid-column: 2 / 4; grid-row: 2; width: 100%; min-width: 0; height: 34px; margin: 0; gap: 4px; align-items: center; }
 #ai-arena-app.arena-shell .aa-image-tool { display: flex; align-items: center; gap: 4px; padding: 0 6px; min-width: 0; }
 #ai-arena-app.arena-shell .aa-image-tool > svg { width: 12px; height: 12px; flex: 0 0 12px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
