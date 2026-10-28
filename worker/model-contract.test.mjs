@@ -14,7 +14,7 @@ function setup(){const data=new Map();const kv={get:async k=>data.get(k)||null,p
 function browser(env){
  const payloads=[],output=[],meta=[];
  const context=vm.createContext({
-   ArenaImage:A,AbortController,TextDecoder,Promise,Set,console,
+   ArenaImage:A,AbortController,TextDecoder,Promise,Set,console,window:{},
    WORKER:'https://api.pickandcase.com/',getPass:()=>hash,$:()=>({value:'synthetic-tester'}),
    searchOn:true,activeProjectId:null,activeStreamControllers:new Set(),abortF:false,imageMode:true,
    updateThinkStatus:()=>{},appendThinkSummary:()=>{},effortFor:m=>context.effortSelection?.[m],
