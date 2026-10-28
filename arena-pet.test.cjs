@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { createController, createIdlePlaylist, liveReplyIds, pickLoopAction, markup } = require('./arena-pet.js');
+const { createController, createIdlePlaylist, liveReplyIds, pickLoopAction, pickLoginAction, markup } = require('./arena-pet.js');
 const catalog = require('./assets/kitten/motion/manifest.json');
 
 function setup() {
@@ -38,6 +38,25 @@ test('every runtime state selects a real loop, with stable background motion thr
   assert.equal(pickLoopAction(catalog,'working').id,'work-laptop');
   assert.equal(pickLoopAction(catalog,'thinking').id,'head-tilt');
   assert.equal(pickLoopAction(catalog,'searching').id,'head-tilt');
+});
+
+test('each login can select a different existing loop without immediately repeating the previous visit', () => {
+  const ids = ['knead', 'head-tilt', 'work-laptop', 'wand-jump', 'wand-bat', 'wand-kick'];
+  const firstVisit = ids.map((_, index) => pickLoginAction(catalog, null, () => (index + .5) / ids.length).id);
+  assert.deepEqual(firstVisit, ids);
+  for (const previous of ids) for (let index = 0; index < 5; index++) {
+    const action = pickLoginAction(catalog, previous, () => (index + .5) / 5);
+    assert.notEqual(action.id, previous);
+    assert.equal(action.playback, 'loop');
+    assert.ok(action.poster && action.webp && action.webm && action.hevc);
+  }
+});
+
+test('login selection tolerates missing motions and a single available loop', () => {
+  const only = catalog.actions.knead;
+  assert.equal(pickLoginAction({ actions: { knead: only }, states: {} }, 'knead', () => 0).id, 'knead');
+  assert.equal(pickLoginAction({ actions: { knead: { id: 'knead', playback: 'once' } }, states: {} }, null, () => 0), null);
+  assert.equal(pickLoginAction(catalog, null, () => NaN).id, 'knead');
 });
 
 test('thinking precedes typing, and the first reply keeps typing until the request actually ends', () => {
