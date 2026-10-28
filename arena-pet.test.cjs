@@ -37,6 +37,19 @@ test('every runtime state selects a real loop, with stable background motion thr
   for (const state of ['welcome','idle','rest','done','error']) assert.equal(pickLoopAction(catalog,state).id,'knead');
   assert.equal(pickLoopAction(catalog,'working').id,'work-laptop');
   assert.equal(pickLoopAction(catalog,'thinking').id,'head-tilt');
+  assert.equal(pickLoopAction(catalog,'searching').id,'head-tilt');
+});
+
+test('thinking precedes typing, and the first reply keeps typing until the request actually ends', () => {
+  const {cat}=setup();
+  const action=()=>pickLoopAction(catalog,cat.snapshot().state).id;
+  cat.sync({running:true,hasMessages:true});assert.equal(action(),'head-tilt');
+  cat.progress('model','searching');assert.equal(action(),'head-tilt');
+  cat.progress('model','responding');assert.equal(action(),'work-laptop');
+  for(const phase of ['thinking','searching','responding']){cat.progress('model',phase);assert.equal(action(),'work-laptop');}
+  cat.complete('model','done');assert.equal(action(),'work-laptop','completion callback cannot idle a still-running request');
+  cat.sync({running:false,hasMessages:true});assert.equal(action(),'knead');
+  cat.sync({running:true,hasMessages:true});assert.equal(action(),'head-tilt','a new request starts by thinking again');cat.destroy();
 });
 
 test('repeated paints never pick a different loop or use an unclosed single-shot as a background', () => {
@@ -65,8 +78,9 @@ test('parallel models retain the unfinished model phase after another model comp
   cat.sync({ running: true, hasMessages: true });
   cat.progress('a', 'responding'); cat.progress('b', 'thinking');
   assert.equal(cat.snapshot().state, 'thinking');
-  cat.progress('a', 'searching'); assert.equal(cat.snapshot().state, 'searching');
-  cat.complete('a', 'done'); assert.equal(cat.snapshot().state, 'thinking');
+  cat.progress('b', 'searching'); assert.equal(cat.snapshot().state, 'searching');
+  cat.complete('a', 'done'); assert.equal(cat.snapshot().state, 'searching');
+  cat.progress('b', 'thinking'); assert.equal(cat.snapshot().state, 'thinking');
   cat.progress('b', 'responding'); assert.equal(cat.snapshot().state, 'working');
 });
 
