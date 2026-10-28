@@ -866,7 +866,7 @@
 </style>
 <link rel="stylesheet" href="/arena.css?v=20261029-controls2">
 <link rel="stylesheet" href="/arena-workspace.css?v=20261029-controls2">
-<link rel="stylesheet" href="/arena-controls.css?v=20261029-controls2">
+<link rel="stylesheet" href="/arena-controls.css?v=20261029-historyicons1">
 <link rel="stylesheet" href="/arena-pet.css?v=20261029-petnoflash1">
 <link rel="preload" as="image" href="/assets/kitten/motion/knead-14b49069b5fd.png">
 
@@ -1703,7 +1703,7 @@ var TEAM_COLORS = {
         +'</span>'
         +'</button>'
         +'<button type="button" class="aa-history-item-pin'+(chat.pinned?' pinned':'')+'" data-pin="'+safeId+'" aria-label="'+(chat.pinned?'取消置顶会话':'置顶会话')+'" aria-pressed="'+!!chat.pinned+'" aria-busy="'+chatPins.pending(chatPinKey(activeProjectId,chat.id))+'" title="'+(chat.pinned?'取消置顶':'置顶会话')+'">'+ArenaControls.pinIcon+'</button>'
-        +'<button type="button" class="aa-history-item-del" data-del="'+safeId+'" aria-label="删除会话">✕</button>'
+        +'<button type="button" class="aa-history-item-del" data-del="'+safeId+'" aria-label="删除会话" title="删除会话"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4l16 16M20 4 4 20"/></svg></button>'
         +'</div>';
     });
     container.innerHTML = h;

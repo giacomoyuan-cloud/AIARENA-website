@@ -60,12 +60,16 @@
 #ai-arena-app.arena-shell .arena-free-seat { display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:7px; }
 #ai-arena-app.arena-shell .arena-seat-number { font-size:11px;color:var(--arena-muted); }
 #ai-arena-app.arena-shell .arena-free-model { min-width:0; }
-#ai-arena-app.arena-shell .aa-history-item-pin { position:relative;width:30px;height:30px;padding:6px;border-radius:7px; }
+#ai-arena-app.arena-shell .aa-history-item-pin,
+#ai-arena-app.arena-shell .aa-history-item-del { width:30px;height:30px;padding:6px;border-radius:7px;color:var(--arena-muted); }
+#ai-arena-app.arena-shell .aa-history-item-pin { position:relative; }
 #ai-arena-app.arena-shell .arena-project-card .arena-project-pin { width:30px;height:30px;padding:6px;border-radius:7px; }
 #ai-arena-app.arena-shell .aa-history-item-pin svg,
+#ai-arena-app.arena-shell .aa-history-item-del svg,
 #ai-arena-app.arena-shell .arena-project-pin svg { width:18px;height:18px;stroke-width:1.65; }
 #ai-arena-app.arena-shell .aa-history-item-pin.pinned,
 #ai-arena-app.arena-shell .arena-project-pin.pinned { color:var(--arena-text);background:var(--arena-hover); }
+#ai-arena-app.arena-shell .aa-history-item-pin.pinned + .aa-history-item-del { color:var(--arena-text); }
 #ai-arena-app.arena-shell .aa-history-item-pin[aria-busy="true"]::after,
 #ai-arena-app.arena-shell .arena-project-pin[aria-busy="true"]::after { content:"";position:absolute;right:2px;bottom:2px;width:4px;height:4px;border-radius:50%;background:var(--arena-accent); }
 @media(hover:hover) and (pointer:fine){
@@ -73,13 +77,25 @@
   #ai-arena-app.arena-shell .arena-debate-judge:hover,
   #ai-arena-app.arena-shell .arena-role-remove:hover,
   #ai-arena-app.arena-shell .aa-history-item-pin:hover,
+  #ai-arena-app.arena-shell .aa-history-item-del:hover,
   #ai-arena-app.arena-shell .arena-project-pin:hover,
   #ai-arena-app.arena-shell .arena-select-option:not([aria-disabled="true"]):hover { background:var(--arena-hover) !important;color:var(--arena-text); }
+  #ai-arena-app.arena-shell .aa-history-item:hover .aa-history-item-pin,
+  #ai-arena-app.arena-shell .aa-history-item:hover .aa-history-item-del { color:var(--arena-text); }
+}
+#ai-arena-app.arena-shell .aa-history-item:focus-within .aa-history-item-pin,
+#ai-arena-app.arena-shell .aa-history-item:focus-within .aa-history-item-del { color:var(--arena-text); }
+#ai-arena-app.arena-shell .aa-history-item:hover .aa-history-item-del:active,
+#ai-arena-app.arena-shell .aa-history-item-del:active { background:rgba(239,68,68,.2) !important;color:#f87171; }
+@media(hover:none){
+  #ai-arena-app.arena-shell .aa-history-item-del { opacity:.8; }
+  #ai-arena-app.arena-shell .aa-history-item-pin.pinned + .aa-history-item-del { opacity:1; }
 }
 @media(pointer:coarse){
   #ai-arena-app.arena-shell .arena-select-trigger { min-height:44px; }
   #ai-arena-app.arena-shell .arena-select-option { min-height:48px; }
-  #ai-arena-app.arena-shell .aa-history-item-pin { width:40px;height:40px; }
+  #ai-arena-app.arena-shell .aa-history-item-pin,
+  #ai-arena-app.arena-shell .aa-history-item-del { width:40px;height:40px; }
   #ai-arena-app.arena-shell .arena-project-card .arena-project-pin { width:44px;height:44px;right:40px;top:3px; }
   #ai-arena-app.arena-shell .arena-role-remove { width:36px;height:36px; }
 }
