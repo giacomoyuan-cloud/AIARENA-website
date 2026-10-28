@@ -1,4 +1,18 @@
 /* Selects and pins share the shell's quiet surfaces, typography and line icons. */
+#ai-arena-app.arena-shell.arena-debate-mode .aa-input-area { display:flex;flex-direction:column;flex-shrink:1;min-height:0; }
+#ai-arena-app.arena-shell.arena-debate-mode .aa-chat.empty-state .aa-input-area { max-height:calc(100% - 120px); }
+#ai-arena-app.arena-shell.arena-debate-mode #aaDebateControls,
+#ai-arena-app.arena-shell.arena-debate-mode .aa-input-row,
+#ai-arena-app.arena-shell.arena-debate-mode .arena-composer-note { flex:0 0 auto; }
+#ai-arena-app.arena-shell.arena-debate-mode .aa-persona-area,
+#ai-arena-app.arena-shell.arena-debate-mode .aa-seats-area,
+#ai-arena-app.arena-shell.arena-debate-mode .arena-free-participants { flex:0 1 auto;min-height:0; }
+#ai-arena-app.arena-shell.arena-debate-mode .aa-chat.empty-state .aa-messages { min-height:0;padding:0; }
+#ai-arena-app.arena-shell.arena-debate-mode .aa-chat.empty-state .aa-welcome { display:grid !important;grid-template-columns:72px minmax(0,1fr);column-gap:18px;align-items:center;position:static;inset:auto;transform:none;flex:0 0 auto;width:calc(100% - 48px);max-width:800px;margin:0 auto;padding:16px 0;text-align:left; }
+#ai-arena-app.arena-shell.arena-debate-mode .aa-chat.empty-state .arena-kitten-greeting { grid-row:1/3;width:72px;height:72px;margin:0;transform:none; }
+#ai-arena-app.arena-shell.arena-debate-mode .aa-chat.empty-state .aa-kitten--welcome { width:72px;height:72px; }
+#ai-arena-app.arena-shell.arena-debate-mode .aa-chat.empty-state .aa-welcome h1 { grid-column:2;margin:0;font-size:26px;line-height:1.4;align-self:end; }
+#ai-arena-app.arena-shell.arena-debate-mode .aa-chat.empty-state .arena-debate-welcome-copy { grid-column:2;margin:5px 0 0;font-size:12px;line-height:1.5;align-self:start; }
 #ai-arena-app.arena-shell .arena-select-trigger { display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;min-height:38px;padding:8px 10px;border:1px solid var(--arena-border);border-radius:8px;background:var(--arena-bg);color:var(--arena-text);font:13px/1.4 var(--arena-ui-font);text-align:left;cursor:pointer; }
 #ai-arena-app.arena-shell .arena-select-trigger.is-placeholder { color:var(--arena-muted); }
 #ai-arena-app.arena-shell .arena-select-trigger .arena-select-value { overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0; }
@@ -69,7 +83,18 @@
   #ai-arena-app.arena-shell .arena-project-card .arena-project-pin { width:44px;height:44px;right:40px;top:3px; }
   #ai-arena-app.arena-shell .arena-role-remove { width:36px;height:36px; }
 }
+@media(max-height:600px){
+  #ai-arena-app.arena-shell.arena-debate-mode .aa-chat.empty-state .aa-welcome,
+  #ai-arena-app.arena-shell.arena-debate-mode #aaDebateHint,
+  #ai-arena-app.arena-shell.arena-debate-mode #aaDebateStageHelp,
+  #ai-arena-app.arena-shell.arena-debate-mode .arena-composer-note { display:none !important; }
+  #ai-arena-app.arena-shell.arena-debate-mode .aa-chat.empty-state .aa-input-area { max-height:calc(100% - 16px); }
+}
 @media(max-width:600px){
+  #ai-arena-app.arena-shell.arena-debate-mode .aa-chat.empty-state .aa-welcome { width:calc(100% - 20px);grid-template-columns:52px minmax(0,1fr);column-gap:12px;padding:10px 0; }
+  #ai-arena-app.arena-shell.arena-debate-mode .aa-chat.empty-state .arena-kitten-greeting,
+  #ai-arena-app.arena-shell.arena-debate-mode .aa-chat.empty-state .aa-kitten--welcome { width:52px;height:52px; }
+  #ai-arena-app.arena-shell.arena-debate-mode .aa-chat.empty-state .aa-welcome h1 { font-size:22px; }
   #ai-arena-app.arena-shell .aa-persona-input { font-size:16px; }
   #ai-arena-app.arena-shell .aa-persona-area { max-height:30dvh; }
   #ai-arena-app.arena-shell .arena-debate-control-row { align-items:center; }
