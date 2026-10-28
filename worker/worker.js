@@ -1,3 +1,4 @@
+import { createChatRunClass } from './chat-runs.js';
 var __defProp = Object.defineProperty;
 var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
 
@@ -442,6 +443,40 @@ async function retrieveProjectMaterials(env,user,project,query){
   return {text:snippets.join("\n\n"),files:selected,fragments:snippets.length};
 }
 
+async function handleChatRunRequest(request, env) {
+  try {
+    const body = await accountRequestBody(await request.json(), env);
+    const user = String(body.user || body.username || '').trim().toLowerCase();
+    const password = body.password || body.passwordHash;
+    if (!await registeredAccount(env, user, password)) return projectReply({ error: '请先登录账号。' }, 401);
+    if (!['start', 'events', 'status', 'stop'].includes(body.action) || !validResourceId(body.runId) || !validResourceId(body.chatId)) return projectReply({ error: '任务信息无效。' }, 400);
+    const projectId = body.projectId || null;
+    if (projectId) await ownedProject(env, user, projectId);
+    if (!env.CHAT_RUNS) return projectReply({ error: '后台恢复服务尚未部署，请稍后再试。' }, 503);
+    const internal = { action: body.action, runId: body.runId, after: body.after };
+    if (body.action === 'start') {
+      const payload = body.payload, recovery = payload?.recovery, chat = payload?.chat;
+      if (!payload || !chat || typeof chat.question !== 'string' || chat.question.length > 50000 || !Array.isArray(chat.history) || chat.history.length > 16) return projectReply({ error: '聊天内容过长或格式无效。' }, 400);
+      if (chat.chatId !== body.chatId || chat.scope !== (projectId || 'general') || (payload.projectId || null) !== projectId) return projectReply({ error: '聊天范围已变化，请重新发送。' }, 409);
+      const config = OFFICIAL_MODELS[payload.model];
+      if (!config || config.image) return projectReply({ error: '此模型不支持聊天恢复。' }, 400);
+      if (!recovery || !Number.isSafeInteger(recovery.replyUid) || !Number.isSafeInteger(recovery.userMessage?.uid) || typeof recovery.userMessage.text !== 'string' || recovery.userMessage.text.length > 60000) return projectReply({ error: '缺少有效的聊天恢复信息。' }, 400);
+      const message = recovery.userMessage;
+      const userMessage = { uid: message.uid, isUser: true, brand: 'user', name: String(message.name || '用户').slice(0, 60), text: message.text, topicText: String(message.topicText || '').slice(0, 50000), color: '#A78BFA' };
+      if (Array.isArray(message.pastedTexts)) userMessage.pastedTexts = message.pastedTexts.filter(x => typeof x === 'string').map(x => x.slice(0, 50000)).slice(0, 10);
+      if (message._quote && typeof message._quote.text === 'string') userMessage._quote = { author: String(message._quote.author || '').slice(0, 100), text: message._quote.text.slice(0, 6000) };
+      const clean = { ...payload }; delete clean.password; delete clean.passwordHash; delete clean.username; delete clean.user;
+      internal.fingerprint = await hashText(JSON.stringify(clean));
+      internal.payload = { ...clean, user, username: user, password, passwordHash: password };
+      internal.recovery = { user, projectId, chatId: body.chatId, incognito: !!chat.incognito, title: String(recovery.title || chat.question).replace(/\s+/g, ' ').slice(0, 80), userMessage, historyEndUid: chat.historyEndUid,
+        reply: { uid: recovery.replyUid, name: config.name, submodel: payload.model, effort: payload.effort, brand: config.provider === 'anthropic' ? 'anthropic' : config.provider === 'xai' ? 'xai' : config.provider, color: recovery.color || '#777777', text: '', reasoning: '', citations: [], activity: [] } };
+    }
+    const id = env.CHAT_RUNS.idFromName(user + ':' + (projectId || 'general') + ':' + body.chatId);
+    const response = await env.CHAT_RUNS.get(id, { locationHint: 'enam' }).fetch(new Request('https://chat-run.internal/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(internal), signal: request.signal }));
+    return new Response(response.body, { status: response.status, headers: response.headers });
+  } catch (error) { return projectReply({ error: error.status ? error.message : '任务连接暂时不可用，请稍后重试。' }, error.status || (error instanceof SyntaxError ? 400 : 503)); }
+}
+
 var worker_default = {
   async fetch(request, env) {
     if (request.method === "OPTIONS") {
@@ -454,6 +489,7 @@ var worker_default = {
       });
     }
     const url = new URL(request.url);
+    if (url.pathname === '/chat-runs' && request.method === 'POST') return handleChatRunRequest(request, env);
     if (url.searchParams.has("user")) {
       url.searchParams.set("user", await storageAccountName(url.searchParams.get("user"), env));
     }
@@ -517,7 +553,18 @@ var worker_default = {
       }
       if (action === "save") {
         if (!chatId || !messages) return new Response(JSON.stringify({ error: "Missing chatId or messages" }), { status: 400, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
-        await env.BIZ_KV.put(scopePrefix + ":" + chatId, JSON.stringify(messages));
+        let safeMessages = messages;
+        if (Array.isArray(messages) && messages.some(message => message.run?.id)) {
+          const previous = JSON.parse(await env.BIZ_KV.get(scopePrefix + ':' + chatId) || '[]');
+          safeMessages = messages.map(message => {
+            if (!message.run?.id) return message;
+            const saved = previous.find(item => String(item.uid) === String(message.uid) && item.run?.id === message.run.id);
+            // A stopped display queue or a late mobile save must not truncate server-owned output.
+            if (saved && saved.run.status !== 'running' && typeof saved.text === 'string' && typeof message.text === 'string' && saved.text.length > message.text.length && saved.text.startsWith(message.text)) return { ...message, ...saved };
+            return message;
+          });
+        }
+        await env.BIZ_KV.put(scopePrefix + ":" + chatId, JSON.stringify(safeMessages));
         const list = await getList();
         const now = Date.now();
         const existing = list.find((c) => c.id === chatId);
@@ -1363,6 +1410,13 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
       } catch {}
     }
 
+    let lastStreamWrite = Date.now();
+    const heartbeat = setInterval(() => {
+      if (Date.now() - lastStreamWrite >= 10000 && !upstreamAbort.signal.aborted) {
+        lastStreamWrite = Date.now();
+        writer.write(encoder.encode(': heartbeat\n\n')).catch(() => upstreamAbort.abort());
+      }
+    }, 10000);
     (async () => {
       try {
         await writer.write(encoder.encode(": connected "+" ".repeat(2048)+"\n\n"));
@@ -1374,8 +1428,9 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
         for (const binding of ["ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GROK_API_KEY", "GEMINI_API_KEY"]) {
           if (env[binding]) message = message.split(env[binding]).join("[redacted]");
         }
-        if(!upstreamAbort.signal.aborted){try{await sendChunk("\n\n[错误: " + message + "]");}catch{}}
+        if(!upstreamAbort.signal.aborted){try{await writer.write(encoder.encode('data: '+JSON.stringify({error:message})+'\n\n'));}catch{}}
       } finally {
+        clearInterval(heartbeat);
         try{await sendDone();await writer.close();}catch{}
       }
     })();
@@ -1391,4 +1446,5 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
     });
   }
 };
-export { worker_default as default };
+const ChatRun = createChatRunClass((request, env) => worker_default.fetch(request, env));
+export { worker_default as default, ChatRun };

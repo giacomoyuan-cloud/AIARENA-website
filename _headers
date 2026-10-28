@@ -10,6 +10,8 @@
   Cache-Control: no-cache, max-age=0, must-revalidate
 /arena-context.js
   Cache-Control: no-cache, max-age=0, must-revalidate
+/arena-chat-runs.js
+  Cache-Control: no-cache, max-age=0, must-revalidate
 /arena-workspace.js
   Cache-Control: no-cache, max-age=0, must-revalidate
 /arena-workspace.css
