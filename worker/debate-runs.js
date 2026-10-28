@@ -3,7 +3,6 @@ const RETENTION = 7 * 86400000;
 const TURN_LIMIT = 180000;
 const headers = { 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' };
 const json = (data, status = 200) => Response.json(data, { status, headers });
-const clone = value => JSON.parse(JSON.stringify(value));
 const retryable = status => ['failed', 'interrupted', 'cancelled', 'skipped'].includes(status);
 
 export function createDebateRunClass(execute, authorize, core) {
@@ -23,7 +22,7 @@ export function createDebateRunClass(execute, authorize, core) {
         const turn = job.turns.find(item => item.status === 'running');
         if (turn) {
           turn.status = 'interrupted'; turn.error = '服务器执行中断，已保留收到的内容；可单独重试本席。';
-          job.status = 'paused'; job.reason = turn.error; job.repairOnly = false;
+          job.status = 'paused'; job.reason = turn.error; job.repairOnly = false; job.syncOnRead = true;
           this.touch(job, turn);
         }
       }
@@ -144,7 +143,10 @@ export function createDebateRunClass(execute, authorize, core) {
         return json({ id: job.id, status: job.status, revision: job.revision, turns: [], total: 0 });
       }
       if (!job || !job.plan || Date.now() - job.updatedAt > RETENTION) return json({ error: '这场讨论的续跑记录已过期；已保存的聊天记录仍可查看。' }, 410);
-      if (body.action === 'status') return json(this.snapshot(job, Math.max(0, Number(body.after) || 0)));
+      if (body.action === 'status') {
+        if (job.syncOnRead) { await this.saveChat(job); job.syncOnRead = false; this.persist(job); }
+        return json(this.snapshot(job, Math.max(0, Number(body.after) || 0)));
+      }
       if (!['stop', 'resume', 'retry', 'skip', 'finish'].includes(body.action)) return json({ error: '未知讨论操作。' }, 400);
       if (job.operations.includes(body.operationId)) return json(this.snapshot(job));
       if (!body.operationId) return json({ error: '缺少操作编号。' }, 400);

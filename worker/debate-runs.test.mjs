@@ -1,13 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
-import { createHash } from 'node:crypto';
 import worker, { ChatRun } from './worker.js';
-import { createDebateRunClass } from './debate-runs.js';
-import core from '../arena-debate.js';
 
 const pass = 'synthetic-debate-account';
-const digest = text => createHash('sha256').update(text).digest('hex');
 const tick = () => new Promise(resolve => setTimeout(resolve, 1));
 function storage() {
   const db = new DatabaseSync(':memory:');
@@ -104,6 +100,7 @@ test('server restart never silently reissues an uncertain provider request; pend
   await restarted.alarm();assert.equal(f.calls.length,0);
   const status=await(await restarted.fetch(new Request('https://internal/',{method:'POST',body:JSON.stringify({kind:'debate',action:'status',runId:f.fields.runId})}))).json();
   assert.equal(status.status,'paused');assert.equal(status.turns[0].status,'interrupted');assert.equal(status.turns[0].reply.text,'已经收到');
+  assert.equal(JSON.parse(f.data.get('chats:tester:'+f.fields.chatId))[1].debateStatus,'interrupted');
   assert.ok(!JSON.stringify(store.sql.exec('SELECT value FROM debate_jobs').toArray()).includes(pass));
 });
 
@@ -140,4 +137,5 @@ test('finish marks remaining seats skipped and schedules no provider calls',asyn
 test('delta snapshots are absolute checkpoints and omit unchanged turns',async t=>{
   const f=fixture(t);await f.call('start',{input:f.input});const before=await f.status();await f.turn('第一席原文');
   const delta=await(await f.call('status',{after:before.revision})).json();assert.equal(delta.turns.length,1);assert.equal(delta.turns[0].reply.text,'第一席原文');assert.equal(delta.userMessage,undefined);
+  assert.equal(before.userMessage.debateRun.maxUid,6,'pending turn IDs stay reserved across page refreshes');
 });
