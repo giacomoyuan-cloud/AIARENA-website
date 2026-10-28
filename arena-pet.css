@@ -25,7 +25,7 @@
 #ai-arena-app .aa-kitten--login { width: 140px; height: 140px; }
 #ai-arena-app .aa-kitten--portrait { width: 32px; height: 32px; }
 #ai-arena-app .aa-kitten--progress { width: 76px; height: 76px; }
-#ai-arena-app.arena-shell .aa-welcome { top: calc((100% - 170px) / 2); transform: translateY(-50%); }
+#ai-arena-app.arena-shell .aa-welcome { z-index: 2; top: calc((100% - 170px) / 2); transform: translateY(-50%); }
 #ai-arena-app.arena-shell .aa-welcome h1 { margin-top: 2px; }
 #ai-arena-app.arena-shell .aa-msg-head { align-items: center; }
 #ai-arena-app.arena-shell .arena-progress:has(.aa-kitten) { gap: 12px; min-height: 76px; }
