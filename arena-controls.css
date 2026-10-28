@@ -1,4 +1,30 @@
 /* Selects and pins share the shell's quiet surfaces, typography and line icons. */
+#ai-arena-app.arena-shell .arena-debate-recovery { display:flex;align-items:center;justify-content:space-between;gap:12px;flex:0 0 auto;padding:12px 14px;margin:0 0 12px;border:1px solid var(--arena-border);border-radius:12px;background:var(--arena-surface);color:var(--arena-text);font:12px/1.5 var(--arena-ui-font); }
+#ai-arena-app.arena-shell .arena-debate-recovery[hidden] { display:none; }
+#ai-arena-app.arena-shell.arena-has-debate-run #aaDebateControls,
+#ai-arena-app.arena-shell.arena-has-debate-run .arena-free-participants,
+#ai-arena-app.arena-shell.arena-has-debate-run .aa-persona-area,
+#ai-arena-app.arena-shell.arena-has-debate-run .aa-seats-area { display:none !important; }
+#ai-arena-app.arena-shell .arena-debate-recovery details { margin-top:6px;color:var(--arena-muted);font-size:11px; }
+#ai-arena-app.arena-shell .arena-debate-recovery summary { cursor:pointer; }
+#ai-arena-app.arena-shell .arena-debate-recovery details>div { max-height:120px;overflow:auto; }
+#ai-arena-app.arena-shell .arena-debate-recovery details p { margin:4px 0; }
+#ai-arena-app.arena-shell .arena-debate-recovery strong { display:block;font-size:12px;font-weight:500; }
+#ai-arena-app.arena-shell .arena-debate-recovery p { margin:3px 0 0;color:var(--arena-muted);overflow-wrap:anywhere; }
+#ai-arena-app.arena-shell .arena-debate-recovery-actions { display:flex;flex-wrap:wrap;gap:6px;flex-shrink:0; }
+#ai-arena-app.arena-shell .arena-debate-recovery button,
+#ai-arena-app.arena-shell .arena-debate-turn-recovery button { min-height:36px;padding:7px 10px;border:1px solid var(--arena-border);border-radius:8px;background:var(--arena-bg);color:var(--arena-text);font:12px/1.4 var(--arena-ui-font);cursor:pointer;transition:background-color 140ms ease,transform 140ms cubic-bezier(.23,1,.32,1); }
+#ai-arena-app.arena-shell .arena-debate-recovery button.primary { background:var(--arena-text);color:var(--arena-bg);border-color:var(--arena-text); }
+#ai-arena-app.arena-shell .arena-debate-recovery button:disabled,
+#ai-arena-app.arena-shell .arena-debate-turn-recovery button:disabled { opacity:.5;cursor:default; }
+#ai-arena-app.arena-shell .arena-debate-recovery button:active,
+#ai-arena-app.arena-shell .arena-debate-turn-recovery button:active { transform:scale(.97); }
+#ai-arena-app.arena-shell .arena-debate-turn-recovery { margin:8px 0 0;padding:10px 12px;border-radius:9px;background:var(--arena-user);color:var(--arena-muted);font-size:12px;line-height:1.5; }
+#ai-arena-app.arena-shell .arena-debate-turn-recovery p { margin:0 0 8px;overflow-wrap:anywhere; }
+#ai-arena-app.arena-shell .arena-debate-turn-recovery small { margin-left:8px;font-size:11px; }
+#ai-arena-app.arena-shell .arena-debate-turn-note { margin:8px 0;color:var(--arena-muted);font-size:11px; }
+@media(max-width:600px){#ai-arena-app.arena-shell .arena-debate-recovery { align-items:flex-start;flex-direction:column;gap:8px;padding:10px 12px; }#ai-arena-app.arena-shell .arena-debate-recovery-actions { width:100%; }#ai-arena-app.arena-shell .arena-debate-recovery button { min-height:40px; }#ai-arena-app.arena-shell .arena-debate-turn-recovery small { display:block;margin:7px 0 0; }}
+@media(prefers-reduced-motion:reduce){#ai-arena-app.arena-shell .arena-debate-recovery button,#ai-arena-app.arena-shell .arena-debate-turn-recovery button { transition:none;transform:none; }}
 #ai-arena-app.arena-shell.arena-debate-mode .aa-input-area { display:flex;flex-direction:column;flex-shrink:1;min-height:0; }
 #ai-arena-app.arena-shell.arena-debate-mode .aa-chat.empty-state .aa-input-area { max-height:calc(100% - 120px); }
 #ai-arena-app.arena-shell.arena-debate-mode #aaDebateControls,

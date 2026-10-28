@@ -20,7 +20,7 @@ function browser(env){
    updateThinkStatus:()=>{},appendThinkSummary:()=>{},effortFor:m=>context.effortSelection?.[m],
    fetchWithRetry:async(url,opts)=>{payloads.push(JSON.parse(opts.body));return worker.fetch(new Request(url,opts),env);}
  });
- vm.runInContext(source.slice(source.indexOf('  function callWorkerStream'),source.indexOf('  function renderGoogleGrounding')),context);
+ vm.runInContext(source.slice(source.indexOf('  function callWorkerStream'),source.indexOf('  var durableDebateView=')),context);
  return {payloads,output,meta,context,send:(model,opts={},prompt='synthetic contract test')=>new Promise((resolve,reject)=>context.callWorkerStream(model,prompt,null,null,t=>output.push(t),resolve,reject,()=>{},()=>{},opts,event=>meta.push(event)))};
 }
 function imageResponse(){return Response.json({candidates:[{content:{parts:[{text:'result',thoughtSignature:'text-signature'},{inlineData:{data:image.data,mimeType:image.mime},thoughtSignature:'encrypted-signature+/='}]}}],usageMetadata:{promptTokenCount:5,candidatesTokenCount:6,thoughtsTokenCount:7}});}

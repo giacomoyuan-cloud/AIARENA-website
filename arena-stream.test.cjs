@@ -161,7 +161,7 @@ test('cancelled network events cannot append text or finish a later generation',
       updateThinkStatus() {}, appendThinkSummary() {},
       fetchWithRetry: () => beforeHeaders ? new Promise(resolve => { headers = resolve; }) : Promise.resolve(response)
     });
-    vm.runInContext(source.slice(source.indexOf('  function callWorkerStream'), source.indexOf('  function renderGoogleGrounding')), context);
+    vm.runInContext(source.slice(source.indexOf('  function callWorkerStream'), source.indexOf('  var durableDebateView=')), context);
     context.callWorkerStream('gemini-4-argon', 'local fixture', null, null, text => output.push(text), () => done++, () => errors++);
     if (!beforeHeaders) await new Promise(resolve => setImmediate(resolve));
     for (const controller of context.activeStreamControllers) controller.abort();

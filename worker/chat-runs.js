@@ -8,7 +8,7 @@ const cors = { 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' }
 const json = (value, status = 200) => Response.json(value, { status, headers: cors });
 const terminal = status => status && status !== 'running';
 
-export function createChatRunClass(execute) {
+export function createChatRunClass(execute, DebateRun) {
   return class ChatRun {
     constructor(ctx, env) {
       this.ctx = ctx;
@@ -18,6 +18,7 @@ export function createChatRunClass(execute) {
       this.execution = null;
       this.abort = null;
       this.sql = ctx.storage.sql;
+      if (DebateRun) this.debate = new DebateRun(ctx, env);
       this.sql.exec('CREATE TABLE IF NOT EXISTS run_meta (id INTEGER PRIMARY KEY, value TEXT NOT NULL)');
       this.sql.exec('CREATE TABLE IF NOT EXISTS run_events (seq INTEGER PRIMARY KEY, value TEXT NOT NULL)');
       const saved = this.sql.exec('SELECT value FROM run_meta WHERE id = 1').toArray()[0];
@@ -226,6 +227,7 @@ export function createChatRunClass(execute) {
 
     async fetch(request) {
       const body = await request.json();
+      if (body.kind === 'debate' && this.debate) return this.debate.fetchBody(body);
       if (body.action === 'start') {
         if (this.meta?.runId === body.runId) {
           if (this.meta.fingerprint && this.meta.fingerprint !== body.fingerprint) return json({ error: '请求编号已存在，请勿修改后重复发送。' }, 409);
@@ -269,6 +271,7 @@ export function createChatRunClass(execute) {
     }
 
     async alarm() {
+      if (this.debate?.hasJobs) return this.debate.alarm();
       if (this.meta?.status === 'running') { await this.ctx.storage.setAlarm(Date.now() + RETENTION_MS); return; }
       this.sql.exec('DELETE FROM run_events'); this.sql.exec('DELETE FROM run_meta'); this.meta = null;
     }
