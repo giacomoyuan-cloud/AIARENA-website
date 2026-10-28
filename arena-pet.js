@@ -165,7 +165,7 @@
     var now = options.now || function () { return Date.now(); };
     var action = null, state = null, token = 0, sequence = 0, destroyed = false;
     var native = false, fallback = false, loading = false, playingPromise = false, finished = false;
-    var loadTimer = null, endTimer = null, revealTimer = null, presentationTimer = null;
+    var loadTimer = null, endTimer = null, presentationTimer = null;
     var frameRequest = null, frameKind = null, waitingToken = null, presentedToken = null;
     var lastTime = -1, lastProgress = now(), retries = 0;
     var nextCandidate = null;
@@ -173,7 +173,8 @@
     function active() { return !destroyed && el.isConnected && el.getClientRects().length > 0 && !doc.hidden && !reduced.matches; }
     function clearLoad() { if (loadTimer !== null) cancel(loadTimer); loadTimer = null; }
     function clearEnd() { if (endTimer !== null) cancel(endTimer); endTimer = null; }
-    function clearReveal() { if (revealTimer !== null) cancel(revealTimer); revealTimer = null; }
+    function holdPrevious() { el.setAttribute('data-motion-hold', ''); }
+    function releasePrevious() { if (previous) previous.hidden = true; el.removeAttribute('data-motion-hold'); }
     function clearPresentation() {
       if (presentationTimer !== null) cancel(presentationTimer);
       presentationTimer = null;
@@ -186,34 +187,25 @@
     function rememberFrame() {
       if (!previous || !action || !active()) return false;
       // A newer task may interrupt a clip that has not decoded yet.
-      if (!previous.hidden && (loading || presentedToken !== token)) return true;
+      if (!previous.hidden && (loading || presentedToken !== token)) { holdPrevious(); return true; }
       try {
         var source = native && !video.hidden ? video : image;
         var width = source.videoWidth || source.naturalWidth, height = source.videoHeight || source.naturalHeight;
-        if (!width || !height) return !previous.hidden;
+        if (!width || !height) { if (!previous.hidden) holdPrevious(); return !previous.hidden; }
         var canvas = doc.createElement('canvas'); canvas.width = width; canvas.height = height;
         var context = canvas.getContext('2d'); context.drawImage(source, 0, 0, width, height);
-        if (!previous.hidden) {
-          var opacity = win.getComputedStyle ? Number(win.getComputedStyle(previous).opacity) : Number(previous.style.opacity);
-          if (opacity > 0) { context.globalAlpha = opacity; context.drawImage(previous, 0, 0, width, height); }
-        }
         previous.width = width; previous.height = height;
         previous.getContext('2d').drawImage(canvas, 0, 0);
-        previous.style.transition = 'none'; previous.style.opacity = '1'; previous.hidden = false;
-        void previous.offsetWidth;
-        previous.style.transition = '';
+        previous.style.opacity = '1'; previous.hidden = false; holdPrevious();
         return true;
-      } catch (_) { return !previous.hidden; }
+      } catch (_) { if (!previous.hidden) holdPrevious(); return !previous.hidden; }
     }
     function presented(expected) {
       if (expected !== token || waitingToken !== expected || !active()) return;
       clearPresentation(); presentedToken = expected;
       if (native) image.hidden = true;
-      if (previous && !previous.hidden && previous.style.opacity !== '0') {
-        clearReveal();
-        previous.style.opacity = '0';
-        revealTimer = later(function () { revealTimer = null; if (token === expected) previous.hidden = true; }, 260);
-      }
+      // Keep exactly one transparent cat visible: swap only after the new frame is ready.
+      releasePrevious();
       if (options.onReady) options.onReady(action, state);
     }
     function ready() {
@@ -250,7 +242,7 @@
       if (action.playback === 'once') endTimer = later(function () { endTimer = null; if (token === expected) finish(); }, Math.ceil(action.durationSeconds * 1000));
     }
     function showFallback() {
-      if (native && active()) { clearReveal(); rememberFrame(); }
+      if (native && active()) rememberFrame();
       clearPresentation(); presentedToken = null;
       clearLoad(); native = false; fallback = true; loading = false; playingPromise = false;
       video.pause(); video.hidden = true;
@@ -260,7 +252,9 @@
       image.onload = function () { if (token === expected && fallback && active()) { status('fallback'); ready(); fallbackClock(expected); } };
       image.onerror = function () {
         if (token !== expected || !fallback) return;
-        image.onload = image.onerror = null; image.src = action.poster; status('unavailable');
+        image.onload = function () { if (token === expected && fallback && active()) ready(); };
+        image.onerror = null; image.src = action.poster; status('unavailable');
+        if (image.complete && image.naturalWidth) ready();
         clearEnd(); endTimer = later(function () { endTimer = null; if (token === expected) finish(); }, 1500);
       };
       var changed = image.getAttribute('src') !== action.webp;
@@ -273,7 +267,7 @@
         if (!video.loop) { finish(); return; }
         video.currentTime = 0;
       }
-      video.hidden = false;
+      image.hidden = true; video.hidden = false;
       if (!video.paused || playingPromise) return;
       var expected = token;
       playingPromise = true;
@@ -328,7 +322,7 @@
     }
     function refresh() {
       if (!action || destroyed) return;
-      if (!active()) { clearEnd(); clearReveal(); clearPresentation(); presentedToken = null; if (previous) previous.hidden = true; video.pause(); playingPromise = false; showPoster(); status(reduced.matches ? 'reduced' : 'paused'); return; }
+      if (!active()) { clearEnd(); clearPresentation(); presentedToken = null; releasePrevious(); video.pause(); playingPromise = false; showPoster(); status(reduced.matches ? 'reduced' : 'paused'); return; }
       if (native) play();
       else if (fallback) showFallback();
       else if (!loading) load();
@@ -339,7 +333,7 @@
         if (state !== nextState) { clearEnd(); finished = false; playingPromise = false; }
         state = nextState; video.loop = next.playback !== 'once'; refresh(); return;
       }
-      clearReveal(); var retained = rememberFrame(), hadAction = !!action; clearPresentation();
+      var retained = rememberFrame(), hadAction = !!action; clearPresentation();
       token++; sequence++; presentedToken = null; clearLoad(); clearEnd(); video.pause();
       action = next; state = nextState; finished = false; native = fallback = loading = playingPromise = false;
       retries = 0; lastTime = -1; lastProgress = now();
@@ -361,10 +355,10 @@
     video.ontimeupdate = function () { if (native && Math.abs(video.currentTime - lastTime) > .005) { lastTime = video.currentTime; lastProgress = now(); } };
     video.onended = function () { playingPromise = false; if (!native || !active() || !video.ended) return; if (video.loop) { video.currentTime = 0; play(); } else finish(); };
     function destroy() {
-      destroyed = true; token++; sequence++; clearLoad(); clearEnd(); clearReveal(); clearPresentation();
+      destroyed = true; token++; sequence++; clearLoad(); clearEnd(); clearPresentation();
       image.onload = image.onerror = null;
       video.onloadeddata = video.onerror = video.onplaying = video.onended = video.ontimeupdate = null;
-      if (previous) previous.hidden = true;
+      releasePrevious();
       video.pause(); video.removeAttribute('src'); video.load();
     }
     return { set: set, refresh: refresh, watchdog: watchdog, destroy: destroy };
