@@ -82,10 +82,14 @@
 #ai-arena-app.arena-shell .arena-workspace-dialog .arena-workspace-primary { background:var(--arena-text);color:var(--arena-bg);border-color:var(--arena-text);white-space:nowrap; }
 #ai-arena-app.arena-shell .arena-project-grid { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px; }
 #ai-arena-app.arena-shell .arena-project-card { position:relative;border:1px solid var(--arena-border);border-radius:11px;min-width:0; }
-#ai-arena-app.arena-shell .arena-project-card .arena-project-open { display:flex;flex-direction:column;align-items:flex-start;gap:12px;text-align:left;border:0;width:100%;padding:20px 42px 20px 18px;min-height:112px;background:transparent; }
+#ai-arena-app.arena-shell .arena-project-card .arena-project-open { display:flex;flex-direction:column;align-items:flex-start;gap:12px;text-align:left;border:0;width:100%;padding:20px 82px 20px 18px;min-height:112px;background:transparent; }
 #ai-arena-app.arena-shell .arena-project-open strong { font-weight:550;max-width:100%;overflow-wrap:anywhere; }
 #ai-arena-app.arena-shell .arena-project-open span { font-size:11px;color:var(--arena-muted); }
 #ai-arena-app.arena-shell .arena-project-card .arena-project-card-more { position:absolute;right:9px;top:9px;border:0;padding:2px 6px; }
+#ai-arena-app.arena-shell .arena-project-card .arena-project-pin { position:absolute;right:40px;top:9px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;border:0;border-radius:6px;padding:5px;background:transparent;color:var(--arena-muted);cursor:pointer; }
+#ai-arena-app.arena-shell .arena-project-pin svg { width:16px;height:16px; }
+#ai-arena-app.arena-shell .arena-project-pin.pinned { color:var(--arena-accent); }
+#ai-arena-app.arena-shell .arena-project-open[aria-busy="true"] { opacity:.65;cursor:wait; }
 #ai-arena-app.arena-shell .arena-workspace-muted { color:var(--arena-muted);font-size:12px;margin:12px 0; }
 #ai-arena-app.arena-shell .arena-workspace-empty { text-align:center;padding:40px 12px;color:var(--arena-muted);grid-column:1/-1; }
 #ai-arena-app.arena-shell .arena-workspace-footer { display:flex;justify-content:space-between;align-items:center;gap:12px;padding-top:20px;margin-top:20px;border-top:1px solid var(--arena-border); }

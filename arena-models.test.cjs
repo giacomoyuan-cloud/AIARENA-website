@@ -67,6 +67,29 @@ test('unavailable legacy routes still normalize to supported models', () => {
   assert.deepEqual(Array.from(context.getActiveSubmodels()), ['grok-imagine-image-2.0']);
 });
 
+test('free debate can send multiple models from one provider without changing the chat model',()=>{
+  const context=browser();
+  context.debate=true;context.debateMode='free';
+  context.debateModels=['claude-sonnet-5-5','claude-opus-5-5','grok-4.7'];
+  context.activeBrands={xai:false,anthropic:true,google:false};context.brandSelection.anthropic='claude-fable-5-1';
+  assert.deepEqual(Array.from(context.getActiveSubmodels()),['claude-sonnet-5-5','claude-opus-5-5','grok-4.7']);
+  assert.equal(context.brandSelection.anthropic,'claude-fable-5-1');
+  context.debate=false;assert.deepEqual(Array.from(context.getActiveSubmodels()),['claude-fable-5-1']);
+});
+
+test('role and team debates use the chosen individual model IDs and require four distinct team members',()=>{
+  const context=browser();context.debate=true;
+  context.debateMode='persona';context.personaState=[{brand:'anthropic',sub:'claude-opus-5-5'},{brand:'anthropic',sub:'claude-sonnet-5-5'}];
+  assert.deepEqual(Array.from(context.getActiveSubmodels()),['claude-opus-5-5','claude-sonnet-5-5']);
+  vm.runInContext(browserFunction('get2v2Teams')+'\n'+browserFunction('is2v2Ready'),context);
+  context.debateMode='2v2';context.seatState={pro:['claude-opus-5-5','claude-sonnet-5-5'],con:['grok-4.7','claude-fable-5-1']};
+  assert.equal(context.is2v2Ready(),true);
+  assert.deepEqual(Array.from(context.getActiveSubmodels()),['claude-opus-5-5','claude-sonnet-5-5','grok-4.7','claude-fable-5-1']);
+  assert.deepEqual(JSON.parse(JSON.stringify(context.get2v2Teams().pro)),[{brand:'anthropic',sub:'claude-opus-5-5'},{brand:'anthropic',sub:'claude-sonnet-5-5'}]);
+  context.seatState.con[1]='grok-4.7';assert.equal(context.is2v2Ready(),false);
+  context.seatState.con[1]=null;assert.equal(context.is2v2Ready(),false);
+});
+
 test('the model card has a discrete effort slider and a flat model picker', () => {
   const context = browser();
   const elements = new Map();

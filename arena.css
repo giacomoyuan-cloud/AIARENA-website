@@ -63,6 +63,7 @@
   overflow: hidden;
 }
 #ai-arena-app.arena-shell .arena-brand-row { height: 66px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px 0 21px; flex-shrink: 0; }
+#ai-arena-app.arena-shell .arena-brand-actions { display:flex;align-items:center;gap:2px; }
 #ai-arena-app.arena-shell .arena-wordmark { color: var(--arena-text); font: 600 25px/1.2 Georgia, "Songti SC", serif; letter-spacing: -1.1px; text-decoration: none; cursor: pointer; }
 #ai-arena-app.arena-shell .arena-icon-btn { width: 32px; height: 32px; border: 0; border-radius: 7px; background: transparent; color: var(--arena-muted); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
 #ai-arena-app.arena-shell .arena-navigation { display: flex; flex-direction: column; padding: 0 10px; flex-shrink: 0; }
@@ -93,6 +94,13 @@
 #ai-arena-app.arena-shell .aa-history-item-title { color: var(--arena-text); font-size: 13px; font-weight: 400; line-height: 1.4; }
 #ai-arena-app.arena-shell .aa-history-item-time { display: none; }
 #ai-arena-app.arena-shell .aa-history-item-del { color: var(--arena-muted); margin-right: 6px; }
+#ai-arena-app.arena-shell .aa-history-item-pin { width:26px;height:28px;align-self:center;flex:none;display:flex;align-items:center;justify-content:center;background:transparent;border:0;border-radius:6px;color:var(--arena-muted);padding:5px;opacity:0;cursor:pointer; }
+#ai-arena-app.arena-shell .aa-history-item-pin svg { width:16px;height:16px; }
+#ai-arena-app.arena-shell .aa-history-item:hover .aa-history-item-pin,
+#ai-arena-app.arena-shell .aa-history-item:focus-within .aa-history-item-pin,
+#ai-arena-app.arena-shell .aa-history-item-pin.pinned { opacity:1; }
+#ai-arena-app.arena-shell .aa-history-item-pin.pinned { color:var(--arena-accent); }
+@media (hover:none) { #ai-arena-app.arena-shell .aa-history-item-pin { opacity:.8; } }
 #ai-arena-app.arena-shell .aa-history-item:focus-within .aa-history-item-del { opacity: 1; }
 #ai-arena-app.arena-shell .aa-history-empty { padding: 16px 14px; text-align: left; font-size: 12px; line-height: 1.7; color: var(--arena-faint); }
 #ai-arena-app.arena-shell .arena-sidebar-footer { border-top: 1px solid var(--arena-border); padding: 7px 9px max(9px, env(safe-area-inset-bottom)); flex-shrink: 0; }
@@ -394,7 +402,9 @@
 #ai-arena-app.arena-shell .arena-message-action svg { width: 16px; height: 16px; }
 #ai-arena-app.arena-shell .arena-message-action.copied { color: var(--arena-accent) !important; }
 #ai-arena-app.arena-shell .aa-usage-tag { color: var(--arena-muted) !important; margin-left: 0 !important; font-family: var(--arena-ui-font) !important; }
-#ai-arena-app.arena-shell.arena-debate-mode .aa-welcome { display: none !important; }
+#ai-arena-app.arena-shell.arena-debate-mode .aa-welcome { top:38%; }
+#ai-arena-app.arena-shell.arena-debate-mode.arena-debate-seats .aa-welcome { top:22%; }
+#ai-arena-app.arena-shell .arena-debate-welcome-copy { margin:8px 0 0;color:var(--arena-muted);font-size:14px;line-height:1.6; }
 #ai-arena-app.arena-shell.arena-debate-mode:not(.arena-debate-seats) #aaBrandBar .aa-brand-card { display: none; }
 /* Only provider routes with completed availability checks are selectable. */
 #ai-arena-app.arena-shell .aa-brand-card[data-brand="openai"],
@@ -404,6 +414,48 @@
 #ai-arena-app.arena-shell #aaDrop-google,
 #ai-arena-app.arena-shell #aaDrop-mj { display: none !important; }
 #ai-arena-app.arena-shell #aaDebateModeBar button:disabled { opacity: .35; cursor: not-allowed; }
+#ai-arena-app.arena-shell.arena-debate-mode #aaBrandBar { display:none !important; }
+#ai-arena-app.arena-shell .arena-debate-controls { margin:0 0 12px; }
+#ai-arena-app.arena-shell .arena-debate-control-row { display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap; }
+#ai-arena-app.arena-shell .arena-debate-modes { padding:3px;gap:2px; }
+#ai-arena-app.arena-shell .arena-debate-modes .aa-bar-btn { min-height:32px;padding:6px 11px;border-radius:6px;white-space:nowrap; }
+#ai-arena-app.arena-shell .arena-debate-judge { display:flex;align-items:center;gap:7px;min-height:34px;padding:5px 8px;background:transparent !important;border:1px solid var(--arena-border) !important;border-radius:8px;color:var(--arena-text);font-size:12px;cursor:pointer; }
+#ai-arena-app.arena-shell .arena-debate-judge #aaJudgeLabel { color:var(--arena-text) !important; }
+#ai-arena-app.arena-shell .arena-debate-judge #aaJudgeSubLabel { color:var(--arena-muted) !important;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+#ai-arena-app.arena-shell .arena-debate-judge svg { width:14px;height:14px; }
+#ai-arena-app.arena-shell .arena-debate-judge:disabled { opacity:.55;cursor:default; }
+#ai-arena-app.arena-shell .arena-debate-hint { margin:8px 2px 0;color:var(--arena-muted);font-size:12px;line-height:1.5; }
+#ai-arena-app.arena-shell .arena-debate-picker-help { margin:0;padding:2px 12px 8px;color:var(--arena-muted);font-size:12px;line-height:1.5; }
+#ai-arena-app.arena-shell .arena-debate-count { font-size:12px;color:var(--arena-muted);font-weight:400; }
+#ai-arena-app.arena-shell #aaJudgeDrop .aa-drop-item { width:100%;border:0;background:transparent;text-align:left; }
+#ai-arena-app.arena-shell #aaJudgeDrop .aa-drop-item.selected { background:var(--arena-user); }
+#ai-arena-app.arena-shell .aa-persona-area { max-height:28dvh;overflow-y:auto;padding:0 0 10px; }
+#ai-arena-app.arena-shell .aa-seats-area { max-height:28dvh;overflow-y:auto;padding:0 0 10px; }
+#ai-arena-app.arena-shell .aa-seats-row { gap:8px; }
+#ai-arena-app.arena-shell .aa-seat-zone { max-width:none;padding:10px;border:1px solid var(--arena-border);background:var(--arena-surface); }
+#ai-arena-app.arena-shell .aa-seat-title { margin:0 0 7px;text-align:left;font-size:12px;letter-spacing:0; }
+#ai-arena-app.arena-shell .aa-seat-slots { gap:6px; }
+#ai-arena-app.arena-shell .aa-seat-slots select { width:100%;height:36px;min-width:0;padding:5px 7px;border:1px solid var(--arena-border);border-radius:7px;background:var(--arena-surface);color:var(--arena-text);font-size:13px; }
+#ai-arena-app.arena-shell .arena-persona-heading { display:flex;justify-content:space-between;align-items:center;margin:0 2px 8px;color:var(--arena-text);font-size:12px;font-weight:550; }
+#ai-arena-app.arena-shell .arena-persona-heading button { border:0;background:transparent;color:var(--arena-accent);font-size:12px;cursor:pointer;padding:5px; }
+#ai-arena-app.arena-shell .aa-persona-grid { max-width:none;gap:8px; }
+#ai-arena-app.arena-shell .aa-persona-slot { display:grid;grid-template-columns:1fr 1fr;align-items:center;gap:6px;padding:9px;border:1px solid var(--arena-border);border-radius:10px;background:var(--arena-surface); }
+#ai-arena-app.arena-shell .aa-persona-slot.filled { border-color:var(--arena-border); }
+#ai-arena-app.arena-shell .aa-persona-model { min-width:0; }
+#ai-arena-app.arena-shell .aa-persona-model select,
+#ai-arena-app.arena-shell .aa-persona-input { width:100%;height:36px;min-width:0;margin:0;padding:6px 8px;border:1px solid var(--arena-border);border-radius:7px;background:var(--arena-surface);color:var(--arena-text);font-size:13px;font-weight:400; }
+#ai-arena-app.arena-shell .aa-persona-input[id*="Desc"] { grid-column:1/-1;opacity:1;color:var(--arena-text); }
+#ai-arena-app.arena-shell .aa-persona-input::placeholder,
+#ai-arena-app.arena-shell .aa-persona-input[id*="Desc"]::placeholder { color:var(--arena-muted);font-size:13px; }
+@media(max-width:600px){
+  #ai-arena-app.arena-shell.arena-debate-mode .aa-welcome { top:29%; }
+  #ai-arena-app.arena-shell.arena-debate-mode.arena-debate-seats .aa-welcome { top:17%; }
+  #ai-arena-app.arena-shell.arena-debate-mode.arena-debate-seats .aa-welcome h1 { font-size:24px; }
+  #ai-arena-app.arena-shell.arena-debate-mode.arena-debate-seats .arena-kitten-greeting { transform:scale(.72);transform-origin:center bottom; }
+  #ai-arena-app.arena-shell .aa-persona-grid { grid-template-columns:1fr; }
+  #ai-arena-app.arena-shell .aa-persona-area { max-height:24dvh; }
+  #ai-arena-app.arena-shell .arena-debate-control-row { gap:6px; }
+}
 #ai-arena-app.arena-shell .arena-model-popover { width: 268px; }
 
 /* Readable model output: one type scale, semantic blocks, and currency left intact. */

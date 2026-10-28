@@ -327,6 +327,17 @@ async function projectFiles(env,user,id){
 async function projectCatalog(env,user){
   return JSON.parse(await env.BIZ_KV.get("projects:"+user+":list")||"[]");
 }
+// Pins have their own keys so changing an ordering preference cannot overwrite
+// conversation contents or a project's catalog. Scope includes the account.
+async function pinnedIds(kv,prefix){
+  const ids=new Set();let cursor;
+  do{
+    const page=await kv.list(cursor?{prefix,cursor}:{prefix});
+    for(const key of page.keys||[])ids.add(key.name.slice(prefix.length));
+    cursor=page.list_complete===false&&page.cursor?page.cursor:undefined;
+  }while(cursor);
+  return ids;
+}
 async function saveProjectCatalog(env,user,project){
   const list=await projectCatalog(env,user),item={id:project.id,name:project.name,createdAt:project.createdAt,updatedAt:project.updatedAt,archivedAt:project.archivedAt||null};
   const index=list.findIndex(p=>p.id===project.id);
@@ -340,8 +351,8 @@ async function handleProjectRequest(request,env){
     if(!await registeredAccount(env,user,password))return projectReply({error:"请使用账号登录"},401);
     const action=body.action||"list";
     if(action==="list"){
-      const list=await projectCatalog(env,user);
-      return projectReply({projects:list.filter(p=>body.includeArchived?!!p.archivedAt:!p.archivedAt)});
+      const [list,pins]=await Promise.all([projectCatalog(env,user),pinnedIds(env.BIZ_KV,"projects:"+user+":pin:")]);
+      return projectReply({projects:list.filter(p=>body.includeArchived?!!p.archivedAt:!p.archivedAt).map(p=>pins.has(p.id)?{...p,pinned:true}:p)});
     }
     if(action==="create"){
       const name=String(body.name||"").trim(),instructions=String(body.instructions||"");
@@ -355,6 +366,12 @@ async function handleProjectRequest(request,env){
     }
     const project=await ownedProject(env,user,body.projectId,action==="archive");
     const prefix=projectKey(user,project.id);
+    if(action==="pin"){
+      if(typeof body.pinned!=="boolean")return projectReply({error:"置顶状态无效"},400);
+      const key="projects:"+user+":pin:"+project.id;
+      if(body.pinned)await putProjectKV(env.BIZ_KV,key,"1");else await env.BIZ_KV.delete(key);
+      return projectReply({ok:true,pinned:body.pinned});
+    }
     if(action==="get"){
       const [files,memory]=await Promise.all([projectFiles(env,user,project.id),env.MEMORY_KV.get(memoryStorageKey(user,project.id))]);
       return projectReply({project:{...project,files,memory:memory||""}});
@@ -543,8 +560,16 @@ var worker_default = {
       }
       __name(putList, "putList");
       if (action === "list") {
-        const list = await getList();
-        return new Response(JSON.stringify({ chats: list }), { headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
+        const [list,pins] = await Promise.all([getList(),pinnedIds(env.BIZ_KV,scopePrefix+":pin:")]);
+        return new Response(JSON.stringify({ chats: list.map(chat=>pins.has(chat.id)?{...chat,pinned:true}:chat) }), { headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
+      }
+      if (action === "pin") {
+        if(!validResourceId(chatId)||typeof body2.pinned!=="boolean")return projectReply({error:"置顶状态无效"},400);
+        const list=await getList();
+        if(!list.some(chat=>chat.id===chatId))return projectReply({error:"对话不存在"},404);
+        const key=scopePrefix+":pin:"+chatId;
+        if(body2.pinned)await putProjectKV(env.BIZ_KV,key,"1");else await env.BIZ_KV.delete(key);
+        return projectReply({ok:true,pinned:body2.pinned});
       }
       if (action === "load") {
         if (!chatId) return new Response(JSON.stringify({ error: "Missing chatId" }), { status: 400, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
@@ -581,6 +606,8 @@ var worker_default = {
       if (action === "delete") {
         if (!chatId) return new Response(JSON.stringify({ error: "Missing chatId" }), { status: 400, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
         await env.BIZ_KV.delete(scopePrefix + ":" + chatId);
+        // A stale pin must not prevent the existing conversation deletion flow.
+        if(validResourceId(chatId)){try{await env.BIZ_KV.delete(scopePrefix+":pin:"+chatId);}catch(error){}}
         let list = await getList();
         list = list.filter((c) => c.id !== chatId);
         await putList(list);
