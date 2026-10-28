@@ -785,7 +785,6 @@ html, body { overscroll-behavior: none; }
   #ai-arena-app.arena-shell .arena-topbar .arena-icon-btn { min-width: 44px; min-height: 44px; }
 }
 @media (max-height: 500px) and (pointer: coarse) {
-  #ai-arena-app.arena-shell .aa-welcome[data-drafting="true"] { display:none; }
   #ai-arena-app.arena-shell .aa-chat.empty-state .aa-input-area { margin-top: auto; margin-bottom: 0; }
   #ai-arena-app.arena-shell .aa-input-area { max-height: 80%; }
   #ai-arena-app.arena-shell .arena-composer-note { display: none; }
