@@ -2790,12 +2790,12 @@ var TEAM_COLORS = {
       if(failed&&data.status!=='running')actions=debateButton('retry','重试本席',failed,true)+debateButton('skip','跳过并继续',failed);
       else if(data.status!=='running'&&data.turns.some(function(turn){return turn.status==='pending';}))actions=debateButton('resume','继续剩余席位',null,true);
       if(data.status!=='running'&&data.turns.some(function(turn){return turn.status==='pending';}))actions+=debateButton('finish','结束本场');
-      if(data.status==='completed'||data.status==='partial')actions+=debateButton('configure','设置下一场');
+      if(data.status==='completed'||data.status==='partial'||data.status==='stopped'&&!data.total)actions+=debateButton('configure','设置下一场');
       if(data.saveError)note+=' 聊天列表同步暂时失败，续跑记录仍保留。';
       if(data.incognito)note+=' 无痕讨论不保存续跑记录，服务器重启后无法恢复。';
     }
     if(view.connection==='reconnecting'){title='正在重新连接';note='讨论继续在后台执行，连接恢复后会接回进度。';}
-    if(view.connection==='error'){title='暂时无法接回讨论';note=view.error||'请检查网络后重新连接。';actions=debateButton('reconnect','重新连接',null,true);}
+    if(view.connection==='error'){title=view.rejected?'本场尚未开始':'暂时无法接回讨论';note=view.error||'请检查网络后重新连接。';actions=view.rejected||view.expired?debateButton('configure','调整后重新发送',null,true):debateButton('reconnect','重新连接',null,true);}
     if(view.busy)note='正在处理，请稍候…';
     $('aaDebateRecoveryTitle').textContent=title;$('aaDebateRecoveryNote').textContent=note;
     $('aaDebateRecoveryDetails').hidden=!data;
@@ -2813,6 +2813,7 @@ var TEAM_COLORS = {
   }
   function applyDebateSnapshot(view,incoming,restored){
     if(!debateCurrent(view))return;
+    if(incoming.status==='stopped'&&incoming.total===0&&!incoming.plan)incoming=Object.assign({},incoming,{plan:{members:[],turns:[],rounds:0},completed:0,reason:'已停止，本场未开始执行。'});
     if(view.snapshot&&incoming.revision<view.snapshot.revision)return;
     var before=view.snapshot,turns=before?before.turns.slice():[];
     incoming.turns.forEach(function(turn){turns[turn.index]=turn;});
@@ -2840,30 +2841,31 @@ var TEAM_COLORS = {
       var pending=data.turns.find(function(turn){return turn.status==='running';});
       if(pending&&!pending.reply.text)showThink(pending.reply.submodel);else hideThink();
     }else hideThink();
-    if(data.status==='running'||data.status==='paused'||data.status==='stopped')rememberDebate(ref);else forgetDebate(ref);
+    if(data.total&&(data.status==='running'||data.status==='paused'||data.status==='stopped'))rememberDebate(ref);else forgetDebate(ref);
     if(changed){_skipNextChatSave=true;render();}
     syncDebateRecovery();
   }
-  function watchDurableDebate(view,input){
+  function watchDurableDebate(view,input,checkpoint){
     if(view.controller)view.controller.abort();
     var controller=new AbortController();view.controller=controller;view.watching=true;view.connection='connected';
     aaRunning=true;abortF=false;activeDebateRunId=view.ref.id;
     setSendButtonIcon($('aaSendBtn'),true);$('aaSendBtn').className='aa-send stop';$('aaSendBtn').disabled=false;
     stopActiveGeneration=function(){controlDurableDebate('stop');};
     syncDebateRecovery();syncArenaLayout();
-    ArenaDebateRuns.watch(WORKER,debateCredentials(view.ref),{input:input,signal:controller.signal,
+    ArenaDebateRuns.watch(WORKER,debateCredentials(view.ref),{input:input,snapshot:checkpoint,signal:controller.signal,
       onState:function(state){if(debateCurrent(view)){view.connection=state;syncDebateRecovery();}},
       onSnapshot:function(data,meta){if(view.controller===controller){applyDebateSnapshot(view,data,meta.initial&&!!view.restoreDisplay);view.restoreDisplay=false;view.unconfirmed=null;}}
     }).catch(function(error){
       if(!debateCurrent(view)||error.name==='AbortError')return;
       if(error.status===410&&view.unconfirmed&&view.unconfirmed.input&&Date.now()-view.unconfirmed.createdAt<600000){var seed=view.unconfirmed.input;view.unconfirmed=null;watchDurableDebate(view,seed);return;}
       if(input&&error.status&&error.status<500){
-        if(!$('aaTopic').value.trim()){$('aaTopic').value=input.userMessage.topicText||input.config.topic;sentImgs=input.images.map(function(i){return {data:i.data,mime:i.mime,preview:'data:'+i.mime+';base64,'+i.data};});renderImgPreviews();}
+        if(!$('aaTopic').value.trim()){$('aaTopic').value=input.userMessage.topicText||input.config.topic;sentTexts=input.userMessage.pastedTexts||[];sentImgs=input.images.map(function(i){return {data:i.data,mime:i.mime,preview:'data:'+i.mime+';base64,'+i.data};});renderImgPreviews();renderTextPreviews();if(input.userMessage._quote)setQuote(input.userMessage._quote.author,input.userMessage._quote.text);}
+        msgs=msgs.filter(function(message){return !(message.uid===input.userMessage.uid&&message.debateRun&&message.debateRun.id===view.ref.id);});view.rejected=true;
         forgetDebate(view.ref);
       }
       view.connection='error';view.error=error.message;arenaNotice(error.message);
       msgs.forEach(function(message){if(message.debateRun&&message.debateRun.id===view.ref.id&&liveReplies.has(message.uid))liveReplies.finish(message.uid,message.text);});
-      if(error.status===410){forgetDebate(view.ref);msgs.forEach(function(message){if(message.debateRun&&message.debateRun.id===view.ref.id)message.debateRun.status='expired';});$('aaDebateRecoveryNote').textContent=error.message;}
+      if(error.status===410){view.expired=true;forgetDebate(view.ref);msgs.forEach(function(message){if(message.debateRun&&message.debateRun.id===view.ref.id)message.debateRun.status='expired';});$('aaDebateRecoveryNote').textContent=error.message;}
     }).finally(function(){
       if(!debateCurrent(view)||view.controller!==controller)return;
       view.watching=false;view.draining=true;
@@ -2905,7 +2907,7 @@ var TEAM_COLORS = {
       view.restoreDisplay=false;
       applyDebateSnapshot(view,data,false);
       // Stop only the subscription. The explicit control above owns cancellation.
-      watchDurableDebate(view);
+      watchDurableDebate(view,null,data);
     }catch(error){if(debateCurrent(view))arenaNotice(error.message);}
     finally{if(debateCurrent(view)){view.busy=false;syncDebateRecovery();}}
   }

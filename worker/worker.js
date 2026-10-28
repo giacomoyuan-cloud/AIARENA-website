@@ -502,7 +502,7 @@ async function handleDebateRunRequest(request, env) {
       const seed = { config: cleanConfig, user, authVersion: await hashText(record.hash), projectId, chatId: body.chatId, incognito: !!data.incognito,
         images: images.map(i => ({ data:i.data,mime:i.mime || 'image/jpeg' })), search: !!data.search, efforts, models, userMessage, replyUids: data.replyUids,
         historyEndUid: data.historyEndUid, title: String(data.title || cleanConfig.topic).replace(/\s+/g,' ').slice(0,80) };
-      internal.fingerprint = await hashText(JSON.stringify(seed)); internal.seed = seed;
+      internal.fingerprint = await hashText(JSON.stringify({ ...seed, authVersion:undefined, models:undefined, config:{...cleanConfig,models:undefined} })); internal.seed = seed;
     }
     const id = env.CHAT_RUNS.idFromName('debate:' + user + ':' + (projectId || 'general') + ':' + body.chatId);
     return env.CHAT_RUNS.get(id, { locationHint:'enam' }).fetch(new Request('https://debate-run.internal/', { method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(internal) }));

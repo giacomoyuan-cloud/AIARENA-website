@@ -32,7 +32,7 @@
     }
     async function watch(base,credentials,settings){
       settings=settings||{};var revision=0,first=true;
-      var snapshot=settings.input?await call(base,credentials,'start',{input:settings.input},settings):null;
+      var snapshot=settings.snapshot||(settings.input?await call(base,credentials,'start',{input:settings.input},settings):null);
       while(true){
         if(!snapshot)snapshot=await call(base,credentials,'status',{after:revision},settings);
         if(first||snapshot.revision>revision){

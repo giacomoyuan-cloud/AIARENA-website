@@ -139,3 +139,17 @@ test('delta snapshots are absolute checkpoints and omit unchanged turns',async t
   const delta=await(await f.call('status',{after:before.revision})).json();assert.equal(delta.turns.length,1);assert.equal(delta.turns[0].reply.text,'第一席原文');assert.equal(delta.userMessage,undefined);
   assert.equal(before.userMessage.debateRun.maxUid,6,'pending turn IDs stay reserved across page refreshes');
 });
+
+test('stopping an older paused run cannot abort a newer discussion in the same chat',async t=>{
+  const f=fixture(t);await f.call('start',{input:f.input});await f.turn();f.fail();await f.turn();
+  const input={...f.input,userMessage:{...f.input.userMessage,uid:50},replyUids:[51,52,53,54,55],historyEndUid:3};
+  await f.call('start',{runId:'debate-run-002',input});const before=f.calls.length,alarm=f.actor().alarm();await f.wait(()=>f.calls.length>before);
+  const current=f.calls.at(-1);await f.control('stop');assert.equal(current.aborted,undefined);current.text('新讨论继续');current.end();await alarm;
+  const newer=await(await f.call('status',{runId:'debate-run-002'})).json();assert.equal(newer.turns[0].status,'completed');
+});
+
+test('stop before a lost start acknowledgement leaves a tombstone and never starts the provider',async t=>{
+  const f=fixture(t);assert.equal((await f.control('stop')).status,200);
+  const start=await(await f.call('start',{input:f.input})).json();assert.equal(start.status,'stopped');assert.equal(start.total,0);
+  assert.equal((await f.status()).status,'stopped');await f.actor().alarm();assert.equal(f.calls.length,0);
+});

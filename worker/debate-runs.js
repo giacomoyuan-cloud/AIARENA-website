@@ -113,7 +113,9 @@ export function createDebateRunClass(execute, authorize, core) {
     }
     async fetchBody(body) {
       let job = this.jobs.get(body.runId);
+      const stopped = () => json({ id:job.id,status:'stopped',revision:job.revision,turns:[],total:0,completed:0 });
       if (body.action === 'start') {
+        if (job && !job.plan && job.status === 'stopped') return stopped();
         if (job) return job.fingerprint === body.fingerprint ? json(this.snapshot(job)) : json({ error: '请求编号已存在，请勿修改后重复发送。' }, 409);
         if ([...this.jobs.values()].some(item => item.status === 'running') || this.execution) return json({ error: '本对话仍有讨论正在执行，请先等待或停止。' }, 409);
         const seed = body.seed;
@@ -140,8 +142,9 @@ export function createDebateRunClass(execute, authorize, core) {
         // A delayed start must not resurrect a task stopped before its acknowledgement.
         job = { id: body.runId, fingerprint: '', status: 'stopped', revision: 1, updatedAt: Date.now(), turns: [], operations: [] };
         this.jobs.set(job.id, job); this.persist(job); await this.schedule();
-        return json({ id: job.id, status: job.status, revision: job.revision, turns: [], total: 0 });
+        return stopped();
       }
+      if (job && !job.plan && job.status === 'stopped' && body.action === 'status') return stopped();
       if (!job || !job.plan || Date.now() - job.updatedAt > RETENTION) return json({ error: '这场讨论的续跑记录已过期；已保存的聊天记录仍可查看。' }, 410);
       if (body.action === 'status') {
         if (job.syncOnRead) { await this.saveChat(job); job.syncOnRead = false; this.persist(job); }
@@ -155,7 +158,7 @@ export function createDebateRunClass(execute, authorize, core) {
         job.status = 'stopped'; job.reason = '已停止。保留已完成发言，可继续剩余席位。';
         const current = job.turns.find(item => item.status === 'running');
         if (current) { current.status = 'cancelled'; current.error = '本席已停止，发言未完成。'; current.updatedAt = Date.now(); this.touch(job, current); }
-        this.abort?.abort(); job.repairOnly = false;
+        if (current) this.abort?.abort(); job.repairOnly = false;
       } else {
         if (job.status === 'running' || this.execution) return json({ error: '讨论仍在执行，请等待当前席位结束。' }, 409);
         if (body.action === 'finish') {
