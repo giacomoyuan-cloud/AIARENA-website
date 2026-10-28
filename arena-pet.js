@@ -11,7 +11,7 @@
     rest: '眯一会儿，随时叫我', error: '这次没完成，再试试'
   };
 
-  // Task state comes from the app. Background motion never rotates on a timer.
+  // Task state comes from the app, independently of the idle motion playlist.
   function createController(options) {
     options = options || {};
     var later = options.setTimeout || setTimeout;
@@ -89,30 +89,101 @@
     }
     return null;
   }
+  function createIdlePlaylist(options) {
+    var catalog = options.catalog || { actions: {} };
+    var later = options.setTimeout || setTimeout, cancel = options.clearTimeout || clearTimeout;
+    var notify = options.onChange || function () {};
+    var actions = (catalog.idleSequence || []).map(function (id) { return catalog.actions[id]; }).filter(function (action) {
+      return action && action.durationSeconds > 0;
+    });
+    var index = 0, enabled = false, timer = null;
+    function clear() { if (timer !== null) cancel(timer); timer = null; }
+    function current() { return enabled && actions.length ? actions[index] : null; }
+    function advance(id) {
+      var action = current();
+      if (!action || action.id !== id) return;
+      clear(); index = (index + 1) % actions.length; notify(current());
+    }
+    function ready(id) {
+      var action = current();
+      if (!action || action.id !== id || timer !== null) return;
+      // Start only after media is ready. Loops play twice; one-shots advance on
+      // their actual end event, with a bounded fallback for missed events.
+      var duration = action.durationSeconds * (action.playback === 'loop' ? 2 : 1) * 1000;
+      timer = later(function () { timer = null; advance(id); }, Math.ceil(duration + (action.playback === 'once' ? 250 : 0)));
+    }
+    function setEnabled(value, reset) {
+      value = !!value;
+      if (!value) { clear(); if (reset) index = 0; }
+      enabled = value;
+    }
+    return { current: current, ready: ready, advance: advance, setEnabled: setEnabled };
+  }
+  function liveReplyIds(messages, running, phases, pendingModels, isStreaming) {
+    var start = -1, selected = new Set(), latest = new Map(), last = null;
+    messages.forEach(function (msg, index) { if (msg.isUser) start = index; });
+    messages.slice(start + 1).forEach(function (msg) {
+      if (!msg.isUser) { latest.set(msg.submodel, msg); last = msg; }
+    });
+    if (!last) return selected;
+    if (!running) { selected.add(last.uid); return selected; }
+    latest.forEach(function (msg, model) {
+      if (!pendingModels.has(model) && (phases.has(model) || isStreaming(msg.uid))) selected.add(msg.uid);
+    });
+    // The final displayed character can finish just before the app settles.
+    if (!selected.size && !pendingModels.size) selected.add(last.uid);
+    return selected;
+  }
   function markup(place, state, model) {
     state = LABELS[state] ? state : 'welcome';
     var action = pickLoopAction(motionCatalog, state);
     return '<span class="aa-kitten aa-kitten--' + escape(place) + '" data-aa-kitten="' + (place === 'portrait' ? 'still' : 'live') + '" data-state="' + state + '"'
       + (model ? ' data-aa-kitten-model="' + escape(model) + '"' : '') + ' aria-hidden="true">'
       + '<span class="aa-kitten-viewport"><img class="aa-kitten-poster" src="' + escape(place === 'portrait' && motionCatalog ? motionCatalog.portrait : (action ? action.poster : '/assets/kitten/motion/poster.png?v=20261028')) + '" alt="" draggable="false" decoding="async">'
-      + (place === 'portrait' ? '' : '<video class="aa-kitten-motion" muted playsinline preload="none" hidden></video>') + '</span></span>';
+      + (place === 'portrait' ? '' : '<video class="aa-kitten-motion" muted playsinline preload="none" hidden></video><img class="aa-kitten-previous" alt="" draggable="false" hidden>') + '</span></span>';
   }
 
   // A media player owns loading/recovery, never the assistant's task state.
   function createPlayer(options) {
     var win = options.window, doc = options.document, el = options.element;
-    var video = options.video, image = options.image, support = options.formatSupport || {};
+    var video = options.video, image = options.image, previous = options.previous, support = options.formatSupport || {};
     var reduced = options.reducedMotion || { matches: false };
     var later = options.setTimeout || win.setTimeout.bind(win), cancel = options.clearTimeout || win.clearTimeout.bind(win);
     var now = options.now || function () { return Date.now(); };
     var action = null, state = null, token = 0, sequence = 0, destroyed = false;
     var native = false, fallback = false, loading = false, playingPromise = false, finished = false;
-    var loadTimer = null, endTimer = null, lastTime = -1, lastProgress = now(), retries = 0;
+    var loadTimer = null, endTimer = null, revealTimer = null, lastTime = -1, lastProgress = now(), retries = 0;
     var nextCandidate = null;
     function status(value) { if (el.getAttribute('data-motion-status') !== value) el.setAttribute('data-motion-status', value); }
     function active() { return !destroyed && el.isConnected && el.getClientRects().length > 0 && !doc.hidden && !reduced.matches; }
     function clearLoad() { if (loadTimer !== null) cancel(loadTimer); loadTimer = null; }
     function clearEnd() { if (endTimer !== null) cancel(endTimer); endTimer = null; }
+    function clearReveal() { if (revealTimer !== null) cancel(revealTimer); revealTimer = null; }
+    function rememberFrame() {
+      if (!previous || !action || !active()) return;
+      // A newer task may interrupt a clip that has not decoded yet.
+      if (!previous.hidden && loading) return;
+      try {
+        var source = native && !video.hidden ? video : image;
+        var width = source.videoWidth || source.naturalWidth, height = source.videoHeight || source.naturalHeight;
+        if (!width || !height) return;
+        var canvas = doc.createElement('canvas'); canvas.width = width; canvas.height = height;
+        canvas.getContext('2d').drawImage(source, 0, 0, width, height);
+        previous.src = canvas.toDataURL('image/png'); previous.hidden = false; previous.style.opacity = '1';
+      } catch (_) { previous.hidden = true; }
+    }
+    function ready() {
+      if (!active()) return;
+      if (previous && !previous.hidden && previous.style.opacity !== '0') {
+        clearReveal();
+        // Commit the old frame before fading it over the newly decoded clip.
+        void previous.offsetWidth;
+        previous.style.opacity = '0';
+        var expected = token;
+        revealTimer = later(function () { revealTimer = null; if (token === expected) previous.hidden = true; }, 180);
+      }
+      if (options.onReady) options.onReady(action, state);
+    }
     function showPoster() { video.hidden = true; image.hidden = false; image.onload = null; image.onerror = null; if (action && image.getAttribute('src') !== action.poster) image.src = action.poster; }
     function finish() {
       if (finished || !active()) return;
@@ -130,7 +201,7 @@
       if (!active()) { showPoster(); status('paused'); return; }
       var expected = token;
       image.hidden = false;
-      image.onload = function () { if (token === expected && fallback && active()) { status('fallback'); fallbackClock(expected); } };
+      image.onload = function () { if (token === expected && fallback && active()) { status('fallback'); ready(); fallbackClock(expected); } };
       image.onerror = function () {
         if (token !== expected || !fallback) return;
         image.onload = image.onerror = null; image.src = action.poster; status('unavailable');
@@ -138,7 +209,7 @@
       };
       var changed = image.getAttribute('src') !== action.webp;
       if (changed) image.src = action.webp;
-      if (image.complete && image.naturalWidth) { status('fallback'); fallbackClock(expected); }
+      if (image.complete && image.naturalWidth) { status('fallback'); ready(); fallbackClock(expected); }
     }
     function play() {
       if (!active() || !native || finished) return;
@@ -155,7 +226,7 @@
         Promise.resolve(result).then(function () {
           if (token !== expected) return;
           playingPromise = false;
-          if (active() && native && !video.paused) { image.hidden = true; status('playing'); }
+          if (active() && native && !video.paused) { image.hidden = true; status('playing'); ready(); }
         }, function (error) {
           if (token !== expected) return;
           playingPromise = false;
@@ -201,7 +272,7 @@
     }
     function refresh() {
       if (!action || destroyed) return;
-      if (!active()) { clearEnd(); video.pause(); playingPromise = false; showPoster(); status(reduced.matches ? 'reduced' : 'paused'); return; }
+      if (!active()) { clearEnd(); clearReveal(); if (previous) previous.hidden = true; video.pause(); playingPromise = false; showPoster(); status(reduced.matches ? 'reduced' : 'paused'); return; }
       if (native) play();
       else if (fallback) showFallback();
       else if (!loading) load();
@@ -212,7 +283,7 @@
         if (state !== nextState) { clearEnd(); finished = false; playingPromise = false; }
         state = nextState; video.loop = next.playback !== 'once'; refresh(); return;
       }
-      token++; sequence++; clearLoad(); clearEnd(); video.pause();
+      clearReveal(); rememberFrame(); token++; sequence++; clearLoad(); clearEnd(); video.pause();
       action = next; state = nextState; finished = false; native = fallback = loading = playingPromise = false;
       retries = 0; lastTime = -1; lastProgress = now();
       video.loop = next.playback !== 'once';
@@ -229,13 +300,14 @@
       else if (fallback && el.getAttribute('data-motion-status') === 'unavailable' && retries < 2) { retries++; clearEnd(); fallback = false; load(); }
     }
     video.muted = true; video.defaultMuted = true; video.playsInline = true;
-    video.onplaying = function () { if (native && active()) { image.hidden = true; video.hidden = false; status('playing'); } };
+    video.onplaying = function () { if (native && active()) { image.hidden = true; video.hidden = false; status('playing'); ready(); } };
     video.ontimeupdate = function () { if (native && Math.abs(video.currentTime - lastTime) > .005) { lastTime = video.currentTime; lastProgress = now(); } };
     video.onended = function () { playingPromise = false; if (!native || !active() || !video.ended) return; if (video.loop) { video.currentTime = 0; play(); } else finish(); };
     function destroy() {
-      destroyed = true; token++; sequence++; clearLoad(); clearEnd();
+      destroyed = true; token++; sequence++; clearLoad(); clearEnd(); clearReveal();
       image.onload = image.onerror = null;
       video.onloadeddata = video.onerror = video.onplaying = video.onended = video.ontimeupdate = null;
+      if (previous) previous.hidden = true;
       video.pause(); video.removeAttribute('src'); video.load();
     }
     return { set: set, refresh: refresh, watchdog: watchdog, destroy: destroy };
@@ -247,15 +319,19 @@
     var records = new Map(), formatSupport = {};
     var watchdogTimer = null, controller = null;
     var reduced = win.matchMedia('(prefers-reduced-motion: reduce)');
+    var playlist = createIdlePlaylist({ catalog: motionCatalog, setTimeout: win.setTimeout.bind(win), clearTimeout: win.clearTimeout.bind(win),
+      onChange: function () { if (controller) paint(controller.snapshot()); } });
     function setMotion(el, state, action, replay) {
       if (!action) return;
       var record = records.get(el);
       if (!record) {
-        var image = el.querySelector('.aa-kitten-poster'), video = el.querySelector('video');
+        var image = el.querySelector('.aa-kitten-poster'), video = el.querySelector('video'), previous = el.querySelector('.aa-kitten-previous');
         if (!image || !video) return;
-        record = createPlayer({ window: win, document: doc, element: el, video: video, image: image, reducedMotion: reduced, formatSupport: formatSupport,
+        record = createPlayer({ window: win, document: doc, element: el, video: video, image: image, previous: previous, reducedMotion: reduced, formatSupport: formatSupport,
+          onReady: function (readyAction) { if (readyAction) playlist.ready(readyAction.id); },
           onEnded: function (ended, endedState) {
             if (!controller) return;
+            if (playlist.current() && playlist.current().id === ended.id) { playlist.advance(ended.id); return; }
             controller.motionEnded(endedState);
           }
         });
@@ -265,15 +341,23 @@
       record.set(action, state, replay);
     }
     function paint(snapshot) {
-      records.forEach(function (record, el) { if (!el.isConnected) { record.destroy(); if (resizeObserver) resizeObserver.unobserve(el); records.delete(el); } });
-      doc.querySelectorAll('[data-aa-kitten="live"]').forEach(function (el) {
+      records.forEach(function (record, el) {
+        if (!el.isConnected && el.getAttribute('data-aa-kitten-transfer') !== 'pending') {
+          record.destroy(); if (resizeObserver) resizeObserver.unobserve(el); records.delete(el);
+        }
+      });
+      var live = Array.from(doc.querySelectorAll('[data-aa-kitten="live"]'));
+      var canIdle = !snapshot.running && (snapshot.state === 'idle' || snapshot.state === 'done') && !doc.hidden && !reduced.matches
+        && live.some(function (el) { return el.isConnected && el.getClientRects().length > 0; });
+      playlist.setEnabled(canIdle, snapshot.running);
+      live.forEach(function (el) {
         var phase = snapshot.phases.get(el.getAttribute('data-aa-kitten-model'));
-        var state = phase === 'responding' ? 'working' : (phase || snapshot.state);
+        var state = phase === 'responding' ? 'working' : (phase || (snapshot.running && el.classList.contains('aa-kitten--reply') ? 'working' : snapshot.state));
         if (!el.querySelector('.aa-kitten-viewport')) {
           el.innerHTML = markup('inside', state).replace(/^<span[^>]*>/, '').replace(/<\/span>$/, '');
         }
         el.setAttribute('data-state', state);
-        setMotion(el, state, pickLoopAction(motionCatalog, state), false);
+        setMotion(el, state, canIdle ? (playlist.current() || pickLoopAction(motionCatalog, state)) : pickLoopAction(motionCatalog, state), false);
       });
       doc.querySelectorAll('[data-aa-kitten-label]').forEach(function (el) {
         if (el.textContent !== snapshot.label) el.textContent = snapshot.label;
@@ -291,8 +375,8 @@
     doc.addEventListener('click', function (event) { if (event.target.closest('[data-aa-kitten-greet]')) greetView(); });
     // Pause only for actual page visibility / accessibility, never input focus or draft text.
     function visibility() {
-      if (doc.hidden || reduced.matches) { records.forEach(function (record) { record.refresh(); }); }
-      else paint(controller.snapshot());
+      paint(controller.snapshot());
+      if (doc.hidden || reduced.matches) records.forEach(function (record) { record.refresh(); });
       if (watchdogTimer !== null) win.clearInterval(watchdogTimer);
       watchdogTimer = !doc.hidden && !reduced.matches ? win.setInterval(function () { records.forEach(function (record) { record.watchdog(); }); }, 2000) : null;
     }
@@ -312,8 +396,8 @@
     paint(controller.snapshot());
     return {
       sync: sync, progress: controller.progress, complete: controller.complete,
-      greet: greetView, markup: markup, snapshot: controller.snapshot
+      greet: greetView, markup: markup, liveReplyIds: liveReplyIds, snapshot: controller.snapshot
     };
   }
-  return { createController: createController, createPlayer: createPlayer, pickLoopAction: pickLoopAction, markup: markup, connect: connect };
+  return { createController: createController, createPlayer: createPlayer, createIdlePlaylist: createIdlePlaylist, liveReplyIds: liveReplyIds, pickLoopAction: pickLoopAction, markup: markup, connect: connect };
 });
