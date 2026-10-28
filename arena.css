@@ -564,7 +564,7 @@
 #ai-arena-app.arena-shell .arena-current-effort::before { content: ''; margin: 0; }
 #ai-arena-app.arena-shell .arena-model-popover { width: 292px; padding: 8px; border-radius: 13px; }
 /* Model selection and a discrete effort slider share one compact control. */
-#ai-arena-app.arena-shell .arena-effort-popover { --effort-accent: #397df5; width: 300px; padding: 13px 14px 12px; border-radius: 20px; }
+#ai-arena-app.arena-shell .arena-effort-popover { --effort-accent: #397df5; width: 300px; padding: 13px 14px 12px; border-radius: 20px; overflow-x: hidden; }
 #ai-arena-app.arena-shell .arena-effort-heading { display: grid; grid-template-columns: 28px minmax(0,1fr) 28px; align-items: center; min-height: 28px; }
 #ai-arena-app.arena-shell .arena-effort-heading > output { text-align: center; color: #276bd8; font-size: 17px; line-height: 1.5; font-weight: 550; letter-spacing: -.02em; }
 #ai-arena-app.arena-shell:not(.light-mode) .arena-effort-heading > output { color: #82b0ff; }
