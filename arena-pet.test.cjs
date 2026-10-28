@@ -1,6 +1,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { createController, markup } = require('./arena-pet.js');
+const { createController, pickLoopAction, markup } = require('./arena-pet.js');
+const catalog = require('./assets/kitten/motion/manifest.json');
 
 function setup() {
   let now = 0, id = 0;
@@ -22,13 +23,26 @@ function setup() {
   return { cat, seen, advance };
 }
 
-test('welcome becomes playful idle, then rests without changing task state', () => {
+test('idle stays idle even after a long pause instead of rotating to another activity', () => {
   const { cat, advance } = setup();
   assert.equal(cat.snapshot().state, 'welcome');
   advance(3200); assert.equal(cat.snapshot().state, 'idle');
   cat.sync({ running: false, hasMessages: false });
-  advance(45000); assert.equal(cat.snapshot().state, 'rest');
+  advance(600000); assert.equal(cat.snapshot().state, 'idle');
   cat.greet(); assert.equal(cat.snapshot().state, 'welcome');
+});
+
+test('every runtime state selects a real loop, with stable background motion through welcome and completion labels', () => {
+  for (const state of Object.keys(catalog.states)) assert.equal(pickLoopAction(catalog,state).playback,'loop');
+  for (const state of ['welcome','idle','rest','done','error']) assert.equal(pickLoopAction(catalog,state).id,'knead');
+  assert.equal(pickLoopAction(catalog,'working').id,'work-laptop');
+  assert.equal(pickLoopAction(catalog,'thinking').id,'head-tilt');
+});
+
+test('repeated paints never pick a different loop or use an unclosed single-shot as a background', () => {
+  const mixed={actions:catalog.actions,states:{idle:['yawn','wand-bat','wand-kick']}};
+  for(let i=0;i<100;i++) assert.equal(pickLoopAction(mixed,'idle').id,'wand-bat');
+  assert.equal(pickLoopAction({actions:catalog.actions,states:{idle:['yawn']}},'idle').id,'knead');
 });
 
 test('idle timers cannot interrupt real thinking or streaming, even after a long wait', () => {

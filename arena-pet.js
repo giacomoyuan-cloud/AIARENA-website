@@ -11,7 +11,7 @@
     rest: '眯一会儿，随时叫我', error: '这次没完成，再试试'
   };
 
-  // Task state comes exclusively from the app. Only idle behavior uses timers.
+  // Task state comes from the app. Background motion never rotates on a timer.
   function createController(options) {
     options = options || {};
     var later = options.setTimeout || setTimeout;
@@ -29,7 +29,6 @@
     }
     function idle() {
       clear(); show('idle');
-      timer = later(function () { timer = null; if (!running) show('rest'); }, 45000);
     }
     function greet() {
       if (running) return;
@@ -78,11 +77,21 @@
 
   function escape(value) { return String(value).replace(/[&<>"']/g, function (c) { return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]; }); }
   var motionCatalog = null;
+  function pickLoopAction(catalog, state) {
+    catalog = catalog || { actions: {}, states: {} };
+    var ids = (catalog.states[state] || []).concat(['knead', 'head-tilt']);
+    for (var i = 0; i < ids.length; i++) {
+      var action = catalog.actions[ids[i]];
+      if (action && action.playback === 'loop') return action;
+    }
+    return null;
+  }
   function markup(place, state, model) {
     state = LABELS[state] ? state : 'welcome';
+    var action = pickLoopAction(motionCatalog, state);
     return '<span class="aa-kitten aa-kitten--' + escape(place) + '" data-aa-kitten="' + (place === 'portrait' ? 'still' : 'live') + '" data-state="' + state + '"'
       + (model ? ' data-aa-kitten-model="' + escape(model) + '"' : '') + ' aria-hidden="true">'
-      + '<span class="aa-kitten-viewport"><img class="aa-kitten-poster" src="' + escape(place === 'portrait' && motionCatalog ? motionCatalog.portrait : '/assets/kitten/motion/poster.png?v=20261028') + '" alt="" draggable="false" decoding="async">'
+      + '<span class="aa-kitten-viewport"><img class="aa-kitten-poster" src="' + escape(place === 'portrait' && motionCatalog ? motionCatalog.portrait : (action ? action.poster : '/assets/kitten/motion/poster.png?v=20261028')) + '" alt="" draggable="false" decoding="async">'
       + (place === 'portrait' ? '' : '<video class="aa-kitten-motion" muted playsinline preload="none" hidden></video>') + '</span></span>';
   }
 
@@ -110,7 +119,7 @@
     function fallbackClock(expected) {
       if (token !== expected || !active() || !fallback || endTimer !== null || finished) return;
       // Animated WebP has no ended event. Re-arm only when it actually reloads/resumes.
-      if (state === 'idle' || action.playback === 'once') endTimer = later(function () { endTimer = null; if (token === expected) finish(); }, Math.ceil(action.durationSeconds * 1000));
+      if (action.playback === 'once') endTimer = later(function () { endTimer = null; if (token === expected) finish(); }, Math.ceil(action.durationSeconds * 1000));
     }
     function showFallback() {
       clearLoad(); native = false; fallback = true; loading = false; playingPromise = false;
@@ -198,12 +207,12 @@
       if (!next || destroyed) return;
       if (action && action.id === next.id && !replay) {
         if (state !== nextState) { clearEnd(); finished = false; playingPromise = false; }
-        state = nextState; video.loop = next.playback !== 'once' && state !== 'idle'; refresh(); return;
+        state = nextState; video.loop = next.playback !== 'once'; refresh(); return;
       }
       token++; sequence++; clearLoad(); clearEnd(); video.pause();
       action = next; state = nextState; finished = false; native = fallback = loading = playingPromise = false;
       retries = 0; lastTime = -1; lastProgress = now();
-      video.loop = next.playback !== 'once' && state !== 'idle';
+      video.loop = next.playback !== 'once';
       el.setAttribute('data-motion-id', next.id); showPoster(); refresh();
     }
     function watchdog() {
@@ -232,33 +241,9 @@
   function connect(win) {
     var doc = win.document;
     motionCatalog = win.ArenaPetMotions || { actions: {}, states: {} };
-    var records = new Map(), formatSupport = {}, idleAction = null, idleTimer = null, previousState = null;
-    var watchdogTimer = null, controller = null, queuedIdleAction = null, prefetched = new Set();
+    var records = new Map(), formatSupport = {};
+    var watchdogTimer = null, controller = null;
     var reduced = win.matchMedia('(prefers-reduced-motion: reduce)');
-    function clearIdleTimer() { if (idleTimer !== null) win.clearTimeout(idleTimer); idleTimer = null; }
-    function pick(state, avoid) {
-      var ids = (motionCatalog.states[state] || []).filter(function (id) { return motionCatalog.actions[id]; });
-      if (ids.length > 1) ids = ids.filter(function (id) { return id !== avoid; });
-      return motionCatalog.actions[ids[Math.floor(Math.random() * ids.length)]] || motionCatalog.actions['head-tilt'] || null;
-    }
-    function warm(action) {
-      if (!action || (win.navigator.connection && win.navigator.connection.saveData)) return;
-      var media = formatSupport.hevc === true ? action.hevc : (formatSupport.webm !== false ? action.webm : action.webp);
-      [media, action.poster].forEach(function (url) {
-        if (!url || prefetched.has(url)) return;
-        prefetched.add(url); var link = doc.createElement('link'); link.rel = 'prefetch'; link.href = url; doc.head.appendChild(link);
-      });
-    }
-    function nextIdle(id, delay) {
-      if (idleTimer !== null || doc.hidden || reduced.matches) return;
-      idleTimer = win.setTimeout(function () {
-        idleTimer = null;
-        var now = controller.snapshot();
-        if (now.state !== 'idle' || now.running || !idleAction || idleAction.id !== id) return;
-        idleAction = queuedIdleAction || pick('idle', id);
-        queuedIdleAction = pick('idle', idleAction.id); warm(queuedIdleAction); paint(now);
-      }, delay);
-    }
     function setMotion(el, state, action, replay) {
       if (!action) return;
       var record = records.get(el);
@@ -268,9 +253,7 @@
         record = createPlayer({ window: win, document: doc, element: el, video: video, image: image, reducedMotion: reduced, formatSupport: formatSupport,
           onEnded: function (ended, endedState) {
             if (!controller) return;
-            var snapshot = controller.snapshot();
-            if (endedState === 'idle' && snapshot.state === 'idle' && idleAction && idleAction.id === ended.id) nextIdle(ended.id, 180);
-            else controller.motionEnded(endedState);
+            controller.motionEnded(endedState);
           }
         });
         records.set(el, record);
@@ -279,9 +262,6 @@
       record.set(action, state, replay);
     }
     function paint(snapshot) {
-      if (snapshot.state !== 'idle') clearIdleTimer();
-      else if (previousState !== 'idle' || !idleAction) { idleAction = pick('idle'); queuedIdleAction = pick('idle', idleAction.id); warm(queuedIdleAction); }
-      previousState = snapshot.state;
       records.forEach(function (record, el) { if (!el.isConnected) { record.destroy(); if (resizeObserver) resizeObserver.unobserve(el); records.delete(el); } });
       doc.querySelectorAll('[data-aa-kitten="live"]').forEach(function (el) {
         var phase = snapshot.phases.get(el.getAttribute('data-aa-kitten-model'));
@@ -290,7 +270,7 @@
           el.innerHTML = markup('inside', state).replace(/^<span[^>]*>/, '').replace(/<\/span>$/, '');
         }
         el.setAttribute('data-state', state);
-        setMotion(el, state, state === 'idle' ? idleAction : pick(state), false);
+        setMotion(el, state, pickLoopAction(motionCatalog, state), false);
       });
       doc.querySelectorAll('[data-aa-kitten-label]').forEach(function (el) {
         if (el.textContent !== snapshot.label) el.textContent = snapshot.label;
@@ -303,14 +283,12 @@
     controller = createController({ onChange: paint, welcomeMs: 5600, doneMs: 5600 });
     function sync(next) { var snapshot = controller.sync(next); paint(snapshot); }
     function greetView() {
-      var alreadyGreeting = controller.snapshot().state === 'welcome';
       controller.greet();
-      if (alreadyGreeting && controller.snapshot().state === 'welcome') doc.querySelectorAll('[data-aa-kitten="live"]').forEach(function (el) { setMotion(el, 'welcome', pick('welcome'), true); });
     }
     doc.addEventListener('click', function (event) { if (event.target.closest('[data-aa-kitten-greet]')) greetView(); });
     // Pause only for actual page visibility / accessibility, never input focus or draft text.
     function visibility() {
-      if (doc.hidden || reduced.matches) { clearIdleTimer(); records.forEach(function (record) { record.refresh(); }); }
+      if (doc.hidden || reduced.matches) { records.forEach(function (record) { record.refresh(); }); }
       else paint(controller.snapshot());
       if (watchdogTimer !== null) win.clearInterval(watchdogTimer);
       watchdogTimer = !doc.hidden && !reduced.matches ? win.setInterval(function () { records.forEach(function (record) { record.watchdog(); }); }, 2000) : null;
@@ -334,5 +312,5 @@
       greet: greetView, markup: markup, snapshot: controller.snapshot
     };
   }
-  return { createController: createController, createPlayer: createPlayer, markup: markup, connect: connect };
+  return { createController: createController, createPlayer: createPlayer, pickLoopAction: pickLoopAction, markup: markup, connect: connect };
 });

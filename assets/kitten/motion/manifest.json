@@ -164,48 +164,30 @@
   "readyDistinctActions": 13,
   "states": {
     "welcome": [
-      "welcome-wave"
+      "knead"
     ],
     "thinking": [
-      "head-tilt",
-      "scratch-think"
+      "head-tilt"
     ],
     "searching": [
-      "inspect-glass",
-      "read-notes",
-      "listen",
       "head-tilt"
     ],
     "working": [
-      "work-laptop",
-      "read-notes"
+      "work-laptop"
     ],
     "done": [
-      "happy-hop",
-      "wand-jump"
+      "knead"
     ],
     "rest": [
-      "knead",
-      "loaf",
-      "curled-sleep",
-      "side-sleep"
+      "knead"
     ],
     "error": [
-      "soft-sorry",
-      "slow-blink"
+      "knead"
     ],
     "idle": [
-      "wand-watch",
-      "wand-pounce",
-      "wand-jump",
-      "wand-bat",
-      "wand-kick",
-      "sit-down",
-      "lick-paw",
-      "knead",
-      "yawn",
-      "slow-blink"
+      "knead"
     ]
   },
-  "portrait": "/assets/kitten/motion/portrait.png?v=e87a728b7c4f-face2"
+  "portrait": "/assets/kitten/motion/portrait.png?v=e87a728b7c4f-face2",
+  "playbackPolicy": "continuous-state-loop"
 }
