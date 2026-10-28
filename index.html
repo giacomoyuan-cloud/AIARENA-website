@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>AI 助手</title>
-<meta name="app-version" content="20261028-pet5-work">
+<meta name="app-version" content="20261028-read15">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1219,6 +1219,7 @@
 <script src="/arena-account.js?v=20261027-account2"></script>
 <script src="/arena-pet-catalog.js?v=20261028-pet5-work"></script>
 <script src="/arena-pet.js?v=20261028-pet5-work"></script>
+<script src="/arena-stream.js?v=20261028-read15"></script>
 <script>
 (function(){
   (function(){
@@ -2620,8 +2621,8 @@ var TEAM_COLORS = {
     if(activeProjectId&&!payload.chat&&!imageMode)payload.chat={scope:activeProjectId,chatId:currentChatId,question:ArenaContext.clip(prompt,16000),history:[],incognito:!!_incognitoMode};
     if(payload.chat)payload.prompt='';
     var controller=new AbortController(),settled=false;activeStreamControllers.add(controller);
-    function completed(terminal){if(settled)return;settled=true;activeStreamControllers.delete(controller);onDone(terminal);}
-    function failed(error){if(settled)return;settled=true;activeStreamControllers.delete(controller);if(error.name==='AbortError')onDone();else onError(error);}
+    function completed(terminal){if(settled)return;settled=true;activeStreamControllers.delete(controller);if(!controller.signal.aborted)onDone(terminal);}
+    function failed(error){if(settled)return;settled=true;activeStreamControllers.delete(controller);if(!controller.signal.aborted){if(error.name==='AbortError')onDone();else onError(error);}}
 
 
     
@@ -2632,6 +2633,7 @@ var TEAM_COLORS = {
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(payload),signal:controller.signal
     }).then(function(res){
+      if(controller.signal.aborted)return;
       if(!res.ok){
         return res.text().then(function(t){
           var msg = '';
@@ -2648,6 +2650,7 @@ var TEAM_COLORS = {
   var decoder = new TextDecoder();
     var buf = '';
     function processLine(line){
+      if(settled || controller.signal.aborted)return true;
       if(!line.startsWith('data:')) return false;
       var raw=line.slice(5).trim();if(!raw)return false;
       if(raw==='[DONE]'){completed(true);return true;}
@@ -2720,14 +2723,36 @@ var TEAM_COLORS = {
 
   // === Live update & finalize ===
   var liveFrames=new Map();
+  var liveReplyReasoning=new Map();
+  var liveReplies=ArenaStream.create({rate:15,onUpdate:function(uid,text,complete){
+    paintLiveUpdate(uid,text,liveReplyReasoning.get(uid),!complete);
+    if(complete)liveReplyReasoning.delete(uid);
+  }});
+  document.addEventListener('visibilitychange',function(){liveReplies.pause(document.hidden);});
+  liveReplies.pause(document.hidden);
+  function stopLiveReplies(){
+    liveReplies.stop().forEach(function(stopped){
+      var message=msgs.find(function(m){return m.uid===stopped.key;});
+      if(message)message.text=stopped.text;
+    });
+    liveReplyReasoning.clear();
+    liveFrames.forEach(function(pending){cancelAnimationFrame(pending.frame);});liveFrames.clear();
+    render();
+  }
   function liveUpdate(uid,text,reasoning){
+    var message=msgs.find(function(m){return m.uid===uid;});
+    if(message && !ArenaImage.cap(message.submodel) && !message.imgData && !message.videoUrl && !/\[(?:MJ_IMAGE|MJ_BUTTONS|KLING_VIDEO)\]/.test(text||'')){
+      liveReplyReasoning.set(uid,reasoning);liveReplies.write(uid,text);
+      if(message._activityDirty || reasoning)paintLiveUpdate(uid,liveReplies.text(uid,''),reasoning);
+      return;
+    }
     var pending=liveFrames.get(uid);
     if(pending){pending.text=text;pending.reasoning=reasoning;return;}
     pending={text:text,reasoning:reasoning};
     pending.frame=requestAnimationFrame(function(){liveFrames.delete(uid);paintLiveUpdate(uid,pending.text,pending.reasoning);});
     liveFrames.set(uid,pending);
   }
-  function paintLiveUpdate(uid, text, reasoning){
+  function paintLiveUpdate(uid, text, reasoning, streaming){
     var c = $('aaMessages');
     var el = c.querySelector('[data-uid="'+uid+'"]');
     if(!el) return;
@@ -2758,7 +2783,8 @@ var TEAM_COLORS = {
         var caption=body.querySelector(':scope > p');
         if(_liveText){if(!caption){caption=document.createElement('p');body.insertBefore(caption,body.firstChild);}caption.textContent=_liveText;}
         else if(caption)caption.remove();
-      }else body.innerHTML=renderMd(_liveText,message&&message.citations)+'<span class="arena-stream-caret" aria-hidden="true">▍</span>';
+      }else body.innerHTML=renderMd(_liveText,message&&message.citations)+(streaming===false?'':'<span class="arena-stream-caret" aria-hidden="true">▍</span>');
+      body.dataset.streaming=String(streaming!==false);
       body.dataset.streamChunks=String(message&&message._streamChunks||0);
       body.dataset.textUpdates=String(Number(body.dataset.textUpdates||0)+1);
       if(!userScrolledUp)c.scrollTop=c.scrollHeight;
@@ -2768,7 +2794,16 @@ var TEAM_COLORS = {
   }
   function finalizeMsg(uid, text, isError, reasoning){
     var pending=liveFrames.get(uid);if(pending){cancelAnimationFrame(pending.frame);liveFrames.delete(uid);}
-
+    if(liveReplies.has(uid)){
+      var message=msgs.find(function(m){return m.uid===uid;});
+      return liveReplies.finish(uid,text).then(function(complete){
+        if(complete && msgs.indexOf(message)!==-1)paintFinalMsg(uid,text,isError,reasoning);
+        return complete;
+      });
+    }
+    paintFinalMsg(uid,text,isError,reasoning);return Promise.resolve(true);
+  }
+  function paintFinalMsg(uid, text, isError, reasoning){
     var completedMsg = msgs.find(function(m){ return m.uid === uid; });
     if(completedMsg && !completedMsg.isUser && !isError && !completedMsg.completedAt){
       completedMsg.completedAt = Date.now();
@@ -2791,6 +2826,7 @@ var TEAM_COLORS = {
     }
     var body = el.querySelector('.aa-msg-body');
     if(body){
+      body.dataset.streaming='false';
       if(body._renderTimer){ clearTimeout(body._renderTimer); body._renderTimer = null; }
       if(isError){ body.classList.add('error'); body.innerHTML = esc(text); }
       else body.innerHTML = renderMd(text, completedMsg && completedMsg.citations);
@@ -4324,7 +4360,7 @@ function initPersonaDragDrop(){
         // 提取所有 [MJ_IMAGE]...[/MJ_IMAGE] 链接
         var mjImgUrls = [];
         var mjButtonsData = msg.mjButtons || null;
-        var cleanText = (msg.text || '')
+        var cleanText = liveReplies.text(msg.uid, msg.text || '')
           .replace(/\[MJ_IMAGE\]([\s\S]*?)\[\/MJ_IMAGE\]/g, function(match, url){ mjImgUrls.push(url); return ''; })
           .replace(/\[MJ_BUTTONS\]([\s\S]*?)\[\/MJ_BUTTONS\]/g, function(match, json){
             try { mjButtonsData = JSON.parse(json); } catch(e){}
@@ -4332,10 +4368,11 @@ function initPersonaDragDrop(){
           })
           .trim();
 
-        h += '<div class="aa-msg-body '+bodyClass+'" style="'+bodyStyle+'">';
+        h += '<div class="aa-msg-body '+bodyClass+'" data-streaming="'+liveReplies.has(msg.uid)+'" style="'+bodyStyle+'">';
         if(cleanText){
           h += renderMd(cleanText, msg.citations);
         }
+        if(liveReplies.has(msg.uid))h+='<span class="arena-stream-caret" aria-hidden="true">▍</span>';
           if(msg.moderationHelp && msg.suggestedPrompt){
             h += '<button type="button" class="aa-moderation-use-btn" onclick="window._aaUseModerationSuggestion(\''+msg.uid+'\')">填入建议提示词</button>';
           }
@@ -4526,12 +4563,12 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
   } else {
     $('aaBizBanner').style.display = 'none';
   }
-    var finished=false,followupImage=null,imageFailure=false;
+    var finished=false,finishingDisplay=false,followupImage=null,imageFailure=false;
     aaRunning = true; abortF = false; userScrolledUp = false;
     hideThink();
     var btn = $('aaSendBtn');
     setSendButtonIcon(btn,true); btn.className = 'aa-send stop'; btn.disabled = false;
-    stopActiveGeneration = function(){ abortF = true;activeStreamControllers.forEach(function(controller){controller.abort();});activeStreamControllers.clear(); hideThink(); finish(); };
+    stopActiveGeneration = function(){ abortF = true;activeStreamControllers.forEach(function(controller){controller.abort();});activeStreamControllers.clear(); stopLiveReplies();hideThink();finished=true;doFinish(); };
     $('aaSidebar').classList.add('hidden'); $('aaGearBtn').classList.remove('active');
     var _rawName = $('aaUsername').value.trim() || '用户';
     var CHAT_DISPLAY_NAMES = {'oakleyyuen':'Oakley','oakley':'Oakley','doctor.wang':'Doctor.Wang','zty007007990':'Zty'};
@@ -4659,13 +4696,17 @@ function buildPersonaPrompt(topic, history, speaker, rnd, allSpeakers){
             },
             function(){
               if(firstChunk) hideThink(sub);
-              cleanThinkTags(msgObj); finalizeMsg(uid, msgObj.text, false); render();
+              cleanThinkTags(msgObj); finalizeMsg(uid, msgObj.text, false).then(function(complete){
+              if(!complete || abortF)return;
+              render();
               if(idxP < speakOrderP.length - 1 || rndP < rounds - 1){
                 showEditPrompt(uid).then(function(edited){
+                  if(abortF)return;
                   if(edited){ msgObj.text = edited.text; msgObj._liked = edited.liked; msgObj._comment = edited.comment || ''; finalizeMsg(uid, msgObj.text, false); }
                   idxP++; nextSpeakerP();
                 });
               } else { idxP++; nextSpeakerP(); }
+              });
             },
             function(err){
               if(firstChunk){ hideThink(sub); msgObj.text=err.message; msgObj.isError=true; msgs.push(msgObj); render(); }
@@ -4799,13 +4840,17 @@ function build2v2Prompt(topic, history, speakerInfo, rnd){
             },
             function(){
               if(firstChunk) hideThink(sub);
-              cleanThinkTags(msgObj); finalizeMsg(uid, msgObj.text, false); render();
+              cleanThinkTags(msgObj); finalizeMsg(uid, msgObj.text, false).then(function(complete){
+              if(!complete || abortF)return;
+              render();
               if(idx < speakOrder.length - 1 || rnd2v2 < rounds - 1){
                 showEditPrompt(uid).then(function(edited){
+                  if(abortF)return;
                   if(edited){ msgObj.text = edited.text; msgObj._liked = edited.liked; msgObj._comment = edited.comment || ''; finalizeMsg(uid, msgObj.text, false); }
                   idx++; nextSpeaker();
                 });
               } else { idx++; nextSpeaker(); }
+              });
             },
             function(err){
               if(firstChunk){ hideThink(sub); msgObj.text=err.message; msgObj.isError=true; msgs.push(msgObj); render(); }
@@ -4839,13 +4884,17 @@ function build2v2Prompt(topic, history, speakerInfo, rnd){
             },
             function(){
               if(firstChunk) hideThink(sub);
-              cleanThinkTags(msgObj); finalizeMsg(uid, msgObj.text, false); render();
+              cleanThinkTags(msgObj); finalizeMsg(uid, msgObj.text, false).then(function(complete){
+              if(!complete || abortF)return;
+              render();
               if(idx < act.length - 1 || rndFree < rounds - 1){
                 showEditPrompt(uid).then(function(edited){
+                  if(abortF)return;
                   if(edited){ msgObj.text = edited.text; msgObj._liked = edited.liked; msgObj._comment = edited.comment || ''; finalizeMsg(uid, msgObj.text, false); }
                   idx++; nextModel();
                 });
               } else { idx++; nextModel(); }
+              });
             },
             function(err){
               var em = (err && err.message) ? err.message : String(err || '未知错误');
@@ -5032,7 +5081,7 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
 
     function finish(){
       if(finished)return;finished=true;
-      if(judgeModel !== 'none' && debate && msgs.filter(function(m){ return !m.isUser; }).length > 0){
+      if(!abortF && judgeModel !== 'none' && debate && msgs.filter(function(m){ return !m.isUser; }).length > 0){
         var debateMsgs = msgs.filter(function(m){ return !m.isUser; });
        var _judgeBase = debateMsgs.map(function(m){ return '[' + m.name + ']:\n' + plainMessageText(m); }).join('\n\n---\n\n');
 var judgePrompt;
@@ -5074,8 +5123,13 @@ if(debateMode === '2v2'){
       } else {
         doFinish();
       }
-      function doFinish(){
-        aaRunning = false;
+    }
+    function doFinish(){
+      if(finishingDisplay)return;finishingDisplay=true;
+      liveReplies.whenIdle().then(settleFinish);
+    }
+    function settleFinish(){
+      aaRunning = false;
       if(imageMode&&imageFailure&&!abortF){
         setImageError('图片处理未完成，请查看对话中的错误说明。');
         if(!sentImgs.length&&_imgs.length){sentImgs=_imgs.slice();imageEditParentUid=submittedImageParentUid;}
@@ -5099,7 +5153,6 @@ if(debateMode === '2v2'){
         var convText = buildConversationText();
         var scopeKey=activeProjectId||'general',turns=(memoryTurnCounts.get(scopeKey)||0)+1;memoryTurnCounts.set(scopeKey,turns);
         if(convText && (turns%4===0||/记住|请牢记|remember/i.test(_topicText))) updateMemory(convText);
-      }
       }
     }
   }
