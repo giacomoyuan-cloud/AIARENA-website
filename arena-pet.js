@@ -18,7 +18,7 @@
     var cancel = options.clearTimeout || clearTimeout;
     var change = options.onChange || function () {};
     var state = 'welcome', label = LABELS.welcome, running = false;
-    var hasMessages = false, mode = 'chat', hadError = false, generation = 0;
+    var hasMessages = false, mode = 'chat', hadError = false, hasReply = false, generation = 0;
     var phases = new Map(), timer = null;
     function clear() { if (timer !== null) cancel(timer); timer = null; }
     function snapshot() { return { state: state, label: label, running: running, generation: generation, phases: new Map(phases) }; }
@@ -38,14 +38,14 @@
       var values = Array.from(phases.values());
       if (values.indexOf('searching') !== -1) show('searching');
       else if (values.indexOf('thinking') !== -1) show('thinking');
-      else show(mode === 'image' || values.length ? 'working' : 'thinking');
+      else show(mode === 'image' || values.length || hasReply ? 'working' : 'thinking');
     }
     function sync(next) {
       var wasRunning = running, hadMessages = hasMessages;
       hasMessages = !!next.hasMessages; mode = next.mode || 'chat';
       running = !!next.running;
       if (running) {
-        if (!wasRunning) { clear(); phases.clear(); hadError = false; generation++; }
+        if (!wasRunning) { clear(); phases.clear(); hadError = false; hasReply = false; generation++; }
         busy();
       } else if (wasRunning) {
         clear(); phases.clear();
@@ -58,6 +58,9 @@
     }
     function progress(model, phase, token) {
       if (!running || (token !== undefined && token !== generation) || ['thinking', 'searching', 'responding', 'working'].indexOf(phase) === -1) return;
+      // Once a model starts replying, late reasoning/status packets cannot interrupt typing.
+      if (phases.get(model) === 'responding') phase = 'responding';
+      if (phase === 'responding') hasReply = true;
       if (phases.get(model) === phase) return;
       var before = state; phases.set(model, phase); busy();
       if (before === state) change(snapshot());
