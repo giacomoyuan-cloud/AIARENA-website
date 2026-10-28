@@ -2,11 +2,10 @@
 #ai-arena-app { --aa-kitten-ease-out: cubic-bezier(.23,1,.32,1); }
 #ai-arena-app .aa-kitten { display:inline-block;position:relative;flex:0 0 auto;width:60px;height:60px;vertical-align:middle;pointer-events:none;user-select:none;-webkit-user-select:none; }
 #ai-arena-app .aa-kitten-viewport { position:absolute;inset:0;overflow:hidden; }
-#ai-arena-app .aa-kitten-poster,#ai-arena-app .aa-kitten-motion { display:block;position:absolute;inset:0;width:100%;height:100%;max-width:none;object-fit:contain;border:0;border-radius:0;background:transparent;animation:aa-pet-reveal 140ms ease-out; }
-#ai-arena-app .aa-kitten-previous { position:absolute;inset:0;width:100%;height:100%;max-width:none;object-fit:contain;z-index:2;pointer-events:none;transition:opacity 180ms var(--aa-kitten-ease-out); }
+#ai-arena-app .aa-kitten-poster,#ai-arena-app .aa-kitten-motion { display:block;position:absolute;inset:0;width:100%;height:100%;max-width:none;object-fit:contain;border:0;border-radius:0;background:transparent; }
+#ai-arena-app .aa-kitten-previous { position:absolute;inset:0;width:100%;height:100%;max-width:none;object-fit:contain;z-index:2;pointer-events:none;transition:opacity 260ms linear; }
 #ai-arena-app .aa-kitten [hidden] { display:none!important; }
 #ai-arena-app .aa-kitten[data-aa-kitten=still] img { animation:none; }
-@keyframes aa-pet-reveal { from { opacity:0 } to { opacity:1 } }
 #ai-arena-app.arena-shell .arena-kitten-dock {
   display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0;
   padding: 0 8px 0 0; height: 52px; border: 0; border-radius: 12px;

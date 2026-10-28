@@ -153,7 +153,7 @@
     return '<span class="aa-kitten aa-kitten--' + escape(place) + '" data-aa-kitten="' + (place === 'portrait' ? 'still' : 'live') + '" data-state="' + state + '"'
       + (model ? ' data-aa-kitten-model="' + escape(model) + '"' : '') + ' aria-hidden="true">'
       + '<span class="aa-kitten-viewport"><img class="aa-kitten-poster" src="' + escape(place === 'portrait' && motionCatalog ? motionCatalog.portrait : (action ? action.poster : '/assets/kitten/motion/poster.png?v=20261028')) + '" alt="" draggable="false" decoding="async">'
-      + (place === 'portrait' ? '' : '<video class="aa-kitten-motion" muted playsinline preload="none" hidden></video><img class="aa-kitten-previous" alt="" draggable="false" hidden>') + '</span></span>';
+      + (place === 'portrait' ? '' : '<video class="aa-kitten-motion" muted playsinline preload="none" hidden></video><canvas class="aa-kitten-previous" aria-hidden="true" hidden></canvas>') + '</span></span>';
   }
 
   // A media player owns loading/recovery, never the assistant's task state.
@@ -165,39 +165,80 @@
     var now = options.now || function () { return Date.now(); };
     var action = null, state = null, token = 0, sequence = 0, destroyed = false;
     var native = false, fallback = false, loading = false, playingPromise = false, finished = false;
-    var loadTimer = null, endTimer = null, revealTimer = null, lastTime = -1, lastProgress = now(), retries = 0;
+    var loadTimer = null, endTimer = null, revealTimer = null, presentationTimer = null;
+    var frameRequest = null, frameKind = null, waitingToken = null, presentedToken = null;
+    var lastTime = -1, lastProgress = now(), retries = 0;
     var nextCandidate = null;
     function status(value) { if (el.getAttribute('data-motion-status') !== value) el.setAttribute('data-motion-status', value); }
     function active() { return !destroyed && el.isConnected && el.getClientRects().length > 0 && !doc.hidden && !reduced.matches; }
     function clearLoad() { if (loadTimer !== null) cancel(loadTimer); loadTimer = null; }
     function clearEnd() { if (endTimer !== null) cancel(endTimer); endTimer = null; }
     function clearReveal() { if (revealTimer !== null) cancel(revealTimer); revealTimer = null; }
+    function clearPresentation() {
+      if (presentationTimer !== null) cancel(presentationTimer);
+      presentationTimer = null;
+      if (frameRequest !== null) {
+        if (frameKind === 'video' && video.cancelVideoFrameCallback) video.cancelVideoFrameCallback(frameRequest);
+        else if (frameKind === 'animation' && win.cancelAnimationFrame) win.cancelAnimationFrame(frameRequest);
+      }
+      frameRequest = null; frameKind = null; waitingToken = null;
+    }
     function rememberFrame() {
-      if (!previous || !action || !active()) return;
+      if (!previous || !action || !active()) return false;
       // A newer task may interrupt a clip that has not decoded yet.
-      if (!previous.hidden && loading) return;
+      if (!previous.hidden && (loading || presentedToken !== token)) return true;
       try {
         var source = native && !video.hidden ? video : image;
         var width = source.videoWidth || source.naturalWidth, height = source.videoHeight || source.naturalHeight;
-        if (!width || !height) return;
+        if (!width || !height) return !previous.hidden;
         var canvas = doc.createElement('canvas'); canvas.width = width; canvas.height = height;
-        canvas.getContext('2d').drawImage(source, 0, 0, width, height);
-        previous.src = canvas.toDataURL('image/png'); previous.hidden = false; previous.style.opacity = '1';
-      } catch (_) { previous.hidden = true; }
+        var context = canvas.getContext('2d'); context.drawImage(source, 0, 0, width, height);
+        if (!previous.hidden) {
+          var opacity = win.getComputedStyle ? Number(win.getComputedStyle(previous).opacity) : Number(previous.style.opacity);
+          if (opacity > 0) { context.globalAlpha = opacity; context.drawImage(previous, 0, 0, width, height); }
+        }
+        previous.width = width; previous.height = height;
+        previous.getContext('2d').drawImage(canvas, 0, 0);
+        previous.style.transition = 'none'; previous.style.opacity = '1'; previous.hidden = false;
+        void previous.offsetWidth;
+        previous.style.transition = '';
+        return true;
+      } catch (_) { return !previous.hidden; }
     }
-    function ready() {
-      if (!active()) return;
+    function presented(expected) {
+      if (expected !== token || waitingToken !== expected || !active()) return;
+      clearPresentation(); presentedToken = expected;
+      if (native) image.hidden = true;
       if (previous && !previous.hidden && previous.style.opacity !== '0') {
         clearReveal();
-        // Commit the old frame before fading it over the newly decoded clip.
-        void previous.offsetWidth;
         previous.style.opacity = '0';
-        var expected = token;
-        revealTimer = later(function () { revealTimer = null; if (token === expected) previous.hidden = true; }, 180);
+        revealTimer = later(function () { revealTimer = null; if (token === expected) previous.hidden = true; }, 260);
       }
       if (options.onReady) options.onReady(action, state);
     }
-    function showPoster() { video.hidden = true; image.hidden = false; image.onload = null; image.onerror = null; if (action && image.getAttribute('src') !== action.poster) image.src = action.poster; }
+    function ready() {
+      if (!active()) return;
+      if (presentedToken === token) { if (options.onReady) options.onReady(action, state); return; }
+      if (waitingToken === token) return;
+      var expected = token; waitingToken = expected;
+      function finish() { presented(expected); }
+      if (native && video.requestVideoFrameCallback) {
+        frameKind = 'video'; frameRequest = video.requestVideoFrameCallback(finish);
+      } else if (win.requestAnimationFrame) {
+        frameKind = 'animation';
+        frameRequest = win.requestAnimationFrame(function () {
+          if (waitingToken !== expected || token !== expected) return;
+          frameRequest = win.requestAnimationFrame(finish);
+        });
+      } else { finish(); return; }
+      // A broken frame callback must not leave an old frame on screen forever.
+      presentationTimer = later(function () {
+        if (token !== expected || waitingToken !== expected) return;
+        if (native && (video.paused || !(video.currentTime > 0))) { clearPresentation(); showFallback(); }
+        else finish();
+      }, 800);
+    }
+    function showPoster(preserve) { video.hidden = true; image.hidden = false; image.onload = null; image.onerror = null; if (!preserve && action && image.getAttribute('src') !== action.poster) image.src = action.poster; }
     function finish() {
       if (finished || !active()) return;
       finished = true; clearEnd(); status('complete');
@@ -209,6 +250,8 @@
       if (action.playback === 'once') endTimer = later(function () { endTimer = null; if (token === expected) finish(); }, Math.ceil(action.durationSeconds * 1000));
     }
     function showFallback() {
+      if (native && active()) { clearReveal(); rememberFrame(); }
+      clearPresentation(); presentedToken = null;
       clearLoad(); native = false; fallback = true; loading = false; playingPromise = false;
       video.pause(); video.hidden = true;
       if (!active()) { showPoster(); status('paused'); return; }
@@ -239,7 +282,7 @@
         Promise.resolve(result).then(function () {
           if (token !== expected) return;
           playingPromise = false;
-          if (active() && native && !video.paused) { image.hidden = true; status('playing'); ready(); }
+          if (active() && native && !video.paused) { status('playing'); ready(); }
         }, function (error) {
           if (token !== expected) return;
           playingPromise = false;
@@ -285,7 +328,7 @@
     }
     function refresh() {
       if (!action || destroyed) return;
-      if (!active()) { clearEnd(); clearReveal(); if (previous) previous.hidden = true; video.pause(); playingPromise = false; showPoster(); status(reduced.matches ? 'reduced' : 'paused'); return; }
+      if (!active()) { clearEnd(); clearReveal(); clearPresentation(); presentedToken = null; if (previous) previous.hidden = true; video.pause(); playingPromise = false; showPoster(); status(reduced.matches ? 'reduced' : 'paused'); return; }
       if (native) play();
       else if (fallback) showFallback();
       else if (!loading) load();
@@ -296,11 +339,12 @@
         if (state !== nextState) { clearEnd(); finished = false; playingPromise = false; }
         state = nextState; video.loop = next.playback !== 'once'; refresh(); return;
       }
-      clearReveal(); rememberFrame(); token++; sequence++; clearLoad(); clearEnd(); video.pause();
+      clearReveal(); var retained = rememberFrame(), hadAction = !!action; clearPresentation();
+      token++; sequence++; presentedToken = null; clearLoad(); clearEnd(); video.pause();
       action = next; state = nextState; finished = false; native = fallback = loading = playingPromise = false;
       retries = 0; lastTime = -1; lastProgress = now();
       video.loop = next.playback !== 'once';
-      el.setAttribute('data-motion-id', next.id); showPoster(); refresh();
+      el.setAttribute('data-motion-id', next.id); showPoster(hadAction && !retained); refresh();
     }
     function watchdog() {
       if (!action || !active()) return;
@@ -313,11 +357,11 @@
       else if (fallback && el.getAttribute('data-motion-status') === 'unavailable' && retries < 2) { retries++; clearEnd(); fallback = false; load(); }
     }
     video.muted = true; video.defaultMuted = true; video.playsInline = true;
-    video.onplaying = function () { if (native && active()) { image.hidden = true; video.hidden = false; status('playing'); ready(); } };
+    video.onplaying = function () { if (native && active()) { video.hidden = false; status('playing'); ready(); } };
     video.ontimeupdate = function () { if (native && Math.abs(video.currentTime - lastTime) > .005) { lastTime = video.currentTime; lastProgress = now(); } };
     video.onended = function () { playingPromise = false; if (!native || !active() || !video.ended) return; if (video.loop) { video.currentTime = 0; play(); } else finish(); };
     function destroy() {
-      destroyed = true; token++; sequence++; clearLoad(); clearEnd(); clearReveal();
+      destroyed = true; token++; sequence++; clearLoad(); clearEnd(); clearReveal(); clearPresentation();
       image.onload = image.onerror = null;
       video.onloadeddata = video.onerror = video.onplaying = video.onended = video.ontimeupdate = null;
       if (previous) previous.hidden = true;
