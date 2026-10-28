@@ -25,10 +25,10 @@ const settle=()=>new Promise(resolve=>setImmediate(resolve));
 test('repeated focus/layout/input refreshes neither reload nor prematurely finish the idle action',async()=>{
   const f=fixture();f.player.set(loop,'idle');f.ready();await settle();f.video.currentTime=.75;
   for(let i=0;i<100;i++){f.player.set(loop,'idle');f.player.refresh();}
-  f.advance(2000);assert.equal(f.ended,0);assert.equal(f.video.loads,1);assert.equal(f.video.currentTime,.75);assert.equal(f.video.paused,false);assert.equal(f.video.loop,false);
+  f.advance(2000);assert.equal(f.ended,0);assert.equal(f.video.loads,1);assert.equal(f.video.currentTime,.75);assert.equal(f.video.paused,false);assert.equal(f.video.loop,true);
 });
-test('an idle native action advances exactly once after real completion',()=>{
-  const f=fixture();f.player.set(loop,'idle');f.ready();f.end();f.player.watchdog();assert.equal(f.ended,1);
+test('an idle native action repeats the same source instead of advancing a playlist',()=>{
+  const f=fixture();f.player.set(loop,'idle');f.ready();f.end();f.player.watchdog();assert.equal(f.ended,0);assert.equal(f.video.src,loop.webm);assert.equal(f.video.loads,1);assert.equal(f.video.paused,false);
 });
 test('hidden or background playback resumes the same decoded video without resetting its time',async()=>{
   const f=fixture();f.player.set(loop,'rest');f.ready();await settle();f.video.currentTime=1.25;
@@ -42,9 +42,10 @@ test('reduced-motion keeps a poster and resumes on preference change',()=>{
   const f=fixture();f.reduced.matches=true;f.player.set(loop,'working');assert.equal(f.video.loads,0);
   f.reduced.matches=false;f.player.refresh();f.ready();assert.equal(f.video.paused,false);
 });
-test('a looping action can reuse a finished idle action instead of remaining frozen',()=>{
-  const f=fixture();f.player.set(loop,'idle');f.ready();f.end();assert.equal(f.ended,1);
-  f.player.set(loop,'rest');assert.equal(f.video.loop,true);assert.equal(f.video.currentTime,0);assert.equal(f.video.paused,false);assert.equal(f.video.loads,1);
+test('background label changes and repeated greetings keep the same clip and playback position',()=>{
+  const f=fixture();f.player.set(loop,'idle');f.ready();f.video.currentTime=1.25;
+  for(const state of ['rest','welcome','welcome','idle'])f.player.set(loop,state);
+  assert.equal(f.video.loop,true);assert.equal(f.video.currentTime,1.25);assert.equal(f.video.paused,false);assert.equal(f.video.loads,1);
 });
 test('browser-paused playback and a missed ended event recover through the foreground watchdog',async()=>{
   const f=fixture();f.player.set(once,'welcome');f.ready();await settle();f.video.paused=true;f.player.watchdog();assert.equal(f.video.paused,false);await settle();
@@ -64,6 +65,10 @@ test('WebP playback re-arms after returning from a hidden tab',()=>{
   const f=fixture({formats:{webm:false,hevc:false}});f.player.set(once,'idle');f.image.onload();f.advance(2000);
   f.document.hidden=true;f.player.refresh();f.advance(10000);assert.equal(f.ended,0);
   f.document.hidden=false;f.player.refresh();f.image.onload();f.advance(5040);assert.equal(f.ended,1);
+});
+test('the animated WebP loop stays on one source without a completion/rotation timer',()=>{
+  const f=fixture({formats:{webm:false,hevc:false}});f.player.set(loop,'idle');f.image.onload();f.advance(120000);
+  assert.equal(f.ended,0);assert.equal(f.image.src,loop.webp);assert.equal(f.queue.size,0);
 });
 test('an old decode or rejected play cannot replace a newer action',async()=>{
   const f=fixture();f.player.set(loop,'idle');const stale=f.video.onloadeddata;f.player.set(once,'welcome');stale();assert.equal(f.attrs.get('data-motion-status'),'loading');assert.equal(f.video.src,once.webm);
