@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>AI 助手</title>
-<meta name="app-version" content="20261029-nav1">
+<meta name="app-version" content="20261029-controls1">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -864,8 +864,9 @@
   #ai-arena-app #aaSkillEditPrompt::placeholder { color: #888; opacity: 1; }
 
 </style>
-<link rel="stylesheet" href="/arena.css?v=20261029-nav1">
-<link rel="stylesheet" href="/arena-workspace.css?v=20261029-nav1">
+<link rel="stylesheet" href="/arena.css?v=20261029-controls1">
+<link rel="stylesheet" href="/arena-workspace.css?v=20261029-controls1">
+<link rel="stylesheet" href="/arena-controls.css?v=20261029-controls1">
 <link rel="stylesheet" href="/arena-pet.css?v=20261029-petcycle1">
 <link rel="preload" as="image" href="/assets/kitten/motion/knead-14b49069b5fd.png">
 
@@ -962,7 +963,7 @@
     <div id="aaWelcome" class="aa-welcome">
       <button type="button" class="arena-kitten-greeting" data-aa-kitten-greet aria-label="和袁啾啾打招呼"><span class="aa-kitten aa-kitten--welcome" data-aa-kitten="live" data-state="welcome" aria-hidden="true"></span></button>
       <h1 id="aaWelcomeTitle">今天，想聊点什么？</h1>
-      <p id="aaDebateWelcomeCopy" class="arena-debate-welcome-copy" hidden>选择参与的 AI，输入话题，让不同观点一起展开。</p>
+      <p id="aaDebateWelcomeCopy" class="arena-debate-welcome-copy" hidden>设置独立席位，先表达观点，再相互质询。</p>
     </div>
     <div class="aa-messages" id="aaMessages" tabindex="0" aria-label="对话消息">
       <div id="aaThinkingArea"></div>
@@ -975,8 +976,11 @@
             <button type="button" class="aa-bar-btn" data-dmode="persona">角色讨论</button>
             <button type="button" class="aa-bar-btn" data-dmode="2v2">2v2</button>
           </div>
-          <div id="aaJudgeCard" style="display:none;"><button type="button" id="aaJudgeHead" class="arena-debate-judge" aria-haspopup="true" aria-expanded="false" aria-controls="aaJudgeDrop"><span id="aaJudgeLabel">思维教练</span><span id="aaJudgeSubLabel">不设置</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg></button></div>
+          <div id="aaJudgeCard" style="display:none;"><button type="button" id="aaJudgeHead" class="arena-debate-judge" aria-haspopup="true" aria-expanded="false" aria-controls="aaJudgeDrop"><span id="aaJudgeLabel">讨论总结</span><span id="aaJudgeSubLabel">不生成总结</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg></button></div>
         </div>
+        <div class="arena-debate-round-row"><span>轮数</span><div class="arena-round-options" role="group" aria-label="讨论轮数"><button type="button" data-debate-rounds="1">1 轮</button><button type="button" data-debate-rounds="2">2 轮</button><button type="button" data-debate-rounds="3">3 轮</button></div><span id="aaDebateBudget"></span></div>
+        <p id="aaDebateProgress" class="arena-debate-progress" role="status" aria-live="polite" hidden></p>
+        <p class="arena-debate-hint" id="aaDebateStageHelp"></p>
         <p class="arena-debate-hint" id="aaDebateHint">至少选择两个模型，轮流讨论同一个话题。</p>
       </div>
       <div id="aaImgPreview" class="aa-img-prev" style="padding:0 0 8px 4px;">
@@ -995,19 +999,18 @@
         </div>
       </div>
 
+      <div id="aaFreeParticipants" class="arena-free-participants" hidden><div class="arena-persona-heading"><span>讨论席位</span><button type="button" id="aaAddParticipant">添加席位</button></div><div id="aaFreeParticipantGrid" class="arena-free-grid"></div></div>
 <!-- 2v2 seat zones -->
       <div class="aa-seats-area" id="aaSeatsArea">
         <div class="aa-seats-row">
           <div class="aa-seat-zone" data-team="pro" id="aaSeatPro">
             <div class="aa-seat-title">正方</div>
             <div class="aa-seat-slots" id="aaSeatSlotsPro">
-              <div class="aa-seat-empty">拖入模型</div>
             </div>
           </div>
           <div class="aa-seat-zone" data-team="con" id="aaSeatCon">
             <div class="aa-seat-title">反方</div>
             <div class="aa-seat-slots" id="aaSeatSlotsCon">
-              <div class="aa-seat-empty">拖入模型</div>
             </div>
           </div>
         </div>
@@ -1017,24 +1020,32 @@
         <div class="arena-persona-heading"><span>设置讨论角色</span><button type="button" id="aaAddPersona">添加角色</button></div>
         <div class="aa-persona-grid">
           <div class="aa-persona-slot" data-pidx="0" id="aaPersonaSlot0">
-            <div class="aa-persona-model"><span class="aa-persona-empty">拖入模型</span></div>
-            <input type="text" class="aa-persona-input" id="aaPersonaRole0" placeholder="角色身份" maxlength="30">
-            <input type="text" class="aa-persona-input" id="aaPersonaDesc0" placeholder="身份补充说明" maxlength="60">
+            <div class="arena-role-heading"><span>角色 1</span><button type="button" class="arena-role-remove" data-remove-persona="0" aria-label="移除角色 1"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg></button></div>
+            <div class="arena-role-field"><span>模型</span><div class="aa-persona-model"></div></div>
+            <label class="arena-role-field" for="aaPersonaRole0"><span>角色身份</span><input type="text" class="aa-persona-input" id="aaPersonaRole0" placeholder="例如：产品经理" maxlength="30" aria-describedby="aaPersonaError0"></label>
+            <label class="arena-role-field arena-role-detail" for="aaPersonaDesc0"><span>补充要求 <small>可选</small></span><input type="text" class="aa-persona-input" id="aaPersonaDesc0" placeholder="希望这个角色重点关注什么？" maxlength="60"></label>
+            <p class="arena-field-error" id="aaPersonaError0" hidden>请填写这个角色的身份</p>
           </div>
           <div class="aa-persona-slot" data-pidx="1" id="aaPersonaSlot1">
-            <div class="aa-persona-model"><span class="aa-persona-empty">拖入模型</span></div>
-            <input type="text" class="aa-persona-input" id="aaPersonaRole1" placeholder="角色身份" maxlength="30">
-            <input type="text" class="aa-persona-input" id="aaPersonaDesc1" placeholder="身份补充说明" maxlength="60">
+            <div class="arena-role-heading"><span>角色 2</span><button type="button" class="arena-role-remove" data-remove-persona="1" aria-label="移除角色 2"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg></button></div>
+            <div class="arena-role-field"><span>模型</span><div class="aa-persona-model"></div></div>
+            <label class="arena-role-field" for="aaPersonaRole1"><span>角色身份</span><input type="text" class="aa-persona-input" id="aaPersonaRole1" placeholder="例如：产品经理" maxlength="30" aria-describedby="aaPersonaError1"></label>
+            <label class="arena-role-field arena-role-detail" for="aaPersonaDesc1"><span>补充要求 <small>可选</small></span><input type="text" class="aa-persona-input" id="aaPersonaDesc1" placeholder="希望这个角色重点关注什么？" maxlength="60"></label>
+            <p class="arena-field-error" id="aaPersonaError1" hidden>请填写这个角色的身份</p>
           </div>
           <div class="aa-persona-slot" data-pidx="2" id="aaPersonaSlot2">
-            <div class="aa-persona-model"><span class="aa-persona-empty">拖入模型</span></div>
-            <input type="text" class="aa-persona-input" id="aaPersonaRole2" placeholder="角色身份" maxlength="30">
-            <input type="text" class="aa-persona-input" id="aaPersonaDesc2" placeholder="身份补充说明" maxlength="60">
+            <div class="arena-role-heading"><span>角色 3</span><button type="button" class="arena-role-remove" data-remove-persona="2" aria-label="移除角色 3"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg></button></div>
+            <div class="arena-role-field"><span>模型</span><div class="aa-persona-model"></div></div>
+            <label class="arena-role-field" for="aaPersonaRole2"><span>角色身份</span><input type="text" class="aa-persona-input" id="aaPersonaRole2" placeholder="例如：产品经理" maxlength="30" aria-describedby="aaPersonaError2"></label>
+            <label class="arena-role-field arena-role-detail" for="aaPersonaDesc2"><span>补充要求 <small>可选</small></span><input type="text" class="aa-persona-input" id="aaPersonaDesc2" placeholder="希望这个角色重点关注什么？" maxlength="60"></label>
+            <p class="arena-field-error" id="aaPersonaError2" hidden>请填写这个角色的身份</p>
           </div>
           <div class="aa-persona-slot" data-pidx="3" id="aaPersonaSlot3">
-            <div class="aa-persona-model"><span class="aa-persona-empty">拖入模型</span></div>
-            <input type="text" class="aa-persona-input" id="aaPersonaRole3" placeholder="角色身份" maxlength="30">
-            <input type="text" class="aa-persona-input" id="aaPersonaDesc3" placeholder="身份补充说明" maxlength="60">
+            <div class="arena-role-heading"><span>角色 4</span><button type="button" class="arena-role-remove" data-remove-persona="3" aria-label="移除角色 4"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg></button></div>
+            <div class="arena-role-field"><span>模型</span><div class="aa-persona-model"></div></div>
+            <label class="arena-role-field" for="aaPersonaRole3"><span>角色身份</span><input type="text" class="aa-persona-input" id="aaPersonaRole3" placeholder="例如：产品经理" maxlength="30" aria-describedby="aaPersonaError3"></label>
+            <label class="arena-role-field arena-role-detail" for="aaPersonaDesc3"><span>补充要求 <small>可选</small></span><input type="text" class="aa-persona-input" id="aaPersonaDesc3" placeholder="希望这个角色重点关注什么？" maxlength="60"></label>
+            <p class="arena-field-error" id="aaPersonaError3" hidden>请填写这个角色的身份</p>
           </div>
         </div>
       </div>
@@ -1142,14 +1153,7 @@
         <div class="aa-drop-item" data-sub="claude-fable-5-1"><span class="aa-drop-dot" data-health="official-anthropic"></span>Claude Fable 5.1</div>
         <div class="aa-drop-item" data-sub="claude-opus-5-5"><span class="aa-drop-dot" data-health="official-anthropic"></span>Claude Opus 5.5</div>
       </div>
-      <div class="aa-card-dropdown" id="aaJudgeDrop">
-        <button type="button" class="aa-drop-item" data-jsub="none">不设思维教练</button>
-        <button type="button" class="aa-drop-item" data-jsub="grok-4.7">Grok 4.7</button>
-        <button type="button" class="aa-drop-item" data-jsub="claude-fable-5-1">Claude Fable 5.1</button>
-        <button type="button" class="aa-drop-item" data-jsub="claude-sonnet-5-5">Claude Sonnet 5.5</button>
-        <button type="button" class="aa-drop-item" data-jsub="claude-opus-5-5">Claude Opus 5.5</button>
-        <button type="button" class="aa-drop-item" data-jsub="gemini-4-argon">Gemini 4</button>
-      </div>
+      <div id="aaJudgeDrop" hidden></div>
 
       <div id="aaQuoteBar" class="aa-quote-bar">
         <div class="aa-quote-line"></div>
@@ -1223,7 +1227,9 @@
 <script src="/arena-effort.js?v=20261028-effortfix1"></script>
 <script src="/arena-context.js?v=20261027-account1"></script>
 <script src="/arena-chat-runs.js?v=20261028-resume1"></script>
-<script src="/arena-workspace.js?v=20261029-nav1"></script>
+<script src="/arena-controls.js?v=20261029-controls1"></script>
+<script src="/arena-debate.js?v=20261029-controls1"></script>
+<script src="/arena-workspace.js?v=20261029-controls1"></script>
 <script src="/arena-account.js?v=20261027-account2"></script>
 <script src="/arena-pet-catalog.js?v=20261029-petcycle1"></script>
 <script src="/arena-pet.js?v=20261029-petcycle1"></script>
@@ -1369,8 +1375,8 @@
   }
   var activeProjectId=sessionStorage.getItem('aa-active-project')||null,activeProject=null;
   var activeStreamControllers=new Set();
-  var rounds = 1, msgs = [], debate = false, aaRunning = false, abortF = false, searchOn = true;
-  var stopActiveGeneration = null;
+  var rounds = 2, msgs = [], debate = false, aaRunning = false, abortF = false, searchOn = true;
+  var stopActiveGeneration = null,activeDebateRunId=null;
   function syncKitten(){
     if(window.ArenaKitten) window.ArenaKitten.sync({running:aaRunning, hasMessages:msgs.length>0, mode:imageMode?'image':'chat', stopped:abortF});
   }
@@ -1489,82 +1495,41 @@ var TEAM_COLORS = {
     'claude-sonnet-5-5': {input:2,output:10},
     'claude-opus-5-5': {input:4,output:20}
   };
+  function debateModelOptions(used,selected){
+    var brands={anthropic:'Anthropic',xai:'xAI',google:'Google'};
+    return AVAILABLE_CHAT_MODELS.map(function(id){
+      var disabled=false;
+      return {value:id,label:SUBS[id].name,detail:disabled?'已加入其他席位':brands[SUBS[id].brand],disabled:disabled};
+    });
+  }
+  function beforeDebateSelect(){
+    closeArenaModelMenu(false);closeImagePopovers();$('aaPlusMenu').style.display='none';
+  }
+  var judgePicker=null;
   function syncJudgeUI(){
-    var area = $('aaJudgeCard');
-    if(!area) return;
-    area.style.display = debate ? 'block' : 'none';
-    var head = $('aaJudgeHead');
-    var label = $('aaJudgeSubLabel');
-    if(judgeModel === 'none'){
-      head.style.borderColor = 'rgba(255,255,255,0.08)';
-      head.style.background = 'rgba(255,255,255,0.05)';
-      $('aaJudgeLabel').style.color = '#6b6b88';
-      label.textContent = '不设思维教练';
-    } else {
-      head.style.borderColor = 'rgba(167,139,250,0.5)';
-      head.style.background = 'rgba(167,139,250,0.1)';
-      $('aaJudgeLabel').style.color = '#a78bfa';
-      label.textContent = SUBS[judgeModel] ? SUBS[judgeModel].name : judgeModel;
+    $('aaJudgeCard').style.display=debate?'block':'none';
+    if(!judgePicker){
+      judgePicker=ArenaControls.mountSelect({host:$('ai-arena-app'),trigger:$('aaJudgeHead'),label:'选择总结模型',beforeOpen:beforeDebateSelect,
+        renderLabel:function(value,option){$('aaJudgeSubLabel').textContent=option?option.label:'不生成总结';},
+        onChange:function(value){judgeModel=value;syncJudgeUI();syncArenaLayout();}
+      });
     }
-    document.querySelectorAll('#aaJudgeDrop .aa-drop-item').forEach(function(item){
-      item.classList.toggle('selected', item.dataset.jsub === judgeModel);
-    });
+    judgePicker.update({value:judgeModel,disabled:aaRunning,options:[{value:'none',label:'不生成总结',detail:'保留各席完整发言'}].concat(debateModelOptions())});
+    if(!debate)judgePicker.close(false);
   }
 
-  var _judgeTouched = false;
-  function toggleJudgeDrop(e){
-    e.stopPropagation();
-    if(aaRunning)return;
-    var drop = $('aaJudgeDrop');
-    var wasOpen = drop.classList.contains('open');
-    document.querySelectorAll('#ai-arena-app .aa-card-dropdown').forEach(function(d){ d.classList.remove('open'); });
-    if(!wasOpen){
-      var rect = $('aaJudgeHead').getBoundingClientRect();
-      var dropLeft = rect.left + rect.width / 2;
-      var dropBottom = window.innerHeight - rect.top + 4;
-      if(dropLeft < 70) dropLeft = 70;
-      if(dropLeft > window.innerWidth - 70) dropLeft = window.innerWidth - 70;
-      drop.style.bottom = dropBottom + 'px';
-      drop.style.left = dropLeft + 'px';
-      drop.style.transform = 'translateX(-50%)';
-      drop.classList.add('open');
-      $('aaJudgeHead').setAttribute('aria-expanded','true');
-    }else{
-      $('aaJudgeHead').setAttribute('aria-expanded','false');
-    }
-  }
-  $('aaJudgeHead').addEventListener('touchstart', function(e){
-    e.stopPropagation();
-    _judgeTouched = true;
-  }, {passive: true});
-  $('aaJudgeHead').addEventListener('touchend', function(e){
-    e.preventDefault();
-    e.stopPropagation();
-    if(_judgeTouched){ toggleJudgeDrop(e); }
-  });
-  $('aaJudgeHead').addEventListener('click', function(e){
-    if(_judgeTouched){ _judgeTouched = false; return; }
-    toggleJudgeDrop(e);
-  });
-
-  document.querySelectorAll('#aaJudgeDrop .aa-drop-item').forEach(function(item){
-    item.addEventListener('click', function(e){
-      e.stopPropagation();
-      judgeModel = item.dataset.jsub;
-      $('aaJudgeDrop').classList.remove('open');
-      $('aaJudgeHead').setAttribute('aria-expanded','false');$('aaJudgeHead').focus();
-      syncJudgeUI();
-    });
-  });
-  $('aaJudgeDrop').addEventListener('keydown',function(e){if(e.key==='Escape'){e.stopPropagation();this.classList.remove('open');$('aaJudgeHead').setAttribute('aria-expanded','false');$('aaJudgeHead').focus();}});
-
-  
   var _uidCounter = 0;
   function newUid(){ return ++_uidCounter; }
   var userScrolledUp = false;
   var currentChatId = null;
-  var chatList = [];
-  var chatPinOverrides = new Map(), chatPinPending = new Set();
+  var chatList = [],chatListPinVersion=0;
+  var chatPins=ArenaControls.createPinStore({
+    write:function(context,pinned){
+      return chatApiCall('pin',{projectId:context.scope,chatId:context.id,pinned:pinned,username:context.username,password:context.password}).then(function(data){if(!data||!data.ok)throw new Error(data&&data.error||'置顶保存失败，请重试');});
+    },
+    onChange:function(key,value,pending,context){if(context&&key===chatPinKey(context.scope,context.id)&&context.scope===activeProjectId)renderHistoryList();},
+    onError:function(error,context){if(context&&context.key===chatPinKey(context.scope,context.id))arenaNotice(error.message);}
+  });
   function chatPinKey(scope,id){return ($('aaUsername').value||'').trim().toLowerCase()+'|'+(scope||'general')+'|'+id;}
   var _saveTimer = null;
   var scopeEpoch = 0, chatLoadEpoch = 0, chatListEpoch = 0;
@@ -1604,7 +1569,7 @@ var TEAM_COLORS = {
 
   function serializeMsgs(){
     return msgs.map(function(m){
-      var obj = {uid:m.uid, brand:m.brand, name:m.name, text:m.text, color:m.color, isUser:m.isUser, isError:m.isError, round:m.round, _team:m._team, _liked:m._liked, _comment:m._comment, topicText:m.topicText, pastedTexts:m.pastedTexts, _quote:m._quote, context:m.context, reasoning:m.reasoning, activity:m.activity, citations:m.citations, _feedback:m._feedback, effort:m.effort, submodel:m.submodel, completedAt:m.completedAt, moderationHelp:m.moderationHelp, suggestedPrompt:m.suggestedPrompt, moderationTask:m.moderationTask, imageTurn:m.imageTurn, imageResponse:m.imageResponse, grounding:m.grounding};
+      var obj = {uid:m.uid, brand:m.brand, name:m.name, text:m.text, color:m.color, isUser:m.isUser, isError:m.isError, round:m.round, _team:m._team, _liked:m._liked, _comment:m._comment, topicText:m.topicText, pastedTexts:m.pastedTexts, _quote:m._quote, context:m.context, reasoning:m.reasoning, activity:m.activity, citations:m.citations, _feedback:m._feedback, effort:m.effort, submodel:m.submodel, completedAt:m.completedAt, moderationHelp:m.moderationHelp, suggestedPrompt:m.suggestedPrompt, moderationTask:m.moderationTask, imageTurn:m.imageTurn, imageResponse:m.imageResponse, grounding:m.grounding,participantId:m.participantId,debateSessionId:m.debateSessionId,debateStage:m.debateStage};
       if(m.run) obj.run = m.run;
       if(m.imgItems && m.imgItems.length){ obj.imgItems = m.imgItems; }
       else if(m.imgData){ obj.imgData = m.imgData; obj.imgMime = m.imgMime; }
@@ -1613,15 +1578,16 @@ var TEAM_COLORS = {
   }
 
   function chatApiCall(action, extra){
-    var pass = getPass();
-    var user = $('aaUsername').value.trim();
+    var pass = extra&&extra.password||getPass();
+    var user = extra&&extra.username||$('aaUsername').value.trim();
     if(!pass || !user) return Promise.resolve(null);
     var payload = Object.assign({ password: pass, username: user, action: action, projectId:activeProjectId }, extra || {});
+    var controller=action==='pin'?new AbortController():null,timer=controller?setTimeout(function(){controller.abort();},12000):null;
     return fetch(WORKER + '/chats', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(payload)
-    }).then(function(r){ return r.json(); }).catch(function(){ return null; });
+      body: JSON.stringify(payload),signal:controller?controller.signal:undefined
+    }).then(function(r){ return r.json(); }).catch(function(){ return null; }).finally(function(){if(timer)clearTimeout(timer);});
   }
 
   function saveCurrentChat(){
@@ -1642,17 +1608,10 @@ var TEAM_COLORS = {
   }
 
   function loadChatList(){
-    var scope=activeProjectId,epoch=scopeEpoch,listEpoch=++chatListEpoch;
+    var scope=activeProjectId,epoch=scopeEpoch,listEpoch=++chatListEpoch,pinReadVersion=chatPins.version();
     chatApiCall('list').then(function(data){
       if(epoch!==scopeEpoch||listEpoch!==chatListEpoch||scope!==activeProjectId||!data || !data.chats) return;
-      chatList = data.chats;
-      chatList.forEach(function(chat){
-        var key=chatPinKey(scope,chat.id);
-        if(chatPinOverrides.has(key)){
-          var expected=chatPinOverrides.get(key);
-          if(!!chat.pinned===expected)chatPinOverrides.delete(key);else chat.pinned=expected;
-        }
-      });
+      chatList = data.chats;chatListPinVersion=pinReadVersion;
       var knownTimes = getStoredReplyTimes();
       var changed = false;
       chatList.forEach(function(chat){
@@ -1727,7 +1686,8 @@ var TEAM_COLORS = {
   function renderHistoryList(){
     var container = $('aaHistoryList');
     var historyQuery = ($('aaHistorySearch').value || '').trim().toLocaleLowerCase();
-    var visibleChats = chatList.filter(function(chat){ return !historyQuery || String(chat.title || '').toLocaleLowerCase().indexOf(historyQuery) !== -1; }).sort(function(a,b){return Number(!!b.pinned)-Number(!!a.pinned);});
+    var focusedPin=container.contains(document.activeElement)&&document.activeElement.dataset.pin;
+    var visibleChats = chatList.map(function(chat){return Object.assign({},chat,{pinned:chatPins.read(chatPinKey(activeProjectId,chat.id),chat.pinned,chatListPinVersion)});}).filter(function(chat){ return !historyQuery || String(chat.title || '').toLocaleLowerCase().indexOf(historyQuery) !== -1; }).sort(function(a,b){return Number(!!b.pinned)-Number(!!a.pinned);});
     if(!visibleChats.length){ container.innerHTML = '<div class="aa-history-empty">'+(historyQuery ? '没有找到相关对话' : '你的对话会显示在这里')+'</div>'; return; }
     var replyTimes = getStoredReplyTimes();
     var h = '';
@@ -1742,28 +1702,20 @@ var TEAM_COLORS = {
         +'<span class="aa-history-item-time">'+formatTime(displayTime)+'</span>'
         +'</span>'
         +'</button>'
-        +'<button type="button" class="aa-history-item-pin'+(chat.pinned?' pinned':'')+'" data-pin="'+safeId+'" aria-label="'+(chat.pinned?'取消置顶':'置顶会话')+'" aria-pressed="'+!!chat.pinned+'" title="'+(chat.pinned?'取消置顶':'置顶会话')+'"'+(chatPinPending.has(chatPinKey(activeProjectId,chat.id))?' disabled':'')+'><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 4 6 6m-7-2 8 8m-1-12 5 5-3 2-1 5-4-4-6 6 4-7-4-4 5-1Z"/></svg></button>'
+        +'<button type="button" class="aa-history-item-pin'+(chat.pinned?' pinned':'')+'" data-pin="'+safeId+'" aria-label="'+(chat.pinned?'取消置顶会话':'置顶会话')+'" aria-pressed="'+!!chat.pinned+'" aria-busy="'+chatPins.pending(chatPinKey(activeProjectId,chat.id))+'" title="'+(chat.pinned?'取消置顶':'置顶会话')+'">'+ArenaControls.pinIcon+'</button>'
         +'<button type="button" class="aa-history-item-del" data-del="'+safeId+'" aria-label="删除会话">✕</button>'
         +'</div>';
     });
     container.innerHTML = h;
+    if(focusedPin){var restored=Array.from(container.querySelectorAll('[data-pin]')).find(function(b){return b.dataset.pin===focusedPin;});if(restored)restored.focus({preventScroll:true});}
     container.onclick = function(e){
       var pinBtn = e.target.closest('.aa-history-item-pin');
       if(pinBtn && container.contains(pinBtn)){
         e.preventDefault();e.stopPropagation();
-        var id=pinBtn.dataset.pin,scope=activeProjectId,epoch=scopeEpoch,key=chatPinKey(scope,id),keyboard=e.detail===0;
-        var selected=chatList.find(function(c){return String(c.id)===id;});
-        if(!selected||chatPinPending.has(key))return;
-        var pinned=!selected.pinned;chatPinPending.add(key);pinBtn.disabled=true;
-        chatApiCall('pin',{projectId:scope,chatId:id,pinned:pinned}).then(function(data){
-          if(!data||!data.ok)throw new Error(data&&data.error||'置顶失败，请重试');
-          if(epoch!==scopeEpoch||scope!==activeProjectId||key!==chatPinKey(scope,id))return;
-          chatPinOverrides.set(key,pinned);
-          var current=chatList.find(function(c){return String(c.id)===id;});if(current)current.pinned=pinned;
-          arenaNotice(pinned?'已置顶对话':'已取消置顶');
-        }).catch(function(err){arenaNotice(err.message);}).finally(function(){
-          chatPinPending.delete(key);if(epoch===scopeEpoch&&scope===activeProjectId){renderHistoryList();if(keyboard){var focused=Array.from(container.querySelectorAll('[data-pin]')).find(function(b){return b.dataset.pin===id;});if(focused)focused.focus();}}
-        });
+        var id=pinBtn.dataset.pin,scope=activeProjectId,key=chatPinKey(scope,id);
+        var selected=chatList.find(function(c){return String(c.id)===id;});if(!selected)return;
+        chatPins.toggle(key,selected.pinned,{key:key,id:id,scope:scope,username:$('aaUsername').value.trim(),password:getPass()});
+        if(e.detail===0){var focused=Array.from(container.querySelectorAll('[data-pin]')).find(function(b){return b.dataset.pin===id;});if(focused)focused.focus();}
         return;
       }
       var deleteBtn = e.target.closest('.aa-history-item-del');
@@ -1820,6 +1772,7 @@ var TEAM_COLORS = {
     localStorage.setItem('aa-mode-debate', debate ? '1' : '0');
     localStorage.setItem('aa-debate-mode', debateMode);
     localStorage.setItem('aa-debate-models', JSON.stringify(debateModels));
+    localStorage.setItem('aa-debate-rounds', String(rounds));
     localStorage.setItem('aa-mode-image', imageMode ? '1' : '0');
   }
   function loadState(){
@@ -1852,7 +1805,8 @@ var TEAM_COLORS = {
       var dm = localStorage.getItem('aa-debate-mode');
       if(dm === 'free' || dm === '2v2' || dm === 'persona') debateMode = dm;
       var savedDebateModels=JSON.parse(localStorage.getItem('aa-debate-models')||'null');
-      if(Array.isArray(savedDebateModels))debateModels=Array.from(new Set(savedDebateModels.filter(function(id){return AVAILABLE_CHAT_MODELS.indexOf(id)!==-1;})));
+      if(Array.isArray(savedDebateModels)){debateModels=savedDebateModels.filter(function(id){return id===null||AVAILABLE_CHAT_MODELS.indexOf(id)!==-1;}).slice(0,6);while(debateModels.length<2)debateModels.push(null);}
+      var savedRounds=Number(localStorage.getItem('aa-debate-rounds'));if([1,2,3].indexOf(savedRounds)!==-1)rounds=savedRounds;
       var im = localStorage.getItem('aa-mode-image');
       if(im === '1') imageMode = true;
     } catch(e){}
@@ -1880,7 +1834,7 @@ var TEAM_COLORS = {
       result.push(imageComposerModel || 'grok-imagine-image-2.0');
       return result;
     }
-    if(debate && debateMode==='free')return debateModels.slice();
+    if(debate && debateMode==='free')return debateModels.filter(function(id){return AVAILABLE_CHAT_MODELS.indexOf(id)!==-1;});
     if(debate && debateMode==='2v2')return (seatState.pro.concat(seatState.con)).filter(function(id){return AVAILABLE_CHAT_MODELS.indexOf(id)!==-1;});
     if(debate && debateMode==='persona')return (personaState||[]).filter(Boolean).map(function(p){return p.sub||brandSelection[p.brand];}).filter(function(id){return AVAILABLE_CHAT_MODELS.indexOf(id)!==-1;});
     var cards = document.querySelectorAll('#aaBrandBar .aa-brand-card');
@@ -2742,6 +2696,7 @@ var TEAM_COLORS = {
     } catch(e){try{reader.cancel().catch(function(){});}catch(ignore){}failed(e);}
   })();
     }).catch(failed);
+    return controller;
   }
 
   var restoringPendingRun=false,lastChatConnectionState='';
@@ -3768,200 +3723,95 @@ var TEAM_COLORS = {
   var personaSlotCount = 2;
   $('aaAddPersona').addEventListener('click',function(){if(personaSlotCount<4){personaSlotCount++;syncPersonaUI();}});
 
+  var personaPickers=[];
+  $('aaPersonaArea').addEventListener('click',function(event){
+    var remove=event.target.closest('[data-remove-persona]');
+    if(!remove||aaRunning||personaSlotCount<=2)return;
+    var drafts=personaState.map(function(p,i){return {model:p&&(p.sub||brandSelection[p.brand]),role:$('aaPersonaRole'+i).value,desc:$('aaPersonaDesc'+i).value};});
+    var index=Number(remove.dataset.removePersona);drafts.splice(index,1);drafts.push({model:null,role:'',desc:''});personaSlotCount--;
+    for(var r=0;r<4;r++){$('aaPersonaRole'+r).removeAttribute('aria-invalid');$('aaPersonaError'+r).hidden=true;}
+    drafts.forEach(function(d,i){personaState[i]=d.model?{sub:d.model,brand:SUBS[d.model].brand,role:d.role,desc:d.desc}:null;$('aaPersonaRole'+i).value=d.role;$('aaPersonaDesc'+i).value=d.desc;});
+    syncPersonaUI();syncArenaLayout();saveState();personaPickers[Math.min(index,personaSlotCount-1)].trigger.focus({preventScroll:true});
+  });
   function syncPersonaUI(){
-    var is=debate && debateMode==='persona';
-    $('aaPersonaArea').style.display=is?'block':'none';
-    if(!is)return;
+    var is=debate&&debateMode==='persona';$('aaPersonaArea').style.display=is?'block':'none';
+    if(!is){personaPickers.forEach(function(p){p.close(false);});return;}
     for(var i=0;i<4;i++){
       (function(index){
-        var slot=$('aaPersonaSlot'+index),modelDiv=slot.querySelector('.aa-persona-model'),p=personaState[index];
-        slot.hidden=index>=personaSlotCount;
-        slot.classList.toggle('filled',!!p);
-        var selected=p&&(p.sub||brandSelection[p.brand])||'';
-        modelDiv.innerHTML='<select data-persona-model="'+index+'" aria-label="角色 '+(index+1)+' 的模型"><option value="">选择模型</option>'+AVAILABLE_CHAT_MODELS.map(function(id){return '<option value="'+esc(id)+'"'+(id===selected?' selected':'')+'>'+esc(SUBS[id].name)+'</option>';}).join('')+'</select>';
-        modelDiv.querySelector('select').addEventListener('change',function(){
-          var id=this.value,old=personaState[index];
-          personaState[index]=id?{brand:SUBS[id].brand,sub:id,role:$('aaPersonaRole'+index).value.trim(),desc:$('aaPersonaDesc'+index).value.trim()}:null;
-          if(!id && old){$('aaPersonaRole'+index).value='';$('aaPersonaDesc'+index).value='';}
-          syncPersonaUI();syncArenaLayout();saveState();
+        var slot=$('aaPersonaSlot'+index),p=personaState[index],selected=p&&(p.sub||brandSelection[p.brand])||'';
+        slot.hidden=index>=personaSlotCount;slot.classList.toggle('filled',!!p);
+        if(!personaPickers[index])personaPickers[index]=ArenaControls.mountSelect({
+          host:$('ai-arena-app'),container:slot.querySelector('.aa-persona-model'),label:'角色 '+(index+1)+' 的模型',beforeOpen:beforeDebateSelect,
+          onChange:function(id){
+            personaState[index]=id?{brand:SUBS[id].brand,sub:id,role:$('aaPersonaRole'+index).value.trim(),desc:$('aaPersonaDesc'+index).value.trim()}:null;
+            syncPersonaUI();syncArenaLayout();saveState();
+          }
         });
-        modelDiv.querySelector('select').disabled=aaRunning;
-        $('aaPersonaRole'+index).disabled=!p||aaRunning;
-        $('aaPersonaDesc'+index).disabled=!p||aaRunning;
+        personaPickers[index].update({value:selected,disabled:aaRunning,options:[{value:'',label:'选择模型',detail:'稍后再选'}].concat(debateModelOptions())});
+        if(slot.hidden)personaPickers[index].close(false);
+        $('aaPersonaRole'+index).disabled=!p||aaRunning;$('aaPersonaDesc'+index).disabled=!p||aaRunning;
+        if(!p){$('aaPersonaRole'+index).removeAttribute('aria-invalid');$('aaPersonaError'+index).hidden=true;}
+        var remove=slot.querySelector('[data-remove-persona]');remove.hidden=personaSlotCount<=2;remove.disabled=aaRunning;
       })(i);
     }
-    $('aaAddPersona').hidden=personaSlotCount>=4;
-    $('aaAddPersona').disabled=aaRunning;
-  }
-  function collapseOnTopicFocus(){
-    if(!debate) return;
-    if(debateMode === '2v2'){
-      if(seatState.pro.length + seatState.con.length > 0){
-        $('aaSeatsArea').style.display = 'none';
-        $('aaBrandBar').style.display = 'none';
-        $('aaBrandBarCollapsed').style.display = 'flex';
-        sync2v2UI();
-      }
-    }
+    $('aaAddPersona').hidden=personaSlotCount>=4;$('aaAddPersona').disabled=aaRunning;
   }
   function sync2v2UI(){
     syncPersonaUI();
     var is2v2=debate && debateMode==='2v2';
     $('aaSeatsArea').style.display=is2v2?'block':'none';
     if(is2v2){renderSeatSlots('pro');renderSeatSlots('con');}
+    else Object.keys(seatPickers).forEach(function(team){seatPickers[team].forEach(function(p){p.close(false);});});
   }
 
+  var seatPickers={pro:[],con:[]};
   function renderSeatSlots(team){
-    var container=team==='pro'?$('aaSeatSlotsPro'):$('aaSeatSlotsCon');
-    var used=seatState.pro.concat(seatState.con);
-    container.innerHTML=seatState[team].map(function(selected,index){
+    var container=team==='pro'?$('aaSeatSlotsPro'):$('aaSeatSlotsCon'),used=seatState.pro.concat(seatState.con);
+    if(!seatPickers[team].length)container.replaceChildren();
+    seatState[team].forEach(function(selected,index){
       var label=(team==='pro'?'正方':'反方')+'模型 '+(index+1);
-      return '<select data-team-select="'+team+'" data-seat-index="'+index+'" aria-label="'+label+'"'+(aaRunning?' disabled':'')+'><option value="">选择模型</option>'+AVAILABLE_CHAT_MODELS.map(function(id){
-        return '<option value="'+esc(id)+'"'+(selected===id?' selected':'')+(id!==selected&&used.indexOf(id)!==-1?' disabled':'')+'>'+esc(SUBS[id].name)+'</option>';
-      }).join('')+'</select>';
-    }).join('');
-    container.querySelectorAll('[data-team-select]').forEach(function(select){
-      select.addEventListener('change',function(){
-        var index=Number(this.dataset.seatIndex),id=this.value||null;
-        if(id && seatState.pro.concat(seatState.con).some(function(value){return value===id&&value!==seatState[team][index];}))return;
-        seatState[team][index]=id;sync2v2UI();syncArenaLayout();
-        var focus=container.querySelector('[data-seat-index="'+index+'"]');if(focus)focus.focus();
+      if(!seatPickers[team][index])seatPickers[team][index]=ArenaControls.mountSelect({
+        host:$('ai-arena-app'),container:container,label:label,beforeOpen:beforeDebateSelect,
+        onChange:function(id){
+          seatState[team][index]=id||null;sync2v2UI();syncArenaLayout();saveState();
+        }
       });
+      seatPickers[team][index].update({value:selected||'',disabled:aaRunning,options:[{value:'',label:'选择模型',detail:'为这个席位选择 AI'}].concat(debateModelOptions(used,selected))});
     });
   }
 
-  function dropBrandToSeat(brand, fromTeam, toTeam){
-    // Remove from old team if any
-    if(fromTeam){
-      seatState[fromTeam] = seatState[fromTeam].filter(function(b){ return b !== brand; });
-    } else {
-      // Remove from both just in case
-      seatState.pro = seatState.pro.filter(function(b){ return b !== brand; });
-      seatState.con = seatState.con.filter(function(b){ return b !== brand; });
-    }
-    // Add to target if not full
-    if(seatState[toTeam].length < 2 && seatState[toTeam].indexOf(brand) === -1){
-      seatState[toTeam].push(brand);
-    }
-    sync2v2UI(); syncArenaLayout(); saveState();
+  var freePickers=[];
+  $('aaAddParticipant').addEventListener('click',function(){if(aaRunning||debateModels.length>=6)return;debateModels.push(null);syncArenaLayout();saveState();});
+  $('aaFreeParticipantGrid').addEventListener('click',function(event){
+    var button=event.target.closest('[data-remove-participant]');if(!button||aaRunning||debateModels.length<=2)return;
+    var index=Number(button.dataset.removeParticipant);debateModels.splice(index,1);syncArenaLayout();saveState();
+    if(freePickers[Math.min(index,debateModels.length-1)])freePickers[Math.min(index,debateModels.length-1)].picker.trigger.focus({preventScroll:true});
+  });
+  $('aaDebateControls').addEventListener('click',function(event){
+    var button=event.target.closest('[data-debate-rounds]');if(!button||aaRunning)return;
+    rounds=Number(button.dataset.debateRounds);syncArenaLayout();saveState();
+  });
+  function syncFreeParticipants(){
+    var show=debate&&debateMode==='free';$('aaFreeParticipants').hidden=!show;
+    if(!show){freePickers.forEach(function(p){p.picker.close(false);});return;}
+    while(freePickers.length>debateModels.length){var removed=freePickers.pop();removed.picker.destroy();removed.card.remove();}
+    debateModels.forEach(function(id,index){
+      if(!freePickers[index]){
+        var card=document.createElement('div');card.className='arena-free-seat';
+        card.innerHTML='<span class="arena-seat-number">席位 '+(index+1)+'</span><div class="arena-free-model"></div><button type="button" class="arena-role-remove" data-remove-participant="'+index+'" aria-label="移除席位 '+(index+1)+'"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg></button>';
+        $('aaFreeParticipantGrid').appendChild(card);
+        var picker=ArenaControls.mountSelect({host:$('ai-arena-app'),container:card.querySelector('.arena-free-model'),label:'席位 '+(index+1)+' 的模型',beforeOpen:beforeDebateSelect,onChange:function(value){debateModels[index]=value||null;syncArenaLayout();saveState();}});
+        freePickers[index]={card:card,picker:picker};
+      }
+      freePickers[index].picker.update({value:id||'',disabled:aaRunning,options:[{value:'',label:'选择模型'}].concat(debateModelOptions())});
+      var remove=freePickers[index].card.querySelector('[data-remove-participant]');remove.hidden=debateModels.length<=2;remove.disabled=aaRunning;
+    });
+    $('aaAddParticipant').hidden=debateModels.length>=6;$('aaAddParticipant').disabled=aaRunning;
   }
-
-  // Drag from brand bar cards into seats
-  function initSeatDragDrop(){
-    // Make brand cards draggable
-    document.querySelectorAll('#ai-arena-app .aa-brand-card').forEach(function(card){
-      card.setAttribute('draggable', 'true');
-      card.addEventListener('dragstart', function(e){
-        if(!(debate && (debateMode === '2v2' || debateMode === 'persona'))) return;
-        e.dataTransfer.setData('text/plain', card.dataset.brand);
-        e.dataTransfer.setData('from-team', '');
-        card.style.opacity = '0.4';
-      });
-      card.addEventListener('dragend', function(){ card.style.opacity = ''; });
-    });
-    // Seat zones accept drops
-    ['aaSeatPro','aaSeatCon'].forEach(function(id){
-      var zone = $(id);
-      zone.addEventListener('dragover', function(e){ e.preventDefault(); zone.classList.add('drag-over'); });
-      zone.addEventListener('dragleave', function(){ zone.classList.remove('drag-over'); });
-      zone.addEventListener('drop', function(e){
-        e.preventDefault(); zone.classList.remove('drag-over');
-        var brand = e.dataTransfer.getData('text/plain');
-        var fromTeam = e.dataTransfer.getData('from-team') || null;
-        if(brand) dropBrandToSeat(brand, fromTeam, zone.dataset.team);
-      });
-    });
-    // Touch: drag brand card into seat zone
-    var touchDragData = null;
-    document.querySelectorAll('#ai-arena-app .aa-brand-card .aa-card-head').forEach(function(head){
-      var longPressTimer = null;
-      head.addEventListener('touchstart', function(e){
-        if(!(debate && debateMode === '2v2')) return;
-        var card = head.closest('.aa-brand-card');
-        if(card.classList.contains('seated-away')) return;
-        longPressTimer = setTimeout(function(){
-          touchDragData = {brand: card.dataset.brand, el: card};
-          card.style.opacity = '0.4';
-        }, 250);
-      }, {passive: true});
-      head.addEventListener('touchmove', function(e){
-        if(longPressTimer){ clearTimeout(longPressTimer); longPressTimer = null; }
-        if(!touchDragData) return;
-        e.preventDefault();
-        var el = document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY);
-        var zone = el ? el.closest('.aa-seat-zone') : null;
-        document.querySelectorAll('.aa-seat-zone').forEach(function(z){ z.classList.remove('drag-over'); });
-        if(zone) zone.classList.add('drag-over');
-      }, {passive: false});
-      head.addEventListener('touchend', function(e){
-        if(longPressTimer){ clearTimeout(longPressTimer); longPressTimer = null; }
-        document.querySelectorAll('.aa-seat-zone').forEach(function(z){ z.classList.remove('drag-over'); });
-        if(!touchDragData) return;
-        touchDragData.el.style.opacity = '';
-        var touch = e.changedTouches[0];
-        var el = document.elementFromPoint(touch.clientX, touch.clientY);
-        var zone = el ? el.closest('.aa-seat-zone') : null;
-        if(zone){
-          dropBrandToSeat(touchDragData.brand, null, zone.dataset.team);
-        }
-        touchDragData = null;
-      });
-    });
-  }
-function initPersonaDragDrop(){
-    // Persona slots accept drops
-    for(var i = 0; i < 4; i++){
-      (function(idx){
-        var slot = $('aaPersonaSlot'+idx);
-        slot.addEventListener('dragover', function(e){ e.preventDefault(); slot.classList.add('drag-over'); });
-        slot.addEventListener('dragleave', function(){ slot.classList.remove('drag-over'); });
-        slot.addEventListener('drop', function(e){
-          e.preventDefault(); slot.classList.remove('drag-over');
-          var brand = e.dataTransfer.getData('text/plain');
-          if(!brand) return;
-          dropBrandToPersona(brand, idx);
-        });
-        // Touch drop on persona slots
-        slot.addEventListener('touchmove', function(e){ e.preventDefault(); }, {passive: false});
-      })(i);
-    }
-    // Touch drag from brand cards to persona
-    var touchDragP = null;
-    document.querySelectorAll('#ai-arena-app .aa-brand-card .aa-card-head').forEach(function(head){
-      var timer = null;
-      head.addEventListener('touchstart', function(e){
-        if(!(debate && debateMode === 'persona')) return;
-        var card = head.closest('.aa-brand-card');
-        if(card.classList.contains('seated-away')) return;
-        timer = setTimeout(function(){
-          touchDragP = {brand: card.dataset.brand, el: card};
-          card.style.opacity = '0.4';
-        }, 250);
-      }, {passive: true});
-      head.addEventListener('touchmove', function(e){
-        if(timer){ clearTimeout(timer); timer = null; }
-        if(!touchDragP) return;
-        e.preventDefault();
-        var el = document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY);
-        var slot = el ? el.closest('.aa-persona-slot') : null;
-        document.querySelectorAll('.aa-persona-slot').forEach(function(s){ s.classList.remove('drag-over'); });
-        if(slot) slot.classList.add('drag-over');
-      }, {passive: false});
-      head.addEventListener('touchend', function(e){
-        if(timer){ clearTimeout(timer); timer = null; }
-        document.querySelectorAll('.aa-persona-slot').forEach(function(s){ s.classList.remove('drag-over'); });
-        if(!touchDragP) return;
-        touchDragP.el.style.opacity = '';
-        var touch = e.changedTouches[0];
-        var el = document.elementFromPoint(touch.clientX, touch.clientY);
-        var slot = el ? el.closest('.aa-persona-slot') : null;
-        if(slot){
-          var idx = parseInt(slot.dataset.pidx);
-          dropBrandToPersona(touchDragP.brand, idx);
-        }
-        touchDragP = null;
-      });
-    });
+  function currentDebateMembers(){
+    if(debateMode==='free')return debateModels.map(function(model,i){return {id:'seat-'+(i+1),model:model,label:'席位 '+(i+1)};});
+    if(debateMode==='persona')return personaState.slice(0,personaSlotCount).map(function(p,i){return {id:'role-'+(i+1),model:p&&(p.sub||brandSelection[p.brand]),role:$('aaPersonaRole'+i).value.trim(),desc:$('aaPersonaDesc'+i).value.trim(),label:'角色 '+(i+1)+' · '+($('aaPersonaRole'+i).value.trim()||'未设置')};});
+    var members=[];['pro','con'].forEach(function(team){seatState[team].forEach(function(model,i){members.push({id:team+'-'+(i+1),model:model,team:team,label:(team==='pro'?'正方':'反方')+(i+1)+'辩'});});});return members;
   }
 
   // Sync persona role and desc on input
@@ -3969,6 +3819,7 @@ function initPersonaDragDrop(){
     (function(idx){
       $('aaPersonaRole'+idx).addEventListener('input', function(){
         if(personaState[idx]) personaState[idx].role = this.value.trim();
+        if(this.value.trim()){this.removeAttribute('aria-invalid');$('aaPersonaError'+idx).hidden=true;}
         syncPersonaUI();
       });
       $('aaPersonaDesc'+idx).addEventListener('input', function(){
@@ -3976,24 +3827,6 @@ function initPersonaDragDrop(){
       });
     })(_ri);
   }
-  function dropBrandToPersona(brand, slotIdx){
-    // Remove brand from any existing slot
-    for(var i = 0; i < 4; i++){
-      if(personaState[i] && personaState[i].brand === brand) personaState[i] = null;
-    }
-    // Get existing role text if slot had one
-    var existingRole = $('aaPersonaRole'+slotIdx).value.trim();
-    personaState[slotIdx] = {brand: brand, role: existingRole};
-    syncPersonaUI(); saveState();
-  }
-
-  function isPersonaReady(){
-    for(var i = 0; i < 4; i++){
-      if(!personaState[i] || !personaState[i].role.trim()) return false;
-    }
-    return true;
-  }
-
   function getPersonaSpeakingOrder(){
     var order = [];
     for(var i = 0; i < 4; i++){
@@ -4033,7 +3866,7 @@ function initPersonaDragDrop(){
 
   function is2v2Ready(){
     var selected=seatState.pro.concat(seatState.con);
-    return selected.length===4&&selected.every(function(id){return AVAILABLE_CHAT_MODELS.indexOf(id)!==-1;})&&new Set(selected).size===4;
+    return selected.length===4&&selected.every(function(id){return AVAILABLE_CHAT_MODELS.indexOf(id)!==-1;});
   }
 
   
@@ -4063,6 +3896,7 @@ function initPersonaDragDrop(){
     ++chatLoadEpoch;
     if(msgs.length && currentChatId) saveCurrentChat();
     currentChatId = genChatId();
+    $('aaDebateProgress').hidden=true;
     _bizMode = false;
     var resetImageTask=imageMode&&imageComposerTask==='edit'&&sentImgs.some(function(image){return image.generatedReference;});
     imageEditParentUid=null;msgs = []; render(); hideThink(); $('aaTopic').value = ''; $('aaTopic').style.height = ''; clearPreview();setImageError('');
@@ -4285,9 +4119,9 @@ function initPersonaDragDrop(){
       h += '<div class="aa-msg'+(msg.isUser?' user-msg':'')+'" data-uid="'+msg.uid+'" style="animation-delay:'+(i%4)*0.05+'s">';
       h += '<div class="aa-msg-head">';
       h += !msg.isUser && window.ArenaKitten ? window.ArenaKitten.markup(liveKittenIds.has(msg.uid)?'reply':'portrait', 'welcome',liveKittenIds.has(msg.uid)?msg.submodel:null) : '<div class="aa-msg-dot" style="background:'+msg.color+';box-shadow:0 0 6px '+msg.color+'40"></div>';
-      var authorName = !msg.isUser && msg.submodel === 'gemini-4-argon' ? SUBS[msg.submodel].name : msg.name;
+      var authorName = !msg.isUser && !msg.participantId && msg.submodel === 'gemini-4-argon' ? SUBS[msg.submodel].name : msg.name;
       h += '<span class="aa-msg-name" style="color:'+msg.color+'">'+esc(authorName)+'</span>';
-      if(msg.round !== undefined) h += '<span class="aa-msg-round">R'+(msg.round+1)+'</span>';
+      if(msg.round !== undefined) h += '<span class="aa-msg-round">'+esc(msg.debateStage||('R'+(msg.round+1)))+'</span>';
       h += '</div>';
       var bodyClass = msg.isUser ? 'user' : 'ai-bubble';
       if(msg.moderationHelp) bodyClass += ' moderation-help';
@@ -4560,12 +4394,20 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
     }
     if(!imageMode&&topic.length+sentTexts.join('').length+(activeQuote?activeQuote.text.length:0)>50000){arenaNotice('内容较长，请保存到项目资料后按需查阅');return;}
     var act = getActiveSubmodels();
-    if(debate&&debateMode==='free'&&act.length<2){arenaNotice('请至少选择两个参与模型');return;}
-    if(debate&&debateMode==='2v2'&&!is2v2Ready()){arenaNotice('请为正反双方各选择两个不同模型');return;}
+    if(debate&&debateMode==='free'&&(act.length<2||debateModels.some(function(id){return !id;}))){arenaNotice('请为每个席位选择模型');var empty=debateModels.findIndex(function(id){return !id;});if(empty>=0&&freePickers[empty])freePickers[empty].picker.trigger.focus();return;}
+    if(debate&&debateMode==='2v2'&&!is2v2Ready()){arenaNotice('请为正反双方各选择两个模型');var missingTeam=seatState.pro.indexOf(null)>=0?'pro':'con',missingSeat=seatState[missingTeam].indexOf(null);if(missingSeat>=0)seatPickers[missingTeam][missingSeat].trigger.focus();return;}
     if(debate&&debateMode==='persona'){
       var roles=personaState.filter(Boolean);
-      if(roles.length<2){arenaNotice('请至少为两个角色选择模型');return;}
-      if(roles.some(function(role){return !role.role.trim();})){arenaNotice('请为每个已选模型填写角色身份');return;}
+      if(roles.length<2){arenaNotice('请至少为两个角色选择模型');var emptyRole=personaState.findIndex(function(role){return !role;});if(emptyRole>=0&&personaPickers[emptyRole])personaPickers[emptyRole].trigger.focus();return;}
+      if(roles.some(function(role){return !role.role.trim();})){
+        var firstMissing=-1;personaState.forEach(function(role,i){var missing=!!role&&!role.role.trim();$('aaPersonaRole'+i).setAttribute('aria-invalid',String(missing));$('aaPersonaError'+i).hidden=!missing;if(missing&&firstMissing<0)firstMissing=i;});
+        arenaNotice('请为每个已选模型填写角色身份');if(firstMissing>=0)$('aaPersonaRole'+firstMissing).focus();return;
+      }
+    }
+    var debatePlan=null;
+    if(debate){
+      try{debatePlan=ArenaDebate.plan({id:genChatId(),mode:debateMode,rounds:rounds,members:currentDebateMembers(),models:AVAILABLE_CHAT_MODELS,summaryModel:judgeModel,topic:(activeQuote?'引用 '+activeQuote.author+'：'+activeQuote.text+'\n\n':'')+topic+(sentTexts.length?'\n\n'+sentTexts.join('\n\n'):'')});}
+      catch(error){arenaNotice(error.message);return;}
     }
     if(!act.length){ alert('请至少选择一个模型。'); return; }
     if(imageMode){
@@ -4589,11 +4431,12 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
     $('aaBizBanner').style.display = 'none';
   }
     var finished=false,finishingDisplay=false,followupImage=null,imageFailure=false;
+    activeDebateRunId=debatePlan?debatePlan.id:null;
     aaRunning = true; abortF = false; userScrolledUp = false;
     hideThink();
     var btn = $('aaSendBtn');
     setSendButtonIcon(btn,true); btn.className = 'aa-send stop'; btn.disabled = false;
-    stopActiveGeneration = function(){ abortF = true;activeStreamControllers.forEach(function(controller){controller.abort();});activeStreamControllers.clear(); stopLiveReplies();hideThink();finished=true;doFinish(); };
+    stopActiveGeneration = function(){ abortF = true;if(debate){$('aaDebateProgress').hidden=false;$('aaDebateProgress').textContent='已停止讨论，保留已收到的发言';}activeStreamControllers.forEach(function(controller){controller.abort();});activeStreamControllers.clear(); stopLiveReplies();if(debate){msgs.forEach(function(m){if(m.debateSessionId===activeDebateRunId&&!m.completedAt){m.isError=true;m.debateStage=(m.debateStage||'发言')+' · 已停止';}});render();}hideThink();finished=true;doFinish(); };
     $('aaSidebar').classList.add('hidden'); $('aaGearBtn').classList.remove('active');
     var _rawName = $('aaUsername').value.trim() || '用户';
     var CHAT_DISPLAY_NAMES = {'oakleyyuen':'Oakley','oakley':'Oakley','doctor.wang':'Doctor.Wang','zty007007990':'Zty'};
@@ -4619,321 +4462,17 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
     sentImgs = []; sentTexts = [];
     renderImgPreviews();
     renderTextPreviews();
-if(debate && debateMode === 'persona'){
-      // Sync roles from inputs
-      for(var pi = 0; pi < 4; pi++){
-        if(personaState[pi]) personaState[pi].role = $('aaPersonaRole'+pi).value.trim();
-      }
-      var placedCount = personaState.filter(function(p){ return p; }).length;
-      var filledCount = personaState.filter(function(p){ return p && p.role; }).length;
-      if(placedCount < 2){ alert('请至少拖入2个模型'); aaRunning=false; finish(); return; }
-      if(filledCount < placedCount){ alert('每个模型都需要填写角色身份'); aaRunning=false; finish(); return; }
-      var speakOrderP = getPersonaSpeakingOrder();
-      var rndP = 0;
-      var SYS_PERSONA = [
-  '【辩论形式】多视角角色辩论',
-  '【你的角色】{ROLE}',
-  '',
-  '【角色要求】',
-  '你必须完全"成为"这个角色：',
-  '1. 用这个角色的专业术语和思维方式说话',
-  '2. 从这个角色的核心利益出发思考问题',
-  '3. 自然地表达这个角色会有的情绪和态度（可以激动、不满、担忧等）',
-  '4. 举这个角色在实际工作/生活中会遇到的真实案例',
-  '',
-  '【对抗规则】',
-  '1. 当其他角色的观点损害你的角色利益时，必须强烈反驳',
-  '2. 不要客气，直接指出其他角色视角的盲区和自私之处',
-  '3. 如果你同意某个观点，说明为什么它也符合你角色的利益',
-  '4. 禁止说"XX说得有道理"然后不反驳——要么反驳，要么补充你角色的独特视角',
-  '',
-  '【质量控制】',
-  '- 每次发言聚焦1-2个核心论点深入，不要面面俱到',
-  '- 禁止重复前面已经说过的论点',
-  '- 不要用"从XX角度来看"这种元叙述，直接以角色身份说话',
-  '',
-  '【本场角色阵容】',
-  '{ROSTER}',
-  '',
-  '【语言】必须使用简体中文回复。'
-].join('\n');
-
-function buildPersonaPrompt(topic, history, speaker, rnd, allSpeakers){
-  var roster = allSpeakers.map(function(s){ 
-    var isSelf = s.idx === speaker.idx;
-    var label = s.role + (s.desc ? ('（' + s.desc + '）') : '');
-    return '• ' + label + (isSelf ? ' ← 你' : '') + ' → 由 ' + SUBS[s.sub].name + ' 扮演'; 
-  }).join('\n');
-  
-  var roleLabel = speaker.role + (speaker.desc ? ('（' + speaker.desc + '）') : '');
-  var sys = SYS_PERSONA
-    .replace(/\{ROLE\}/g, roleLabel)
-    .replace('{ROSTER}', roster);
-  
-  var p = sys + '\n\n【辩论话题】\n' + topic + '\n\n';
-  
-  if(history.length){
-    p += '【之前的发言】\n';
-    history.forEach(function(m){
-      p += '---\n';
-      p += '[' + m.name + ']:\n' + plainMessageText(m) + '\n';
-      if(m._liked && m._liked.length) 
-        p += '[人类标注 - 值得深入]: ' + m._liked.join('; ') + '\n';
-      if(m._comment) 
-        p += '[人类引导]: ' + m._comment + '\n';
-    });
-    p += '---\n\n';
-  }
-  
-  if(rnd > 0) 
-    p += '这是第 ' + (rnd + 1) + ' 轮。针对之前的具体论点深入交锋。\n\n';
-  
-  // 根据位置给不同引导
-  if(history.length === 0){
-    p += '你是第一个发言的角色。以【' + speaker.role + '】的身份，直接表明你对这个话题的立场、担忧和诉求。用一个你在实际工作/生活中的真实案例开头。';
-  } else if(history.length === 1){
-    p += '前面已有一个角色发言。作为【' + speaker.role + '】，你必须：①回应前一个角色的观点（同意或反驳）②提出你自己角色最关心的核心问题。';
-  } else {
-    p += '作为【' + speaker.role + '】，审视前面所有角色的发言。找到最损害你利益或最有争议的论点，直接交锋。';
-  }
-  
-  return p;
-}
-
-      function nextRoundP(){
-        if(rndP >= rounds || abortF){ finish(); return; }
-        var idxP = 0;
-        function nextSpeakerP(){
-          if(idxP >= speakOrderP.length || abortF){ rndP++; nextRoundP(); return; }
-          var speaker = speakOrderP[idxP];
-          var sub = speaker.sub;
-          var info = SUBS[sub]; var brandInfo = BRANDS[info.brand];
-          showThink(sub);
-          var prompt = buildPersonaPrompt(topic, msgs.filter(function(m){ return !m.isUser; }), speaker, rndP, speakOrderP);
-          var uid = newUid();
-          var displayName = speaker.role + ' · ' + info.name;
-          var msgObj = {uid:uid, submodel:sub, effort:effortFor(sub), brand:info.brand, name:displayName, text:'', color:brandInfo.color, round:rndP};
-          var firstChunk = true;
-          callWorkerStream(sub, prompt, rndP===0&&idxP===0?_img:null, rndP===0&&idxP===0?_imgMime:null,
-            function(chunk){
-              if(firstChunk){ firstChunk=false; hideThink(sub); msgs.push(msgObj); render(); }
-              msgObj.text += chunk; liveUpdate(uid, msgObj.text);
-            },
-            function(){
-              if(firstChunk) hideThink(sub);
-              cleanThinkTags(msgObj); finalizeMsg(uid, msgObj.text, false).then(function(complete){
-              if(!complete || abortF)return;
-              render();
-              if(idxP < speakOrderP.length - 1 || rndP < rounds - 1){
-                showEditPrompt(uid).then(function(edited){
-                  if(abortF)return;
-                  if(edited){ msgObj.text = edited.text; msgObj._liked = edited.liked; msgObj._comment = edited.comment || ''; finalizeMsg(uid, msgObj.text, false); }
-                  idxP++; nextSpeakerP();
-                });
-              } else { idxP++; nextSpeakerP(); }
-              });
-            },
-            function(err){
-              if(firstChunk){ hideThink(sub); msgObj.text=err.message; msgObj.isError=true; msgs.push(msgObj); render(); }
-              else { msgObj.text+='\n[错误: '+err.message+']'; msgObj.isError=true; finalizeMsg(uid, msgObj.text, true); }
-              idxP++; nextSpeakerP();
-            },
-            function(name){ msgObj.name = speaker.role+' · '+name; var el = document.querySelector('[data-uid="'+uid+'"] .aa-msg-name'); if(el) el.textContent = msgObj.name; }
-          );
-        }
-        nextSpeakerP();
-      }
-      nextRoundP();
-    } else if(debate && debateMode === '2v2'){
-      if(!is2v2Ready()){ alert('请为正反双方各选择两个不同模型'); aaRunning=false; finish(); return; }
-      var rnd2v2 = 0;
-      var SYS_2V2_BASE = [
-  '【辩论格式】2v2团队辩论',
-  '【你的队伍】{TEAM}',
-  '【你的立场】{STANCE}',
-  '',
-  '【阵容】',
-  '{ROSTER}',
-  '',
-  '【核心规则】',
-  '1. 你必须坚定站在【{TEAM}】的立场',
-  '2. 攻击对方论点时，必须引用对方原文再反驳',
-  '3. 呼应队友论点时，不能复述，必须补充新角度或新证据',
-  '4. 用具体例子和数据说话',
-  '5. 必须使用简体中文回复',
-  '6. 你绝不能自称是其他AI模型',
-  '',
-  '【你的角色定位】',
-  '{ROLE_INSTRUCTION}',
-  '',
-  '【语言】必须使用简体中文回复。'
-].join('\n');
-
-// 根据发言位置给出不同的角色指令
-function get2v2RoleInstruction(team, positionInTeam, historyLength){
-  if(historyLength === 0){
-    // 第一个发言者：立论
-    return '你是正方先锋。任务：为你方建立完整的论证框架。提出2-3个核心论点，每个论点配一个具体例子。不要假设对方会说什么，专注于建立你方最强的论证基础。';
-  }
-  
-  if(team === 'con' && positionInTeam === 0){
-    return '你是反方先锋。任务：①逐一攻击正方刚才的核心论点（至少反驳2个）②同时建立反方自己的2-3个核心论点。先破后立。';
-  }
-  
-  if(team === 'pro' && positionInTeam === 1){
-    return '你是正方补位。任务：①回应反方对正方的攻击，逐一反驳②补充队友遗漏的论证角度③加强正方最有力的论点。你的目标是修复正方防线并发起反攻。';
-  }
-  
-  if(team === 'con' && positionInTeam === 1){
-    return '你是反方收官。任务：①总结本轮辩论中双方的攻防态势②指出正方论证中仍然存在的致命漏洞③强化反方最具说服力的论点④做出总结性攻击。你是反方最后一个发言，要有"一锤定音"的气势。';
-  }
-  
-  return '直接回应之前的讨论，推进你方立场。';
-}
-
-function build2v2Prompt(topic, history, speakerInfo, rnd){
-  var teams = get2v2Teams();
-  var roster = '【正方（支持/赞成方）】' 
-    + teams.pro.map(function(t){ return SUBS[t.sub].name; }).join('、') 
-    + '\n【反方（反对/质疑方）】' 
-    + teams.con.map(function(t){ return SUBS[t.sub].name; }).join('、');
-  
-  var teamLabel = speakerInfo.team === 'pro' ? '正方' : '反方';
-  var stance = speakerInfo.team === 'pro' 
-    ? '支持/赞成该话题的立场' 
-    : '反对/质疑该话题的立场';
-  
-  var roleInstruction = get2v2RoleInstruction(
-    speakerInfo.team, 
-    speakerInfo.idx, 
-    history.length
-  );
-  
-  var sys = SYS_2V2_BASE
-    .replace(/\{TEAM\}/g, teamLabel)
-    .replace('{STANCE}', stance)
-    .replace('{ROSTER}', roster)
-    .replace('{ROLE_INSTRUCTION}', roleInstruction);
-  
-  var p = sys + '\n\n【辩论话题】\n' + topic + '\n\n';
-  
-  if(history.length){
-    p += '【之前的发言记录】\n';
-    history.forEach(function(m){
-      var side = m._team === 'pro' ? '正方' : (m._team === 'con' ? '反方' : '');
-      // 标注队友关系
-      var relation = '';
-      if(m._team === speakerInfo.team) relation = '（你的队友）';
-      else if(m._team) relation = '（对方）';
-      
-      p += '---\n';
-      p += '[' + side + ' · ' + m.name + ']' + relation + ':\n' + plainMessageText(m) + '\n';
-      
-      if(m._liked && m._liked.length) 
-        p += '[人类标注]: ' + m._liked.join('; ') + '\n';
-      if(m._comment) 
-        p += '[人类引导]: ' + m._comment + '\n';
-    });
-    p += '---\n';
-  }
-  
-  if(rnd > 0) 
-    p += '\n这是第 ' + (rnd + 1) + ' 轮。聚焦回应上一轮的具体论点，不要重复旧论点。\n';
-  
-  p += '\n现在轮到你（' + teamLabel + '）发言。';
-  return p;
-}
-
-     var nextRound2v2 = function(){
-        if(rnd2v2 >= rounds || abortF){ finish(); return; }
-        var speakOrder = get2v2SpeakingOrder(rnd2v2);
-        var idx = 0;
-        function nextSpeaker(){
-          if(idx >= speakOrder.length || abortF){ rnd2v2++; nextRound2v2(); return; }
-          var speaker = speakOrder[idx];
-          var sub = speaker.sub;
-          var info = SUBS[sub]; var tc = TEAM_COLORS[speaker.team];
-          showThink(sub);
-          var prompt = build2v2Prompt(topic, msgs.filter(function(m){ return !m.isUser; }), speaker, rnd2v2);
-          var uid = newUid();
-          var msgObj = {uid:uid, submodel:sub, effort:effortFor(sub), brand:info.brand, name:tc.label+' · '+info.name, text:'', color:tc.color, round:rnd2v2, _team:speaker.team};
-          var firstChunk = true;
-          callWorkerStream(sub, prompt, rnd2v2===0&&idx===0?_img:null, rnd2v2===0&&idx===0?_imgMime:null,
-            function(chunk){
-              if(firstChunk){ firstChunk=false; hideThink(sub); msgs.push(msgObj); render(); }
-              msgObj.text += chunk; liveUpdate(uid, msgObj.text);
-            },
-            function(){
-              if(firstChunk) hideThink(sub);
-              cleanThinkTags(msgObj); finalizeMsg(uid, msgObj.text, false).then(function(complete){
-              if(!complete || abortF)return;
-              render();
-              if(idx < speakOrder.length - 1 || rnd2v2 < rounds - 1){
-                showEditPrompt(uid).then(function(edited){
-                  if(abortF)return;
-                  if(edited){ msgObj.text = edited.text; msgObj._liked = edited.liked; msgObj._comment = edited.comment || ''; finalizeMsg(uid, msgObj.text, false); }
-                  idx++; nextSpeaker();
-                });
-              } else { idx++; nextSpeaker(); }
-              });
-            },
-            function(err){
-              if(firstChunk){ hideThink(sub); msgObj.text=err.message; msgObj.isError=true; msgs.push(msgObj); render(); }
-              else { msgObj.text+='\n[错误: '+err.message+']'; msgObj.isError=true; finalizeMsg(uid, msgObj.text, true); }
-              idx++; nextSpeaker();
-            },
-            function(name){ msgObj.name = tc.label+' · '+name; var el = document.querySelector('[data-uid="'+uid+'"] .aa-msg-name'); if(el) el.textContent = msgObj.name; }
-          );
-        }
-        nextSpeaker();
-      };
-      nextRound2v2();
-    } else if(debate && act.length >= 2){
-      var rndFree = 0;
-      var nextRoundFree = function(){
-        if(rndFree >= rounds || abortF){ finish(); return; }
-        var idx = 0;
-        function nextModel(){
-          if(idx >= act.length || abortF){ rndFree++; nextRoundFree(); return; }
-          var sub = act[idx];
-          var info = SUBS[sub]; var brandInfo = BRANDS[info.brand];
-          showThink(sub);
-          var prompt = buildPrompt(topic, msgs.filter(function(m){ return !m.isUser; }), rndFree, info.name);
-          var uid = newUid();
-          var msgObj = {uid:uid, submodel:sub, effort:effortFor(sub), brand:info.brand, name:info.name, text:'', color:brandInfo.color, round:rndFree};
-          var firstChunk = true;
-          callWorkerStream(sub, prompt, rndFree===0?_img:null, rndFree===0?_imgMime:null,
-            function(chunk){
-              if(firstChunk){ firstChunk=false; hideThink(sub); msgs.push(msgObj); render(); }
-              msgObj.text += chunk; liveUpdate(uid, msgObj.text);
-            },
-            function(){
-              if(firstChunk) hideThink(sub);
-              cleanThinkTags(msgObj); finalizeMsg(uid, msgObj.text, false).then(function(complete){
-              if(!complete || abortF)return;
-              render();
-              if(idx < act.length - 1 || rndFree < rounds - 1){
-                showEditPrompt(uid).then(function(edited){
-                  if(abortF)return;
-                  if(edited){ msgObj.text = edited.text; msgObj._liked = edited.liked; msgObj._comment = edited.comment || ''; finalizeMsg(uid, msgObj.text, false); }
-                  idx++; nextModel();
-                });
-              } else { idx++; nextModel(); }
-              });
-            },
-            function(err){
-              var em = (err && err.message) ? err.message : String(err || '未知错误');
-              if(firstChunk){ hideThink(sub); msgObj.text = em; msgObj.isError = true; msgs.push(msgObj); render(); }
-              else { msgObj.text += '\n[错误: ' + em + ']'; msgObj.isError = true; finalizeMsg(uid, msgObj.text, true); }
-              console.error('[AI Arena][Debate][Error]', sub, em);
-              idx++; nextModel();
-            },
-            function(name){ msgObj.name = name; var el = document.querySelector('[data-uid="'+uid+'"] .aa-msg-name'); if(el) el.textContent = name; }
-          );
-        }
-        nextModel();
-      };
-      nextRoundFree();
+    if(debate){
+      var progress=$('aaDebateProgress');progress.hidden=false;
+      ArenaDebate.run(debatePlan,{
+        stopped:function(){return abortF||activeDebateRunId!==debatePlan.id;},
+        onProgress:function(turn,step,total){progress.textContent=(turn.summary?'讨论总结':'第 '+(turn.round+1)+' / '+debatePlan.rounds+' 轮 · '+turn.stage)+' · '+turn.member.label+' · '+step+'/'+total;},
+        perform:performDebateTurn
+      }).then(function(result){
+        if(abortF||activeDebateRunId!==debatePlan.id)return;
+        progress.textContent=result.status==='failed'?'连续两席未完成，已结束本场；可检查错误后重新开始。':result.status==='partial'?'本场已结束，部分发言未完成，请查看错误说明。':'本场讨论已完成';
+        finish();
+      }).catch(function(error){arenaNotice('讨论未完成：'+error.message);finish();});
     } else {
       // Chat mode: parallel calls
       var done = 0;
@@ -5108,51 +4647,52 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
       });
     }
 
-    function finish(){
-      if(finished)return;finished=true;
-      if(!abortF && judgeModel !== 'none' && debate && msgs.filter(function(m){ return !m.isUser; }).length > 0){
-        var debateMsgs = msgs.filter(function(m){ return !m.isUser; });
-       var _judgeBase = debateMsgs.map(function(m){ return '[' + m.name + ']:\n' + plainMessageText(m); }).join('\n\n---\n\n');
-var judgePrompt;
-if(debateMode === '2v2'){
-  var _proNames = get2v2Teams().pro.map(function(t){ return SUBS[t.sub].name; }).join('、');
-  var _conNames = get2v2Teams().con.map(function(t){ return SUBS[t.sub].name; }).join('、');
-  judgePrompt = '你是一场2v2辩论的思维教练，不是裁判。\n正方：' + _proNames + '\n反方：' + _conNames + '\n\n完整辩论记录：\n\n' + _judgeBase
-    + '\n\n【你的任务】按以下顺序输出：\n\n**1. 正方最有力的论证是什么**\n一句话，具体到论点本身，不是泛泛夸赞。\n\n**2. 反方最有力的论证是什么**\n同上。\n\n**3. 双方都没有碰触的核心问题**\n这场辩论的真正裂缝在哪里？双方为什么都绕开了它？\n\n**4. 还给你一个更好的问题**\n比原始辩题更精准、更值得思考的问题。不是答案。\n\n禁止：宣布胜负、"两方都有道理"式和稀泥、重复已有论点。\n\n用简体中文回复。';
-} else if(debateMode === 'persona'){
-  var _roleNames = getPersonaSpeakingOrder().map(function(s){ return s.role; }).join('、');
-  judgePrompt = '你是一场多角色辩论的思维教练。参与角色：' + _roleNames + '\n\n完整辩论记录：\n\n' + _judgeBase
-    + '\n\n【你的任务】按以下顺序输出：\n\n**1. 每个角色带来了什么其他人看不到的视角**\n逐一列出，每条一句话，要具体。\n\n**2. 所有角色共同忽视了什么**\n有没有一个盲点，是所有角色的立场都让他们看不见的？\n\n**3. 如果让一个没有任何立场的人来回答这个问题，他会怎么说**\n不代表任何角色，只说事实和逻辑。\n\n**4. 还给你一个更好的问题**\n比原始问题更精准、更值得思考的问题。不是答案。\n\n禁止：评判哪个角色"赢了"、重复已有论点、给出最终结论。\n\n用简体中文回复。';
-} else {
-  judgePrompt = '你是一场多方讨论的思维教练，不是裁判。\n\n完整讨论记录：\n\n' + _judgeBase
-    + '\n\n【你的任务】按以下顺序输出：\n\n**1. 这场讨论真正揭示了什么**\n各方论证中经得起推敲的洞察，不超过3条，每条一句话。\n\n**2. 所有人都回避了什么**\n这个问题的真正核心矛盾是什么？为什么没有人正面回答它？\n\n**3. 还给你一个更好的问题**\n比原始问题更精准、更值得思考的问题。不是答案。\n\n禁止：宣布胜负、和稀泥式总结、重复已有论点而不推进。\n\n用简体中文回复。';
-}
-        var info = SUBS[judgeModel];
-        var brandInfo = BRANDS[info.brand];
-        var uid = newUid();
-        var msgObj = {uid:uid, submodel:judgeModel, brand:info.brand, name:'思维教练 · '+info.name, text:'', color:'#a78bfa'};
-        showThink(judgeModel);
-        var firstChunk = true;
-        callWorkerStream(judgeModel, judgePrompt, null, null,
+    function performDebateTurn(turn,prompt){
+      return new Promise(function(resolve){
+        if(abortF){resolve({ok:false,text:''});return;}
+        var speaker=turn.member,sub=speaker.model,info=SUBS[sub],uid=newUid(),controller,settled=false,timer=null;
+        var msgObj={uid:uid,submodel:sub,effort:effortFor(sub),brand:info.brand,name:speaker.label+' · '+info.name,text:'',reasoning:'',citations:[],activity:[],color:turn.summary?'#777770':BRANDS[info.brand].color,round:turn.round,_team:speaker.team,participantId:speaker.id,debateSessionId:debatePlan.id,debateStage:turn.stage};
+        var first=true;
+        function append(){if(first){first=false;hideThink(sub);msgs.push(msgObj);render();}}
+        function finalize(ok,error){
+          if(settled)return;settled=true;if(timer)clearTimeout(timer);
+          if(activeDebateRunId!==debatePlan.id){resolve({ok:false,text:''});return;}
+          if(controller)controller.signal.removeEventListener('abort',onAbort);
+          hideThink(sub);
+          if(!ok){msgObj.isError=true;msgObj.text+=(msgObj.text?'\n\n':'')+(error||'本席发言未完成');}
+          append();cleanThinkTags(msgObj);
+          finalizeMsg(uid,msgObj.text,!ok,msgObj.reasoning).then(function(){render();resolve({ok:ok,text:msgObj.text,error:error});});
+        }
+        function onAbort(){finalize(false,abortF?'[已停止，发言未完成]':'本席连接中断，发言未完成');}
+        showThink(sub);
+        // Each seat receives only this plan's explicit transcript. Never merge the
+        // saved chat back into the first round, including inside a project.
+        var extra={_imgs:_imgs,chat:{scope:activeProjectId||'general',chatId:currentChatId,question:prompt,query:debatePlan.topic,history:[],historyEndUid:null,incognito:!!_incognitoMode}};
+        controller=callWorkerStream(sub,prompt,_img,_imgMime,
           function(chunk){
-            if(firstChunk){ firstChunk=false; hideThink(judgeModel); msgs.push(msgObj); render(); }
-            msgObj.text += chunk; liveUpdate(uid, msgObj.text);
+            if(settled||abortF||activeDebateRunId!==debatePlan.id)return;
+            if(chunk.indexOf('%%USAGE%%')===0){try{var usage=JSON.parse(chunk.slice(9));msgObj.usage=usage;if(typeof usage.cost==='number')msgObj.usageStr='$'+usage.cost.toFixed(4);}catch(ignore){}return;}
+            append();msgObj.text+=chunk;liveUpdate(uid,msgObj.text,msgObj.reasoning||undefined);
           },
-          function(){
-            if(firstChunk) hideThink(judgeModel);
-            cleanThinkTags(msgObj); finalizeMsg(uid, msgObj.text, false); render();
-            doFinish();
-          },
-          function(err){
-            if(firstChunk){ hideThink(judgeModel); msgObj.text=err.message; msgObj.isError=true; msgs.push(msgObj); render(); }
-            doFinish();
-          },
-          function(name){ msgObj.name = '法官 · '+name; }
+          function(complete){if(!settled)finalize(complete!==false&&!!msgObj.text.trim(),complete===false?'连接提前结束，发言未完成':(!msgObj.text.trim()?'模型没有返回发言':null));},
+          function(error){finalize(false,error.message||'本席请求失败');},
+          function(name){if(!settled)msgObj.name=speaker.label+' · '+name;},
+          function(reasoning){if(!settled)msgObj.reasoning+=reasoning;},extra,
+          function(meta){
+            if(settled)return;
+            if(meta.context)msgObj.context=meta.context;
+            if(meta.citation&&msgObj.citations.every(function(c){return c.url!==meta.citation.url;}))msgObj.citations.push(meta.citation);
+            if(meta.activity&&msgObj.activity.length<80)msgObj.activity.push(meta.activity);
+            msgObj._activityDirty=true;
+          }
         );
-      } else {
-        doFinish();
-      }
+        if(!settled){
+          if(controller)controller.signal.addEventListener('abort',onAbort,{once:true});
+          timer=setTimeout(function(){finalize(false,'本席发言超时，请稍后重试');if(controller)controller.abort();},180000);
+        }
+      });
     }
+    function finish(){if(finished)return;finished=true;doFinish();}
     function doFinish(){
       if(finishingDisplay)return;finishingDisplay=true;
       liveReplies.whenIdle().then(settleFinish);
@@ -6007,12 +5547,19 @@ if(debateMode === '2v2'){
     app.classList.toggle('arena-image-mode', imageMode);
     $('aaConversationTitle').textContent = msgs.length ? getChatTitle() : '新对话';
     $('aaModeCaption').textContent = debate ? '多 AI 辩论' : imageMode ? '图像创作' : '';
-    $('aaChatModelWrap').hidden = imageMode || videoMode || (debate && debateMode!=='free');
+    $('aaChatModelWrap').hidden = imageMode || videoMode || debate;
+    syncFreeParticipants();
+    document.querySelectorAll('[data-debate-rounds]').forEach(function(button){button.disabled=aaRunning;button.setAttribute('aria-pressed',String(Number(button.dataset.debateRounds)===rounds));});
+    var debateSeats=currentDebateMembers().filter(function(m){return m.model;}).length;
+    $('aaDebateBudget').textContent=debateSeats+' 席 · 最多 '+(debateSeats*rounds+(judgeModel!=='none'?1:0))+' 次模型调用';
+    $('aaDebateStageHelp').textContent=ArenaDebate.stages.slice(0,rounds).join(' → ');
     $('aaDebateControls').hidden=!debate;
     $('aaWelcomeTitle').textContent=debate?'让不同观点，展开讨论。':'今天，想聊点什么？';
     $('aaDebateWelcomeCopy').hidden=!debate;
-    $('aaDebateHint').textContent=debateMode==='persona'?'为至少两个角色选择模型并填写身份。':debateMode==='2v2'?'为正反双方各选择两个不同的模型。':'选择至少两个 AI，轮流讨论同一个话题。';
+    $('aaDebateHint').textContent=debateMode==='persona'?'为各席填写身份。同一模型可担任多个角色。':debateMode==='2v2'?'正反双方各设两个席位，同一模型可重复使用。':'每个席位独立发言，同一模型可重复使用。';
     $('aaJudgeHead').disabled=aaRunning;
+    if(judgePicker)judgePicker.update({disabled:aaRunning});
+    if(aaRunning||!debate)ArenaControls.closeSelect();
     if(aaRunning){$('aaJudgeDrop').classList.remove('open');$('aaJudgeHead').setAttribute('aria-expanded','false');}
     document.querySelectorAll('#aaDebateModeBar [data-dmode]').forEach(function(button){button.disabled=aaRunning;button.setAttribute('aria-pressed',String(button.dataset.dmode===debateMode));});
     if(debate&&(debateMode==='persona'||debateMode==='2v2'))sync2v2UI();
@@ -6483,12 +6030,12 @@ if(imageMode){
   }
   async function projectApi(action,extra){
     var payload=Object.assign({action:action,username:loginName($('aaUsername').value),password:getPass()},extra||{});
-    var controller=(action==='list'||action==='get')?new AbortController():null;
+    var controller=(action==='list'||action==='get'||action==='pin')?new AbortController():null;
     var timer=controller?setTimeout(function(){controller.abort();},12000):null;
     try{
       var response=await fetch(WORKER+'/projects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload),signal:controller?controller.signal:undefined});
       var data=await response.json();if(!response.ok)throw new Error(data.error||'项目请求失败');return data;
-    }catch(error){if(error.name==='AbortError')throw new Error('项目加载超时，请检查网络后重试');throw error;}
+    }catch(error){if(error.name==='AbortError')throw new Error(action==='pin'?'置顶保存超时，请重试':'项目加载超时，请检查网络后重试');throw error;}
     finally{if(timer)clearTimeout(timer);}
   }
   function updateProjectBar(){
@@ -6544,6 +6091,7 @@ if(imageMode){
   workspaceController=ArenaWorkspace.mount({
     host:$('ai-arena-app'),api:projectApi,busy:function(){return aaRunning;},notice:arenaNotice,currentProject:function(){return activeProject;},
     accountKey:function(){return getPass()?loginName($('aaUsername').value).toLowerCase():'';},
+    pinContext:function(){return {username:loginName($('aaUsername').value),password:getPass()};},
     switchScope:switchProject,refreshProject:function(project){activeProject=project;_memoryLoaded=false;_cachedMemory=null;updateProjectBar();},
   });
   if(getPass())workspaceController.preload();
