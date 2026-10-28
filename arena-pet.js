@@ -89,6 +89,19 @@
     }
     return null;
   }
+  var LOGIN_ACTIONS = ['knead', 'head-tilt', 'work-laptop', 'wand-jump', 'wand-bat', 'wand-kick'];
+  function pickLoginAction(catalog, previous, random) {
+    catalog = catalog || { actions: {}, states: {} };
+    var candidates = LOGIN_ACTIONS.map(function (id) { return catalog.actions[id]; }).filter(function (action) {
+      return action && action.playback === 'loop';
+    });
+    if (!candidates.length) return pickLoopAction(catalog, 'welcome');
+    var different = candidates.filter(function (action) { return action.id !== previous; });
+    if (different.length) candidates = different;
+    var value = (random || Math.random)();
+    var index = Number.isFinite(value) ? Math.max(0, Math.min(candidates.length - 1, Math.floor(value * candidates.length))) : 0;
+    return candidates[index];
+  }
   function createIdlePlaylist(options) {
     var catalog = options.catalog || { actions: {} };
     var later = options.setTimeout || setTimeout, cancel = options.clearTimeout || clearTimeout;
@@ -319,6 +332,25 @@
     var records = new Map(), formatSupport = {};
     var watchdogTimer = null, controller = null;
     var reduced = win.matchMedia('(prefers-reduced-motion: reduce)');
+    var loginAction = null, loginVisible = false, lastLoginAction = null;
+    var loginActionKey = 'aa-login-last-pet-action';
+    function loginMotion(el) {
+      if (!el.getClientRects().length) {
+        loginVisible = false;
+        return loginAction || pickLoopAction(motionCatalog, 'welcome');
+      }
+      if (!loginVisible) {
+        var previous = lastLoginAction;
+        try { previous = win.localStorage.getItem(loginActionKey) || previous; } catch (_) {}
+        loginAction = pickLoginAction(motionCatalog, previous);
+        if (loginAction) {
+          lastLoginAction = loginAction.id;
+          try { win.localStorage.setItem(loginActionKey, loginAction.id); } catch (_) {}
+        }
+      }
+      loginVisible = true;
+      return loginAction;
+    }
     var playlist = createIdlePlaylist({ catalog: motionCatalog, setTimeout: win.setTimeout.bind(win), clearTimeout: win.clearTimeout.bind(win),
       onChange: function () { if (controller) paint(controller.snapshot()); } });
     function setMotion(el, state, action, replay) {
@@ -357,7 +389,12 @@
           el.innerHTML = markup('inside', state).replace(/^<span[^>]*>/, '').replace(/<\/span>$/, '');
         }
         el.setAttribute('data-state', state);
-        setMotion(el, state, canIdle ? (playlist.current() || pickLoopAction(motionCatalog, state)) : pickLoopAction(motionCatalog, state), false);
+        var action = canIdle ? (playlist.current() || pickLoopAction(motionCatalog, state)) : pickLoopAction(motionCatalog, state);
+        if (el.classList.contains('aa-kitten--login')) {
+          var initial = loginMotion(el);
+          if (!snapshot.running && snapshot.state === 'welcome') action = initial;
+        }
+        setMotion(el, state, action, false);
       });
       doc.querySelectorAll('[data-aa-kitten-label]').forEach(function (el) {
         if (el.textContent !== snapshot.label) el.textContent = snapshot.label;
@@ -393,11 +430,16 @@
       var changed = mutations.some(function (mutation) { return Array.from(mutation.addedNodes).concat(Array.from(mutation.removedNodes)).some(function (node) { return node.nodeType === 1 && (node.matches('[data-aa-kitten="live"]') || node.querySelector('[data-aa-kitten="live"]')); }); });
       if (changed) paint(controller.snapshot());
     }).observe(doc.getElementById('ai-arena-app') || doc.body, { childList: true, subtree: true });
+    var loginOverlay = doc.getElementById('aaLoginOverlay');
+    if (win.MutationObserver && loginOverlay) new win.MutationObserver(function () {
+      if (loginOverlay.getClientRects().length && !loginVisible && !controller.snapshot().running) controller.greet();
+      paint(controller.snapshot());
+    }).observe(loginOverlay, { attributes: true, attributeFilter: ['style', 'hidden'] });
     paint(controller.snapshot());
     return {
       sync: sync, progress: controller.progress, complete: controller.complete,
       greet: greetView, markup: markup, liveReplyIds: liveReplyIds, snapshot: controller.snapshot
     };
   }
-  return { createController: createController, createPlayer: createPlayer, createIdlePlaylist: createIdlePlaylist, liveReplyIds: liveReplyIds, pickLoopAction: pickLoopAction, markup: markup, connect: connect };
+  return { createController: createController, createPlayer: createPlayer, createIdlePlaylist: createIdlePlaylist, liveReplyIds: liveReplyIds, pickLoopAction: pickLoopAction, pickLoginAction: pickLoginAction, markup: markup, connect: connect };
 });
