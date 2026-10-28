@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>AI 助手</title>
-<meta name="app-version" content="20261028-resume1">
+<meta name="app-version" content="20261029-nav1">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -864,8 +864,8 @@
   #ai-arena-app #aaSkillEditPrompt::placeholder { color: #888; opacity: 1; }
 
 </style>
-<link rel="stylesheet" href="/arena.css?v=20261028-imagefollow1">
-<link rel="stylesheet" href="/arena-workspace.css?v=20261028-smooth2">
+<link rel="stylesheet" href="/arena.css?v=20261029-nav1">
+<link rel="stylesheet" href="/arena-workspace.css?v=20261029-nav1">
 <link rel="stylesheet" href="/arena-pet.css?v=20261028-pet3">
 <link rel="preload" as="image" href="/assets/kitten/motion/knead-14b49069b5fd.png">
 
@@ -895,11 +895,13 @@
 <aside class="aa-history-panel" id="aaHistoryPanel" aria-label="侧边栏">
   <div class="arena-brand-row">
     <a class="arena-wordmark" href="/" aria-label="AI 助手首页">AI 助手</a>
-    <button class="arena-icon-btn aa-history-close" id="aaHistoryClose" aria-label="收起侧边栏" title="收起侧边栏"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M9 4v16M6 8v4"/></svg></button>
+    <div class="arena-brand-actions">
+      <button class="arena-icon-btn" id="aaSearchHistoryBtn" aria-label="搜索对话" title="搜索对话" aria-expanded="false" aria-controls="aaHistorySearchWrap"><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4.5 4.5"/></svg></button>
+      <button class="arena-icon-btn aa-history-close" id="aaHistoryClose" aria-label="收起侧边栏" title="收起侧边栏"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M9 4v16M6 8v4"/></svg></button>
+    </div>
   </div>
   <nav class="arena-navigation" aria-label="功能">
     <button class="arena-nav-item" id="aaNewBtn"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span>新建对话</span></button>
-    <button class="arena-nav-item" id="aaSearchHistoryBtn" aria-expanded="false" aria-controls="aaHistorySearchWrap"><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4.5 4.5"/></svg><span>搜索对话</span></button>
     <button class="arena-nav-item" id="aaProjectsBtn"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v10H3Z"/></svg><span>项目</span></button>
     <div class="arena-nav-modes" id="aaModeToggle">
       <button class="arena-nav-item aa-bar-btn active" id="aaBarChatBtn"><svg viewBox="0 0 24 24"><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5H4l-1 1v-9.5A8.5 8.5 0 0 1 11.5 3h1A8.5 8.5 0 0 1 21 11.5Z"/><path d="M8 10h8M8 14h5"/></svg><span>对话</span></button>
@@ -959,12 +961,24 @@
     <button id="aaScrollBottomBtn" class="arena-jump-latest" aria-label="回到最下面" title="回到最下面" style="display:none"><span class="arena-jump-dots" aria-hidden="true"><i></i><i></i><i></i></span><svg class="arena-jump-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v15M6 13l6 6 6-6"/></svg><span class="arena-jump-hint">回到最下面</span></button>
     <div id="aaWelcome" class="aa-welcome">
       <button type="button" class="arena-kitten-greeting" data-aa-kitten-greet aria-label="和袁啾啾打招呼"><span class="aa-kitten aa-kitten--welcome" data-aa-kitten="live" data-state="welcome" aria-hidden="true"></span></button>
-      <h1>今天，想聊点什么？</h1>
+      <h1 id="aaWelcomeTitle">今天，想聊点什么？</h1>
+      <p id="aaDebateWelcomeCopy" class="arena-debate-welcome-copy" hidden>选择参与的 AI，输入话题，让不同观点一起展开。</p>
     </div>
     <div class="aa-messages" id="aaMessages" tabindex="0" aria-label="对话消息">
       <div id="aaThinkingArea"></div>
     </div>
     <div class="aa-input-area">
+      <div class="arena-debate-controls" id="aaDebateControls" hidden>
+        <div class="arena-debate-control-row">
+          <div class="aa-ctrl-grp arena-debate-modes" id="aaDebateModeBar" aria-label="辩论方式" style="display:none;">
+            <button type="button" class="aa-bar-btn active" data-dmode="free">自由讨论</button>
+            <button type="button" class="aa-bar-btn" data-dmode="persona">角色讨论</button>
+            <button type="button" class="aa-bar-btn" data-dmode="2v2">2v2</button>
+          </div>
+          <div id="aaJudgeCard" style="display:none;"><button type="button" id="aaJudgeHead" class="arena-debate-judge" aria-haspopup="true" aria-expanded="false" aria-controls="aaJudgeDrop"><span id="aaJudgeLabel">思维教练</span><span id="aaJudgeSubLabel">不设置</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg></button></div>
+        </div>
+        <p class="arena-debate-hint" id="aaDebateHint">至少选择两个模型，轮流讨论同一个话题。</p>
+      </div>
       <div id="aaImgPreview" class="aa-img-prev" style="padding:0 0 8px 4px;">
         <div style="position:relative;display:inline-block;">
           <img id="aaImgThumb">
@@ -1000,6 +1014,7 @@
       </div>
       <!-- Persona seat zones -->
       <div class="aa-persona-area" id="aaPersonaArea">
+        <div class="arena-persona-heading"><span>设置讨论角色</span><button type="button" id="aaAddPersona">添加角色</button></div>
         <div class="aa-persona-grid">
           <div class="aa-persona-slot" data-pidx="0" id="aaPersonaSlot0">
             <div class="aa-persona-model"><span class="aa-persona-empty">拖入模型</span></div>
@@ -1039,12 +1054,6 @@
         </div>
         <div class="aa-brand-card" data-brand="mj" id="aaMjCard" style="display:none;">
           <div class="aa-card-head" style="--bc:#38bdf8;--bcbg:rgba(56,189,248,0.1);--bcglow:rgba(56,189,248,0.15);"><span class="aa-card-brand">MJ</span><span class="aa-card-sub" id="aaCardSub-mj">生图</span><span class="aa-card-dot" id="aaCardDot-mj"></span></div>
-        </div>
-        <div id="aaJudgeCard" style="flex-shrink:0;display:none;">
-          <div id="aaJudgeHead" class="aa-card-head" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);transition:all 0.2s;">
-            <span style="font-size:11px;font-weight:600;color:#6b6b88;letter-spacing:0.03em;" id="aaJudgeLabel">思维教练</span>
-            <span style="font-size:9px;color:#555;" id="aaJudgeSubLabel">不设思维教练</span>
-          </div>
         </div>
       </div>
       <div class="aa-brand-bar-collapsed" id="aaBrandBarCollapsed" style="display:none;">
@@ -1134,8 +1143,12 @@
         <div class="aa-drop-item" data-sub="claude-opus-5-5"><span class="aa-drop-dot" data-health="official-anthropic"></span>Claude Opus 5.5</div>
       </div>
       <div class="aa-card-dropdown" id="aaJudgeDrop">
-        <div class="aa-drop-item" data-jsub="none"><span class="aa-drop-dot"></span>不设思维教练</div>
-        <div class="aa-drop-item" data-jsub="claude-opus-5-5"><span class="aa-drop-dot" data-health="official-anthropic"></span>Claude Opus 5.5</div>
+        <button type="button" class="aa-drop-item" data-jsub="none">不设思维教练</button>
+        <button type="button" class="aa-drop-item" data-jsub="grok-4.7">Grok 4.7</button>
+        <button type="button" class="aa-drop-item" data-jsub="claude-fable-5-1">Claude Fable 5.1</button>
+        <button type="button" class="aa-drop-item" data-jsub="claude-sonnet-5-5">Claude Sonnet 5.5</button>
+        <button type="button" class="aa-drop-item" data-jsub="claude-opus-5-5">Claude Opus 5.5</button>
+        <button type="button" class="aa-drop-item" data-jsub="gemini-4-argon">Gemini 4</button>
       </div>
 
       <div id="aaQuoteBar" class="aa-quote-bar">
@@ -1197,11 +1210,6 @@
       <p class="arena-composer-note">AI 可能会出错，请核对重要信息。</p>
       </div>
       <div class="aa-ctrl-row" id="aaSubCtrlRow" style="padding-top:6px;">
-        <div class="aa-ctrl-grp" id="aaDebateModeBar" style="display:none;">
-          <button class="aa-bar-btn active" data-dmode="free" style="color:#e8e8ee;background:rgba(255,255,255,0.1);">自由</button>
-          <button class="aa-bar-btn" data-dmode="2v2" style="color:#6b6b88;background:transparent;">2v2</button>
-          <button class="aa-bar-btn" data-dmode="persona" style="color:#6b6b88;background:transparent;">角色</button>
-        </div>
         <div class="aa-ctrl-grp" id="aaRoundsBar" style="display:none;"></div>
       </div>
     </div>
@@ -1215,7 +1223,7 @@
 <script src="/arena-effort.js?v=20261028-effortfix1"></script>
 <script src="/arena-context.js?v=20261027-account1"></script>
 <script src="/arena-chat-runs.js?v=20261028-resume1"></script>
-<script src="/arena-workspace.js?v=20261027-account1"></script>
+<script src="/arena-workspace.js?v=20261029-nav1"></script>
 <script src="/arena-account.js?v=20261027-account2"></script>
 <script src="/arena-pet-catalog.js?v=20261028-pet5-work"></script>
 <script src="/arena-pet.js?v=20261028-pet5-work"></script>
@@ -1367,6 +1375,7 @@
     if(window.ArenaKitten) window.ArenaKitten.sync({running:aaRunning, hasMessages:msgs.length>0, mode:imageMode?'image':'chat', stopped:abortF});
   }
 var debateMode = 'free'; // 'free' | '2v2'
+var debateModels = ['grok-4.7','claude-sonnet-5-5','gemini-4-argon'];
 var imageMode = false;
 var videoMode = false;
 var imageComposerModel = ArenaImage.canonical(localStorage.getItem('aa-image-model') || ArenaImage.GOOGLE_MODEL);
@@ -1505,6 +1514,7 @@ var TEAM_COLORS = {
   var _judgeTouched = false;
   function toggleJudgeDrop(e){
     e.stopPropagation();
+    if(aaRunning)return;
     var drop = $('aaJudgeDrop');
     var wasOpen = drop.classList.contains('open');
     document.querySelectorAll('#ai-arena-app .aa-card-dropdown').forEach(function(d){ d.classList.remove('open'); });
@@ -1518,6 +1528,9 @@ var TEAM_COLORS = {
       drop.style.left = dropLeft + 'px';
       drop.style.transform = 'translateX(-50%)';
       drop.classList.add('open');
+      $('aaJudgeHead').setAttribute('aria-expanded','true');
+    }else{
+      $('aaJudgeHead').setAttribute('aria-expanded','false');
     }
   }
   $('aaJudgeHead').addEventListener('touchstart', function(e){
@@ -1539,9 +1552,11 @@ var TEAM_COLORS = {
       e.stopPropagation();
       judgeModel = item.dataset.jsub;
       $('aaJudgeDrop').classList.remove('open');
+      $('aaJudgeHead').setAttribute('aria-expanded','false');$('aaJudgeHead').focus();
       syncJudgeUI();
     });
   });
+  $('aaJudgeDrop').addEventListener('keydown',function(e){if(e.key==='Escape'){e.stopPropagation();this.classList.remove('open');$('aaJudgeHead').setAttribute('aria-expanded','false');$('aaJudgeHead').focus();}});
 
   
   var _uidCounter = 0;
@@ -1549,6 +1564,8 @@ var TEAM_COLORS = {
   var userScrolledUp = false;
   var currentChatId = null;
   var chatList = [];
+  var chatPinOverrides = new Map(), chatPinPending = new Set();
+  function chatPinKey(scope,id){return ($('aaUsername').value||'').trim().toLowerCase()+'|'+(scope||'general')+'|'+id;}
   var _saveTimer = null;
   var scopeEpoch = 0, chatLoadEpoch = 0, chatListEpoch = 0;
   var _skipNextChatSave = false;
@@ -1629,6 +1646,13 @@ var TEAM_COLORS = {
     chatApiCall('list').then(function(data){
       if(epoch!==scopeEpoch||listEpoch!==chatListEpoch||scope!==activeProjectId||!data || !data.chats) return;
       chatList = data.chats;
+      chatList.forEach(function(chat){
+        var key=chatPinKey(scope,chat.id);
+        if(chatPinOverrides.has(key)){
+          var expected=chatPinOverrides.get(key);
+          if(!!chat.pinned===expected)chatPinOverrides.delete(key);else chat.pinned=expected;
+        }
+      });
       var knownTimes = getStoredReplyTimes();
       var changed = false;
       chatList.forEach(function(chat){
@@ -1703,7 +1727,7 @@ var TEAM_COLORS = {
   function renderHistoryList(){
     var container = $('aaHistoryList');
     var historyQuery = ($('aaHistorySearch').value || '').trim().toLocaleLowerCase();
-    var visibleChats = chatList.filter(function(chat){ return !historyQuery || String(chat.title || '').toLocaleLowerCase().indexOf(historyQuery) !== -1; });
+    var visibleChats = chatList.filter(function(chat){ return !historyQuery || String(chat.title || '').toLocaleLowerCase().indexOf(historyQuery) !== -1; }).sort(function(a,b){return Number(!!b.pinned)-Number(!!a.pinned);});
     if(!visibleChats.length){ container.innerHTML = '<div class="aa-history-empty">'+(historyQuery ? '没有找到相关对话' : '你的对话会显示在这里')+'</div>'; return; }
     var replyTimes = getStoredReplyTimes();
     var h = '';
@@ -1718,11 +1742,30 @@ var TEAM_COLORS = {
         +'<span class="aa-history-item-time">'+formatTime(displayTime)+'</span>'
         +'</span>'
         +'</button>'
+        +'<button type="button" class="aa-history-item-pin'+(chat.pinned?' pinned':'')+'" data-pin="'+safeId+'" aria-label="'+(chat.pinned?'取消置顶':'置顶会话')+'" aria-pressed="'+!!chat.pinned+'" title="'+(chat.pinned?'取消置顶':'置顶会话')+'"'+(chatPinPending.has(chatPinKey(activeProjectId,chat.id))?' disabled':'')+'><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 4 6 6m-7-2 8 8m-1-12 5 5-3 2-1 5-4-4-6 6 4-7-4-4 5-1Z"/></svg></button>'
         +'<button type="button" class="aa-history-item-del" data-del="'+safeId+'" aria-label="删除会话">✕</button>'
         +'</div>';
     });
     container.innerHTML = h;
     container.onclick = function(e){
+      var pinBtn = e.target.closest('.aa-history-item-pin');
+      if(pinBtn && container.contains(pinBtn)){
+        e.preventDefault();e.stopPropagation();
+        var id=pinBtn.dataset.pin,scope=activeProjectId,epoch=scopeEpoch,key=chatPinKey(scope,id),keyboard=e.detail===0;
+        var selected=chatList.find(function(c){return String(c.id)===id;});
+        if(!selected||chatPinPending.has(key))return;
+        var pinned=!selected.pinned;chatPinPending.add(key);pinBtn.disabled=true;
+        chatApiCall('pin',{projectId:scope,chatId:id,pinned:pinned}).then(function(data){
+          if(!data||!data.ok)throw new Error(data&&data.error||'置顶失败，请重试');
+          if(epoch!==scopeEpoch||scope!==activeProjectId||key!==chatPinKey(scope,id))return;
+          chatPinOverrides.set(key,pinned);
+          var current=chatList.find(function(c){return String(c.id)===id;});if(current)current.pinned=pinned;
+          arenaNotice(pinned?'已置顶对话':'已取消置顶');
+        }).catch(function(err){arenaNotice(err.message);}).finally(function(){
+          chatPinPending.delete(key);if(epoch===scopeEpoch&&scope===activeProjectId){renderHistoryList();if(keyboard){var focused=Array.from(container.querySelectorAll('[data-pin]')).find(function(b){return b.dataset.pin===id;});if(focused)focused.focus();}}
+        });
+        return;
+      }
       var deleteBtn = e.target.closest('.aa-history-item-del');
       if(deleteBtn && container.contains(deleteBtn)){
         e.preventDefault();
@@ -1743,7 +1786,7 @@ var TEAM_COLORS = {
   }
 
   function openHistory(){ $('ai-arena-app').classList.remove('arena-sidebar-collapsed'); $('aaHistoryPanel').classList.add('open'); $('aaHistoryOverlay').classList.add('open'); $('aaHistoryBtn').setAttribute('aria-expanded','true'); syncArenaNavigation(); if(window.matchMedia('(max-width: 900px)').matches) $('aaNewBtn').focus(); loadChatList(); }
-  function closeHistory(){ $('aaHistoryPanel').classList.remove('open'); $('aaHistoryOverlay').classList.remove('open'); $('aaHistoryBtn').setAttribute('aria-expanded','false'); syncArenaNavigation(); }
+  function closeHistory(){ closeHistorySearch(false);$('aaHistoryPanel').classList.remove('open'); $('aaHistoryOverlay').classList.remove('open'); $('aaHistoryBtn').setAttribute('aria-expanded','false'); syncArenaNavigation(); }
 
   // Track which brand is expanded and which submodel is selected per brand
   
@@ -1776,6 +1819,7 @@ var TEAM_COLORS = {
     localStorage.setItem('aa-active-brands', JSON.stringify(activeBrands));
     localStorage.setItem('aa-mode-debate', debate ? '1' : '0');
     localStorage.setItem('aa-debate-mode', debateMode);
+    localStorage.setItem('aa-debate-models', JSON.stringify(debateModels));
     localStorage.setItem('aa-mode-image', imageMode ? '1' : '0');
   }
   function loadState(){
@@ -1807,6 +1851,8 @@ var TEAM_COLORS = {
       if(sd === '1') debate = true;
       var dm = localStorage.getItem('aa-debate-mode');
       if(dm === 'free' || dm === '2v2' || dm === 'persona') debateMode = dm;
+      var savedDebateModels=JSON.parse(localStorage.getItem('aa-debate-models')||'null');
+      if(Array.isArray(savedDebateModels))debateModels=Array.from(new Set(savedDebateModels.filter(function(id){return AVAILABLE_CHAT_MODELS.indexOf(id)!==-1;})));
       var im = localStorage.getItem('aa-mode-image');
       if(im === '1') imageMode = true;
     } catch(e){}
@@ -1820,7 +1866,6 @@ var TEAM_COLORS = {
     brandSelection.xai = 'grok-4.7';
     if(!imageMode && !activeBrands.xai && !activeBrands.anthropic && !activeBrands.google) activeBrands.anthropic = true;
     if(imageMode && !IMAGE_MODELS.some(function(m){ return m.value === imageComposerModel; })) imageComposerModel = IMAGE_MODELS[0].value;
-    if(debateMode === '2v2') debateMode = 'free';
   }
 
   // === Get active submodel IDs for sending ===
@@ -1835,6 +1880,9 @@ var TEAM_COLORS = {
       result.push(imageComposerModel || 'grok-imagine-image-2.0');
       return result;
     }
+    if(debate && debateMode==='free')return debateModels.slice();
+    if(debate && debateMode==='2v2')return (seatState.pro.concat(seatState.con)).filter(function(id){return AVAILABLE_CHAT_MODELS.indexOf(id)!==-1;});
+    if(debate && debateMode==='persona')return (personaState||[]).filter(Boolean).map(function(p){return p.sub||brandSelection[p.brand];}).filter(function(id){return AVAILABLE_CHAT_MODELS.indexOf(id)!==-1;});
     var cards = document.querySelectorAll('#aaBrandBar .aa-brand-card');
     cards.forEach(function(card){
       var b = card.dataset.brand;
@@ -1993,6 +2041,7 @@ var TEAM_COLORS = {
   document.addEventListener('click', function(e){
     if(!e.target.closest('.aa-brand-card')){
       document.querySelectorAll('#ai-arena-app .aa-card-dropdown').forEach(function(d){ d.classList.remove('open'); });
+      $('aaJudgeHead').setAttribute('aria-expanded','false');
     }
   });
 
@@ -3591,10 +3640,10 @@ var TEAM_COLORS = {
     });
   });
    $('aaBarDebateBtn').addEventListener('click', function(){
+    if(aaRunning){arenaNotice('回答完成后可以切换模式');return;}
     debate = true; imageMode = false; videoMode = false;
     if(brandSelection['xai'] === 'grok41-biz-official') brandSelection['xai'] = 'grok-4.7';
     if(brandSelection['google'] === 'nanbanana2-official' || brandSelection['google'] === 'nanbanana2-custom') brandSelection['google'] = 'gemini-4-argon';
-    activeBrands = {xai:true, anthropic:true, openai:true, google:true, mj:false, kling:false};
     $('aaBarDebateBtn').classList.add('active');
     $('aaBarChatBtn').classList.remove('active');
     $('aaBarImageBtn').classList.remove('active');
@@ -3603,7 +3652,6 @@ var TEAM_COLORS = {
     $('aaBarChatBtn').style.background='transparent'; $('aaBarChatBtn').style.color='#6b6b88';
     $('aaBarImageBtn').style.background='transparent'; $('aaBarImageBtn').style.color='#6b6b88';
     if($('aaBarVideoBtn')){ $('aaBarVideoBtn').style.background='transparent'; $('aaBarVideoBtn').style.color='#6b6b88'; }
-    brandSelection['google'] = 'gemini-4-argon';
     brandSelection['kling'] = 'kling25-i2v';
     activeBrands['kling'] = false;
     $('aaRoundsBar').style.display = 'none';
@@ -3621,6 +3669,7 @@ var TEAM_COLORS = {
     if($('aaDebateModeBar')) $('aaDebateModeBar').style.display = 'flex';
   });
   $('aaBarChatBtn').addEventListener('click', function(){
+    if(aaRunning){arenaNotice('回答完成后可以切换模式');return;}
     if((imageMode || videoMode) && msgs.length > 0){ alert('当前对话有上下文，建议新建窗口再切换回对话模式。'); return; }
     debate = false; imageMode = false; videoMode = false;
     $('aaBarChatBtn').classList.add('active');
@@ -3633,7 +3682,6 @@ var TEAM_COLORS = {
     if($('aaBarVideoBtn')){ $('aaBarVideoBtn').style.background='transparent'; $('aaBarVideoBtn').style.color='#6b6b88'; }
     $('aaRoundsBar').style.display = 'none';
     $('aaDebateModeBar').style.display = 'none';
-    activeBrands = {xai:true, anthropic:false, openai:false, google:false, kling:false};
     brandSelection['kling'] = 'kling25-i2v';
     // 退出图像模式：重置google，隐藏图像专用卡片，恢复对话卡片
     if(brandSelection['google'] === 'nanbanana2-official' || brandSelection['google'] === 'nanbanana2-custom') brandSelection['google'] = 'gemini-4-argon';
@@ -3678,6 +3726,7 @@ var TEAM_COLORS = {
   });
 
   $('aaBarImageBtn').addEventListener('click', function(){
+    if(aaRunning){arenaNotice('回答完成后可以切换模式');return;}
     if(msgs.length > 0){ alert('当前对话有上下文，建议新建窗口再切换图像模式，避免混乱。'); return; }
     debate = false; imageMode = true; videoMode = false;
     $('aaBarImageBtn').classList.add('active');
@@ -3701,7 +3750,7 @@ var TEAM_COLORS = {
 
   $('aaDebateModeBar').addEventListener('click', function(e){
     var btn = e.target.closest('[data-dmode]'); if(!btn) return;
-    if(btn.disabled) return;
+    if(btn.disabled||aaRunning) return;
     debateMode = btn.dataset.dmode;
     document.querySelectorAll('#aaDebateModeBar .aa-bar-btn').forEach(function(b){
       var isActive = b.dataset.dmode === debateMode;
@@ -3709,70 +3758,40 @@ var TEAM_COLORS = {
       b.style.background = isActive ? 'rgba(255,255,255,0.1)' : 'transparent';
       b.style.color = isActive ? '#e8e8ee' : '#6b6b88';
     });
-    if(debateMode === '2v2' || debateMode === 'persona'){
-      activeBrands = {xai:true, anthropic:true, openai:true, google:true};
-      syncBrandUI();
-    }
     sync2v2UI(); syncArenaLayout(); saveState();
   });
 
   // 2v2 seat state: {pro: ['xai','anthropic'], con: ['openai','google']}
-  var seatState = {pro: [], con: []};
+  var seatState = {pro: [null,null], con: [null,null]};
   // Persona state: [{brand:'xai', role:'经济学家'}, ...]
   var personaState = [null, null, null, null]; // 4 slots
+  var personaSlotCount = 2;
+  $('aaAddPersona').addEventListener('click',function(){if(personaSlotCount<4){personaSlotCount++;syncPersonaUI();}});
 
   function syncPersonaUI(){
-    var is = debate && debateMode === 'persona';
-    $('aaPersonaArea').style.display = is ? 'block' : 'none';
-    if(!is){
-      ['xai','anthropic','openai','google'].forEach(function(b){
-        var card = $('aaBrandBar').querySelector('[data-brand="'+b+'"]');
-        if(card) card.classList.remove('seated-away');
-      });
-      // Image/video mode uses the compact composer model selector; never revive the legacy cards here.
-      $('aaBrandBar').style.display = (imageMode || videoMode) ? 'none' : '';
-      $('aaBrandBarCollapsed').style.display = 'none';
-      return;
-    }
-    // Dim seated brands
-    var seatedBrands = personaState.filter(function(p){ return p; }).map(function(p){ return p.brand; });
-    ['xai','anthropic','openai','google'].forEach(function(b){
-      var card = $('aaBrandBar').querySelector('[data-brand="'+b+'"]');
-      if(card) card.classList.toggle('seated-away', seatedBrands.indexOf(b) !== -1);
-    });
-    // Render slots
-    for(var i = 0; i < 4; i++){
-      var slot = $('aaPersonaSlot'+i);
-      var modelDiv = slot.querySelector('.aa-persona-model');
-      var p = personaState[i];
-      slot.classList.toggle('filled', !!p);
-      if(!p){
-        modelDiv.innerHTML = '<span class="aa-persona-empty">拖入模型</span>';
-      } else {
-        var info = SUBS[brandSelection[p.brand]];
-        var name = info ? info.name : p.brand;
-        modelDiv.innerHTML = '<div class="aa-persona-card" data-brand="'+p.brand+'">'
-          +'<span class="aa-persona-card-name">'+name+'</span>'
-          +'<button class="aa-persona-card-remove" data-pidx="'+i+'">✕</button></div>';
-        modelDiv.querySelector('.aa-persona-card-remove').addEventListener('click', function(e){
-          e.stopPropagation();
-          var idx = parseInt(e.target.dataset.pidx);
-          personaState[idx] = null;
-          syncPersonaUI(); saveState();
+    var is=debate && debateMode==='persona';
+    $('aaPersonaArea').style.display=is?'block':'none';
+    if(!is)return;
+    for(var i=0;i<4;i++){
+      (function(index){
+        var slot=$('aaPersonaSlot'+index),modelDiv=slot.querySelector('.aa-persona-model'),p=personaState[index];
+        slot.hidden=index>=personaSlotCount;
+        slot.classList.toggle('filled',!!p);
+        var selected=p&&(p.sub||brandSelection[p.brand])||'';
+        modelDiv.innerHTML='<select data-persona-model="'+index+'" aria-label="角色 '+(index+1)+' 的模型"><option value="">选择模型</option>'+AVAILABLE_CHAT_MODELS.map(function(id){return '<option value="'+esc(id)+'"'+(id===selected?' selected':'')+'>'+esc(SUBS[id].name)+'</option>';}).join('')+'</select>';
+        modelDiv.querySelector('select').addEventListener('change',function(){
+          var id=this.value,old=personaState[index];
+          personaState[index]=id?{brand:SUBS[id].brand,sub:id,role:$('aaPersonaRole'+index).value.trim(),desc:$('aaPersonaDesc'+index).value.trim()}:null;
+          if(!id && old){$('aaPersonaRole'+index).value='';$('aaPersonaDesc'+index).value='';}
+          syncPersonaUI();syncArenaLayout();saveState();
         });
-      }
+        modelDiv.querySelector('select').disabled=aaRunning;
+        $('aaPersonaRole'+index).disabled=!p||aaRunning;
+        $('aaPersonaDesc'+index).disabled=!p||aaRunning;
+      })(i);
     }
-    // Auto collapse brand bar if all slots filled
-    var allFilled = personaState.filter(function(p){ return p; }).length;
-    var visibleCards = document.querySelectorAll('#ai-arena-app .aa-brand-card:not(.seated-away)').length;
-    if(visibleCards === 0){
-      $('aaBrandBar').style.display = 'none';
-      $('aaBrandBarCollapsed').style.display = 'flex';
-    } else {
-      $('aaBrandBar').style.display = '';
-      $('aaBrandBarCollapsed').style.display = 'none';
-    }
-    
+    $('aaAddPersona').hidden=personaSlotCount>=4;
+    $('aaAddPersona').disabled=aaRunning;
   }
   function collapseOnTopicFocus(){
     if(!debate) return;
@@ -3783,123 +3802,32 @@ var TEAM_COLORS = {
         $('aaBrandBarCollapsed').style.display = 'flex';
         sync2v2UI();
       }
-    } else if(debateMode === 'persona'){
-      var placedWithRole = personaState.filter(function(p){ return p && p.role; }).length;
-      var placedTotal = personaState.filter(function(p){ return p; }).length;
-      if(placedTotal >= 2 && placedWithRole === placedTotal){
-        $('aaPersonaArea').style.display = 'none';
-        $('aaBrandBar').style.display = 'none';
-        $('aaBrandBarCollapsed').style.display = 'flex';
-      }
     }
   }
   function sync2v2UI(){
     syncPersonaUI();
-    var bar = $('aaBrandBar');
-    var is2v2 = debate && debateMode === '2v2';
-    bar.classList.toggle('mode-2v2', is2v2);
-    $('aaSeatsArea').style.display = is2v2 ? 'block' : 'none';
-    if(!is2v2){
-      // Restore all cards
-      ['xai','anthropic','openai','google'].forEach(function(b){
-        var lbl = $('aaTeam-'+b); if(lbl){ lbl.style.display='none'; lbl.textContent=''; }
-        var card = bar.querySelector('[data-brand="'+b+'"]');
-        if(card){ card.classList.remove('seated-away'); card.style.removeProperty('--bc'); card.style.removeProperty('--bcbg'); card.style.removeProperty('--bcglow'); }
-      });
-      return;
-    }
-    // Dim seated cards in brand bar
-    ['xai','anthropic','openai','google'].forEach(function(b){
-      var card = bar.querySelector('[data-brand="'+b+'"]');
-      if(!card) return;
-      var isSeated = seatState.pro.indexOf(b) !== -1 || seatState.con.indexOf(b) !== -1;
-      card.classList.toggle('seated-away', isSeated);
-    });
-    // Render seat slots
-    renderSeatSlots('pro');
-    renderSeatSlots('con');
-    // Auto collapse brand bar AND seats if all seats filled
-    var visibleCards2 = document.querySelectorAll('#ai-arena-app .aa-brand-card:not(.seated-away)').length;
-    if(visibleCards2 === 0){
-      $('aaBrandBar').style.display = 'none';
-      $('aaSeatsArea').style.display = 'none';
-      $('aaBrandBarCollapsed').style.display = 'flex';
-    } else {
-      $('aaBrandBar').style.display = '';
-      $('aaBrandBarCollapsed').style.display = 'none';
-    }
+    var is2v2=debate && debateMode==='2v2';
+    $('aaSeatsArea').style.display=is2v2?'block':'none';
+    if(is2v2){renderSeatSlots('pro');renderSeatSlots('con');}
   }
 
   function renderSeatSlots(team){
-    var container = team === 'pro' ? $('aaSeatSlotsPro') : $('aaSeatSlotsCon');
-    container.innerHTML = '';
-    var members = seatState[team];
-    if(members.length === 0){
-      container.innerHTML = '<div class="aa-seat-empty">拖入模型</div>';
-      return;
-    }
-    members.forEach(function(brand, idx){
-      var sub = brandSelection[brand];
-      var info = SUBS[sub];
-      var card = document.createElement('div');
-      card.className = 'aa-seated-card';
-      card.dataset.brand = brand;
-      card.innerHTML = '<span class="aa-seated-name">'+(info ? info.name : brand)+'</span>'
-        +'<button class="aa-seated-remove" data-brand="'+brand+'">✕</button>';
-      // Remove button
-      card.querySelector('.aa-seated-remove').addEventListener('click', function(e){
-        e.stopPropagation();
-        seatState[team] = seatState[team].filter(function(b){ return b !== brand; });
-        sync2v2UI(); syncArenaLayout(); saveState();
+    var container=team==='pro'?$('aaSeatSlotsPro'):$('aaSeatSlotsCon');
+    var used=seatState.pro.concat(seatState.con);
+    container.innerHTML=seatState[team].map(function(selected,index){
+      var label=(team==='pro'?'正方':'反方')+'模型 '+(index+1);
+      return '<select data-team-select="'+team+'" data-seat-index="'+index+'" aria-label="'+label+'"'+(aaRunning?' disabled':'')+'><option value="">选择模型</option>'+AVAILABLE_CHAT_MODELS.map(function(id){
+        return '<option value="'+esc(id)+'"'+(selected===id?' selected':'')+(id!==selected&&used.indexOf(id)!==-1?' disabled':'')+'>'+esc(SUBS[id].name)+'</option>';
+      }).join('')+'</select>';
+    }).join('');
+    container.querySelectorAll('[data-team-select]').forEach(function(select){
+      select.addEventListener('change',function(){
+        var index=Number(this.dataset.seatIndex),id=this.value||null;
+        if(id && seatState.pro.concat(seatState.con).some(function(value){return value===id&&value!==seatState[team][index];}))return;
+        seatState[team][index]=id;sync2v2UI();syncArenaLayout();
+        var focus=container.querySelector('[data-seat-index="'+index+'"]');if(focus)focus.focus();
       });
-      // Drag from seat to other seat
-      card.setAttribute('draggable', 'true');
-      card.addEventListener('dragstart', function(e){
-        e.dataTransfer.setData('text/plain', brand);
-        e.dataTransfer.setData('from-team', team);
-        card.style.opacity = '0.4';
-      });
-      card.addEventListener('dragend', function(){ card.style.opacity = ''; });
-      // Touch drag from seat
-      var touchData = null;
-      card.addEventListener('touchstart', function(e){
-        touchData = {brand: brand, fromTeam: team, startX: e.touches[0].clientX, startY: e.touches[0].clientY, moved: false};
-      }, {passive: true});
-      card.addEventListener('touchmove', function(e){
-        if(!touchData) return;
-        var dx = Math.abs(e.touches[0].clientX - touchData.startX);
-        var dy = Math.abs(e.touches[0].clientY - touchData.startY);
-        if(dx > 10 || dy > 10) touchData.moved = true;
-        if(touchData.moved){
-          e.preventDefault();
-          // Highlight drop zone under finger
-          var el = document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY);
-          var zone = el ? el.closest('.aa-seat-zone') : null;
-          document.querySelectorAll('.aa-seat-zone').forEach(function(z){ z.classList.remove('drag-over'); });
-          if(zone) zone.classList.add('drag-over');
-        }
-      }, {passive: false});
-      card.addEventListener('touchend', function(e){
-        document.querySelectorAll('.aa-seat-zone').forEach(function(z){ z.classList.remove('drag-over'); });
-        if(!touchData || !touchData.moved){ touchData = null; return; }
-        var touch = e.changedTouches[0];
-        var el = document.elementFromPoint(touch.clientX, touch.clientY);
-        var zone = el ? el.closest('.aa-seat-zone') : null;
-        if(zone){
-          var targetTeam = zone.dataset.team;
-          dropBrandToSeat(touchData.brand, touchData.fromTeam, targetTeam);
-        }
-        touchData = null;
-      });
-      container.appendChild(card);
     });
-    // Show empty hint if only 1
-    if(members.length < 2){
-      var hint = document.createElement('div');
-      hint.className = 'aa-seat-empty';
-      hint.textContent = '+'+(2 - members.length);
-      container.appendChild(hint);
-    }
   }
 
   function dropBrandToSeat(brand, fromTeam, toTeam){
@@ -4073,14 +4001,14 @@ function initPersonaDragDrop(){
       if(!p) continue;
       p.role = $('aaPersonaRole'+i).value.trim();
       p.desc = $('aaPersonaDesc'+i).value.trim();
-      var sub = brandSelection[p.brand];
-      order.push({idx: i, brand: p.brand, sub: sub, role: p.role, desc: p.desc});
+      var sub = p.sub || brandSelection[p.brand];
+      order.push({idx: i, brand: SUBS[sub].brand, sub: sub, role: p.role, desc: p.desc});
     }
     return order;
   }
   function get2v2Teams(){
-    var pro = seatState.pro.map(function(b){ return {brand:b, sub:brandSelection[b]}; });
-    var con = seatState.con.map(function(b){ return {brand:b, sub:brandSelection[b]}; });
+    var pro = seatState.pro.filter(Boolean).map(function(id){ return {brand:SUBS[id].brand, sub:id}; });
+    var con = seatState.con.filter(Boolean).map(function(id){ return {brand:SUBS[id].brand, sub:id}; });
     return {pro:pro, con:con};
   }
 
@@ -4104,7 +4032,8 @@ function initPersonaDragDrop(){
   }
 
   function is2v2Ready(){
-    return seatState.pro.length === 2 && seatState.con.length === 2;
+    var selected=seatState.pro.concat(seatState.con);
+    return selected.length===4&&selected.every(function(id){return AVAILABLE_CHAT_MODELS.indexOf(id)!==-1;})&&new Set(selected).size===4;
   }
 
   
@@ -4601,6 +4530,13 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
     }
     if(!imageMode&&topic.length+sentTexts.join('').length+(activeQuote?activeQuote.text.length:0)>50000){arenaNotice('内容较长，请保存到项目资料后按需查阅');return;}
     var act = getActiveSubmodels();
+    if(debate&&debateMode==='free'&&act.length<2){arenaNotice('请至少选择两个参与模型');return;}
+    if(debate&&debateMode==='2v2'&&!is2v2Ready()){arenaNotice('请为正反双方各选择两个不同模型');return;}
+    if(debate&&debateMode==='persona'){
+      var roles=personaState.filter(Boolean);
+      if(roles.length<2){arenaNotice('请至少为两个角色选择模型');return;}
+      if(roles.some(function(role){return !role.role.trim();})){arenaNotice('请为每个已选模型填写角色身份');return;}
+    }
     if(!act.length){ alert('请至少选择一个模型。'); return; }
     if(imageMode){
       setImageError('');
@@ -4779,7 +4715,7 @@ function buildPersonaPrompt(topic, history, speaker, rnd, allSpeakers){
       }
       nextRoundP();
     } else if(debate && debateMode === '2v2'){
-      if(!is2v2Ready()){ alert('请将4个模型分别拖入正方和反方席位'); aaRunning=false; finish(); return; }
+      if(!is2v2Ready()){ alert('请为正反双方各选择两个不同模型'); aaRunning=false; finish(); return; }
       var rnd2v2 = 0;
       var SYS_2V2_BASE = [
   '【辩论格式】2v2团队辩论',
@@ -5495,6 +5431,7 @@ if(debateMode === '2v2'){
     showMainUI();
     loadMemory();
     loadChatList();
+    if(workspaceController)workspaceController.preload();
   }
   $('aaLoginBtn').addEventListener('click', attemptLogin);
   var loginPassImeGuard=createImeGuard($('aaLoginPass')),loginUserImeGuard=createImeGuard($('aaLoginUser'));
@@ -5512,10 +5449,7 @@ if(debateMode === '2v2'){
     // Show seated-away cards so user can adjust
     document.querySelectorAll('#ai-arena-app .aa-brand-card.seated-away').forEach(function(c){ c.classList.remove('seated-away'); c.style.opacity = '0.5'; });
   });
-  $('aaTopic').addEventListener('focus', collapseOnTopicFocus);
   initDragReorder();
-  initSeatDragDrop();
-  initPersonaDragDrop();
   // === Image mode card-style dropdowns ===
 
   var _nbStyleOptions = [
@@ -6043,7 +5977,15 @@ if(debateMode === '2v2'){
     app.classList.toggle('arena-image-mode', imageMode);
     $('aaConversationTitle').textContent = msgs.length ? getChatTitle() : '新对话';
     $('aaModeCaption').textContent = debate ? '多 AI 辩论' : imageMode ? '图像创作' : '';
-    $('aaChatModelWrap').hidden = imageMode || videoMode;
+    $('aaChatModelWrap').hidden = imageMode || videoMode || (debate && debateMode!=='free');
+    $('aaDebateControls').hidden=!debate;
+    $('aaWelcomeTitle').textContent=debate?'让不同观点，展开讨论。':'今天，想聊点什么？';
+    $('aaDebateWelcomeCopy').hidden=!debate;
+    $('aaDebateHint').textContent=debateMode==='persona'?'为至少两个角色选择模型并填写身份。':debateMode==='2v2'?'为正反双方各选择两个不同的模型。':'选择至少两个 AI，轮流讨论同一个话题。';
+    $('aaJudgeHead').disabled=aaRunning;
+    if(aaRunning){$('aaJudgeDrop').classList.remove('open');$('aaJudgeHead').setAttribute('aria-expanded','false');}
+    document.querySelectorAll('#aaDebateModeBar [data-dmode]').forEach(function(button){button.disabled=aaRunning;button.setAttribute('aria-pressed',String(button.dataset.dmode===debateMode));});
+    if(debate&&(debateMode==='persona'||debateMode==='2v2'))sync2v2UI();
     ['aaImageModelBtn','aaImageTaskBtn','aaImageSettingsBtn'].forEach(function(id){$(id).disabled=aaRunning;});
     if(imageMode || videoMode) closeArenaModelMenu(false);
     var models = getActiveSubmodels();
@@ -6052,7 +5994,7 @@ if(debateMode === '2v2'){
     $('aaCurrentEffort').hidden = !EFFORT_LEVELS[effortModel] || debate;
     if($('aaCurrentEffort').textContent !== (EFFORT_LABELS[effortFor(effortModel)] || '')) $('aaCurrentEffort').textContent = EFFORT_LABELS[effortFor(effortModel)] || '';
     $('aaChatModelBtn').disabled = aaRunning;
-    $('aaChatModelBtn').setAttribute('aria-label', '选择模型：'+(SUBS[models[0]] ? SUBS[models[0]].name : '')+(EFFORT_LEVELS[effortModel] ? '，思考强度：'+EFFORT_LABELS[effortFor(effortModel)] : ''));
+    $('aaChatModelBtn').setAttribute('aria-label', debate?'选择参与模型，已选 '+models.length+' 个':'选择模型：'+(SUBS[models[0]] ? SUBS[models[0]].name : '')+(EFFORT_LEVELS[effortModel] ? '，思考强度：'+EFFORT_LABELS[effortFor(effortModel)] : ''));
     syncArenaEffort();
     if($('aaModelPickerBtn')) $('aaModelPickerBtn').disabled=aaRunning;
     $('aaIncognitoBtn').setAttribute('aria-pressed', String(!!_incognitoMode));
@@ -6103,6 +6045,11 @@ if(debateMode === '2v2'){
       }
     }
   });
+  function renderDebateModelPicker(){
+    var check='<svg class="arena-model-check" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>';
+    $('aaModelsSubmenu').innerHTML='<div class="arena-model-picker-heading"><span>参与讨论的 AI</span><span class="arena-debate-count">已选 '+debateModels.length+' 个</span></div><p class="arena-debate-picker-help">至少选择两个，可选择同一家公司的不同模型。</p>'
+      +AVAILABLE_CHAT_MODELS.map(function(id){return '<button type="button" class="arena-model-option" data-arena-model="'+id+'" aria-pressed="'+(debateModels.indexOf(id)!==-1)+'"><span>'+esc(SUBS[id].name)+'</span>'+check+'</button>';}).join('');
+  }
   $('aaChatModelBtn').addEventListener('click', function(e){
     e.stopPropagation();
     var popover = $('aaChatModelPop');
@@ -6110,6 +6057,12 @@ if(debateMode === '2v2'){
     document.querySelectorAll('#ai-arena-app .aa-card-dropdown.open').forEach(function(drop){ drop.classList.remove('open'); });
     closeImagePopovers();
     $('aaPlusMenu').style.display = 'none';
+    if(debate){
+      renderDebateModelPicker();popover.hidden=true;$('aaModelsSubmenu').hidden=false;
+      this.setAttribute('aria-expanded','true');positionArenaPopover($('aaModelsSubmenu'),this);
+      var selected=$('aaModelsSubmenu').querySelector('[aria-pressed="true"]')||$('aaModelsSubmenu').querySelector('[data-arena-model]');if(selected)selected.focus();
+      return;
+    }
     renderArenaModelMenu();
     showArenaEffortCard(true);
   });
@@ -6121,6 +6074,12 @@ if(debateMode === '2v2'){
     e.stopPropagation();
     var id = button.dataset.arenaModel;
     var brand = SUBS[id].brand;
+    if(debate && debateMode==='free'){
+      var index=debateModels.indexOf(id);if(index===-1)debateModels.push(id);else debateModels.splice(index,1);
+      saveState();syncArenaLayout();renderDebateModelPicker();positionArenaPopover($('aaModelsSubmenu'),$('aaChatModelBtn'));
+      var current=$('aaModelsSubmenu').querySelector('[data-arena-model="'+id+'"]');if(current)current.focus();
+      return;
+    }
     if(debate && (debateMode === '2v2' || debateMode === 'persona')){
       // Assigned seats keep their model until the user changes the existing seat controls.
       brandSelection[brand] = id;
@@ -6137,7 +6096,7 @@ if(debateMode === '2v2'){
     renderArenaModelMenu(); showArenaEffortCard(true);
   });
   $('aaModelsSubmenu').addEventListener('keydown',function(e){
-    if(e.key==='Escape' || e.key==='ArrowLeft'){e.preventDefault();e.stopPropagation();showArenaEffortCard(false);$('aaModelPickerBtn').focus();return;}
+    if(e.key==='Escape' || (!debate && e.key==='ArrowLeft')){e.preventDefault();e.stopPropagation();if(debate)closeArenaModelMenu(true);else{showArenaEffortCard(false);$('aaModelPickerBtn').focus();}return;}
     var buttons=Array.from(this.querySelectorAll('[data-arena-model]')), index=buttons.indexOf(document.activeElement);
     if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();buttons[(index+(e.key==='ArrowDown'?1:-1)+buttons.length)%buttons.length].focus();}
     if(e.key==='Home'||e.key==='End'){e.preventDefault();buttons[e.key==='Home'?0:buttons.length-1].focus();}
@@ -6146,23 +6105,24 @@ if(debateMode === '2v2'){
     // The native range owns its arrow, Home and End keys.
     if(e.target.id==='aaModelPickerBtn' && (e.key==='ArrowDown' || e.key==='ArrowRight')){e.preventDefault();openArenaModelPicker();}
   });
+  function closeHistorySearch(restoreFocus){
+    var wrap=$('aaHistorySearchWrap');if(wrap.hidden)return;
+    wrap.hidden=true;$('aaHistorySearch').value='';$('aaSearchHistoryBtn').setAttribute('aria-expanded','false');renderHistoryList();
+    if(restoreFocus)$('aaSearchHistoryBtn').focus();
+  }
   $('aaSearchHistoryBtn').addEventListener('click', function(){
-    var wrap = $('aaHistorySearchWrap');
-    wrap.hidden = !wrap.hidden;
-    this.setAttribute('aria-expanded', String(!wrap.hidden));
-    if(!wrap.hidden) $('aaHistorySearch').focus();
-    else { $('aaHistorySearch').value = ''; renderHistoryList(); }
+    var wrap=$('aaHistorySearchWrap');
+    if(!wrap.hidden){closeHistorySearch(true);return;}
+    wrap.hidden=false;this.setAttribute('aria-expanded','true');$('aaHistorySearch').focus();
   });
   $('aaHistorySearch').addEventListener('input', renderHistoryList);
   $('aaHistorySearch').addEventListener('keydown', function(e){
     if(e.key === 'Escape'){
-      e.stopPropagation(); this.value = ''; renderHistoryList();
-      $('aaHistorySearchWrap').hidden = true;
-      $('aaSearchHistoryBtn').setAttribute('aria-expanded','false');
-      $('aaSearchHistoryBtn').focus();
+      e.stopPropagation();closeHistorySearch(true);
     }
   });
   document.addEventListener('click', function(e){
+    if(!$('aaHistorySearchWrap').hidden&&!e.target.closest('#aaHistorySearchWrap')&&!e.target.closest('#aaSearchHistoryBtn')&&!e.target.closest('#aaHistoryList'))closeHistorySearch(false);
     if(!e.target.closest('[data-arena-model-menu]') && !e.target.closest('#aaChatModelBtn')) closeArenaModelMenu(false);
     if(!e.target.closest('#aaPlusBtn')&&!e.target.closest('#aaPlusMenu')) $('aaPlusBtn').setAttribute('aria-expanded','false');
     if(e.target.closest('#aaModeToggle') && window.matchMedia('(max-width: 900px)').matches) closeHistory();
@@ -6170,7 +6130,7 @@ if(debateMode === '2v2'){
   });
   document.addEventListener('keydown', function(e){
     if(e.key !== 'Escape') return;
-    if(!$('aaModelsSubmenu').hidden){ showArenaEffortCard(false); $('aaModelPickerBtn').focus(); return; }
+    if(!$('aaModelsSubmenu').hidden){ if(debate)closeArenaModelMenu(true);else{showArenaEffortCard(false);$('aaModelPickerBtn').focus();}return; }
     if(!$('aaChatModelPop').hidden){ closeArenaModelMenu(true); return; }
     if($('aaPlusMenu').style.display !== 'none'){ $('aaPlusMenu').style.display = 'none'; $('aaPlusBtn').setAttribute('aria-expanded','false'); $('aaPlusBtn').focus(); return; }
     if($('aaSkillsDrop').classList.contains('open')){ $('aaSkillsDrop').classList.remove('open'); $('aaSkillsBtn').focus(); return; }
@@ -6187,8 +6147,6 @@ if(debateMode === '2v2'){
 
   loadState();
   normalizeAvailableModels();
-  var unavailable2v2 = document.querySelector('#aaDebateModeBar [data-dmode="2v2"]');
-  if(unavailable2v2){ unavailable2v2.disabled = true; unavailable2v2.title = '需要 4 个可用模型'; }
   if(debate){
     $('aaBarDebateBtn').classList.add('active'); $('aaBarChatBtn').classList.remove('active');
     $('aaBarDebateBtn').style.background='rgba(255,255,255,0.1)'; $('aaBarDebateBtn').style.color='#e8e8ee';
@@ -6495,8 +6453,13 @@ if(imageMode){
   }
   async function projectApi(action,extra){
     var payload=Object.assign({action:action,username:loginName($('aaUsername').value),password:getPass()},extra||{});
-    var response=await fetch(WORKER+'/projects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-    var data=await response.json();if(!response.ok)throw new Error(data.error||'项目请求失败');return data;
+    var controller=(action==='list'||action==='get')?new AbortController():null;
+    var timer=controller?setTimeout(function(){controller.abort();},12000):null;
+    try{
+      var response=await fetch(WORKER+'/projects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload),signal:controller?controller.signal:undefined});
+      var data=await response.json();if(!response.ok)throw new Error(data.error||'项目请求失败');return data;
+    }catch(error){if(error.name==='AbortError')throw new Error('项目加载超时，请检查网络后重试');throw error;}
+    finally{if(timer)clearTimeout(timer);}
   }
   function updateProjectBar(){
     $('aaProjectBar').hidden=!activeProjectId;
@@ -6550,8 +6513,10 @@ if(imageMode){
   }
   workspaceController=ArenaWorkspace.mount({
     host:$('ai-arena-app'),api:projectApi,busy:function(){return aaRunning;},notice:arenaNotice,currentProject:function(){return activeProject;},
+    accountKey:function(){return getPass()?loginName($('aaUsername').value).toLowerCase():'';},
     switchScope:switchProject,refreshProject:function(project){activeProject=project;_memoryLoaded=false;_cachedMemory=null;updateProjectBar();},
   });
+  if(getPass())workspaceController.preload();
   $('aaProjectsBtn').addEventListener('click',workspaceController.list);
   $('aaProjectMaterials').addEventListener('click',workspaceController.materials);
   $('aaProjectSettings').addEventListener('click',workspaceController.settings);

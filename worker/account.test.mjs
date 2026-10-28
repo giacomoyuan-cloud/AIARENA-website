@@ -8,7 +8,7 @@ const password=await sha('synthetic-current-password'),newPassword=await sha('sy
 const png='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jF1kAAAAASUVORK5CYII=';
 function setup(){
   const data=new Map([['user:tester',JSON.stringify({hash:password,created:1})],['user:another',JSON.stringify({hash:password,created:2})]]),writes=[];
-  const kv={get:async key=>data.get(key)||null,put:async(key,value)=>{data.set(key,value);writes.push(key);}};
+  const kv={get:async key=>data.get(key)||null,put:async(key,value)=>{data.set(key,value);writes.push(key);},delete:async key=>data.delete(key),list:async({prefix})=>({keys:Array.from(data.keys()).filter(key=>key.startsWith(prefix)).map(name=>({name}))})};
   return {data,writes,env:{MEMORY_KV:kv,BIZ_KV:kv,PASSWORD:'synthetic-shared-password',ADMIN_KEY:'synthetic-admin-key'}};
 }
 const post=(path,fields)=>new Request('https://api.pickandcase.com'+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(fields)});

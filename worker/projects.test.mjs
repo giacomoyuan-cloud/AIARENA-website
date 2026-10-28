@@ -38,6 +38,29 @@ test('project conversations and memories are isolated from general chat and each
   assert.equal((await (await worker.fetch(new Request('https://api.pickandcase.com/memory'+query+'&projectId='+a.id),env)).json()).memory,'A_MEMORY');
   assert.equal((await (await worker.fetch(new Request('https://api.pickandcase.com/memory'+query+'&projectId='+b.id),env)).json()).memory,'');
 });
+test('project and conversation pins are account and project scoped and never rewrite saved content',async()=>{
+  const {env,data}=setup(),a=await create(env,'A'),b=await create(env,'B');
+  const chat=(action,fields={})=>worker.fetch(post('/chats',{username:'tester',password:pass,action,...fields}),env);
+  for(const projectId of [null,a.id,b.id]){
+    assert.equal((await chat('save',{projectId,chatId:'chat-test-123',title:'记录',messages:[{uid:1,text:'不要修改的内容'}]})).status,200);
+  }
+  const generalBefore=data.get('chats:tester:chat-test-123'),projectBefore=data.get('project:tester:'+a.id+':chats:chat-test-123');
+  assert.equal((await project(env,'pin',{projectId:a.id,pinned:true})).status,200);
+  assert.equal((await chat('pin',{projectId:a.id,chatId:'chat-test-123',pinned:true})).status,200);
+  assert.equal((await chat('pin',{projectId:a.id,chatId:'missing-123',pinned:true})).status,404);
+  assert.equal((await project(env,'pin',{projectId:b.id,pinned:'yes'})).status,400);
+  const listed=(await project(env,'list')).projects;
+  assert.equal(listed.find(item=>item.id===a.id).pinned,true);assert.equal(!!listed.find(item=>item.id===b.id).pinned,false);
+  const entries=async projectId=>(await (await chat('list',{projectId})).json()).chats;
+  assert.equal((await entries(a.id))[0].pinned,true);
+  assert.equal(!!(await entries(null))[0].pinned,false);assert.equal(!!(await entries(b.id))[0].pinned,false);
+  const other=await worker.fetch(post('/projects',{username:'another',password:pass,action:'pin',projectId:a.id,pinned:true}),env);
+  assert.equal(other.status,404);
+  assert.equal(data.get('chats:tester:chat-test-123'),generalBefore);assert.equal(data.get('project:tester:'+a.id+':chats:chat-test-123'),projectBefore);
+  assert.equal((await chat('pin',{projectId:a.id,chatId:'chat-test-123',pinned:false})).status,200);
+  assert.equal((await project(env,'pin',{projectId:a.id,pinned:false})).status,200);
+  assert.equal(!!(await entries(a.id))[0].pinned,false);assert.equal(!!(await project(env,'list')).projects.find(item=>item.id===a.id).pinned,false);
+});
 test('project ownership and explicit scope are checked before any provider request',async t=>{
   const {env}=setup(),a=await create(env,'A'),calls=[];upstream(t,calls);
   assert.equal((await project(env,'get',{projectId:a.id,username:'another'})).status,404);

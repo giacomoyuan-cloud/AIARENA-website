@@ -53,40 +53,84 @@
     host.appendChild(pane);
     var input=document.createElement('input');input.type='file';input.multiple=true;input.hidden=true;input.accept='.txt,.md,.pdf,.docx,.xlsx,.xls,.pptx,.csv,.tsv,.json,.log';host.appendChild(input);
     var content=dialog.querySelector('#aaWorkspaceContent'),title=dialog.querySelector('#aaWorkspaceTitle'),navigationEpoch=0;
+    var listCache=new Map(),listRequests=new Map(),cacheRevision=0,pinOverrides=new Map(),pinPending=new Set();
     function notify(message){app.notice(message);}
     function show(){if(!dialog.open)dialog.showModal();}
-    function close(){dialog.close();}
+    function close(){navigationEpoch++;dialog.close();}
+    dialog.addEventListener('close',function(){navigationEpoch++;});
     function error(message){var element=content.querySelector('[data-w-error]');if(element)element.textContent=message;else notify(message);}
     function setContent(label,html){title.textContent=label;content.innerHTML=html;}
+    function accountKey(){return app.accountKey?app.accountKey():'';}
+    function cacheKey(account,viewArchived){return account+'|'+(viewArchived?'archived':'active');}
+    function invalidate(){cacheRevision++;listCache.clear();listRequests.clear();}
+    function fetchList(account,viewArchived){
+      var key=cacheKey(account,viewArchived),existing=listRequests.get(key);if(existing)return existing;
+      var revision=cacheRevision;
+      var promise=app.api('list',{includeArchived:viewArchived}).then(function(data){
+        if(!data||!Array.isArray(data.projects))throw new Error('项目列表格式有误，请重试');
+        data.projects.forEach(function(item){var pinKey=account+'|'+item.id;if(pinOverrides.has(pinKey)&&!!item.pinned===pinOverrides.get(pinKey))pinOverrides.delete(pinKey);});
+        if(revision===cacheRevision&&account===accountKey())listCache.set(key,data.projects);
+        return data.projects;
+      }).finally(function(){if(listRequests.get(key)===promise)listRequests.delete(key);});
+      listRequests.set(key,promise);return promise;
+    }
+    function preload(){var account=accountKey();if(account)fetchList(account,false).catch(function(){});}
+    function paintList(items,viewArchived,account){
+      var sorted=items.map(function(p){
+        var copy=Object.assign({},p),key=account+'|'+p.id;
+        if(pinOverrides.has(key))copy.pinned=pinOverrides.get(key);
+        return copy;
+      }).sort(function(a,b){return Number(!!b.pinned)-Number(!!a.pinned);});
+      var cards=sorted.map(function(p){
+        var key=account+'|'+p.id,disabled=pinPending.has(key)?' disabled':'';
+        var pin='<button type="button" class="arena-project-pin'+(p.pinned?' pinned':'')+'" data-project-pin="'+e(p.id)+'" data-pinned="'+!!p.pinned+'" aria-pressed="'+!!p.pinned+'" aria-label="'+(p.pinned?'取消置顶项目：':'置顶项目：')+e(p.name)+'" title="'+(p.pinned?'取消置顶':'置顶项目')+'"'+disabled+'><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 4 6 6m-7-2 8 8m-1-12 5 5-3 2-1 5-4-4-6 6 4-7-4-4 5-1Z"/></svg></button>';
+        return '<article class="arena-project-card"><button class="arena-project-open" data-project-open="'+e(p.id)+'"><strong>'+e(p.name)+'</strong><span>'+new Date(p.updatedAt).toLocaleDateString()+'</span></button>'+(viewArchived?'<button data-project-restore="'+e(p.id)+'">恢复项目</button>':pin+'<button class="arena-project-card-more" data-project-settings="'+e(p.id)+'" aria-label="项目设置：'+e(p.name)+'">•••</button>')+'</article>';
+      }).join('');
+      setContent(viewArchived?'已归档项目':'项目','<div class="arena-workspace-intro"><p>每个项目拥有独立的对话、记忆和资料，与普通聊天隔离。</p><button class="arena-workspace-primary" data-project-new>新建项目</button></div><div class="arena-project-grid">'+(cards||'<div class="arena-workspace-empty">还没有'+(viewArchived?'已归档':'')+'项目</div>')+'</div><div class="arena-workspace-footer"><button data-project-archive-toggle>'+(viewArchived?'返回项目':'查看已归档项目')+'</button><button data-project-general>返回普通聊天</button></div>');
+    }
     async function list(){
       if(app.busy()){notify('回答完成后可以切换项目');return;}
-      project=null;setContent('项目','<p class="arena-workspace-muted">加载中…</p>');show();
+      var epoch=++navigationEpoch,account=accountKey(),viewArchived=archived,key=cacheKey(account,viewArchived),cached=listCache.get(key);
+      project=null;
+      if(cached)paintList(cached,viewArchived,account);else setContent('项目','<p class="arena-workspace-muted" role="status">正在加载项目…</p>');
+      show();
       try{
-        var data=await app.api('list',{includeArchived:archived});
-        var cards=data.projects.map(function(p){return '<article class="arena-project-card"><button class="arena-project-open" data-project-open="'+e(p.id)+'"><strong>'+e(p.name)+'</strong><span>'+new Date(p.updatedAt).toLocaleDateString()+'</span></button>'+(archived?'<button data-project-restore="'+e(p.id)+'">恢复项目</button>':'<button class="arena-project-card-more" data-project-settings="'+e(p.id)+'" aria-label="项目设置：'+e(p.name)+'">•••</button>')+'</article>';}).join('');
-        setContent(archived?'已归档项目':'项目','<div class="arena-workspace-intro"><p>每个项目拥有独立的对话、记忆和资料，与普通聊天隔离。</p><button class="arena-workspace-primary" data-project-new>新建项目</button></div><div class="arena-project-grid">'+(cards||'<div class="arena-workspace-empty">还没有'+(archived?'已归档':'')+'项目</div>')+'</div><div class="arena-workspace-footer"><button data-project-archive-toggle>'+(archived?'返回项目':'查看已归档项目')+'</button><button data-project-general>返回普通聊天</button></div>');
-      }catch(err){setContent('项目','<p role="alert">'+e(err.message)+'</p>');}
+        var items=await fetchList(account,viewArchived);
+        if(epoch===navigationEpoch&&dialog.open&&account===accountKey()&&viewArchived===archived)paintList(items,viewArchived,account);
+      }catch(err){
+        if(epoch!==navigationEpoch||!dialog.open)return;
+        if(cached)notify('项目更新失败，已显示上次加载的列表');
+        else setContent('项目','<p role="alert">'+e(err.message)+'</p><button type="button" data-project-back>重新加载</button>');
+      }
     }
     async function edit(id){
       if(app.busy()){notify('回答完成后可以修改项目设置');return;}
+      var epoch=++navigationEpoch,wasOpen=dialog.open;
       try{
-        project=id?(await app.api('get',{projectId:id})).project:null;
+        var selectedProject=id?(await app.api('get',{projectId:id})).project:null;
+        if(epoch!==navigationEpoch||(wasOpen&&!dialog.open))return;
+        project=selectedProject;
         setContent(project?'项目设置':'新建项目','<form id="aaProjectForm"><label>项目名称<input name="name" maxlength="80" required value="'+e(project&&project.name)+'" placeholder="例如：产品设计"></label><label>项目说明<textarea name="instructions" rows="4" maxlength="4000" placeholder="这个项目的目标、背景和回复要求">'+e(project&&project.instructions)+'</textarea></label>'+(project?'<label>项目记忆<textarea name="memory" rows="4" maxlength="2400" placeholder="仅在本项目对话之间共享">'+e(project.memory)+'</textarea></label>':'')+'<p class="arena-workspace-muted">普通聊天及其他项目不会读取这里的记忆。</p><p data-w-error role="alert"></p><div class="arena-workspace-footer">'+(project?'<button type="button" data-project-archive="'+e(project.id)+'">归档项目</button>':'<button type="button" data-project-back>返回</button>')+'<button type="submit" class="arena-workspace-primary">保存'+(project?'':'并进入')+'</button></div></form>');show();content.querySelector('input').focus();
-      }catch(err){error(err.message);}
+      }catch(err){if(epoch===navigationEpoch)error(err.message);}
     }
     async function enter(id){
       if(app.busy()){notify('回答完成后可以切换项目');return;}
       var epoch=++navigationEpoch;
-      try{var data=await app.api('get',{projectId:id});if(epoch!==navigationEpoch)return;await app.switchScope(data.project);close();}
+      var button=Array.from(content.querySelectorAll('[data-project-open]')).find(function(el){return el.dataset.projectOpen===id;});
+      if(button){button.disabled=true;button.setAttribute('aria-busy','true');}
+      try{var data=await app.api('get',{projectId:id});if(epoch!==navigationEpoch||!dialog.open||app.busy())return;await app.switchScope(data.project);close();}
       catch(err){error(err.message);}
+      finally{if(button&&button.isConnected){button.disabled=false;button.removeAttribute('aria-busy');}}
     }
     async function materials(){
       var current=app.currentProject();if(!current)return list();
+      var epoch=++navigationEpoch;
       try{
-        project=(await app.api('get',{projectId:current.id})).project;
-        var files=removed?(await app.api('removed_files',{projectId:project.id})).files:project.files;
+        var loadedProject=(await app.api('get',{projectId:current.id})).project;
+        var files=removed?(await app.api('removed_files',{projectId:loadedProject.id})).files:loadedProject.files;
+        if(epoch!==navigationEpoch)return;project=loadedProject;
         setContent((removed?'已移除资料 · ':'项目资料 · ')+project.name,'<div class="arena-workspace-intro"><p>按问题检索相关片段，未命中的资料不会发送给模型。</p>'+(!removed?'<button class="arena-workspace-primary" data-file-upload>上传资料</button>':'')+'</div><p class="arena-workspace-muted">Word、PDF、Excel、PPT、文本等；单份 8 MB，最多 15 份。扫描 PDF 需先提取文字。</p><div class="arena-project-file-list">'+(files.map(function(file){return '<div class="arena-project-file-row"><button data-file-preview="'+e(file.id)+'"><strong>'+e(file.name)+'</strong><span>'+Math.ceil(file.size/1024)+' KB · '+file.characters.toLocaleString()+' 字符</span></button><button '+(removed?'data-file-restore':'data-file-remove')+'="'+e(file.id)+'">'+(removed?'恢复':'移除')+'</button></div>';}).join('')||'<div class="arena-workspace-empty">暂无'+(removed?'已移除':'')+'资料</div>')+'</div><p data-w-error role="alert"></p><div class="arena-workspace-footer"><button data-file-removed-toggle>'+(removed?'返回资料':'查看已移除资料')+'</button><button data-project-settings="'+e(project.id)+'">项目设置</button></div>');show();
-      }catch(err){error(err.message);}
+      }catch(err){if(epoch===navigationEpoch)error(err.message);}
     }
     var viewedFile=null,viewedProject=null;
     async function preview(id,projectId){
@@ -107,6 +151,19 @@
       try{
         if(target.hasAttribute('data-project-new'))return edit(null);
         if(target.dataset.projectOpen)return enter(target.dataset.projectOpen);
+        if(target.dataset.projectPin){
+          var id=target.dataset.projectPin,account=accountKey(),key=account+'|'+id,pinned=target.dataset.pinned!=='true',pinEpoch=navigationEpoch;
+          if(pinPending.has(key))return;
+          pinPending.add(key);target.disabled=true;
+          try{
+            await app.api('pin',{projectId:id,pinned:pinned});
+            pinOverrides.set(key,pinned);
+            var cached=listCache.get(cacheKey(account,false));
+            if(cached)cached.forEach(function(item){if(item.id===id)item.pinned=pinned;});
+            if(pinEpoch===navigationEpoch&&account===accountKey()&&dialog.open&&!archived&&cached){paintList(cached,false,account);notify(pinned?'已置顶项目':'已取消置顶');}
+          }finally{pinPending.delete(key);if(target.isConnected)target.disabled=false;else if(pinEpoch===navigationEpoch&&dialog.open&&account===accountKey()&&!archived&&cached)paintList(cached,false,account);}
+          return;
+        }
         if(target.dataset.projectSettings)return edit(target.dataset.projectSettings);
         if(target.hasAttribute('data-project-back'))return list();
         if(target.hasAttribute('data-project-archive-toggle')){archived=!archived;return list();}
@@ -114,10 +171,11 @@
         if(target.dataset.projectArchive){
           if(app.busy()){notify('回答完成后可以归档项目');return;}
           await app.api('archive',{projectId:target.dataset.projectArchive});
+          invalidate();
           if(app.currentProject()&&app.currentProject().id===target.dataset.projectArchive)await app.switchScope(null);
           return list();
         }
-        if(target.dataset.projectRestore){await app.api('archive',{projectId:target.dataset.projectRestore,archived:false});return list();}
+        if(target.dataset.projectRestore){await app.api('archive',{projectId:target.dataset.projectRestore,archived:false});invalidate();return list();}
         if(target.hasAttribute('data-file-upload')){input.click();return;}
         if(target.dataset.filePreview)return preview(target.dataset.filePreview);
         if(target.dataset.fileRemove){await app.api('remove_file',{projectId:project.id,fileId:target.dataset.fileRemove});return materials();}
@@ -132,6 +190,7 @@
         var values={name:form.elements.name.value,instructions:form.elements.instructions.value};
         if(project){values.projectId=project.id;values.memory=form.elements.memory.value;}
         var data=await app.api(project?'update':'create',values);
+        invalidate();
         if(project){if(app.currentProject()&&app.currentProject().id===project.id)app.refreshProject(Object.assign({},project,data.project,{memory:values.memory}));close();notify('项目设置已保存');}
         else{await app.switchScope(data.project);close();}
       }catch(err){error(err.message);button.disabled=false;}
@@ -154,7 +213,7 @@
       if(!viewedFile)return;
       try{var result=await app.api('download',{projectId:viewedProject,fileId:viewedFile.id}),file=result.file,bytes=Uint8Array.from(atob(file.data),function(c){return c.charCodeAt(0);}),url=URL.createObjectURL(new Blob([bytes],{type:'application/octet-stream'})),anchor=document.createElement('a');anchor.href=url;anchor.download=file.name;anchor.click();setTimeout(function(){URL.revokeObjectURL(url);},30000);}catch(err){notify(err.message);}
     });
-    return {list:list,materials:function(){removed=false;return materials();},settings:function(){var current=app.currentProject();return current?edit(current.id):list();},preview:preview,closeFile:function(){pane.hidden=true;host.classList.remove('arena-file-open');},enter:enter};
+    return {list:list,preload:preload,materials:function(){removed=false;return materials();},settings:function(){var current=app.currentProject();return current?edit(current.id):list();},preview:preview,closeFile:function(){pane.hidden=true;host.classList.remove('arena-file-open');},enter:enter};
   }
   root.ArenaWorkspace={mount:mount,readFile:readFile};
 })(window);
