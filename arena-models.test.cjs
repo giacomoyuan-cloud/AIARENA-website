@@ -170,3 +170,23 @@ test('saved image turns keep one copy of generated image bytes and retain signed
   assert.equal(saved[0].imgData,undefined);assert.equal(saved[0].imgItems[0].data,image.data);
   assert.equal(ArenaImage.historyFor(saved,1)[1].parts[0].thoughtSignature,'unaltered-signature');
 });
+
+test('switching chats never carries an automatic image reference into another conversation',async()=>{
+  const image={data:'bmV3LWltYWdl',mime:'image/png'};
+  const next=[{uid:2,isUser:true,text:'new prompt'},{uid:3,submodel:ArenaImage.GOOGLE_MODEL,imgItems:[image],imageTurn:{prompt:'new prompt',parentUid:null,references:[]},imageResponse:[{imageIndex:0,thoughtSignature:'new-signature'}]}];
+  async function open(sentImgs,draft=''){
+    const c=vm.createContext({
+      ArenaImage,aaRunning:false,activeProjectId:null,scopeEpoch:1,chatLoadEpoch:0,_saveTimer:null,currentChatId:'old-chat',
+      imageEditParentUid:1,imageMode:true,imageComposerTask:'edit',imageComposerModel:ArenaImage.GOOGLE_MODEL,
+      sentImgs,sentTexts:[],msgs:[],_uidCounter:0,_skipNextChatSave:false,$:()=>({value:draft}),
+      chatApiCall:async()=>({messages:next}),getLastAssistantReplyAt:()=>0,rememberChatReplyTime:()=>{},
+      render:()=>{},renderImgPreviews:()=>{},syncImageComposer:()=>{},setImageError:()=>{},closeHistory:()=>{},arenaNotice:()=>{}
+    });
+    vm.runInContext(browserFunction('setGeneratedImageReference')+'\n'+browserFunction('loadChat'),c);
+    assert.equal(await c.loadChat('new-chat'),true);return c;
+  }
+  const oldAuto={data:'b2xkLWltYWdl',mime:'image/png',generatedReference:true,autoFollowup:true,generatedUid:1};
+  const fresh=await open([oldAuto]);assert.equal(fresh.sentImgs.length,1);assert.equal(fresh.sentImgs[0].data,image.data);assert.equal(fresh.imageEditParentUid,3);
+  const draft=await open([oldAuto],'unsent draft');assert.equal(draft.sentImgs.length,0);assert.equal(draft.imageEditParentUid,null);assert.equal(draft.imageComposerTask,'generation');
+  const manual={data:'bWFudWFs',mime:'image/png'};const kept=await open([manual]);assert.equal(kept.sentImgs[0],manual);assert.equal(kept.imageEditParentUid,null);
+});

@@ -70,6 +70,28 @@ test('Grok single-image and multi-image edits reach the official edit endpoint',
  }
 });
 
+test('reference requests send image bytes only once outside signed history',async t=>{
+ const b=browser(setup());
+ t.mock.method(globalThis,'fetch',async()=>imageResponse());
+ const reference={...image,preview:'data:image/png;base64,'+image.data,autoFollowup:true};
+ await b.send(A.GOOGLE_MODEL,A.requestOptions(A.GOOGLE_MODEL,'edit',{},[reference]));
+ const payload=b.payloads.at(-1);
+ assert.deepEqual(payload.images,[image]);assert.equal(payload.image,null);
+ assert.equal(payload._imgs,undefined);assert.equal(JSON.stringify(payload).includes(reference.preview),false);
+});
+
+test('browser stream parses a final unterminated event and surfaces malformed events',async()=>{
+ const b=browser(setup());
+ b.context.fetchWithRetry=async()=>new Response('data: '+JSON.stringify({img:image.data,mime:image.mime}));
+ await b.send(A.GOOGLE_MODEL);assert.ok(b.output.some(chunk=>chunk.includes(image.data)));
+ b.context.fetchWithRetry=async()=>new Response('data: {broken json}\n\ndata: [DONE]\n\n');
+ await assert.rejects(b.send(A.GOOGLE_MODEL),/解析|格式/);
+ b.context.fetchWithRetry=async()=>new Response('data: '+JSON.stringify({error:'模拟图片生成失败'})+'\n\ndata: [DONE]\n\n');
+ await assert.rejects(b.send(A.GOOGLE_MODEL),/模拟图片生成失败/);
+ b.context.fetchWithRetry=async()=>new Response('data: '+JSON.stringify({img:image.data,mime:image.mime})+'\n\ndata: [DONE]\n\n');
+ await assert.rejects(new Promise((resolve,reject)=>b.context.callWorkerStream(A.GOOGLE_MODEL,'test',null,null,()=>{throw new Error('render failed');},resolve,reject,()=>{},()=>{},{})),/render failed/);
+});
+
 test('selected style reaches Google in the actual prompt and does not leak into Grok',async t=>{
  const b=browser(setup());let actual;
  const style=vm.createContext({sub:A.GOOGLE_MODEL,nbStylePreset:'photo',topic:'A blue ceramic cup',_imgs:[],imageMode:true,topicWithQuote:'A blue ceramic cup'});

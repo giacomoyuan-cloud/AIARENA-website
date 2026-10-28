@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>AI 助手</title>
-<meta name="app-version" content="20261028-effortfix1">
+<meta name="app-version" content="20261028-imagefollow1">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -864,7 +864,7 @@
   #ai-arena-app #aaSkillEditPrompt::placeholder { color: #888; opacity: 1; }
 
 </style>
-<link rel="stylesheet" href="/arena.css?v=20261028-knead1">
+<link rel="stylesheet" href="/arena.css?v=20261028-imagefollow1">
 <link rel="stylesheet" href="/arena-workspace.css?v=20261028-smooth2">
 
 <!-- Login overlay -->
@@ -1162,6 +1162,7 @@
         </div>
         <button onclick="window._aaNbClearEdit()" style="flex-shrink:0;padding:3px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:#555;font-size:10px;cursor:pointer;font-family:'Sora',sans-serif;">重新生成</button>
       </div>
+      <div id="aaImageError" class="arena-image-error" role="alert" hidden></div>
       <div class="aa-input-row">
         <div class="arena-attachment-wrap" style="position:relative;">
           <button id="aaPlusBtn" class="aa-plus-btn" type="button" aria-label="添加附件或工具" aria-haspopup="dialog" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
@@ -1642,16 +1643,27 @@ var TEAM_COLORS = {
     if(_saveTimer){ clearTimeout(_saveTimer); _saveTimer = null; }
     return chatApiCall('load', { chatId: chatId }).then(function(data){
       if(epoch!==scopeEpoch||loadEpoch!==chatLoadEpoch||loadScope!==activeProjectId||!data||data.error) return false;
+      var switched=String(currentChatId)!==String(chatId);
+      var hadAutomaticReference=switched&&sentImgs.some(function(image){return image.autoFollowup;});
+      if(hadAutomaticReference){
+        sentImgs=sentImgs.filter(function(image){return !image.autoFollowup;});
+        if(!sentImgs.length&&imageComposerTask==='edit')imageComposerTask='generation';
+      }
       currentChatId = chatId;
-      imageEditParentUid=null;
+      if(switched)imageEditParentUid=null;
       msgs = data.messages || [];
+      if(imageEditParentUid!=null&&!msgs.some(function(message){return String(message.uid)===String(imageEditParentUid);}))imageEditParentUid=null;
       var loadedReplyAt = getLastAssistantReplyAt(msgs);
       if(loadedReplyAt) rememberChatReplyTime(chatId, loadedReplyAt);
       if(msgs.length){
         _uidCounter = Math.max.apply(null, msgs.map(function(m){ return m.uid || 0; })) + 1;
       }
+      if(switched&&imageMode&&!sentImgs.length&&!sentTexts.length&&!$('aaTopic').value.trim()){
+        var latestAnswer=msgs.slice().reverse().find(function(message){return !message.isUser;});
+        if(latestAnswer&&!latestAnswer.isError&&latestAnswer.imgItems&&latestAnswer.imgItems.length===1&&ArenaImage.canonical(latestAnswer.submodel)===ArenaImage.canonical(imageComposerModel))setGeneratedImageReference(latestAnswer.imgItems[0],latestAnswer,true,0);
+      }
       _skipNextChatSave = true;
-      render();
+      render();if(imageMode){renderImgPreviews();syncImageComposer();}setImageError('');
       closeHistory();
       return true;
     });
@@ -2126,7 +2138,8 @@ var TEAM_COLORS = {
   }
 
   // === Image handling ===
-  function showPreview(dataUrl){ if(!dataUrl) return; if(sentImgs.length < imageReferenceLimit()){ sentImgs.push({data: dataUrl.split(',').length > 1 ? dataUrl.split(',')[1] : dataUrl, mime: 'image/jpeg', preview: dataUrl}); renderImgPreviews(); } }
+  function setImageError(message){var error=$('aaImageError');error.textContent=message||'';error.hidden=!message;}
+  function showPreview(dataUrl){ if(!dataUrl) return; if(sentImgs.length < imageReferenceLimit()){ sentImgs.push({data: dataUrl.split(',').length > 1 ? dataUrl.split(',')[1] : dataUrl, mime: 'image/jpeg', preview: dataUrl}); setImageError('');renderImgPreviews(); } }
   function renderTextPreviews(){
     var container = $('aaTextPreview');
     container.innerHTML = '';
@@ -2160,14 +2173,16 @@ var TEAM_COLORS = {
     sentImgs.forEach(function(img, idx){
       var wrap = document.createElement('div');
       wrap.style.cssText = 'position:relative;display:inline-block;';
+      if(img.autoFollowup)wrap.title='继续编辑上一张生成的图片';
       var thumb = document.createElement('img');
       thumb.src = img.preview;
       thumb.style.cssText = 'width:60px;height:60px;object-fit:cover;border-radius:8px;border:1px solid rgba(255,255,255,0.1);display:block;cursor:pointer;';
       thumb.addEventListener('click', function(){ window._aaLightbox(img.preview); });
       var rm = document.createElement('button');
       rm.textContent = '✕';
+      rm.setAttribute('aria-label',img.autoFollowup?'移除上一张生成的参考图':'移除参考图');
       rm.style.cssText = 'position:absolute;top:-5px;right:-5px;width:16px;height:16px;border-radius:50%;border:none;background:#ef4444;color:#fff;font-size:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;';
-      rm.addEventListener('click', function(){ sentImgs.splice(idx,1); renderImgPreviews(); $('aaSendBtn').disabled = !$('aaTopic').value.trim() && !sentImgs.length && !sentTexts.length; });
+      rm.addEventListener('click', function(){ if(img.generatedUid!=null&&String(img.generatedUid)===String(imageEditParentUid))imageEditParentUid=null;sentImgs.splice(idx,1);setImageError('');renderImgPreviews(); $('aaSendBtn').disabled = !$('aaTopic').value.trim() && !sentImgs.length && !sentTexts.length; });
       wrap.appendChild(thumb); wrap.appendChild(rm);
       container.appendChild(wrap);
     });
@@ -2370,7 +2385,7 @@ var TEAM_COLORS = {
         canvas.getContext('2d').drawImage(img, 0, 0, w, h);
         var compressed = canvas.toDataURL('image/jpeg', 0.8);
         if(sentImgs.length >= imageReferenceLimit()){ alert('此模型最多上传 '+imageReferenceLimit()+' 张参考图'); return; }
-        sentImgs.push({data: compressed.split(',')[1], mime: 'image/jpeg', preview: compressed});
+        sentImgs.push({data: compressed.split(',')[1], mime: 'image/jpeg', preview: compressed});setImageError('');
         if(!aaRunning) $('aaSendBtn').disabled = false; renderImgPreviews();
       };
       img.src = e.target.result;
@@ -2571,6 +2586,8 @@ var TEAM_COLORS = {
 
     
     var currentUser = ($('aaUsername').value || '').trim().toLowerCase();
+    var imageRefs = extraOpts && Array.isArray(extraOpts._imgs)
+      ? extraOpts._imgs.map(function(source){return {data:source.data,mime:source.mime||'image/jpeg'};}) : null;
     var payload = {
       username: currentUser,
       user: currentUser,
@@ -2579,17 +2596,18 @@ var TEAM_COLORS = {
       model: submodel,
       prompt: prompt,
       search: searchOn,
-      image: img || null,
-      imageMime: imgMime || null,
-      images: (typeof extraOpts !== 'undefined' && extraOpts && extraOpts._imgs) ? extraOpts._imgs : null
+      image: imageRefs && imageRefs.length ? null : (img || null),
+      imageMime: imageRefs && imageRefs.length ? null : (imgMime || null),
+      images: imageRefs
     };
     payload.projectId=activeProjectId;
     if(effortFor(submodel)) payload.effort = effortFor(submodel);
-    if(extraOpts) Object.assign(payload, extraOpts);
+    if(extraOpts){var wireOpts=Object.assign({},extraOpts);delete wireOpts._imgs;Object.assign(payload,wireOpts);}
     if(activeProjectId&&!payload.chat&&!imageMode)payload.chat={scope:activeProjectId,chatId:currentChatId,question:ArenaContext.clip(prompt,16000),history:[],incognito:!!_incognitoMode};
     if(payload.chat)payload.prompt='';
-    var controller=new AbortController();activeStreamControllers.add(controller);
-    function completed(){activeStreamControllers.delete(controller);onDone();}
+    var controller=new AbortController(),settled=false;activeStreamControllers.add(controller);
+    function completed(terminal){if(settled)return;settled=true;activeStreamControllers.delete(controller);onDone(terminal);}
+    function failed(error){if(settled)return;settled=true;activeStreamControllers.delete(controller);if(error.name==='AbortError')onDone();else onError(error);}
 
 
     
@@ -2614,40 +2632,39 @@ var TEAM_COLORS = {
       }
     var reader = res.body.getReader();
   var decoder = new TextDecoder();
-  var buf = '';
+    var buf = '';
+    function processLine(line){
+      if(!line.startsWith('data:')) return false;
+      var raw=line.slice(5).trim();if(!raw)return false;
+      if(raw==='[DONE]'){completed(true);return true;}
+      var obj;try{obj=JSON.parse(raw);}catch(e){throw new Error('生成结果格式无法解析，请重试。');}
+      if(obj.error)throw new Error(typeof obj.error==='string'?obj.error:(obj.error.message||'生成失败，请重试。'));
+      if(obj.modelName && onModelName) onModelName(obj.modelName);
+      if(obj.status) updateThinkStatus(submodel, obj.status);
+      if(onMeta && (obj.status || obj.activity || obj.citation || obj.context || obj.imageContext || obj.grounding)) onMeta(obj);
+      if(obj.t) onChunk(obj.t);
+      if(obj.r){appendThinkSummary(submodel, obj.r);if(onReasoning) onReasoning(obj.r);}
+      if(obj.img && onChunk) onChunk('\x00IMG\x00'+obj.img+'\x00MIME\x00'+(obj.mime||'image/png'));
+      if(obj.mjButtons) onChunk('\x00MJB\x00'+JSON.stringify(obj.mjButtons));
+      if(obj.usage && onChunk) onChunk('%%USAGE%%'+JSON.stringify(obj.usage));
+      if(obj.cost !== undefined && onChunk) onChunk('%%USAGE%%'+JSON.stringify({cost:obj.cost}));
+      return false;
+    }
   (async function pump(){
     try {
       while(true){
         if(abortF){ reader.cancel(); completed(); return; }
         var result = await reader.read();
-        if(result.done){ completed(); return; }
+        if(result.done){buf+=decoder.decode();if(buf && processLine(buf))return;completed(false);return;}
         buf += decoder.decode(result.value, {stream: true});
         var lines = buf.split('\n'); buf = lines.pop();
         for(var i = 0; i < lines.length; i++){
-          var line = lines[i];
-          if(!line.startsWith('data: ')) continue;
-          var raw = line.slice(6).trim();
-          if(raw === '[DONE]'){ completed(); return; }
-          try{
-            var obj = JSON.parse(raw);
-            if(obj.modelName && onModelName) onModelName(obj.modelName);
-            if(obj.status) updateThinkStatus(submodel, obj.status);
-            if(onMeta && (obj.status || obj.activity || obj.citation || obj.context || obj.imageContext || obj.grounding)) onMeta(obj);
-            if(obj.t) onChunk(obj.t);
-            if(obj.r){
-              appendThinkSummary(submodel, obj.r);
-              if(onReasoning) onReasoning(obj.r);
-            }
-            if(obj.img && onChunk) onChunk('\x00IMG\x00'+obj.img+'\x00MIME\x00'+(obj.mime||'image/png'));
-            if(obj.mjButtons) onChunk('\x00MJB\x00'+JSON.stringify(obj.mjButtons));
-            if(obj.usage && onChunk) onChunk('%%USAGE%%'+JSON.stringify(obj.usage));
-            if(obj.cost !== undefined && onChunk) onChunk('%%USAGE%%'+JSON.stringify({cost:obj.cost}));
-          } catch(e){ console.warn('SSE parse error:', raw, e); }
+          if(processLine(lines[i]))return;
         }
       }
-    } catch(e){activeStreamControllers.delete(controller);if(e.name==='AbortError')completed();else onError(e); }
+    } catch(e){try{reader.cancel().catch(function(){});}catch(ignore){}failed(e);}
   })();
-    }).catch(function(error){activeStreamControllers.delete(controller);if(error.name==='AbortError')completed();else onError(error);});
+    }).catch(failed);
   }
 
   function renderGoogleGrounding(msg){
@@ -2721,7 +2738,13 @@ var TEAM_COLORS = {
     var body = el.querySelector('.aa-msg-body');
     if(body){
       var _liveText = (text || '').replace(/\[MJ_IMAGE\]([\s\S]*?)\[\/MJ_IMAGE\]/g, '').replace(/\[MJ_BUTTONS\]([\s\S]*?)\[\/MJ_BUTTONS\]/g, '').replace(/\[KLING_VIDEO\]([\s\S]*?)\[\/KLING_VIDEO\]/g, '').trim();
-      body.innerHTML=renderMd(_liveText,message&&message.citations)+'<span class="arena-stream-caret" aria-hidden="true">▍</span>';
+      if(body.classList.contains('aa-generated-message')){
+        // Image metadata can arrive before the stream ends; keep the image
+        // card intact when updating accompanying text or activity.
+        var caption=body.querySelector(':scope > p');
+        if(_liveText){if(!caption){caption=document.createElement('p');body.insertBefore(caption,body.firstChild);}caption.textContent=_liveText;}
+        else if(caption)caption.remove();
+      }else body.innerHTML=renderMd(_liveText,message&&message.citations)+'<span class="arena-stream-caret" aria-hidden="true">▍</span>';
       body.dataset.streamChunks=String(message&&message._streamChunks||0);
       body.dataset.textUpdates=String(Number(body.dataset.textUpdates||0)+1);
       if(!userScrolledUp)c.scrollTop=c.scrollHeight;
@@ -3208,11 +3231,14 @@ var TEAM_COLORS = {
   var topicImeGuard=createImeGuard($('aaTopic'));
   $('aaTopic').addEventListener('input', function(){
     this.style.height = 'auto'; this.style.height = Math.min(this.scrollHeight, 220) + 'px';
-    $('aaSendBtn').disabled = (!this.value.trim() && !sentImgs.length && !sentTexts.length) || aaRunning;
+    $('aaSendBtn').disabled = !aaRunning && (!this.value.trim() && !sentImgs.length && !sentTexts.length);
   });
   $('aaTopic').addEventListener('keydown', function(e){
     // Do not cancel the key that commits an IME candidate. Safari can report isComposing=false here.
     if(topicImeGuard(e))return;
+    if(e.key === 'Enter' && !e.shiftKey && aaRunning && imageMode && window.innerWidth > 768){
+      e.preventDefault();setImageError('上一张图片仍在生成，完成后即可继续修改。');return;
+    }
     if(e.key === 'Enter' && !e.shiftKey && !aaRunning && window.innerWidth > 768){
       e.preventDefault();
       if(this.value.trim() || sentImgs.length || sentTexts.length) aaStart();
@@ -3352,7 +3378,7 @@ var TEAM_COLORS = {
     dock.classList.toggle('visible', imageMode);
     row.classList.toggle('image-mode-layout', imageMode);
     $('aaPlusSearch').style.display=imageMode?'none':'';
-    if(!imageMode){ closeImagePopovers(); return; }
+    if(!imageMode){setImageError('');closeImagePopovers();return;}
     normalizeImageSettings();
 
     var model = IMAGE_MODELS.find(function(m){ return m.value === imageComposerModel; }) || IMAGE_MODELS[0];
@@ -3379,7 +3405,7 @@ var TEAM_COLORS = {
     $('aaNbEditBanner').style.display = 'none';
     buildImageModelPop(); buildImageTaskPop(); buildImageSettingsPop();
     localStorage.setItem('aa-image-model', imageComposerModel);
-    localStorage.setItem('aa-image-task', imageComposerTask);
+    if(!sentImgs.some(function(image){return image.autoFollowup;}))localStorage.setItem('aa-image-task', imageComposerTask);
   }
 
   $('aaImageModelBtn').addEventListener('click', function(e){ e.stopPropagation(); buildImageModelPop(); openImagePopover('aaImageModelBtn','aaImageModelPop',true); });
@@ -3387,15 +3413,22 @@ var TEAM_COLORS = {
   $('aaImageSettingsBtn').addEventListener('click', function(e){ e.stopPropagation(); buildImageSettingsPop(); openImagePopover('aaImageSettingsBtn','aaImageSettingsPop',false); });
   $('aaImageModelPop').addEventListener('click', function(e){
     var btn = e.target.closest('[data-value]'); if(!btn || btn.disabled) return;
-    imageEditParentUid=null;
+    imageEditParentUid=null;setImageError('');
     imageComposerModel = btn.dataset.value;
     imageComposerTask = imageComposerModel === 'mj_imagine' ? 'mj_imagine' : 'generation';
     closeImagePopovers(); syncImageComposer(); saveState();
   });
   $('aaImageTaskPop').addEventListener('click', function(e){
     var btn = e.target.closest('[data-value]'); if(!btn) return;
-    imageEditParentUid=null;
     imageComposerTask = btn.dataset.value;
+    if(imageComposerTask==='generation'){
+      sentImgs=sentImgs.filter(function(image){return !image.generatedReference;});
+      imageEditParentUid=null;renderImgPreviews();
+    }else{
+      sentImgs.forEach(function(image){image.autoFollowup=false;});
+      if(!sentImgs.some(function(image){return image.generatedUid!=null&&String(image.generatedUid)===String(imageEditParentUid);}))imageEditParentUid=null;
+    }
+    setImageError('');
     if(imageComposerModel === 'mj_imagine') brandSelection['mj'] = 'mj_imagine';
     closeImagePopovers(); syncImageComposer(); saveState();
   });
@@ -3993,7 +4026,10 @@ function initPersonaDragDrop(){
     if(msgs.length && currentChatId) saveCurrentChat();
     currentChatId = genChatId();
     _bizMode = false;
-    imageEditParentUid=null;msgs = []; render(); hideThink(); $('aaTopic').value = ''; $('aaTopic').style.height = ''; clearPreview(); closeHistory(); $('aaTopic').focus();
+    var resetImageTask=imageMode&&imageComposerTask==='edit'&&sentImgs.some(function(image){return image.generatedReference;});
+    imageEditParentUid=null;msgs = []; render(); hideThink(); $('aaTopic').value = ''; $('aaTopic').style.height = ''; clearPreview();setImageError('');
+    if(resetImageTask){imageComposerTask='generation';syncImageComposer();}
+    closeHistory(); $('aaTopic').focus();
     if(welcomeAnimation)welcomeAnimation.update();
     _memoryLoaded = false; loadMemory();
     $('aaBizBanner').style.display = 'none'; //
@@ -4026,27 +4062,30 @@ function initPersonaDragDrop(){
     });
   };
 
+  function setGeneratedImageReference(source,parent,automatic,index){
+    if(!source||!source.data)return false;
+    imageEditParentUid=parent&&parent.imageTurn&&parent.imageResponse&&ArenaImage.canonical(parent.submodel)===ArenaImage.GOOGLE_MODEL?parent.uid:null;
+    imageComposerTask='edit';
+    var mime=source.mime||'image/png';
+    sentImgs=[{data:source.data,mime:mime,preview:'data:'+mime+';base64,'+source.data,generatedReference:true,generatedUid:parent?parent.uid:null,generatedIndex:index,autoFollowup:!!automatic}];
+    return true;
+  }
+
   window._aaEditGeneratedImage = function(imageKey, sourceModel){
     var source = window._aaImgStore && window._aaImgStore[imageKey];
     if(!source || !source.data){ alert('没有找到这张图片，请刷新后重试。'); return; }
 
-    imageEditParentUid=null;
-    var parent=msgs.find(function(m){return m.imgItems&&m.imgItems.some(function(i){return i.data===source.data;});});
-    if(parent&&parent.imageTurn&&parent.imageResponse&&parent.submodel===ArenaImage.GOOGLE_MODEL)imageEditParentUid=parent.uid;
+    var key=/^aigen_(\d+)_(\d+)$/.exec(String(imageKey));
+    var parent=key?msgs.find(function(m){return String(m.uid)===key[1]&&m.imgItems&&m.imgItems[Number(key[2])];}):null;
+    if(!parent)parent=msgs.find(function(m){return m.imgItems&&m.imgItems.some(function(i){return i.data===source.data;});});
     sourceModel=ArenaImage.canonical(sourceModel);
     debate = false;
     imageMode = true;
     videoMode = false;
     imageComposerModel = ['grok-imagine-image-2.0','gpt-image-2.5-sunburst','gemini-nano-banana-2.1'].indexOf(sourceModel) !== -1
       ? sourceModel : 'grok-imagine-image-2.0';
-    imageComposerTask = 'edit';
-    sentImgs = [{
-      data: source.data,
-      mime: source.mime || 'image/png',
-      preview: 'data:'+(source.mime || 'image/png')+';base64,'+source.data
-    }];
-    sentTexts = [];
-
+    setGeneratedImageReference(source,parent,false,key?Number(key[2]):undefined);
+    setImageError('');
     $('aaBarImageBtn').classList.add('active');
     $('aaBarDebateBtn').classList.remove('active');
     $('aaBarChatBtn').classList.remove('active');
@@ -4069,7 +4108,6 @@ function initPersonaDragDrop(){
     updateModeBadge();
     saveState();
 
-    $('aaTopic').value = '';
     $('aaTopic').placeholder = '描述你想怎样修改这张图…';
     $('aaSendBtn').disabled = false;
     $('aaTopic').scrollIntoView({behavior:'smooth', block:'center'});
@@ -4449,15 +4487,16 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
     var act = getActiveSubmodels();
     if(!act.length){ alert('请至少选择一个模型。'); return; }
     if(imageMode){
+      setImageError('');
       var refCount = sentImgs.length;
       if(refCount && imageComposerTask==='generation'){imageComposerTask=refCount===1?'edit':'multi-edit';syncImageComposer();}
-      if(refCount>imageReferenceLimit()){alert('此模型最多支持 '+imageReferenceLimit()+' 张参考图。');return;}
-      if(!refCount)imageEditParentUid=null;
-      try{if(imageEditParentUid!=null)ArenaImage.historyFor(msgs,imageEditParentUid);}catch(error){arenaNotice(error.message);return;}
+      if(refCount>imageReferenceLimit()){setImageError('此模型最多支持 '+imageReferenceLimit()+' 张参考图。');return;}
+      if(!refCount||!sentImgs.some(function(image){return image.generatedUid!=null&&String(image.generatedUid)===String(imageEditParentUid);}))imageEditParentUid=null;
+      try{if(imageEditParentUid!=null)ArenaImage.historyFor(msgs,imageEditParentUid);}catch(error){setImageError(error.message);return;}
       var editableImageModel = imageComposerModel !== 'mj_imagine';
-      if(!topic){ alert('请先描述你想生成或修改的图片。'); return; }
-      if(editableImageModel && imageComposerTask === 'edit' && refCount < 1){ alert('编辑图片需要先上传 1 张参考图。'); return; }
-      if(editableImageModel && imageComposerTask === 'multi-edit' && (refCount < 2 || refCount > imageReferenceLimit())){ alert('多图编辑需要上传 2–'+imageReferenceLimit()+' 张参考图。'); return; }
+      if(!topic){setImageError('请先描述你想生成或修改的图片。');return;}
+      if(editableImageModel && imageComposerTask === 'edit' && refCount !== 1){setImageError('编辑图片需要 1 张参考图。请上传图片或点击图片下方的“编辑这张”。');return;}
+      if(editableImageModel && imageComposerTask === 'multi-edit' && (refCount < 2 || refCount > imageReferenceLimit())){setImageError('多图编辑需要 2–'+imageReferenceLimit()+' 张参考图。');return;}
     }
     _bizMode = act.indexOf('grok41-biz-official') !== -1;
     // ✅ 商业版模式:清空当前 chatId,阻止保存到历史
@@ -4467,7 +4506,7 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
   } else {
     $('aaBizBanner').style.display = 'none';
   }
-    var finished=false;
+    var finished=false,followupImage=null,imageFailure=false;
     aaRunning = true; abortF = false; userScrolledUp = false;
     hideThink();
     var btn = $('aaSendBtn');
@@ -4480,6 +4519,7 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
     var _isSwap = false;
     var _swapImgs = _isSwap ? sentImgs.slice(0,2) : null;
     var _imgs = _swapImgs || sentImgs.slice(), _img = _imgs.length ? _imgs[0].data : null, _imgMime = _imgs.length ? _imgs[0].mime : null, _texts = sentTexts.slice();
+    var submittedImageParentUid=imageEditParentUid;
     var _topicText = topic;
     if(_texts.length) topic = topic ? topic + '\n\n' + _texts.join('\n\n') : _texts.join('\n\n');
     var _quotedBlock = activeQuote ? activeQuote : null;
@@ -4810,6 +4850,7 @@ function build2v2Prompt(topic, history, speakerInfo, rnd){
 var uid = newUid();
 var msgObj = {uid:uid, submodel:sub, effort:effortFor(sub), brand:info.brand, name:info.name, text:'', color:brandInfo.color, activity:[], citations:[]};
 var firstChunk = true;
+var expectsImage=!!(imageMode&&ArenaImage.cap(sub));
 var _nbStylePrefix = (sub === 'gemini-nano-banana-2.1' && nbStylePreset !== 'none') ? (NB_STYLE_PROMPTS[nbStylePreset] || '') : '';
 var _nbExtraOpts = { _imgs: _imgs };
 if(imageMode&&ArenaImage.cap(sub)){
@@ -4826,8 +4867,10 @@ var fullPrompt = imageMode ? _topicForPrompt : topicWithQuote;
 if(!imageMode)_nbExtraOpts.chat=scopedChatInput(topicWithQuote,sysPrompt,_topicText);
 if(sub===ArenaImage.GOOGLE_MODEL){
   msgObj.imageTurn={prompt:fullPrompt,parentUid:imageEditParentUid,references:_imgs.map(function(image){
-    var parent=msgs.find(function(m){return m.imgItems&&m.imgItems.some(function(i){return i.data===image.data;});});
-    return parent?{uid:parent.uid,index:parent.imgItems.findIndex(function(i){return i.data===image.data;})}:{data:image.data,mime:image.mime};
+    var parent=image.generatedUid!=null?msgs.find(function(m){return String(m.uid)===String(image.generatedUid)&&m.imgItems;}):null;
+    if(!parent)parent=msgs.find(function(m){return m.imgItems&&m.imgItems.some(function(i){return i.data===image.data;});});
+    var index=parent&&Number.isInteger(image.generatedIndex)&&parent.imgItems[image.generatedIndex]&&parent.imgItems[image.generatedIndex].data===image.data?image.generatedIndex:(parent?parent.imgItems.findIndex(function(i){return i.data===image.data;}):-1);
+    return parent&&index>=0?{uid:parent.uid,index:index}:{data:image.data,mime:image.mime};
   })};
 }
 callWorkerStream(sub, fullPrompt, _img, _imgMime,
@@ -4901,13 +4944,26 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
             msgObj._streamChunks=(msgObj._streamChunks||0)+1;
             msgObj.text += chunk; liveUpdate(uid, msgObj.text, msgObj.reasoning||undefined);
           },
-          function(){
+          function(streamComplete){
+            if(expectsImage&&!abortF){
+              var images=msgObj.imgItems||[];
+              var missingImageContext=sub===ArenaImage.GOOGLE_MODEL&&images.length&&(!Array.isArray(msgObj.imageResponse)||!msgObj.imageResponse.length);
+              if(!images.length||streamComplete===false||missingImageContext){
+                imageFailure=true;msgObj.isError=true;
+                if(!images.length){var reason=(msgObj.text||'').trim();msgObj.text=reason?'未生成图片：'+reason:'模型没有返回图片，请检查网络或稍后重试。';}
+                else msgObj.text=((msgObj.text||'').trim()+(missingImageContext?'\n图片已收到，但连续编辑上下文未完整返回，请重新选择这张图片后继续。':'\n图片已收到，但本次结果未完整结束，请检查后再继续编辑。')).trim();
+                if(firstChunk){firstChunk=false;hideThink(sub);msgs.push(msgObj);}
+                render();done++;if(done>=act.length)finish();return;
+              }
+              if(!msgObj.isError)followupImage=msgObj;
+            }
             if(firstChunk) hideThink(sub);
             cleanThinkTags(msgObj); finalizeMsg(uid, msgObj.text, false, msgObj.reasoning||''); render();
             done++; if(done >= act.length) finish();
           },
           function(err){
             var em = (err && err.message) ? err.message : String(err || '未知错误');
+            if(expectsImage)imageFailure=true;
             if(isImageModerationError(em, sub)){
               var moderationHelp = buildImageModerationHelp(_topicText || topic);
               msgObj.text = moderationHelp.text;
@@ -4923,6 +4979,7 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
               hideThink(sub); msgObj.text = em; msgObj.isError = true; msgs.push(msgObj); render();
             } else {
               msgObj.text += '\n[错误: ' + em + ']'; msgObj.isError = true; finalizeMsg(uid, msgObj.text, true, '');
+              if(msgObj.imgItems&&msgObj.imgItems.length)render();
             }
             console.error('[AI Arena][Chat][Error]', sub, em);
             done++; if(done >= act.length) finish();
@@ -4998,7 +5055,17 @@ if(debateMode === '2v2'){
         doFinish();
       }
       function doFinish(){
-        aaRunning = false; clearPreview(); syncArenaLayout();
+        aaRunning = false;
+      if(imageMode&&imageFailure&&!abortF){
+        setImageError('图片处理未完成，请查看对话中的错误说明。');
+        if(!sentImgs.length&&_imgs.length){sentImgs=_imgs.slice();imageEditParentUid=submittedImageParentUid;}
+        if(!$('aaTopic').value.trim())$('aaTopic').value=_topicText;
+      }else if(imageMode&&followupImage&&!abortF&&ArenaImage.canonical(followupImage.submodel)===ArenaImage.canonical(imageComposerModel)){
+        setImageError('');
+        if(!sentImgs.length&&followupImage.imgItems.length===1){setGeneratedImageReference(followupImage.imgItems[0],followupImage,true,0);syncImageComposer();}
+        else if(followupImage.imageResponse&&sentImgs.some(function(image){return image.generatedUid!=null&&String(image.generatedUid)===String(followupImage.uid);}))imageEditParentUid=followupImage.uid;
+      }else setImageError('');
+      renderImgPreviews();renderTextPreviews();syncArenaLayout();
       nbRefImages = []; renderNbRefList();
       var btn = $('aaSendBtn');
       setSendButtonIcon(btn,false);
