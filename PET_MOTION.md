@@ -1,0 +1,11 @@
+# Yuan Jiujiu pet motion
+
+The current library contains 13 distinct photographic motions: six loops and seven single-shot actions. Twelve came from Kling; kneading uses the previously owner-approved Jimeng trial. At least 50 actions remain the wider goal; 37 more are required. Speed changes, mirrors and playback repetitions do not count as new actions. FB has no supplied reference photos yet.
+
+`arena-pet.js` keeps assistant request state separate from media playback. Focus, drafting and Chinese composition never pause the pet. Actual model status drives thinking/searching/working, and cancellation cannot celebrate or accept stale progress from an older request. Historical avatars are static. Idle actions play fully before advancing; rest loops continuously.
+
+The native player verifies alpha decoding, uses HEVC-alpha or WebM, and falls back to animated WebP on codec errors, loading timeouts, rejected autoplay or stalled decoding. Returning to a visible page resumes playback. A foreground watchdog recovers browser-paused videos and missed completion events. Hidden pages and reduced-motion preferences intentionally use a poster. Upcoming idle media is prefetched; no frame-by-frame DOM animation or body-part scaling is used.
+
+`assets/kitten/motion/manifest.json` describes the actual public files. Pages staging copies only that manifest's exported media plus public poster/portrait aliases, excluding original private photos, rejected studies, tests, source videos and service configuration. Final cat assets have alpha transparency and no collar or visible corner text; AI generation provenance remains in the manifest and original source records.
+
+Regression coverage includes repeated input/layout updates, single-shot continuation, visibility and preference changes, initially hidden containers, completed-idle-to-rest reuse, stale decode/end events, autoplay rejection, stalls and fallback timers. Browser QA uses a separate loopback-only fixture and makes no paid model calls. HEVC-alpha has been encoded; physical-device/Safari/iOS acceptance is separate from desktop browser verification.

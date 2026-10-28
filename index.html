@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>AI 助手</title>
-<meta name="app-version" content="20261028-imagefollow1">
+<meta name="app-version" content="20261028-pet2">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -866,10 +866,13 @@
 </style>
 <link rel="stylesheet" href="/arena.css?v=20261028-imagefollow1">
 <link rel="stylesheet" href="/arena-workspace.css?v=20261028-smooth2">
+<link rel="stylesheet" href="/arena-pet.css?v=20261028-pet2">
+<link rel="preload" as="image" href="/assets/kitten/motion/poster.png">
 
 <!-- Login overlay -->
 <div id="aaLoginOverlay" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:999999;background:linear-gradient(160deg,#0c1222 0%,#151d35 40%,#1a1030 100%);flex-direction:column;align-items:center;justify-content:center;padding:32px;">
   <div style="width:100%;max-width:280px;">
+    <div style="text-align:center"><button type="button" class="arena-kitten-greeting" data-aa-kitten-greet aria-label="和袁啾啾打招呼"><span class="aa-kitten aa-kitten--login" data-aa-kitten="live" data-state="welcome" aria-hidden="true"></span></button></div>
     <h2 style="font-size:20px;font-weight:700;letter-spacing:-0.03em;margin-bottom:4px;background:linear-gradient(135deg,#e8e8ee,#818cf8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;text-align:center;">AI 助手</h2>
     <p style="font-size:11px;color:#6b6b88;text-align:center;margin-bottom:36px;font-weight:400;"></p>
     <div style="background:rgba(20,25,45,0.92);backdrop-filter:blur(28px) saturate(1.3);-webkit-backdrop-filter:blur(28px) saturate(1.3);border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:16px;box-shadow:inset 0 1px 0 rgba(255,255,255,0.06),0 8px 32px rgba(0,0,0,0.4);">
@@ -930,6 +933,7 @@
     <span class="arena-conversation-title" id="aaConversationTitle">新对话</span>
     <span class="arena-mode-caption" id="aaModeCaption"></span>
   </div>
+  <button type="button" class="arena-kitten-dock" data-aa-kitten-greet aria-label="和袁啾啾打招呼"><span class="aa-kitten" data-aa-kitten="live" data-state="welcome" aria-hidden="true"></span><span data-aa-kitten-label>嗨，我在这里</span></button>
   <div class="arena-header-actions">
     <button class="aa-gear-btn" id="aaScrollTopBtn" aria-label="回到对话顶部" style="display:none;">↑</button>
     <button class="aa-gear-btn" id="aaIncognitoBtn" aria-pressed="false">开启无痕模式</button>
@@ -955,7 +959,7 @@
     <div id="aaProjectBar" class="arena-project-bar" hidden><div><span>项目</span><strong id="aaProjectName"></strong><span class="arena-scope-note">记忆独立</span></div><div><button id="aaProjectMaterials">资料</button><button id="aaProjectSettings" aria-label="项目设置">•••</button><button id="aaProjectExit">普通聊天</button></div></div>
     <button id="aaScrollBottomBtn" class="arena-jump-latest" aria-label="回到最下面" title="回到最下面" style="display:none"><span class="arena-jump-dots" aria-hidden="true"><i></i><i></i><i></i></span><svg class="arena-jump-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v15M6 13l6 6 6-6"/></svg><span class="arena-jump-hint">回到最下面</span></button>
     <div id="aaWelcome" class="aa-welcome">
-      <img id="aaWelcomePet" class="arena-welcome-pet" src="/welcome-media/jiujiu-poster-v1.png" data-poster="/welcome-media/jiujiu-poster-v1.png" data-animation="/welcome-media/jiujiu-knead-v1.webp" width="220" height="220" alt="袁啾啾正在踩奶" decoding="async">
+      <button type="button" class="arena-kitten-greeting" data-aa-kitten-greet aria-label="和袁啾啾打招呼"><span class="aa-kitten aa-kitten--welcome" data-aa-kitten="live" data-state="welcome" aria-hidden="true"></span></button>
       <h1>今天，想聊点什么？</h1>
     </div>
     <div class="aa-messages" id="aaMessages" tabindex="0" aria-label="对话消息">
@@ -1213,7 +1217,8 @@
 <script src="/arena-context.js?v=20261027-account1"></script>
 <script src="/arena-workspace.js?v=20261027-account1"></script>
 <script src="/arena-account.js?v=20261027-account2"></script>
-<script src="/arena-welcome.js?v=20261028-knead1"></script>
+<script src="/arena-pet-catalog.js?v=20261028-pet2"></script>
+<script src="/arena-pet.js?v=20261028-pet2"></script>
 <script>
 (function(){
   (function(){
@@ -1357,6 +1362,9 @@
   var activeStreamControllers=new Set();
   var rounds = 1, msgs = [], debate = false, aaRunning = false, abortF = false, searchOn = true;
   var stopActiveGeneration = null;
+  function syncKitten(){
+    if(window.ArenaKitten) window.ArenaKitten.sync({running:aaRunning, hasMessages:msgs.length>0, mode:imageMode?'image':'chat', stopped:abortF});
+  }
 var debateMode = 'free'; // 'free' | '2v2'
 var imageMode = false;
 var videoMode = false;
@@ -2451,7 +2459,7 @@ var TEAM_COLORS = {
     }
     if(_passHash) $('aaGearBtn').classList.add('unlocked');
     else $('aaGearBtn').classList.remove('unlocked');
-    if(typeof welcomeAnimation!=='undefined'&&welcomeAnimation)welcomeAnimation.update();
+    syncKitten();
   }
   var _lightMode = localStorage.getItem('aa-light-mode') !== '0';
   function applyLightMode(){
@@ -2575,6 +2583,12 @@ var TEAM_COLORS = {
     });
   }
   function callWorkerStream(submodel, prompt, img, imgMime, onChunk, onDone, onError, onModelName, onReasoning, extraOpts, onMeta){
+    var kitten = window.ArenaKitten, kittenGeneration = kitten ? kitten.snapshot().generation : 0;
+    if(kitten){
+      var originalDone = onDone, originalError = onError;
+      onDone = function(){ kitten.complete(submodel, 'done', kittenGeneration); return originalDone.apply(this, arguments); };
+      onError = function(){ kitten.complete(submodel, 'error', kittenGeneration); return originalError.apply(this, arguments); };
+    }
     if(/^(mj_|mj-)/.test(submodel) || submodel === 'swap-face'){
       onError(new Error('Midjourney 未提供通用公开官方 API，已停止中转调用。请选择其他官方图片模型。')); return;
     }
@@ -2640,10 +2654,10 @@ var TEAM_COLORS = {
       var obj;try{obj=JSON.parse(raw);}catch(e){throw new Error('生成结果格式无法解析，请重试。');}
       if(obj.error)throw new Error(typeof obj.error==='string'?obj.error:(obj.error.message||'生成失败，请重试。'));
       if(obj.modelName && onModelName) onModelName(obj.modelName);
-      if(obj.status) updateThinkStatus(submodel, obj.status);
+      if(obj.status) updateThinkStatus(submodel, obj.status, kittenGeneration);
       if(onMeta && (obj.status || obj.activity || obj.citation || obj.context || obj.imageContext || obj.grounding)) onMeta(obj);
-      if(obj.t) onChunk(obj.t);
-      if(obj.r){appendThinkSummary(submodel, obj.r);if(onReasoning) onReasoning(obj.r);}
+      if(obj.t){ if(kitten) kitten.progress(submodel, 'responding', kittenGeneration); onChunk(obj.t); }
+      if(obj.r){appendThinkSummary(submodel, obj.r, kittenGeneration);if(onReasoning) onReasoning(obj.r);}
       if(obj.img && onChunk) onChunk('\x00IMG\x00'+obj.img+'\x00MIME\x00'+(obj.mime||'image/png'));
       if(obj.mjButtons) onChunk('\x00MJB\x00'+JSON.stringify(obj.mjButtons));
       if(obj.usage && onChunk) onChunk('%%USAGE%%'+JSON.stringify(obj.usage));
@@ -4030,7 +4044,7 @@ function initPersonaDragDrop(){
     imageEditParentUid=null;msgs = []; render(); hideThink(); $('aaTopic').value = ''; $('aaTopic').style.height = ''; clearPreview();setImageError('');
     if(resetImageTask){imageComposerTask='generation';syncImageComposer();}
     closeHistory(); $('aaTopic').focus();
-    if(welcomeAnimation)welcomeAnimation.update();
+    syncKitten();
     _memoryLoaded = false; loadMemory();
     $('aaBizBanner').style.display = 'none'; //
   });
@@ -4207,10 +4221,12 @@ function initPersonaDragDrop(){
     var savedScrollTop = c.scrollTop;
     var chatEl = c.parentElement;
     var thinkArea = $('aaThinkingArea');
-    var savedThink = thinkArea ? thinkArea.innerHTML : '';
+    // Keep the live pending rows and their video decoders when message HTML changes.
+    if(!thinkArea){ thinkArea = document.createElement('div'); thinkArea.id = 'aaThinkingArea'; }
+    else thinkArea.remove();
     if(!msgs.length){
       chatEl.classList.add('empty-state');
-      c.innerHTML = '<div id="aaThinkingArea">'+savedThink+'</div>';
+      c.replaceChildren(thinkArea);
       if($('aaWelcome')) $('aaWelcome').style.display = '';
       chatEl.style.justifyContent = 'center';
       return;
@@ -4233,7 +4249,8 @@ function initPersonaDragDrop(){
         msg.isError = true;
       }
       h += '<div class="aa-msg'+(msg.isUser?' user-msg':'')+'" data-uid="'+msg.uid+'" style="animation-delay:'+(i%4)*0.05+'s">';
-      h += '<div class="aa-msg-head"><div class="aa-msg-dot" style="background:'+msg.color+';box-shadow:0 0 6px '+msg.color+'40"></div>';
+      h += '<div class="aa-msg-head">';
+      h += !msg.isUser && window.ArenaKitten ? window.ArenaKitten.markup('portrait', 'welcome') : '<div class="aa-msg-dot" style="background:'+msg.color+';box-shadow:0 0 6px '+msg.color+'40"></div>';
       var authorName = !msg.isUser && msg.submodel === 'gemini-4-argon' ? SUBS[msg.submodel].name : msg.name;
       h += '<span class="aa-msg-name" style="color:'+msg.color+'">'+esc(authorName)+'</span>';
       if(msg.round !== undefined) h += '<span class="aa-msg-round">R'+(msg.round+1)+'</span>';
@@ -4363,8 +4380,8 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
       if(!msg.isUser)h+=renderGoogleGrounding(msg);
       h += '</div>';
     });
-    h += '<div id="aaThinkingArea">'+savedThink+'</div>';
     c.innerHTML = h;
+    c.appendChild(thinkArea);
     if(!userScrolledUp) c.scrollTop = c.scrollHeight;
     else c.scrollTop = savedScrollTop;
     highlightCodeBlocks();
@@ -4408,24 +4425,27 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
     var area = $('aaThinkingArea'), info = SUBS[submodel];
     if(!area || !info) return;
     hideThink(submodel);
+    syncKitten();
     var row = document.createElement('div');
     row.className = 'aa-msg aa-pending-message'; row.dataset.think = submodel; row.dataset.startedAt = Date.now();
     row.innerHTML = '<div class="aa-msg-head"><span class="aa-msg-name">'+esc(info.name)+'</span></div>'
-      +'<div class="arena-progress"><span class="arena-progress-dots" aria-hidden="true"><i></i><i></i><i></i></span>'
+      +'<div class="arena-progress">'+(window.ArenaKitten ? window.ArenaKitten.markup('progress', imageMode?'working':'thinking', submodel) : '<span class="arena-progress-dots" aria-hidden="true"><i></i><i></i><i></i></span>')
       +'<span class="arena-progress-label" role="status">'+(imageMode?'正在生成图像':'正在准备回答')+'</span><span class="arena-progress-time" aria-hidden="true"></span></div>';
     area.appendChild(row);
+    if(window.ArenaKitten) window.ArenaKitten.progress(submodel, imageMode?'working':'thinking');
     if(!thinkingClock) thinkingClock = setInterval(tickThinkingClock, 1000);
     if(!userScrolledUp) $('aaMessages').scrollTop = $('aaMessages').scrollHeight;
   }
-  function updateThinkStatus(submodel, status){
+  function updateThinkStatus(submodel, status, generation){
     var row = document.querySelector('#aaThinkingArea [data-think="'+submodel+'"]');
     var labels = {thinking:'正在思考',searching:'正在搜索网页',responding:'正在生成回答'};
     if(row && labels[status]) row.querySelector('.arena-progress-label').textContent = labels[status];
+    if(window.ArenaKitten) window.ArenaKitten.progress(submodel, status, generation);
   }
-  function appendThinkSummary(submodel, text){
+  function appendThinkSummary(submodel, text, generation){
     var row = document.querySelector('#aaThinkingArea [data-think="'+submodel+'"]');
     if(!row) return;
-    updateThinkStatus(submodel, 'thinking');
+    updateThinkStatus(submodel, 'thinking', generation);
     var content = row.querySelector('.aa-reasoning-content');
     if(!content){
       var details = document.createElement('details'); details.className = 'aa-reasoning-block';
@@ -5364,7 +5384,7 @@ if(debateMode === '2v2'){
   $('aaLoginPass').addEventListener('keydown', function(e){ if(!loginPassImeGuard(e)&&e.key === 'Enter') attemptLogin(); });
   $('aaLoginUser').addEventListener('keydown', function(e){ if(!loginUserImeGuard(e)&&e.key === 'Enter') $('aaLoginPass').focus(); });
 
-  var welcomeAnimation=ArenaWelcome.mount({image:$('aaWelcomePet'),input:$('aaTopic'),welcome:$('aaWelcome'),active:function(){return !!getPass()&&!msgs.length&&!debate&&!imageMode&&!videoMode;}});
+  syncKitten();
 
   // === Init ===
   $('aaExpandBarBtn').addEventListener('click', function(){
@@ -5898,7 +5918,7 @@ if(debateMode === '2v2'){
   }
   function syncArenaLayout(){
     var app = $('ai-arena-app');
-    if(typeof welcomeAnimation!=='undefined'&&welcomeAnimation)welcomeAnimation.update();
+    syncKitten();
     if(!$('aaConversationTitle')) return;
     syncArenaNavigation();
     app.classList.toggle('arena-debate-mode', debate);
@@ -5928,6 +5948,7 @@ if(debateMode === '2v2'){
     setSendButtonIcon(send,aaRunning);
     send.setAttribute('aria-label', aaRunning ? '停止生成' : '发送消息');
     if(!debate && !imageMode && !videoMode) $('aaTopic').placeholder = '回复 AI 助手…';
+    syncKitten();
   }
   function renderArenaModelMenu(){
     var model = getActiveSubmodels()[0], info = SUBS[model];

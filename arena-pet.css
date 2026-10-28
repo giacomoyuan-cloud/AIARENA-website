@@ -1,0 +1,57 @@
+/* Actual alpha video frames; no sprite stepping or body-part transforms. */
+#ai-arena-app { --aa-kitten-ease-out: cubic-bezier(.23,1,.32,1); }
+#ai-arena-app .aa-kitten { display:inline-block;position:relative;flex:0 0 auto;width:60px;height:60px;vertical-align:middle;pointer-events:none;user-select:none;-webkit-user-select:none; }
+#ai-arena-app .aa-kitten-viewport { position:absolute;inset:0;overflow:hidden; }
+#ai-arena-app .aa-kitten-poster,#ai-arena-app .aa-kitten-motion { display:block;position:absolute;inset:0;width:100%;height:100%;max-width:none;object-fit:contain;border:0;border-radius:0;background:transparent;animation:aa-pet-reveal 140ms ease-out; }
+#ai-arena-app .aa-kitten [hidden] { display:none!important; }
+#ai-arena-app .aa-kitten[data-aa-kitten=still] img { animation:none; }
+@keyframes aa-pet-reveal { from { opacity:0 } to { opacity:1 } }
+#ai-arena-app.arena-shell .arena-kitten-dock {
+  display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0;
+  padding: 0 8px 0 0; height: 52px; border: 0; border-radius: 12px;
+  color: var(--arena-muted); background: transparent; font: 11px/1.4 var(--arena-ui-font);
+  cursor: pointer; touch-action: manipulation; user-select: none;
+  -webkit-user-select: none; -webkit-tap-highlight-color: transparent;
+}
+#ai-arena-app .arena-kitten-dock .aa-kitten { width: 52px; height: 52px; }
+#ai-arena-app .arena-kitten-dock [data-aa-kitten-label] { width: 112px; text-align: left; }
+#ai-arena-app.arena-shell .arena-kitten-greeting {
+  display: inline-flex; align-items: center; justify-content: center; border: 0;
+  padding: 0; background: transparent; cursor: pointer; pointer-events: auto;
+  touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+  transition: opacity 140ms var(--aa-kitten-ease-out);
+}
+#ai-arena-app .aa-kitten--welcome { width: clamp(116px, 23dvh, 184px); height: clamp(116px, 23dvh, 184px); }
+#ai-arena-app .aa-kitten--login { width: 140px; height: 140px; }
+#ai-arena-app .aa-kitten--portrait { width: 32px; height: 32px; }
+#ai-arena-app .aa-kitten--progress { width: 76px; height: 76px; }
+#ai-arena-app.arena-shell .aa-welcome { top: calc((100% - 170px) / 2); transform: translateY(-50%); }
+#ai-arena-app.arena-shell .aa-welcome h1 { margin-top: 2px; }
+#ai-arena-app.arena-shell .aa-msg-head { align-items: center; }
+#ai-arena-app.arena-shell .arena-progress:has(.aa-kitten) { gap: 12px; min-height: 76px; }
+#ai-arena-app .arena-kitten-dock:focus-visible,
+#ai-arena-app .arena-kitten-greeting:focus-visible { outline: 2px solid var(--arena-accent); outline-offset: 3px; border-radius: 12px; }
+#ai-arena-app .arena-kitten-greeting:active { opacity: .8; }
+@media (hover: hover) and (pointer: fine) {
+  #ai-arena-app .arena-kitten-greeting:hover { opacity: .86; }
+  #ai-arena-app .arena-kitten-dock:hover { background: var(--arena-hover); }
+}
+@media (max-width: 600px) {
+  #ai-arena-app .arena-kitten-dock { padding: 0; }
+  #ai-arena-app .arena-kitten-dock [data-aa-kitten-label] { display: none; }
+  #ai-arena-app .arena-kitten-dock .aa-kitten { width: 46px; height: 46px; }
+  #ai-arena-app .aa-kitten--welcome { width: 152px; height: 152px; }
+  #ai-arena-app .aa-kitten--progress { width: 68px; height: 68px; }
+  #ai-arena-app.arena-shell .aa-welcome h1 { font-size: 27px; }
+  #ai-arena-app.arena-shell .arena-topbar { gap: 4px; }
+}
+@media (max-height: 600px) {
+  #ai-arena-app .aa-kitten--welcome { width: 100px; height: 100px; }
+  #ai-arena-app .aa-kitten--login { width: 92px; height: 92px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #ai-arena-app .aa-kitten-poster, #ai-arena-app .aa-kitten-motion { animation: none; }
+  #ai-arena-app .arena-kitten-greeting { transition: none; transform: none; }
+  #ai-arena-app .arena-kitten-greeting:hover,
+  #ai-arena-app .arena-kitten-greeting:active { transform: none; }
+}
