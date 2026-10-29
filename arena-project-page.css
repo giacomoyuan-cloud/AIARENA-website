@@ -30,7 +30,7 @@
 #ai-arena-app.arena-shell .arena-project-home-main { min-width:0; }
 #ai-arena-app.arena-shell .arena-project-page .aa-input-area { position:relative;inset:auto;max-width:none;width:100%;max-height:none;margin:0 0 44px;padding:12px;flex:none; }
 #ai-arena-app.arena-shell .arena-project-page .aa-input-row { display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:0;border:0;border-radius:0;box-shadow:none;background:transparent; }
-#ai-arena-app.arena-shell .arena-project-page .aa-topic { flex:1 0 100%;width:100%;min-height:74px;max-height:260px;margin:0;padding:8px 6px 20px;order:-1;resize:none;background:transparent; }
+#ai-arena-app.arena-shell:not(.arena-image-mode) .arena-project-page .aa-input-row .aa-topic { flex:1 0 100%;width:100%;min-height:74px;max-height:260px;margin:0;padding:8px 6px 20px;order:-1;resize:none;background:transparent; }
 #ai-arena-app.arena-shell .arena-project-page .arena-composer-model { margin-left:auto; }
 #ai-arena-app.arena-shell .arena-project-page .aa-send { width:32px;height:32px;min-height:32px;padding:6px; }
 #ai-arena-app.arena-shell .arena-project-page .aa-plus-btn { width:32px;height:32px;padding:5px;border:0; }
@@ -139,7 +139,7 @@
   #ai-arena-app.arena-shell .arena-project-shortcut:hover,
   #ai-arena-app.arena-shell .aa-history-item-more:hover { background:var(--arena-hover); }
 }
-@media(max-width:1150px){
+@media(max-width:1000px){
   #ai-arena-app.arena-shell .arena-project-home-grid { grid-template-columns:minmax(0,1fr); }
   #ai-arena-app.arena-shell .arena-project-context { display:grid;grid-template-columns:repeat(2,minmax(0,1fr)); }
   #ai-arena-app.arena-shell .arena-project-context > section { border-right:1px solid var(--arena-border); }
@@ -158,7 +158,7 @@
   #ai-arena-app.arena-shell .arena-project-editor input,
   #ai-arena-app.arena-shell .arena-project-editor textarea,
   #ai-arena-app.arena-shell .arena-project-editor select { font-size:16px; }
-  #ai-arena-app.arena-shell .arena-project-page .aa-topic { min-height:90px; }
+  #ai-arena-app.arena-shell:not(.arena-image-mode) .arena-project-page .aa-input-row .aa-topic { min-height:90px; }
   #ai-arena-app.arena-shell .arena-project-page .arena-model-trigger { max-width:210px;font-size:11px; }
   #ai-arena-app.arena-shell .arena-project-form-grid { grid-template-columns:1fr; }
   #ai-arena-app.arena-shell .arena-task-templates { grid-template-columns:1fr;gap:6px; }
