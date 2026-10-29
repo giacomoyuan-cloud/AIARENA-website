@@ -229,7 +229,9 @@
    以下规则改的是摆放方式，不只是颜色：空白状态居中、整个输入区是一张卡片、回复去掉头像。 */
 
 /* 空白状态：问候语 + 输入卡片 + 快捷按钮作为一组停在视觉中心 */
-#ai-arena-app.arena-shell .aa-chat.empty-state { justify-content: safe center; padding-bottom: 8vh; }
+#ai-arena-app.arena-shell .aa-chat.empty-state { justify-content: safe center !important; padding-bottom: 8vh; }
+#ai-arena-app.arena-shell.arena-project-scope .aa-chat.empty-state { padding-top: 44px; }
+#ai-arena-app.arena-shell .aa-chat.empty-state .arena-project-bar { position: absolute; inset: 0 0 auto; }
 #ai-arena-app.arena-shell .aa-chat.empty-state .aa-messages { flex: 0 0 auto; height: 0; min-height: 0; padding: 0; overflow: hidden; }
 #ai-arena-app.arena-shell .aa-chat.empty-state .aa-welcome { position: static; inset: auto; transform: none; display: flex; align-items: center; justify-content: center; gap: 12px; margin: 0 16px 26px; pointer-events: auto; }
 #ai-arena-app.arena-shell .aa-chat.empty-state .aa-kitten--welcome { width: 60px; height: 60px; }
