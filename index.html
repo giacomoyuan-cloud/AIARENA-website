@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>AI 助手</title>
-<meta name="app-version" content="20261030-inlinecursor1">
+<meta name="app-version" content="20261030-thinkcollapse1">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2954,18 +2954,28 @@ var TEAM_COLORS = {
     }
     return h+'</div>';
   }
+  function syncActivityDisclosure(msg){
+    var finished=!!msg.completedAt||msg.isError||(msg.run&&msg.run.status!=='running')||(msg.debateStatus&&msg.debateStatus!=='running');
+    var phase=msg._activityPhase;
+    var thinking=!finished&&(phase==='thinking'||phase==='searching'||(!phase&&!String(msg.text||'').trim()&&((msg.run&&msg.run.status==='running')||msg.debateStatus==='running')));
+    var stage=thinking?'thinking':'answer';
+    if(msg._activityStage===stage)return false;
+    msg._activityStage=stage;msg._activityOpen=!!thinking;
+    return true;
+  }
   function renderMessageActivity(msg){
     var entries = (msg.activity || []).filter(function(item){return item && item.kind!=='thinking' && item.kind!=='searching';});
     var reasoning = typeof msg.reasoning==='string' ? msg.reasoning.trim() : '';
     if(!entries.length && !reasoning) return '';
+    syncActivityDisclosure(msg);
     var searched = entries.some(function(item){return item.kind==='search_results';});
     var imageSearch = entries.some(function(item){return item.kind==='search_results'&&item.searchModes&&item.searchModes.image;});
     var webSearch = entries.some(function(item){return item.kind==='search_results'&&(!item.searchModes||item.searchModes.web);});
     var searchLabel = (reasoning?'已思考，':'')+(imageSearch?(webSearch?'已搜索网页与图片':'已搜索图片'):'已搜索网页');
     var usedFiles=entries.some(function(item){return item.kind==='project_files';});
     var attempted = entries.some(function(item){return /search/.test(item.kind);});
-    var expanded=typeof msg._activityOpen==='boolean'?msg._activityOpen:!!reasoning;
-    var h = '<details class="arena-operation-details"'+(expanded?' open':'')+'><summary>'+ (usedFiles?'已查阅项目资料':searched?searchLabel:attempted?'搜索记录':reasoning?'思考摘要':'处理记录')+'</summary><div class="arena-operation-card">';
+    var expanded=msg._activityOpen;
+    var h = '<details class="arena-operation-details"'+(expanded?' open':'')+'><summary>'+ (usedFiles?'已查阅项目资料':searched?searchLabel:attempted?'搜索记录':reasoning?(msg._activityStage==='thinking'?'思考摘要':'已思考'):'处理记录')+'</summary><div class="arena-operation-card">';
     entries.forEach(function(item){
       if(item.kind==='project_files'){
         h+='<div class="arena-operation-row">已查阅项目资料 · '+Number(item.fragments||0)+' 个片段 '+(item.files||[]).map(function(file){return '<button data-context-file="'+esc(file.id)+'" data-project="'+esc((msg.context||{}).scope||activeProjectId||'')+'">'+esc(file.name)+'</button>';}).join(' ')+'</div>';return;
@@ -2992,7 +3002,9 @@ var TEAM_COLORS = {
 
   function updateMessageActivity(el,message,reasoning){
     var existing=el.querySelector('.arena-operation-details'),previousSummary=existing&&existing.querySelector('.aa-reasoning-content');
-    if(existing&&previousSummary&&typeof reasoning==='string'&&reasoning.trim()&&!message._activityDirty){
+    var phaseChanged=syncActivityDisclosure(message);
+    if(existing&&phaseChanged)existing.open=!!message._activityOpen;
+    if(existing&&previousSummary&&typeof reasoning==='string'&&reasoning.trim()&&!message._activityDirty&&!phaseChanged){
       var follow=previousSummary.scrollHeight-previousSummary.scrollTop-previousSummary.clientHeight<32;
       if(previousSummary.textContent!==reasoning.trim())previousSummary.textContent=reasoning.trim();
       if(follow)previousSummary.scrollTop=previousSummary.scrollHeight;
@@ -3002,7 +3014,7 @@ var TEAM_COLORS = {
     if(holder.firstElementChild){
       var previousScroll=previousSummary&&previousSummary.scrollTop;
       var followSummary=previousSummary&&previousSummary.scrollHeight-previousScroll-previousSummary.clientHeight<32;
-      if(existing&&(!reasoning||previousSummary))holder.firstElementChild.open=existing.open;
+      if(existing&&!phaseChanged&&(!reasoning||previousSummary))holder.firstElementChild.open=existing.open;
       var nextSummary=holder.querySelector('.aa-reasoning-content');
       if(existing)existing.replaceWith(holder.firstElementChild);
       else el.insertBefore(holder.firstElementChild,el.querySelector('.aa-msg-body'));
@@ -3014,6 +3026,7 @@ var TEAM_COLORS = {
   function beginStreamedReply(submodel,message){
     var pending=document.querySelector('#aaThinkingArea [data-think="'+submodel+'"] .aa-reasoning-block');
     if(pending)message._activityOpen=pending.open;
+    message._activityPhase='responding';
     hideThink(submodel);
     if(msgs.indexOf(message)===-1)msgs.push(message);
     render();
@@ -3031,7 +3044,7 @@ var TEAM_COLORS = {
   function stopLiveReplies(){
     liveReplies.stop().forEach(function(stopped){
       var message=msgs.find(function(m){return m.uid===stopped.key;});
-      if(message)message.text=stopped.text;
+      if(message){message.text=stopped.text;message._activityPhase='done';}
     });
     liveReplyReasoning.clear();
     liveFrames.forEach(function(pending){cancelAnimationFrame(pending.frame);});liveFrames.clear();
@@ -3108,6 +3121,7 @@ var TEAM_COLORS = {
   }
   function paintFinalMsg(uid, text, isError, reasoning){
     var completedMsg = msgs.find(function(m){ return m.uid === uid; });
+    if(completedMsg)completedMsg._activityPhase='done';
     if(completedMsg && !completedMsg.isUser && !isError && !completedMsg.completedAt){
       completedMsg.completedAt = Date.now();
       if(currentChatId) rememberChatReplyTime(currentChatId, completedMsg.completedAt);
@@ -3115,6 +3129,7 @@ var TEAM_COLORS = {
     var c = $('aaMessages');
     var el = c.querySelector('[data-uid="'+uid+'"]');
     if(!el) return;
+    if(completedMsg&&(completedMsg.reasoning||(completedMsg.activity&&completedMsg.activity.length)))updateMessageActivity(el,completedMsg,reasoning);
     var videoMatch = text && text.match(/\[KLING_VIDEO\]([\s\S]+?)\[\/KLING_VIDEO\]/);
     if(videoMatch){
       var msgObj = msgs.find(function(m){ return m.uid === uid; });
@@ -4570,7 +4585,15 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
   }
   function updateThinkStatus(submodel, status, generation){
     var row = document.querySelector('#aaThinkingArea [data-think="'+submodel+'"]');
-    if(row && ['waiting','thinking','searching','responding'].includes(status)){row.dataset.phase=status;row.dataset.lastContentAt=Date.now();paintThinkStatus(row);}
+    if(row && ['waiting','thinking','searching','responding'].includes(status)){
+      var changed=row.dataset.phase!==status,summary=row.querySelector('.aa-reasoning-block');
+      row.dataset.phase=status;row.dataset.lastContentAt=Date.now();
+      if(changed&&summary){
+        summary.open=status!=='responding';
+        var label=summary.querySelector('summary');if(label)label.textContent=status==='responding'?'已思考':'思考摘要';
+      }
+      paintThinkStatus(row);
+    }
     if(window.ArenaKitten) window.ArenaKitten.progress(submodel, status, generation);
   }
   function appendThinkSummary(submodel, text, generation){
@@ -4833,6 +4856,7 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
               return;
             }
             if(firstChunk){ firstChunk=false; msgObj.reasoning = msgObj.reasoning||''; beginStreamedReply(sub,msgObj); }
+            msgObj._activityPhase='responding';
             msgObj._streamChunks=(msgObj._streamChunks||0)+1;
             msgObj.text += chunk; liveUpdate(uid, msgObj.text, msgObj.reasoning||undefined);
           },
@@ -4880,9 +4904,10 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
             done++; if(done >= act.length) finish();
           },
           function(name){ msgObj.name = name; var el = document.querySelector('[data-uid="'+uid+'"] .aa-msg-name'); if(el) el.textContent = name; },
-          function(r){ msgObj.reasoning = (msgObj.reasoning||'') + r; if(!firstChunk) liveUpdate(uid, msgObj.text, msgObj.reasoning); },
+          function(r){ msgObj._activityPhase='thinking';msgObj.reasoning = (msgObj.reasoning||'') + r; if(!firstChunk) liveUpdate(uid, msgObj.text, msgObj.reasoning); },
           _nbExtraOpts,
           function(meta){
+            if(meta.status)msgObj._activityPhase=meta.status;
             if(meta.imageContext)msgObj.imageResponse=meta.imageContext.parts;
             if(meta.grounding)msgObj.grounding=meta.grounding;
             if(meta.context)msgObj.context=meta.context;
