@@ -4319,6 +4319,7 @@ var TEAM_COLORS = {
     if(aaRunning){arenaNotice('回答完成后可以新建对话');return;}
     ++chatLoadEpoch;
     if(msgs.length && currentChatId) saveCurrentChat();
+    try{sessionStorage.removeItem(debateRunKey());}catch(ignore){}
     clearDebateView();
     currentChatId = genChatId();
     debatePriorRunId=null;clearQuote();
