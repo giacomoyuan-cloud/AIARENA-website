@@ -11,6 +11,19 @@ test('same-model seats keep independent depth; bulk choices respect every select
   assert.deepEqual(Studio.commonEfforts([...members,{model:'other'}],{...choices,other:['low','high']}),['low','high']);
   assert.deepEqual(Studio.commonEfforts([...members,{model:'no-depth'}],choices),[]);
 });
+test('bulk seat changes do not constrain or overwrite the separately configured summary',()=>{
+  const source=fs.readFileSync(require('node:path').join(__dirname,'index.html'),'utf8');
+  const fn=source.match(/  function openDebateSettings\([^]*?\n  }/)[0];
+  let settings;
+  const c=vm.createContext({aaRunning:false,ArenaModelControl:{closeAll(){}},beforeDebateSelect(){},$:()=>({}),
+    currentDebateMembers:()=>[{id:'seat-1',model},{id:'seat-2',model}],judgeModel:'summary-without-low',
+    EFFORT_LEVELS:{...choices,'summary-without-low':['medium','high']},debateSettings:{},
+    debateSeatEfforts:{'seat-1':'low','seat-2':'high',summary:'high'},debateEffort:m=>m.id==='seat-1'?'low':'high',
+    ArenaDebateStudio:{...Studio,settings:(host,options)=>{settings=options;}},saveDebateDraft(){},scheduleDebateDraft(){},syncDebateStudio(){},syncArenaLayout(){}});
+  vm.runInContext(fn,c);c.openDebateSettings();assert.deepEqual(Array.from(settings.common),choices[model]);assert.equal(settings.bulkEffort,'');
+  settings.onBulk('low');assert.equal(c.debateSeatEfforts['seat-1'],'low');assert.equal(c.debateSeatEfforts['seat-2'],'low');assert.equal(c.debateSeatEfforts.summary,'high');
+  assert.equal(settings.summaryLevels,undefined);assert.equal(settings.onSummaryEffort,undefined);
+});
 test('request settings come from the frozen plan and uniform depth also reaches the legacy map',()=>{
   const members=[{id:'seat-1',label:'一席',model,effort:'low'},{id:'seat-2',label:'二席',model,effort:'low'}];
   const p=make({members,objective:'decision',detail:'concise',summaryModel:model,summaryEffort:'low'}),request=Studio.requestConfig(p);
