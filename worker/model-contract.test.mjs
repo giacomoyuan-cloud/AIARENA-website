@@ -111,9 +111,9 @@ test('the attachment search switch toggles actual Google tools, not just its vis
  const start=source.indexOf("  $('aaPlusSearch').addEventListener('click'");
  vm.runInContext(source.slice(start,source.indexOf('\n  });',start)+6),b.context);
  t.mock.method(globalThis,'fetch',async(url,options)=>{actual=JSON.parse(options.body);return new Response('data: '+JSON.stringify({candidates:[{content:{parts:[{text:'ok'}]}}]})+'\n\n');});
- click();assert.equal(attributes['aria-checked'],'false');await b.send('gemini-4-argon');
+ click();assert.equal(attributes['aria-checked'],'false');await b.send('gemini-4-argon',{maxOutputTokens:65536});
  assert.equal(b.payloads.at(-1).search,false);assert.equal(actual.tools,undefined);
- click();assert.equal(attributes['aria-checked'],'true');await b.send('gemini-4-argon');
+ click();assert.equal(attributes['aria-checked'],'true');await b.send('gemini-4-argon',{maxOutputTokens:65536});
  assert.equal(b.payloads.at(-1).search,true);assert.deepEqual(actual.tools,[{google_search:{}}]);
 });
 
@@ -125,7 +125,7 @@ test('all chat effort controls reach their provider; unsupported levels fail bef
  let calls=0,actual;
  t.mock.method(globalThis,'fetch',async(url,options)=>{calls++;actual=JSON.parse(options.body);return new Response('data: '+JSON.stringify(url.includes('anthropic')?{type:'content_block_delta',delta:{type:'text_delta',text:'ok'}}:url.includes('googleapis')?{candidates:[{content:{parts:[{text:'ok'}]}}]}:{type:'response.output_text.delta',delta:'ok'})+'\n\n');});
  for(const [model,levels] of Object.entries(b.context.EFFORT_LEVELS))for(const level of levels){
-  assert.equal(b.context.updateArenaEffortFromSlider({dataset:{effortModel:model},value:String(levels.indexOf(level))}),true);await b.send(model);
+  assert.equal(b.context.updateArenaEffortFromSlider({dataset:{effortModel:model},value:String(levels.indexOf(level))}),true);await b.send(model,model==='gemini-4-argon'?{maxOutputTokens:65536}:{});
   assert.equal(model.startsWith('claude')?actual.output_config.effort:model.startsWith('gemini')?actual.generationConfig.thinkingConfig.thinkingLevel.toLowerCase():actual.reasoning.effort,level);
   assert.equal(actual.max_tokens||actual.max_output_tokens||actual.generationConfig.maxOutputTokens,model.startsWith('gemini')?65536:128000);
  }

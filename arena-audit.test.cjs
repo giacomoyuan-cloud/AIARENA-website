@@ -95,7 +95,7 @@ test('a stale visible model or effort prevents a paid request and retains the dr
     const nodes=new Map(),notices=[],$=id=>{if(!nodes.has(id))nodes.set(id,element());return nodes.get(id);};
     $('aaTopic').value='do not lose this draft';$('aaUsername').value='tester';
     $('aaChatModelBtn').dataset={selectedModel:'gpt-6.1-sol',selectedEffort:'low'};
-    const c=vm.createContext({$,scopeSwitchPending:false,chatNavigationPending:false,privacySwitchPending:false,aaRunning:false,skillSubmitPending:false,
+    const c=vm.createContext({$,ArenaTokenLimits:require('./arena-token-limits.js'),scopeSwitchPending:false,chatNavigationPending:false,privacySwitchPending:false,aaRunning:false,skillSubmitPending:false,
       debate:false,imageMode:false,videoMode:false,fileImporting:0,activeProjectId:null,currentChatId:'chat-1',msgs:[],sentImgs:[],sentTexts:[],activeQuote:null,
       skillsRuntime:{settings:()=>({mode:'off',ids:[]}),ready:async()=>{}},flushScopeChat:async()=>({ok:true}),getPass:()=> 'synthetic',getActiveSubmodels:()=>[actual],effortFor:()=>effort,
       syncBrandUI(){},updateSkillsBtn(){},arenaNotice:message=>notices.push(message),fetch(){throw Error('must not call provider');}});
