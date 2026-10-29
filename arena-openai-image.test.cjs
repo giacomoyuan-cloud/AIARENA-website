@@ -80,3 +80,31 @@ test('preview UI never offers download or edit actions and escapes provider-supp
   const details=c.renderOpenAIImageDetails({revisedPrompt:'<img src=x onerror=alert(1)>',quality:'high',format:'webp'});
   assert.ok(details.includes('&lt;img'));assert.doesNotMatch(details,/<img/);
 });
+
+function settingsEvents(){
+  const handlers={}, saved={},model=A.OPENAI_MODELS[1];let error='';
+  const pop={addEventListener:(name,fn)=>handlers[name]=fn,querySelector:()=>null,querySelectorAll:()=>[]};
+  const c=vm.createContext({ArenaImage:A,imageComposerModel:model,openAIImageSettings:{[model]:{format:'webp',count:1,compression:100,partial:2}},
+    $:id=>id==='aaImageSettingsPop'?pop:{setAttribute(){},textContent:''},localStorage:{setItem:(k,v)=>saved[k]=v},
+    imageSettingsState:()=>c.openAIImageSettings[model],updateOpenAIImageSizePreview(){},imageSettingsSummary:()=>'',setImageError:text=>error=text});
+  for(const name of ['input','change']){
+    const begin=source.indexOf("  $('aaImageSettingsPop').addEventListener('"+name+"'");assert.ok(begin>=0);
+    const end=source.indexOf('\n  });',begin);assert.ok(end>begin);vm.runInContext(source.slice(begin,end+6),c);
+  }
+  return {dispatch(name,key,value,min='',max=''){const control={dataset:{imageSetting:key},value:String(value),min,max,closest(){return this;}};handlers[name]({target:control});return control;},
+    options:()=>A.requestOptions(model,'generation',c.openAIImageSettings[model],[]),error:()=>error,saved};
+}
+
+test('typing count and compression commits the outgoing request before blur',()=>{
+  const ui=settingsEvents();ui.dispatch('input','count',2,'1','10');ui.dispatch('input','compression',80,'0','100');
+  assert.equal(ui.options().n,2);assert.equal(ui.options().outputCompression,80);
+  const persisted=JSON.parse(ui.saved['aa-openai-image-settings'])[A.OPENAI_MODELS[1]];assert.equal(persisted.count,2);assert.equal(persisted.compression,80);
+  ui.dispatch('input','compression',0,'0','100');assert.equal(ui.options().outputCompression,0);
+  ui.dispatch('input','count','2.5','1','10');assert.equal(ui.options().n,2);
+});
+
+test('preview radios accept all supported values without numeric input attributes',()=>{
+  const ui=settingsEvents();
+  for(const value of [0,1,2,3]){ui.dispatch('change','partial',value);assert.equal(ui.options().partialImages,value);assert.equal(ui.error(),'');}
+  ui.dispatch('change','partial',4);assert.equal(ui.options().partialImages,3);assert.match(ui.error(),/0–3/);
+});

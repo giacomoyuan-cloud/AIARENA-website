@@ -16,7 +16,7 @@ and a project chat's context bar stays at the top.
 
 ## Validation
 
-- `npm test`: 199 passing tests, including 13 scope/navigation regression cases.
+- `npm test`: 201 passing tests, including 13 scope/navigation regression cases.
 - `npm --prefix worker test`: 256 passing tests, including server-side project,
   account, memory, retrieval, and conversation isolation checks.
 - Browser acceptance uses the real frontend and Worker with an in-memory KV,
