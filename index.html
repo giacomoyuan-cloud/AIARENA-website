@@ -3010,6 +3010,13 @@ var TEAM_COLORS = {
       else el.insertBefore(holder.firstElementChild,el.querySelector('.aa-msg-body'));
     }else if(existing)existing.remove();
   }
+  function beginStreamedReply(submodel,message){
+    var pending=document.querySelector('#aaThinkingArea [data-think="'+submodel+'"] .aa-reasoning-block');
+    if(pending)message._activityOpen=pending.open;
+    hideThink(submodel);
+    if(msgs.indexOf(message)===-1)msgs.push(message);
+    render();
+  }
 
   // === Live update & finalize ===
   var liveFrames=new Map();
@@ -4812,7 +4819,7 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
               } catch(e){}
               return;
             }
-            if(firstChunk){ firstChunk=false; hideThink(sub); msgObj.reasoning = msgObj.reasoning||''; msgs.push(msgObj); render(); }
+            if(firstChunk){ firstChunk=false; msgObj.reasoning = msgObj.reasoning||''; beginStreamedReply(sub,msgObj); }
             msgObj._streamChunks=(msgObj._streamChunks||0)+1;
             msgObj.text += chunk; liveUpdate(uid, msgObj.text, msgObj.reasoning||undefined);
           },
@@ -4829,7 +4836,10 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
               }
               if(!msgObj.isError)followupImage=msgObj;
             }
-            if(firstChunk) hideThink(sub);
+            if(firstChunk){
+              if(typeof msgObj.reasoning==='string'&&msgObj.reasoning.trim()){firstChunk=false;beginStreamedReply(sub,msgObj);}
+              else hideThink(sub);
+            }
             cleanThinkTags(msgObj); finalizeMsg(uid, msgObj.text, false, msgObj.reasoning||''); render();
             done++; if(done >= act.length) finish();
           },
@@ -4848,7 +4858,7 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
               if(firstChunk){ firstChunk = false; hideThink(sub); msgs.push(msgObj); }
               render();
             } else if(firstChunk){
-              hideThink(sub); msgObj.text = em; msgObj.isError = true; msgs.push(msgObj); render();
+              firstChunk=false;msgObj.text = em; msgObj.isError = true; beginStreamedReply(sub,msgObj);
             } else {
               msgObj.text += '\n[错误: ' + em + ']'; msgObj.isError = true; finalizeMsg(uid, msgObj.text, true, '');
               if(msgObj.imgItems&&msgObj.imgItems.length)render();

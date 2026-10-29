@@ -15,7 +15,7 @@ function fixture(){
     document:{querySelector:()=>row,querySelectorAll:()=>[row],createElement(){const body={textContent:'',scrollTop:0,scrollHeight:100,clientHeight:100};return {open:false,querySelector:()=>body};}}
   });
   vm.runInContext(source.match(/var AVAILABLE_CHAT_MODELS = \[[^\]]+\];/)[0],context);
-  vm.runInContext(['paintThinkStatus','tickThinkingClock','showThink','updateThinkStatus','appendThinkSummary','chatRunConnectionState','renderMessageActivity','rememberActivityToggle','updateMessageActivity','cleanThinkTags'].map(fn).join('\n'),context);
+  vm.runInContext(['paintThinkStatus','tickThinkingClock','showThink','updateThinkStatus','appendThinkSummary','chatRunConnectionState','renderMessageActivity','rememberActivityToggle','updateMessageActivity','beginStreamedReply','cleanThinkTags'].map(fn).join('\n'),context);
   return {context,row,label,clock,messages,advance:ms=>{now+=ms;},summary:()=>({details,content}),removed:()=>removed};
 }
 
@@ -107,4 +107,15 @@ test('official chat finalization preserves both provider summaries and the exact
     f.context.cleanThinkTags(message);
     assert.equal(message.text,answer,submodel);assert.equal(message.reasoning,'来自服务商独立字段的公开摘要',submodel);
   }
+});
+
+test('the first answer and summary-only completions retain the pending summary collapse choice',()=>{
+  const f=fixture(),message={uid:9,text:'',reasoning:'已收到的公开摘要'};let renders=0,hidden=0;
+  f.context.document.querySelector=()=>({open:false});
+  f.context.hideThink=()=>{hidden++;};f.context.render=()=>{renders++;};
+  f.context.beginStreamedReply('model',message);
+  assert.equal(f.context.msgs[0],message);assert.equal(message._activityOpen,false);assert.equal(message.reasoning,'已收到的公开摘要');
+  message.text='正文开始';f.context.beginStreamedReply('model',message);
+  assert.equal(f.context.msgs.length,1);assert.equal(hidden,2);assert.equal(renders,2);
+  assert.match(source,/if\(firstChunk\)\{\s*if\(typeof msgObj\.reasoning==='string'&&msgObj\.reasoning\.trim\(\)\)\{firstChunk=false;beginStreamedReply\(sub,msgObj\);\}/);
 });
