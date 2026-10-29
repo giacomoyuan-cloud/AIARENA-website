@@ -15,7 +15,7 @@ function fixture(){
   const context=vm.createContext({console,document:{getElementById:node,querySelectorAll:()=>cards},localStorage:{getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value)},
     $:node,ArenaModelControl:require('./arena-model-control.js'),ArenaSkillModels:policy,ArenaSkillCatalog:catalog,AVAILABLE_CHAT_MODELS:models,SUBS:Object.fromEntries(models.map(id=>[id,{name:names[id],brand:id.startsWith('claude')?'anthropic':id.startsWith('gpt')?'openai':id.startsWith('grok')?'xai':'google'}])),BRANDS:{anthropic:{color:'#f59e0b'}},
     activeBrands:{xai:true},brandSelection:{xai:'grok-4.7',anthropic:policy.defaultModel},debate:false,imageMode:false,videoMode:false,aaRunning:false,
-    normalizeAvailableModels(){},saveState(){saved++;},syncBrandUI(){},closeArenaModelMenu(){},syncArenaLayout(){},EFFORT_LEVELS:{},EFFORT_LABELS:{},effortFor(){},
+    normalizeAvailableModels(){},saveState(){saved++;},syncBrandUI(){},closeArenaModelMenu(){},syncArenaLayout(){},EFFORT_LEVELS:{},EFFORT_LABELS:{},EFFORT_DESCRIPTIONS:{},effortFor(){},
     showArenaEffortCard(){},positionArenaPopover(){},arenaNotice(text){context.notice=text;}});
   context.window=context;
   vm.runInContext(fs.readFileSync(__dirname+'/arena-skills.js','utf8'),context);

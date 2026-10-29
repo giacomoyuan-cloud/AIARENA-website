@@ -255,6 +255,7 @@ for (const incognito of [false, true]) test((incognito ? 'incognito' : 'saved') 
   assert.equal(actor.meta.status, 'completed');
   assert.equal(actor.meta.reply.artifacts[0].name, 'report.pdf'); assert.equal(actor.meta.reply.skills[0].id, 'pdf');
   assert.equal(actor.meta.reply.skillSession, 'synthetic-session'); assert.equal(actor.meta.reply.executionModel, 'claude-sonnet-5-5');
+  assert.equal(actor.meta.reply.submodel,'claude-sonnet-5-5');assert.equal(actor.meta.reply.brand,'anthropic');
   await actor.fetch(request()); assert.equal(calls, 1);
   if (incognito) {
     assert.deepEqual(storage.sql.exec('SELECT * FROM run_meta').toArray(), []); assert.deepEqual(storage.sql.exec('SELECT * FROM run_events').toArray(), []);
@@ -262,6 +263,7 @@ for (const incognito of [false, true]) test((incognito ? 'incognito' : 'saved') 
   } else {
     const restored = new Actor(context, fixture.env); assert.equal(restored.meta.reply.artifacts[0].name, 'report.pdf'); assert.equal(restored.meta.reply.skillSession, 'synthetic-session'); assert.equal(calls, 1);
     const saved = JSON.parse(fixture.data.get('chats:tester:chat-metadata-001')); assert.equal(saved.find(message => message.uid === 2).artifacts[0].token, 'synthetic-file-token');
+    assert.equal(saved.find(message=>message.uid===2).submodel,'claude-sonnet-5-5');assert.equal(saved.find(message=>message.uid===2).brand,'anthropic');
   }
   storage.db.close();
 });
