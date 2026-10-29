@@ -55,7 +55,7 @@ for (const model of ['claude-opus-5-5','claude-sonnet-5-5','grok-4.7']) test(mod
 
 test('unsupported effort values fail before a paid upstream request',async t=>{
   const {env}=setup();const calls=mockFetch(t,()=>{throw new Error('unexpected request');});
-  for(const [model,effort] of [['grok-4.7','max'],['claude-opus-5-5','ultra'],['claude-sonnet-5-5','disabled'],['claude-sonnet-5-5',null],['claude-sonnet-5-5',{}],['gpt-6-astra','high'],['grok-imagine-image-2.0','high']]) {
+  for(const [model,effort] of [['grok-4.7','max'],['claude-opus-5-5','ultra'],['claude-sonnet-5-5','disabled'],['claude-sonnet-5-5',null],['claude-sonnet-5-5',{}],['gpt-6-astra','none'],['gpt-6.1-sol','none'],['grok-imagine-image-2.0','high']]) {
     assert.equal((await worker.fetch(request(model,{effort}),env)).status,400);
   }
   assert.equal(calls.length,0);
@@ -100,7 +100,7 @@ test('Grok progress follows Responses reasoning and search events',async t=>{
 });
 
 for(const [model,host,binding] of [
-['grok-4.7','api.x.ai','GROK_API_KEY'],['gpt-6-astra','api.openai.com','OPENAI_API_KEY'],['gpt-5.6-sol','api.openai.com','OPENAI_API_KEY']
+['grok-4.7','api.x.ai','GROK_API_KEY'],['gpt-6-astra','api.openai.com','OPENAI_API_KEY'],['gpt-6.1-sol','api.openai.com','OPENAI_API_KEY'],['gpt-5.6-sol','api.openai.com','OPENAI_API_KEY']
 ]) test(model+' uses the matching official Responses API and key',async t=>{
   const {env,data}=setup();
   const calls=mockFetch(t,(url,options)=>{ assert.equal(new URL(url).hostname,host); assert.equal(options.headers.Authorization,'Bearer '+env[binding]); const body=JSON.parse(options.body); assert.equal(body.model,model); assert.equal(body.store,false); assert.deepEqual(body.tools,[{type:'web_search'}]); return responses(); });
@@ -110,6 +110,17 @@ for(const [model,host,binding] of [
   assert.deepEqual(output.find(value=>value.usage).usage,{input:11,output:7});
   assert.equal(JSON.parse(data.get('usage:user:tester:official~'+model)).calls,1);
   assert.equal(calls.length,1);
+});
+
+for(const model of ['gpt-6-astra','gpt-6.1-sol'])test(model+' forwards all supported reasoning levels and rejects invalid settings before API calls',async t=>{
+  const {env}=setup();let count=0;
+  mockFetch(t,(url,options)=>{count++;assert.equal(url,'https://api.openai.com/v1/responses');const body=JSON.parse(options.body);assert.equal(body.model,model);assert.equal(body.store,false);assert.ok(['low','medium','high','xhigh','max'].includes(body.reasoning.effort));assert.equal(body.temperature,undefined);return responses();});
+  for(const effort of ['low','medium','high','xhigh','max']){
+    const response=await worker.fetch(request(model,{effort}),env);assert.equal(response.status,200);assert.match(await response.text(),/你好/);
+  }
+  assert.equal(count,5);
+  for(const effort of ['none','minimal','ultra'])assert.equal((await worker.fetch(request(model,{effort}),env)).status,400);
+  assert.equal(count,5);
 });
 
 for(const model of ['claude-fable-5-1','claude-opus-5','claude-opus-5-5','claude-sonnet-5-5']) test(model+' uses Anthropic and merges stream token usage',async t=>{

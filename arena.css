@@ -407,10 +407,8 @@
 #ai-arena-app.arena-shell .arena-debate-welcome-copy { margin:8px 0 0;color:var(--arena-muted);font-size:14px;line-height:1.6; }
 #ai-arena-app.arena-shell.arena-debate-mode:not(.arena-debate-seats) #aaBrandBar .aa-brand-card { display: none; }
 /* Only provider routes with completed availability checks are selectable. */
-#ai-arena-app.arena-shell .aa-brand-card[data-brand="openai"],
 #ai-arena-app.arena-shell .aa-brand-card[data-brand="google"],
 #ai-arena-app.arena-shell .aa-brand-card[data-brand="mj"],
-#ai-arena-app.arena-shell #aaDrop-openai,
 #ai-arena-app.arena-shell #aaDrop-google,
 #ai-arena-app.arena-shell #aaDrop-mj { display: none !important; }
 #ai-arena-app.arena-shell #aaDebateModeBar button:disabled { opacity: .35; cursor: not-allowed; }

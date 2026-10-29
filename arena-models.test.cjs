@@ -58,13 +58,33 @@ test('Gemini image generation and editing never silently switch to Grok', () => 
 
 test('unavailable legacy routes still normalize to supported models', () => {
   const context = browser();
-  context.activeBrands = { openai: true, mj: true, kling: true };
+  context.activeBrands = { mj: true, kling: true };
   context.brandSelection.google = 'gemini31-proxy';
   assert.deepEqual(Array.from(context.getActiveSubmodels()), ['claude-sonnet-5-5']);
   assert.equal(context.brandSelection.google, 'gemini-4-argon');
   context.imageMode = true;
   context.imageComposerModel = 'mj_imagine';
   assert.deepEqual(Array.from(context.getActiveSubmodels()), ['grok-imagine-image-2.0']);
+});
+
+for(const model of ['gpt-6-astra','gpt-6.1-sol'])test(model+' stays selected through normalization and reload with supported effort controls',()=>{
+  const context=browser({'aa-brand-selection':JSON.stringify({openai:model}),'aa-active-brands':JSON.stringify({openai:true,xai:false,anthropic:false,google:false}),'aa-effort-selection':JSON.stringify({[model]:'max'})});
+  context.loadState();
+  assert.ok(context.AVAILABLE_CHAT_MODELS.includes(model));
+  for(let i=0;i<3;i++)assert.deepEqual(Array.from(context.getActiveSubmodels()),[model]);
+  assert.equal(context.brandSelection.openai,model);assert.equal(context.effortFor(model),'max');
+  assert.deepEqual(Array.from(context.EFFORT_LEVELS[model]),['low','medium','high','xhigh','max']);
+  assert.equal(context.defaultEffortFor(model),'medium');
+  const elements=new Map();context.$=id=>{if(!elements.has(id))elements.set(id,{innerHTML:''});return elements.get(id);};context.syncArenaLayout=()=>{};
+  vm.runInContext(browserFunction('renderArenaModelMenu'),context);context.renderArenaModelMenu();
+  assert.match(elements.get('aaChatModelPop').innerHTML,/max="4" step="1" value="4"/);
+  assert.match(elements.get('aaModelsSubmenu').innerHTML,/gpt-6-astra/);assert.match(elements.get('aaModelsSubmenu').innerHTML,/gpt-6\.1-sol/);
+});
+
+test('old Sol picker choices migrate without relabeling historical messages or enabling image models',()=>{
+  const context=browser({'aa-brand-selection':JSON.stringify({openai:'gpt-5.6-sol'}),'aa-active-brands':JSON.stringify({openai:true})});
+  context.loadState();assert.deepEqual(Array.from(context.getActiveSubmodels()),['gpt-6.1-sol']);assert.equal(context.SUBS['gpt-5.6-sol'].name,'GPT-5.6 Sol');
+  assert.ok(!context.IMAGE_MODELS.some(item=>item.value.startsWith('gpt-image')));
 });
 
 test('free debate can send multiple models from one provider without changing the chat model',()=>{

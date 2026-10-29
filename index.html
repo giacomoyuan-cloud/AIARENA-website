@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>AI 助手</title>
-<meta name="app-version" content="20261029-debateresume1">
+<meta name="app-version" content="20261029-openai-chat1">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -864,7 +864,7 @@
   #ai-arena-app #aaSkillEditPrompt::placeholder { color: #888; opacity: 1; }
 
 </style>
-<link rel="stylesheet" href="/arena.css?v=20261029-debateresume1">
+<link rel="stylesheet" href="/arena.css?v=20261029-openai-chat1">
 <link rel="stylesheet" href="/arena-workspace.css?v=20261029-debateresume1">
 <link rel="stylesheet" href="/arena-controls.css?v=20261029-debateresume1">
 <link rel="stylesheet" href="/arena-pet.css?v=20261029-petnoghost1">
@@ -1138,7 +1138,7 @@
       </div>
       <div class="aa-card-dropdown" id="aaDrop-openai">
         <div class="aa-drop-item selected" data-sub="gpt-6-astra"><span class="aa-drop-dot" data-health="official-openai"></span>GPT-6 Astra</div>
-        <div class="aa-drop-item" data-sub="gpt-5.6-sol"><span class="aa-drop-dot" data-health="official-openai"></span>GPT-5.6 Sol</div>
+        <div class="aa-drop-item" data-sub="gpt-6.1-sol"><span class="aa-drop-dot" data-health="official-openai"></span>GPT-6.1 Sol</div>
       </div>
       <div class="aa-card-dropdown" id="aaDrop-google">
         <div class="aa-drop-item selected" data-sub="gemini-4-argon"><span class="aa-drop-dot" data-health="official-google"></span>Gemini 4</div>
@@ -1262,12 +1262,14 @@
   };
 
   // Submodel → brand mapping and display names
-  var AVAILABLE_CHAT_MODELS = ['claude-fable-5-1','claude-opus-5-5','claude-sonnet-5-5','grok-4.7','gemini-4-argon'];
+  var AVAILABLE_CHAT_MODELS = ['claude-fable-5-1','claude-opus-5-5','claude-sonnet-5-5','grok-4.7','gemini-4-argon','gpt-6-astra','gpt-6.1-sol'];
   var IMAGE_MODELS = [
     {value:'grok-imagine-image-2.0', label:'Grok Image 2.0'},
     {value:'gemini-nano-banana-2.1', label:'Nano Banana 2.1'}
   ];
   var EFFORT_LEVELS = {
+    'gpt-6-astra': ['low','medium','high','xhigh','max'],
+    'gpt-6.1-sol': ['low','medium','high','xhigh','max'],
     'claude-fable-5-1': ['low','medium','high','xhigh','max'],
     'claude-opus-5-5': ['low','medium','high','xhigh','max'],
     'claude-sonnet-5-5': ['low','medium','high','xhigh','max'],
@@ -1276,9 +1278,9 @@
   };
   var EFFORT_LABELS = {low:'Low',medium:'Medium',high:'High',xhigh:'Extra high',max:'Max'};
   var EFFORT_DESCRIPTIONS = {low:'快速处理简单问题，减少等待。',medium:'兼顾思考深度与响应速度。',high:'适合较复杂的分析、写作和编程。',xhigh:'更深入地思考，通常需要更长时间。',max:'最高思考强度，可能消耗更多 token。'};
-  var effortSelection = {'claude-fable-5-1':'high','claude-opus-5-5':'medium','claude-sonnet-5-5':'high','grok-4.7':'high','gemini-4-argon':'medium'};
+  var effortSelection = {'claude-fable-5-1':'high','claude-opus-5-5':'medium','claude-sonnet-5-5':'high','grok-4.7':'high','gemini-4-argon':'medium','gpt-6-astra':'medium','gpt-6.1-sol':'medium'};
   function effortFor(model){ return EFFORT_LEVELS[model] ? effortSelection[model] : undefined; }
-  function defaultEffortFor(model){ return model === 'claude-opus-5-5' || model === 'gemini-4-argon' ? 'medium' : 'high'; }
+  function defaultEffortFor(model){ return ['claude-opus-5-5','gemini-4-argon','gpt-6-astra','gpt-6.1-sol'].indexOf(model)!==-1 ? 'medium' : 'high'; }
 
   var SUBS = {
     'grok-4.6': {brand:'xai', name:'Grok 4.6'},
@@ -1286,6 +1288,7 @@
     'claude-sonnet-5-5': {brand:'anthropic', name:'Claude Sonnet 5.5'},
     'grok-4.7':             {brand:'xai',       name:'Grok 4.7'},
     'gpt-6-astra':          {brand:'openai',    name:'GPT-6 Astra'},
+    'gpt-6.1-sol':          {brand:'openai',    name:'GPT-6.1 Sol'},
     'gpt-5.6-sol':          {brand:'openai',    name:'GPT-5.6 Sol'},
     'claude-fable-5-1':     {brand:'anthropic', name:'Claude Fable 5.1'},
     'claude-opus-5':        {brand:'anthropic', name:'Claude Opus 5'},
@@ -1493,12 +1496,14 @@ var TEAM_COLORS = {
   var judgeModel = 'none';
 
   var DEFAULT_TOKEN_PRICES = {
+    'gpt-6-astra': {input:10,output:50},
+    'gpt-6.1-sol': {input:2,output:10},
     'grok-4.7': {input:2,output:6},
     'claude-sonnet-5-5': {input:2,output:10},
     'claude-opus-5-5': {input:4,output:20}
   };
   function debateModelOptions(used,selected){
-    var brands={anthropic:'Anthropic',xai:'xAI',google:'Google'};
+    var brands={anthropic:'Anthropic',xai:'xAI',google:'Google',openai:'OpenAI'};
     return AVAILABLE_CHAT_MODELS.map(function(id){
       var disabled=false;
       return {value:id,label:SUBS[id].name,detail:disabled?'已加入其他席位':brands[SUBS[id].brand],disabled:disabled};
@@ -1805,6 +1810,8 @@ var TEAM_COLORS = {
       var savedSelection = JSON.parse(localStorage.getItem('aa-brand-selection') || '{}');
       if(['claude-fable-5-1','claude-opus-5-5','claude-sonnet-5-5'].indexOf(savedSelection.anthropic) !== -1) brandSelection.anthropic = savedSelection.anthropic;
       if(savedSelection.google === 'gemini-4-argon') brandSelection.google = savedSelection.google;
+      if(['gpt-6-astra','gpt-6.1-sol'].indexOf(savedSelection.openai)!==-1)brandSelection.openai=savedSelection.openai;
+      else if(savedSelection.openai==='gpt-5.6-sol')brandSelection.openai='gpt-6.1-sol';
       if(!imageMode){ activeBrands['mj'] = false; }
       var ab = JSON.parse(localStorage.getItem('aa-active-brands'));
       if(ab){ activeBrands = ab; if(activeBrands.kling === undefined) activeBrands.kling = false; }
@@ -1822,11 +1829,13 @@ var TEAM_COLORS = {
 
   function normalizeAvailableModels(){
     imageComposerModel=ArenaImage.canonical(imageComposerModel);
-    activeBrands.openai = false; activeBrands.mj = false; activeBrands.kling = false;
+    activeBrands.mj = false; activeBrands.kling = false;
+    if(brandSelection.openai==='gpt-5.6-sol')brandSelection.openai='gpt-6.1-sol';
+    if(['gpt-6-astra','gpt-6.1-sol'].indexOf(brandSelection.openai)===-1)brandSelection.openai='gpt-6-astra';
     if(['claude-fable-5-1','claude-opus-5-5','claude-sonnet-5-5'].indexOf(brandSelection.anthropic) === -1) brandSelection.anthropic = 'claude-sonnet-5-5';
     brandSelection.google = 'gemini-4-argon';
     brandSelection.xai = 'grok-4.7';
-    if(!imageMode && !activeBrands.xai && !activeBrands.anthropic && !activeBrands.google) activeBrands.anthropic = true;
+    if(!imageMode && !activeBrands.xai && !activeBrands.anthropic && !activeBrands.google && !activeBrands.openai) activeBrands.anthropic = true;
     if(imageMode && !IMAGE_MODELS.some(function(m){ return m.value === imageComposerModel; })) imageComposerModel = IMAGE_MODELS[0].value;
   }
 
