@@ -1,6 +1,7 @@
 (function(root){
   'use strict';
   var GOOGLE_MODEL = 'gemini-nano-banana-2.1';
+  var OPENAI_MODELS = ['gpt-image-2.5-sunburst','gpt-image-2.5-flare'];
   var capabilities = {
     'gemini-nano-banana-2.1': {
       label:'Nano Banana 2.1', provider:'Google', references:14,
@@ -13,6 +14,40 @@
       ratios:['1:1','16:9','9:16','4:3','3:4','3:2','2:3','2:1','1:2','21:9','5:2','19.5:9','9:19.5','20:9','9:20','auto']
     }
   };
+  OPENAI_MODELS.forEach(function(model){capabilities[model]={
+    label:model.endsWith('sunburst')?'GPT Image 2.5 Sunburst':'GPT Image 2.5 Flare',provider:'OpenAI',openai:true,references:16,
+    ratios:['auto'],sizes:['auto','1024x1024','1536x1024','1024x1536','2048x2048','2048x1152','1152x2048','3840x2160','2160x3840','custom'],
+    quality:['auto','low','medium','high','xhigh','max']
+  };});
+  function isOpenAI(model){return OPENAI_MODELS.indexOf(model)!==-1;}
+  function validSize(size){
+    if(size==='auto')return true;
+    var match=/^(\d{3,4})x(\d{3,4})$/.exec(String(size));if(!match)return false;
+    var w=Number(match[1]),h=Number(match[2]);
+    return w%16===0&&h%16===0&&Math.max(w,h)<=3840&&Math.max(w,h)/Math.min(w,h)<=3&&w*h>=655360&&w*h<=8294400;
+  }
+  function outputSize(state){return state.size==='custom'?state.customWidth+'x'+state.customHeight:state.size;}
+  function sizeInfo(value,state,large){
+    state=state||{};var actual=value==='custom'?state.customWidth+'x'+state.customHeight:value,parts=String(actual).split('x').map(Number),w=parts[0],h=parts[1];
+    if(value==='auto')return {width:large?126:48,height:large?84:32,ratio:'随内容',orientation:'自动画幅',resolution:'自动'};
+    if(!Number.isFinite(w)||!Number.isFinite(h)||w<=0||h<=0)return {width:large?90:36,height:large?90:36,ratio:'—',orientation:'填写宽高',resolution:'输入宽度和高度',empty:true};
+    var scale=Math.min((large?156:50)/w,(large?108:44)/h),a=w,b=h;
+    if(Number.isInteger(a)&&Number.isInteger(b)){while(b){var next=a%b;a=b;b=next;}}
+    else a=1;
+    return {width:Math.round(w*scale*100)/100,height:Math.round(h*scale*100)/100,ratio:(w/a)+':'+(h/a),orientation:w===h?'方形':w>h?'横幅':'竖幅',resolution:w+' × '+h};
+  }
+  function sizePreview(value,state,large){
+    var info=sizeInfo(value,state,large);
+    return '<span class="arena-size-preview'+(large?' large':'')+'" aria-hidden="true"><span class="arena-size-paper'+(value==='auto'||info.empty?' automatic':'')+'" style="--size-w:'+info.width+'px;--size-h:'+info.height+'px">'+(value==='auto'||info.empty?'':'<svg viewBox="0 0 120 80" preserveAspectRatio="xMidYMid slice"><circle cx="86" cy="23" r="9" fill="currentColor" opacity=".28"/><path d="M0 69 37 31 72 67 94 46 120 72V80H0Z" fill="currentColor" opacity=".22"/></svg>')+'</span></span>';
+  }
+  function sizeChoice(value,current,state){
+    var info=sizeInfo(value,state),label=value==='auto'?'自动':value==='custom'?'自定义':info.resolution;
+    return '<label class="arena-image-radio"'+(value==='custom'?' data-custom-size-card':'')+'><input type="radio" name="image-size" data-image-setting="size" value="'+escape(value)+'"'+(current===value?' checked':'')+'><span class="arena-image-radio-face arena-size-face"><span data-size-preview>'+sizePreview(value,state)+'</span><span>'+escape(label)+'</span><small data-size-ratio>'+escape(info.ratio+' '+info.orientation)+'</small></span></label>';
+  }
+  function customSizePreview(state){
+    var info=sizeInfo('custom',state,true),valid=validSize(outputSize(Object.assign({},state,{size:'custom'})));
+    return sizePreview('custom',state,true)+'<span><strong>'+escape(info.resolution)+'</strong><span>'+escape(info.ratio+' '+info.orientation)+'</span>'+(valid?'':'<small>尺寸须满足下方范围要求</small>')+'</span>';
+  }
   function canonical(model){ return model==='gemini-3.1-flash-image'||model==='nanbanana2-official' ? GOOGLE_MODEL : model; }
   function cap(model){ return capabilities[canonical(model)]; }
   function pick(value, values, fallback){ return values.indexOf(value)>=0?value:fallback; }
@@ -22,7 +57,14 @@
     s.ratio=pick(s.ratio,c.ratios,'1:1');
     s.size=pick(s.size,c.sizes,c.sizes[0]);
     if(c.thinking){s.thinking=pick(s.thinking,c.thinking,'medium');s.grounding=pick(s.grounding,['off','web','image','web-image'],'off');s.imageOnly=!!s.imageOnly;}
-    if(c.quality){s.quality=pick(s.quality,c.quality,'auto');s.count=pick(Number(s.count),[1,2,3,4],1);}
+    if(c.quality){s.quality=pick(s.quality,c.quality,'auto');s.count=pick(Number(s.count),c.openai?[1,2,3,4,5,6,7,8,9,10]:[1,2,3,4],1);}
+    if(c.openai){
+      s.format=pick(s.format,['png','jpeg','webp'],'png');s.background=pick(s.background,['auto','opaque','transparent'],'auto');
+      if(s.background==='transparent'&&s.format==='jpeg')s.format='png';
+      s.compression=Number.isInteger(Number(s.compression))&&Number(s.compression)>=0&&Number(s.compression)<=100?Number(s.compression):100;
+      s.partial=pick(Number(s.partial),[0,1,2,3],2);s.moderation=pick(s.moderation,['auto','low'],'auto');
+      s.customWidth=s.customWidth===undefined?1536:Number(s.customWidth);s.customHeight=s.customHeight===undefined?864:Number(s.customHeight);
+    }
     return s;
   }
   function requestOptions(model,task,state,images,history){
@@ -30,6 +72,11 @@
     var s=normalize(model,state), opts={imageTask:task,aspectRatio:s.ratio,_imgs:images||[]};
     if(model===GOOGLE_MODEL){
       Object.assign(opts,{imageSize:s.size,thinkingLevel:s.thinking,imageOnly:s.imageOnly,grounding:s.grounding,n:1});
+      if(task!=='generation'&&history&&history.length)opts.imageHistory=history;
+    }else if(isOpenAI(model)){
+      delete opts.aspectRatio;
+      Object.assign(opts,{size:outputSize(s),quality:s.quality,outputFormat:s.format,background:s.background,moderation:s.moderation,partialImages:s.partial,n:s.count});
+      if(s.format!=='png')opts.outputCompression=s.compression;
       if(task!=='generation'&&history&&history.length)opts.imageHistory=history;
     }else Object.assign(opts,{resolution:s.size,quality:s.quality,n:task==='generation'?s.count:1});
     return opts;
@@ -65,7 +112,21 @@
     var c=cap(model), s=normalize(model,state);
     if(!c)return '';
     var h='<div class="arena-image-heading"><div><h2 id="aaImageSettingsTitle">图像设置</h2><p>'+escape(c.label)+' <span>· '+c.provider+'</span></p></div><button type="button" data-image-close aria-label="关闭图像设置">'+icon('close')+'</button></div>';
-    h+='<div class="arena-image-form">';
+    h+='<div class="arena-image-form'+(c.openai?' arena-image-openai':'')+'">';
+    if(c.openai){
+      h+='<fieldset class="arena-image-field arena-image-span"><legend>图片尺寸</legend><div class="arena-image-size-grid">'+c.sizes.map(function(v){return sizeChoice(v,s.size,s);}).join('')+'</div></fieldset>';
+      h+='<div class="arena-image-custom-wrap arena-image-span"'+(s.size==='custom'?'':' hidden')+'><div class="arena-image-custom"><label>宽度（像素）<input type="number" data-image-setting="customWidth" aria-label="自定义图片宽度" min="256" max="3840" step="16" value="'+escape(s.customWidth)+'"></label><span>×</span><label>高度（像素）<input type="number" data-image-setting="customHeight" aria-label="自定义图片高度" min="256" max="3840" step="16" value="'+escape(s.customHeight)+'"></label></div><div class="arena-image-custom-preview" data-custom-size-preview aria-live="polite">'+customSizePreview(s)+'</div></div>';
+      h+='<p class="arena-image-field-help arena-image-span">尺寸须为 16 的倍数，长宽比不超过 3:1，总像素 655,360–8,294,400。超过 2560 × 1440 为实验性分辨率。</p>';
+      h+=segments('quality','画质',[['auto','自动'],['low','草稿'],['medium','标准'],['high','精细'],['xhigh','超精细'],['max','最高']],s.quality);
+      h+=segments('format','文件格式',[['png','PNG'],['jpeg','JPEG'],['webp','WebP']],s.format);
+      h+=segments('background','背景',[['auto','自动'],['opaque','不透明'],['transparent','透明']],s.background);
+      h+='<p class="arena-image-field-help arena-image-span">透明背景使用 PNG 或 WebP；选择透明时会自动改用 PNG 保存。</p>';
+      h+='<label class="arena-image-number">'+(task==='generation'?'生成数量':'编辑版本数')+'<input type="number" data-image-setting="count" aria-label="图片数量" min="1" max="10" step="1" value="'+s.count+'"></label>';
+      h+='<label class="arena-image-number"'+(s.format==='png'?' hidden':'')+'>输出压缩（0–100）<input type="number" data-image-setting="compression" aria-label="输出压缩" min="0" max="100" step="1" value="'+s.compression+'"></label>';
+      h+='<p class="arena-image-field-help arena-image-span">每张独立生成，逐张显示并计费。画质越高、尺寸越大，通常等待越久、费用越高。</p>';
+      h+='<details class="arena-image-disclosure arena-image-span"><summary><span>高级选项</span>'+icon('chevron')+'</summary>'+segments('partial','生成过程预览',[[0,'关闭'],[1,'1 次'],[2,'2 次'],[3,'3 次']],s.partial)+segments('moderation','内容过滤',[['auto','标准'],['low','较宽松']],s.moderation)+'<p class="arena-image-field-help">预览次数是上限，可能提前成图；每次预览额外计入 100 个图像输出 token。较宽松仍须符合 OpenAI 内容政策。</p></details>';
+      return h+'</div><div class="arena-image-settings-foot"><span>最多 16 张参考图 · 按实际 token 计费</span><a href="https://developers.openai.com/api/docs/guides/image-generation" target="_blank" rel="noopener noreferrer">OpenAI 官方说明</a></div>';
+    }
     h+=ratioMarkup(c.ratios,s.ratio);
     if(!c.thinking&&task==='generation')h+=segments('count','生成数量',[[1,'1 张'],[2,'2 张'],[3,'3 张'],[4,'4 张']],s.count);
     h+=segments('size','分辨率',c.sizes,s.size);
@@ -107,6 +168,6 @@
       return [{role:'user',parts:parts},{role:'model',parts:response}];
     });
   }
-  var api={GOOGLE_MODEL:GOOGLE_MODEL,capabilities:capabilities,canonical:canonical,cap:cap,normalize:normalize,requestOptions:requestOptions,settingsMarkup:settingsMarkup,historyFor:historyFor,icon:icon,ratioInfo:ratioInfo,ratioPreview:ratioPreview};
+  var api={GOOGLE_MODEL:GOOGLE_MODEL,OPENAI_MODELS:OPENAI_MODELS,isOpenAI:isOpenAI,validSize:validSize,outputSize:outputSize,sizeInfo:sizeInfo,sizePreview:sizePreview,sizeChoice:sizeChoice,customSizePreview:customSizePreview,capabilities:capabilities,canonical:canonical,cap:cap,normalize:normalize,requestOptions:requestOptions,settingsMarkup:settingsMarkup,historyFor:historyFor,icon:icon,ratioInfo:ratioInfo,ratioPreview:ratioPreview};
   if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.ArenaImage=api;
 })(typeof window!=='undefined'?window:this);

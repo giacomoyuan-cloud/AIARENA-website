@@ -4,6 +4,7 @@ import { validateSkillFiles, serveSkillFile, runOfficialDocuments, rescopeSkillA
 import { createDebateRunClass } from './debate-runs.js';
 import { OpenAITransport, openAIBackgroundFetch } from './openai-transport.js';
 import { createProjectScheduler } from './project-schedules.js';
+import { isOpenAIImage, validateOpenAIImage, buildImagePayload, readImageStream, IMAGE_ORCHESTRATOR } from './openai-images.js';
 import DebateCore from '../arena-debate.js';
 var __defProp = Object.defineProperty;
 var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
@@ -164,6 +165,7 @@ const OFFICIAL_MODELS = {
   "gemini-4-argon": { provider: "google", binding: "GEMINI_API_KEY", name: "Gemini 4 Argon", maxTokens: 65536 },
   "grok-imagine-image-2.0": { provider: "xai", binding: "GROK_API_KEY", name: "Grok Imagine Image 2.0", image: true },
   "gpt-image-2.5-sunburst": { provider: "openai", binding: "OPENAI_API_KEY", name: "GPT Image 2.5 Sunburst", image: true },
+  "gpt-image-2.5-flare": { provider: "openai", binding: "OPENAI_API_KEY", name: "GPT Image 2.5 Flare", image: true },
   "gemini-3.1-flash-image": { provider: "google", binding: "GEMINI_API_KEY", name: "Gemini 3.1 Flash Image", image: true },
   "gemini-nano-banana-2.1": { provider: "google", binding: "GEMINI_API_KEY", name: "Nano Banana 2.1", image: true }
 };
@@ -205,11 +207,11 @@ function validateImageRequest(config,model,body,images) {
   const task=body.imageTask===undefined?"generation":body.imageTask;
   if(!["generation","edit","multi-edit"].includes(task))throw new Error("不支持的图片任务");
   if(!Array.isArray(images)||images.some(source=>!validImage(source)))throw new Error("参考图格式无效或超过 10MB");
-  const max=config.provider==="google"?14:5;
+  const max=config.provider==="google"?14:config.provider==="openai"?16:5;
   if(task==="generation"&&images.length)throw new Error("已上传参考图，请选择编辑图片或多图编辑");
   if(task==="edit"&&images.length!==1)throw new Error("编辑图片需要且仅支持 1 张参考图");
   if(task==="multi-edit"&&(images.length<2||images.length>max))throw new Error(`多图编辑需要 2–${max} 张参考图`);
-  if(body.n!==undefined&&(!Number.isInteger(body.n)||body.n<1||body.n>(task!=="generation"||config.provider==="google"?1:4)))throw new Error("此任务不支持所选图片数量");
+  if(body.n!==undefined&&(!Number.isInteger(body.n)||body.n<1||body.n>(config.provider==="openai"?10:task!=="generation"||config.provider==="google"?1:4)))throw new Error("此任务不支持所选图片数量");
   const check=(value,allowed,name)=>{if(value!==undefined&&!allowed.includes(value))throw new Error(`此模型不支持所选${name}`);};
   if(config.provider==="google"){
     check(body.aspectRatio,GOOGLE_IMAGE_RATIOS,"画面比例");
@@ -218,6 +220,9 @@ function validateImageRequest(config,model,body,images) {
     check(body.grounding,["off","web","image","web-image"],"搜索方式");
     if(body.imageOnly!==undefined&&typeof body.imageOnly!=="boolean")throw new Error("输出方式格式无效");
     nativeImageHistory(body.imageHistory);
+    if(task==="generation"&&body.imageHistory?.length)throw new Error("生成新图片不能附带上次编辑上下文");
+  }else if(config.provider==="openai"){
+    validateOpenAIImage(body,images);nativeImageHistory(body.imageHistory);
     if(task==="generation"&&body.imageHistory?.length)throw new Error("生成新图片不能附带上次编辑上下文");
   }else if(config.provider==="xai"){
     check(body.aspectRatio,GROK_IMAGE_RATIOS,"画面比例");
@@ -1504,6 +1509,32 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
     async function callOfficialImage(config) {
       const cleanPrompt = String(prompt || "").trim();
       if (!cleanPrompt) throw new Error("请输入图片描述");
+      if(isOpenAIImage(model)){
+        const history=nativeImageHistory(body.imageHistory),count=body.n||1;
+        const payload=buildImagePayload(model,cleanPrompt,body,allImages,history,await hashText(authUser||'anonymous'));
+        const settings=payload.tools[0],parts=[];let received=0,mainInput=0,mainOutput=0;
+        for(let index=0;index<count;index++){
+          if(upstreamAbort.signal.aborted)throw new DOMException('已停止生成','AbortError');
+          await sendActivity({kind:'image_generation',label:count>1?'正在生成第 '+(index+1)+' / '+count+' 张':'正在生成图片'});
+          // The same isolated official transport as Sol/Astra; never replay a paid image call.
+          const response=await fetchOfficial('https://api.openai.com/v1/responses',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+env.OPENAI_API_KEY},body:JSON.stringify(payload)});
+          if(!response.ok)throw new Error(await getUpstreamError(response,'OpenAI 官方图片接口请求失败'));
+          const result=await readImageStream(response,{model,format:settings.output_format,size:settings.size,quality:settings.quality,background:settings.background,
+            image:async(data,mime)=>{await sendImage(data,mime);parts.push({imageIndex:received++});},
+            preview:async preview=>writer.write(encoder.encode('data: '+JSON.stringify({imagePreview:{...preview,batchIndex:index}})+'\n\n')),
+            details:async details=>{
+              await writer.write(encoder.encode('data: '+JSON.stringify({imageDetails:{index:received-1,...details},imageContext:{parts}})+'\n\n'));
+              if(details.usage)await recordUsage(model,details.usage.input_tokens||0,details.usage.output_tokens||0);
+            }
+          });
+          if(result.mainUsage){
+            const u=result.mainUsage;mainInput+=u.input_tokens||0;mainOutput+=u.output_tokens||0;
+            await recordUsage(IMAGE_ORCHESTRATOR,u.input_tokens||0,u.output_tokens||0);
+          }
+          await writer.write(encoder.encode('data: '+JSON.stringify({imageUsage:{images:received,mainline:{model:IMAGE_ORCHESTRATOR,input:mainInput,output:mainOutput},imageCostAvailable:false}})+'\n\n'));
+        }
+        return;
+      }
       const task = ["edit", "multi-edit"].includes(body.imageTask) ? body.imageTask : "generation";
       if (task === "edit" && allImages.length < 1) throw new Error("编辑图片需要 1 张参考图");
       const maxReferences=config.provider==="google"?14:5;
@@ -1527,23 +1558,6 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
         }
         headers = { "Content-Type": "application/json", Authorization: "Bearer " + env.GROK_API_KEY };
         requestBody = JSON.stringify(payload);
-      } else if (config.provider === "openai") {
-        const quality = ["low", "medium", "high", "auto"].includes(body.quality) ? body.quality : "auto";
-        const fields = { model, prompt: cleanPrompt, n: String(count), size: ratioToGptSize(ratio), quality, output_format: "png", safety_identifier: await hashText(authUser || "anonymous") };
-        endpoint = "https://api.openai.com/v1/images/" + (task === "generation" ? "generations" : "edits");
-        headers = { Authorization: "Bearer " + env.OPENAI_API_KEY };
-        if (task === "generation") {
-          headers["Content-Type"] = "application/json";
-          requestBody = JSON.stringify({ ...fields, n: count });
-        } else {
-          requestBody = new FormData();
-          for (const [name, value] of Object.entries(fields)) requestBody.append(name, value);
-          for (const [index, source] of references.entries()) {
-            const bytes = Uint8Array.from(atob(source.data), char => char.charCodeAt(0));
-            const mime = source.mime || "image/jpeg";
-            requestBody.append("image[]", new Blob([bytes], { type: mime }), "reference-" + index + (mime === "image/png" ? ".png" : mime === "image/webp" ? ".webp" : ".jpg"));
-          }
-        }
       } else {
         endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
         headers = { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY };

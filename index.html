@@ -1127,6 +1127,7 @@
         <button onclick="window._aaNbClearEdit()" style="flex-shrink:0;padding:3px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:#555;font-size:10px;cursor:pointer;font-family:'Sora',sans-serif;">重新生成</button>
       </div>
       <div id="aaImageError" class="arena-image-error" role="alert" hidden></div>
+      <div id="aaImageMaskTools" class="arena-image-mask-tools" hidden><button type="button" id="aaImageMaskBtn">涂抹修改区域</button><span id="aaImageMaskHint">在第一张参考图上选择修改位置</span><button type="button" id="aaImageMaskClear" hidden>清除选区</button></div>
       <div class="arena-skill-pill" id="aaSkillPill" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="18" height="14" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18"/></svg><span id="aaSkillPillName"></span><button type="button" id="aaSkillPillClear" aria-label="停用技能"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
       <div class="arena-debate-continuation" id="aaDebateContinuation" hidden><span>基于上一场讨论追问</span><button type="button" id="aaDebateContinuationClear">清除</button></div>
       <div class="aa-input-row">
@@ -1255,7 +1256,9 @@
 </div>
 
 <script src="/arena-markdown.js?v=20261027-account1"></script>
-<script src="/arena-image.js?v=20261030-imagechoices1"></script>
+<link rel="stylesheet" href="/arena-image-editor.css?v=20261030-openai-image1">
+<script src="/arena-image.js?v=20261030-openai-image1"></script>
+<script src="/arena-image-editor.js?v=20261030-openai-image1"></script>
 <script src="/arena-native.js?v=20261028-smooth2"></script>
 <script src="/arena-effort.js?v=20261028-effortfix1"></script>
 <script src="/arena-context.js?v=20261027-account1"></script>
@@ -1301,7 +1304,9 @@
   var AVAILABLE_CHAT_MODELS = ['claude-fable-5-1','claude-opus-5-5','claude-sonnet-5-5','grok-4.7','gemini-4-argon','gpt-6-astra','gpt-6.1-sol'];
   var IMAGE_MODELS = [
     {value:'grok-imagine-image-2.0', label:'Grok Image 2.0'},
-    {value:'gemini-nano-banana-2.1', label:'Nano Banana 2.1'}
+    {value:'gemini-nano-banana-2.1', label:'Nano Banana 2.1'},
+    {value:'gpt-image-2.5-sunburst', label:'GPT Image 2.5 Sunburst'},
+    {value:'gpt-image-2.5-flare', label:'GPT Image 2.5 Flare'}
   ];
   var EFFORT_LEVELS = {
     'gpt-6-astra': ['low','medium','high','xhigh','max'],
@@ -1333,6 +1338,7 @@
     'gemini-4-argon':       {brand:'google',    name:'Gemini 4'},
     'grok-imagine-image-2.0': {brand:'xai',     name:'Grok Imagine Image 2.0'},
     'gpt-image-2.5-sunburst': {brand:'openai',  name:'GPT Image 2.5 Sunburst'},
+    'gpt-image-2.5-flare': {brand:'openai',  name:'GPT Image 2.5 Flare'},
     'gemini-nano-banana-2.1': {brand:'google', name:'Nano Banana 2.1'},
     'gemini-3.1-flash-image': {brand:'google', name:'Gemini 3.1 Flash Image'},
     'mj_imagine':             {brand:'mj',      name:'Midjourney Imagine'},
@@ -1428,6 +1434,8 @@ var grokImageResolution = localStorage.getItem('aa-grok-resolution') || '1k';
 var grokAspectRatio = localStorage.getItem('aa-grok-ratio') || '1:1';
 var grokImageQuality = localStorage.getItem('aa-grok-quality') || 'auto';
 var grokImageCount = parseInt(localStorage.getItem('aa-grok-count') || '2', 10);
+var openAIImageSettings={};try{openAIImageSettings=JSON.parse(localStorage.getItem('aa-openai-image-settings')||'{}');}catch(ignore){}
+var imageMaskState=null;
 var mjAspectRatio = localStorage.getItem('aa-mj-ratio') || '1:1';
 var TEAM_COLORS = {
   pro:  {color:'#60a5fa', bg:'rgba(96,165,250,0.10)', border:'rgba(96,165,250,0.25)', label:'正方'},
@@ -1603,7 +1611,7 @@ var TEAM_COLORS = {
 
   function serializeMsgs(){
     return msgs.map(function(m){
-      var obj = {uid:m.uid, brand:m.brand, name:m.name, text:m.text, color:m.color, isUser:m.isUser, isError:m.isError,generationError:m.generationError, round:m.round, _team:m._team, _liked:m._liked, _comment:m._comment, topicText:m.topicText, pastedTexts:m.pastedTexts, _quote:m._quote, context:m.context, reasoning:m.reasoning, activity:m.activity, citations:m.citations, _feedback:m._feedback, effort:m.effort, submodel:m.submodel, completedAt:m.completedAt, moderationHelp:m.moderationHelp, suggestedPrompt:m.suggestedPrompt, moderationTask:m.moderationTask, imageTurn:m.imageTurn, imageResponse:m.imageResponse, grounding:m.grounding,skills:m.skills,artifacts:m.artifacts,skillSession:m.skillSession,executionModel:m.executionModel,participantId:m.participantId,debateSessionId:m.debateSessionId,debateStage:m.debateStage};
+      var obj = {uid:m.uid, brand:m.brand, name:m.name, text:m.text, color:m.color, isUser:m.isUser, isError:m.isError,generationError:m.generationError, round:m.round, _team:m._team, _liked:m._liked, _comment:m._comment, topicText:m.topicText, pastedTexts:m.pastedTexts, _quote:m._quote, context:m.context, reasoning:m.reasoning, activity:m.activity, citations:m.citations, _feedback:m._feedback, effort:m.effort, submodel:m.submodel, completedAt:m.completedAt, moderationHelp:m.moderationHelp, suggestedPrompt:m.suggestedPrompt, moderationTask:m.moderationTask, imageTurn:m.imageTurn, imageResponse:m.imageResponse, imageDetails:m.imageDetails, imageSettings:m.imageSettings, imageUsage:m.imageUsage, grounding:m.grounding,skills:m.skills,artifacts:m.artifacts,skillSession:m.skillSession,executionModel:m.executionModel,participantId:m.participantId,debateSessionId:m.debateSessionId,debateStage:m.debateStage};
       if(m.run) obj.run = m.run;
       if(m.debateRun) { obj.debateRun=m.debateRun;obj.debateTurn=m.debateTurn;obj.debateAttempt=m.debateAttempt;obj.debateStatus=m.debateStatus;obj.debateError=m.debateError;obj.debateOutdated=m.debateOutdated;obj.usage=m.usage; }
       if(m.imgSrcs && m.debateRun) obj.imgSrcs=m.imgSrcs;
@@ -1687,7 +1695,7 @@ var TEAM_COLORS = {
         if(!sentImgs.length&&imageComposerTask==='edit')imageComposerTask='generation';
       }
       currentChatId = chatId;
-      if(switched)imageEditParentUid=null;
+      if(switched){imageEditParentUid=null;if(typeof imageMaskState!=='undefined')imageMaskState=null;}
       msgs = data.messages || [];
       if(imageEditParentUid!=null&&!msgs.some(function(message){return String(message.uid)===String(imageEditParentUid);}))imageEditParentUid=null;
       var loadedReplyAt = getLastAssistantReplyAt(msgs);
@@ -2291,6 +2299,36 @@ var TEAM_COLORS = {
 
   // === Image handling ===
   function setImageError(message){var error=$('aaImageError');error.textContent=message||'';error.hidden=!message;}
+  function syncImageMaskTools(){
+    var strip=$('aaImageMaskTools');if(!strip)return;
+    if(imageMaskState&&(!sentImgs[0]||sentImgs[0].data!==imageMaskState.source))imageMaskState=null;
+    strip.hidden=!imageMode||!ArenaImage.isOpenAI(imageComposerModel)||!sentImgs.length;
+    $('aaImageMaskBtn').disabled=aaRunning;
+    $('aaImageMaskBtn').textContent=imageMaskState?'修改选区':'涂抹修改区域';
+    $('aaImageMaskHint').textContent=imageMaskState?'已选择第一张图的修改区域':'在第一张参考图上选择修改位置';
+    $('aaImageMaskClear').hidden=!imageMaskState;
+  }
+  $('aaImageMaskBtn').addEventListener('click',async function(){
+    if(aaRunning||!sentImgs[0])return;
+    var original=sentImgs[0],scope=activeProjectId,chat=currentChatId;
+    try{
+      closeImagePopovers();var selection=await ArenaImageEditor.open(original);
+      if(!selection||aaRunning||scope!==activeProjectId||chat!==currentChatId||sentImgs[0]!==original)return;
+      sentImgs[0]=Object.assign({},original,selection.source,{preview:'data:image/png;base64,'+selection.source.data,autoFollowup:false});
+      imageMaskState={source:selection.source.data,data:selection.mask.data};
+      imageComposerTask=sentImgs.length>1?'multi-edit':'edit';setImageError('');renderImgPreviews();syncImageComposer();$('aaTopic').focus();
+    }catch(error){setImageError(error.message);}
+  });
+  $('aaImageMaskClear').addEventListener('click',function(){imageMaskState=null;syncImageMaskTools();});
+  function renderOpenAIImagePreview(preview,failed){
+    var mime=['image/png','image/jpeg','image/webp'].indexOf(preview.mime)!==-1?preview.mime:'image/png';
+    return '<div class="aa-generated-card arena-image-preview"><div class="aa-generated-stage"><img class="aa-generated-image" src="data:'+mime+';base64,'+esc(preview.data)+'" alt="生成过程预览"></div><p role="status">'+(failed?'生成未完成，预览不会保存为成图':'正在生成第 '+(Number(preview.batchIndex||0)+1)+' 张 · 此图为过程预览')+'</p></div>';
+  }
+  function renderOpenAIImageDetails(details){
+    var quality={auto:'自动画质',low:'草稿',medium:'标准',high:'精细',xhigh:'超精细',max:'最高'}[details.quality]||details.quality||'';
+    var summary=[details.size==='auto'?'自动尺寸':details.size,quality,String(details.format||'png').toUpperCase(),details.background==='transparent'?'透明背景':''].filter(Boolean).join(' · ');
+    return '<details class="arena-image-result-details"><summary>生成详情 <span>'+esc(summary)+'</span></summary>'+(details.revisedPrompt?'<p class="arena-image-field-help">本次使用的描述</p><p>'+esc(details.revisedPrompt)+'</p>':'')+(details.usage?'<p>图像 token：输入 '+esc(details.usage.input_tokens??'—')+' · 输出 '+esc(details.usage.output_tokens??'—')+'</p>':'<p>图像用量与最终金额以 OpenAI 账单为准；对话式改图还会产生文字模型的用量。</p>')+'</details>';
+  }
   function showPreview(dataUrl){ if(!dataUrl) return; if(sentImgs.length < imageReferenceLimit()){ sentImgs.push({data: dataUrl.split(',').length > 1 ? dataUrl.split(',')[1] : dataUrl, mime: 'image/jpeg', preview: dataUrl}); setImageError('');renderImgPreviews(); } }
   function renderTextPreviews(){
     var container = $('aaTextPreview');
@@ -2314,6 +2352,7 @@ var TEAM_COLORS = {
     });
   }
   function renderImgPreviews(){
+    syncImageMaskTools();
     if(!aaRunning) $('aaSendBtn').disabled = (!$('aaTopic').value.trim() && !sentImgs.length && !sentTexts.length);
     var container = $('aaImgPreview');
     container.innerHTML = '';
@@ -2534,6 +2573,10 @@ var TEAM_COLORS = {
     reader.onload = function(e){
       var img = new Image();
       img.onload = function(){
+        if(imageMode&&ArenaImage.isOpenAI(imageComposerModel)&&['image/png','image/jpeg','image/webp'].indexOf(f.type)!==-1){
+          if(sentImgs.length>=imageReferenceLimit()){setImageError('此模型最多上传 '+imageReferenceLimit()+' 张参考图');return;}
+          sentImgs.push({data:e.target.result.split(',')[1],mime:f.type,preview:e.target.result});setImageError('');renderImgPreviews();return;
+        }
         var maxW = 1024, maxH = 1024, w = img.width, h = img.height;
         if(w > maxW || h > maxH){ var ratio = Math.min(maxW/w, maxH/h); w = Math.round(w*ratio); h = Math.round(h*ratio); }
         var canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h;
@@ -2809,7 +2852,7 @@ var TEAM_COLORS = {
       if(obj.error)throw new Error(typeof obj.error==='string'?obj.error:(obj.error.message||'生成失败，请重试。'));
       if(obj.modelName && onModelName) onModelName(obj.modelName);
       if(obj.status) updateThinkStatus(submodel, obj.status, kittenGeneration);
-      if(onMeta && (obj.status || obj.activity || obj.citation || obj.context || obj.imageContext || obj.grounding || obj.skills || obj.artifacts || obj.skillSession || obj.executionModel)) onMeta(obj);
+      if(onMeta && (obj.status || obj.activity || obj.citation || obj.context || obj.imageContext || obj.grounding || obj.skills || obj.artifacts || obj.skillSession || obj.executionModel || obj.imagePreview || obj.imageDetails || obj.imageUsage)) onMeta(obj);
       if(obj.t){ if(kitten) kitten.progress(submodel, 'responding', kittenGeneration); onChunk(obj.t); }
       if(obj.r){appendThinkSummary(submodel, obj.r, kittenGeneration);if(onReasoning) onReasoning(obj.r);}
       if(obj.img && onChunk) onChunk('\x00IMG\x00'+obj.img+'\x00MIME\x00'+(obj.mime||'image/png'));
@@ -3861,7 +3904,7 @@ var TEAM_COLORS = {
   function buildImageModelPop(){
     $('aaImageModelPop').innerHTML = '<div class="arena-image-menu-title">图像模型</div>'+IMAGE_MODELS.map(function(m){
       var c=ArenaImage.cap(m.value);
-      return popItem(m.value, m.label, m.value === imageComposerModel, '', m.disabled,c?c.provider+' · 生成与编辑 · 最多 '+c.references+' 张参考图':'','image');
+      return popItem(m.value, m.label, m.value === imageComposerModel, '', m.disabled,c?(c.openai?(m.value.endsWith('sunburst')?'OpenAI · 注重编辑精度':'OpenAI · 快速日常创作'):c.provider+' · 生成与编辑 · 最多 '+c.references+' 张参考图'):'','image');
     }).join('');
   }
 
@@ -3872,18 +3915,26 @@ var TEAM_COLORS = {
   }
 
   function imageSettingsState(){
+    if(ArenaImage.isOpenAI(imageComposerModel))return openAIImageSettings[imageComposerModel]||{};
     return imageComposerModel === ArenaImage.GOOGLE_MODEL
       ? {size:nbImageSize,ratio:nbAspectRatio,thinking:nbThinkingLevel,imageOnly:nbImageOnly,grounding:nbGrounding,style:nbStylePreset}
       : {size:grokImageResolution,ratio:grokAspectRatio,quality:grokImageQuality,count:grokImageCount};
   }
   function normalizeImageSettings(){
     var state=ArenaImage.normalize(imageComposerModel,imageSettingsState());
+    if(ArenaImage.isOpenAI(imageComposerModel)){openAIImageSettings[imageComposerModel]=state;return;}
     if(imageComposerModel===ArenaImage.GOOGLE_MODEL){nbImageSize=state.size;nbAspectRatio=state.ratio;nbThinkingLevel=state.thinking;nbGrounding=state.grounding;}
     else{grokImageResolution=state.size;grokAspectRatio=state.ratio;grokImageQuality=state.quality;grokImageCount=state.count;}
   }
   function buildImageSettingsPop(){
     normalizeImageSettings();
     $('aaImageSettingsPop').innerHTML=ArenaImage.settingsMarkup(imageComposerModel,imageComposerTask,imageSettingsState(),_nbStyleOptions);
+  }
+  function updateOpenAIImageSizePreview(){
+    if(!ArenaImage.isOpenAI(imageComposerModel))return;
+    var state=ArenaImage.normalize(imageComposerModel,imageSettingsState()),card=$('aaImageSettingsPop').querySelector('[data-custom-size-card]');
+    if(card){card.querySelector('[data-size-preview]').innerHTML=ArenaImage.sizePreview('custom',state);var info=ArenaImage.sizeInfo('custom',state);card.querySelector('[data-size-ratio]').textContent=info.ratio+' '+info.orientation;}
+    var preview=$('aaImageSettingsPop').querySelector('[data-custom-size-preview]');if(preview)preview.innerHTML=ArenaImage.customSizePreview(state);
   }
 
   function imageSettingsSummary(){
@@ -3892,9 +3943,9 @@ var TEAM_COLORS = {
       var ratio=ArenaImage.ratioInfo(grokAspectRatio);
       return ratio.label+' '+ratio.orientation+' · '+grokImageResolution.toUpperCase()+' · '+qualityLabel+(imageComposerTask==='generation'?' · '+grokImageCount+'张':'');
     }
-    if(imageComposerModel === 'gpt-image-2.5-sunburst'){
-      var gptQualityLabel = {low:'快速',medium:'标准',high:'高质量',auto:'自动'}[grokImageQuality] || '自动';
-      return grokAspectRatio+' · '+gptQualityLabel+(imageComposerTask==='generation'?' · '+grokImageCount+'张':'');
+    if(ArenaImage.isOpenAI(imageComposerModel)){
+      var s=ArenaImage.normalize(imageComposerModel,imageSettingsState());
+      return (ArenaImage.outputSize(s)==='auto'?'自动尺寸':ArenaImage.outputSize(s).replace('x',' × '))+' · '+({low:'草稿',medium:'标准',high:'精细',xhigh:'超精细',max:'最高',auto:'自动画质'}[s.quality])+(s.background==='transparent'?' · 透明':'')+(s.count>1?' · '+s.count+'张':'');
     }
     if(imageComposerModel === 'gemini-nano-banana-2.1'){
       var style = _nbStyleOptions.find(function(o){ return o.value===nbStylePreset; });
@@ -3905,6 +3956,7 @@ var TEAM_COLORS = {
   }
 
   function syncImageComposer(){
+    syncImageMaskTools();
     var dock = $('aaImageDock'), row = dock && dock.closest('.aa-input-row');
     if(!dock || !row) return;
     var chat = document.querySelector('#ai-arena-app .aa-chat');
@@ -3922,7 +3974,7 @@ var TEAM_COLORS = {
     if(imageComposerModel === 'mj_imagine') brandSelection['mj'] = 'mj_imagine';
     activeBrands = {
       xai:imageComposerModel==='grok-imagine-image-2.0', anthropic:false,
-      openai:imageComposerModel==='gpt-image-2.5-sunburst',
+      openai:ArenaImage.isOpenAI(imageComposerModel),
       google:imageComposerModel==='gemini-nano-banana-2.1', mj:imageComposerModel==='mj_imagine', kling:false
     };
     $('aaImageModelLabel').textContent = model.label;
@@ -3970,10 +4022,28 @@ var TEAM_COLORS = {
     e.stopPropagation();
     if(e.target.closest('[data-image-close]')){closeImagePopovers();$('aaImageSettingsBtn').focus();}
   });
+  $('aaImageSettingsPop').addEventListener('input',function(e){
+    var control=e.target.closest('[data-image-setting]');if(!control||!ArenaImage.isOpenAI(imageComposerModel)||!/^custom(Width|Height)$/.test(control.dataset.imageSetting))return;
+    var state=Object.assign({},ArenaImage.normalize(imageComposerModel,imageSettingsState()));state[control.dataset.imageSetting]=Number(control.value);
+    openAIImageSettings[imageComposerModel]=state;localStorage.setItem('aa-openai-image-settings',JSON.stringify(openAIImageSettings));updateOpenAIImageSizePreview();
+    $('aaImageSettingsSummary').textContent=imageSettingsSummary();$('aaImageSettingsBtn').setAttribute('aria-label','图像设置：'+imageSettingsSummary());
+  });
   $('aaImageSettingsPop').addEventListener('change', function(e){
     var control=e.target.closest('[data-image-setting]');if(!control)return;
     var key=control.dataset.imageSetting,value=control.value,google=imageComposerModel===ArenaImage.GOOGLE_MODEL;
-    if(google){
+    if(ArenaImage.isOpenAI(imageComposerModel)){
+      var previous=ArenaImage.normalize(imageComposerModel,imageSettingsState()),next=Object.assign({},previous);
+      if(['customWidth','customHeight'].indexOf(key)!==-1)value=Number(value);
+      else if(['count','compression','partial'].indexOf(key)!==-1){
+        var number=Number(value),min=Number(control.min),max=Number(control.max);
+        if(!value||!Number.isInteger(number)||number<min||number>max){control.value=previous[key];setImageError('请填写 '+min+'–'+max+' 的整数。');return;}value=number;
+      }
+      next[key]=value;next=ArenaImage.normalize(imageComposerModel,next);openAIImageSettings[imageComposerModel]=next;
+      localStorage.setItem('aa-openai-image-settings',JSON.stringify(openAIImageSettings));setImageError('');
+      var custom=$('aaImageSettingsPop').querySelector('.arena-image-custom-wrap');if(custom)custom.hidden=next.size!=='custom';updateOpenAIImageSizePreview();
+      var compression=$('aaImageSettingsPop').querySelector('[data-image-setting="compression"]');if(compression)compression.closest('label').hidden=next.format==='png';
+      $('aaImageSettingsPop').querySelectorAll('[data-image-setting="format"]').forEach(function(input){input.checked=input.value===next.format;});
+    }else if(google){
       if(key==='ratio')nbAspectRatio=value;if(key==='size')nbImageSize=value;
       if(key==='thinking')nbThinkingLevel=value;if(key==='imageOnly')nbImageOnly=value==='true';
       if(key==='grounding')nbGrounding=value;if(key==='style')nbStylePreset=value;
@@ -4360,7 +4430,7 @@ var TEAM_COLORS = {
 
   function setGeneratedImageReference(source,parent,automatic,index){
     if(!source||!source.data)return false;
-    imageEditParentUid=parent&&parent.imageTurn&&parent.imageResponse&&ArenaImage.canonical(parent.submodel)===ArenaImage.GOOGLE_MODEL?parent.uid:null;
+    imageEditParentUid=parent&&parent.imageTurn&&parent.imageResponse&&(ArenaImage.canonical(parent.submodel)===ArenaImage.GOOGLE_MODEL||ArenaImage.isOpenAI(parent.submodel))?parent.uid:null;
     imageComposerTask='edit';
     var mime=source.mime||'image/png';
     sentImgs=[{data:source.data,mime:mime,preview:'data:'+mime+';base64,'+source.data,generatedReference:true,generatedUid:parent?parent.uid:null,generatedIndex:index,autoFollowup:!!automatic}];
@@ -4368,6 +4438,7 @@ var TEAM_COLORS = {
   }
 
   window._aaEditGeneratedImage = function(imageKey, sourceModel){
+    if(aaRunning){arenaNotice('图片处理结束后再编辑');return;}
     var source = window._aaImgStore && window._aaImgStore[imageKey];
     if(!source || !source.data){ alert('没有找到这张图片，请刷新后重试。'); return; }
 
@@ -4378,7 +4449,7 @@ var TEAM_COLORS = {
     debate = false;
     imageMode = true;
     videoMode = false;
-    imageComposerModel = ['grok-imagine-image-2.0','gpt-image-2.5-sunburst','gemini-nano-banana-2.1'].indexOf(sourceModel) !== -1
+    imageComposerModel = ['grok-imagine-image-2.0','gpt-image-2.5-sunburst','gpt-image-2.5-flare','gemini-nano-banana-2.1'].indexOf(sourceModel) !== -1
       ? sourceModel : 'grok-imagine-image-2.0';
     setGeneratedImageReference(source,parent,false,key?Number(key[2]):undefined);
     setImageError('');
@@ -4411,7 +4482,7 @@ var TEAM_COLORS = {
   };
 
   function isImageModerationError(message, submodel){
-    var imageModels = ['grok-imagine-image-2.0','gpt-image-2.5-sunburst','gemini-nano-banana-2.1','mj_imagine'];
+    var imageModels = ['grok-imagine-image-2.0','gpt-image-2.5-sunburst','gpt-image-2.5-flare','gemini-nano-banana-2.1','mj_imagine'];
     if(imageModels.indexOf(submodel) === -1) return false;
     return /content moderation|moderation|safety policy|safety filter|rejected by content|blocked for safety|内容审核|安全审核|违规内容/i.test(String(message || ''));
   }
@@ -4463,7 +4534,7 @@ var TEAM_COLORS = {
     var msg = msgs.find(function(m){ return m.uid === numericUid; });
     if(!msg || !msg.suggestedPrompt) return;
     debate = false; imageMode = true; videoMode = false;
-    if(['grok-imagine-image-2.0','gpt-image-2.5-sunburst','gemini-nano-banana-2.1','mj_imagine'].indexOf(msg.submodel) !== -1) imageComposerModel = msg.submodel;
+    if(['grok-imagine-image-2.0','gpt-image-2.5-sunburst','gpt-image-2.5-flare','gemini-nano-banana-2.1','mj_imagine'].indexOf(msg.submodel) !== -1) imageComposerModel = msg.submodel;
     if(msg.moderationTask) imageComposerTask = msg.moderationTask;
     $('aaBarImageBtn').classList.add('active');
     $('aaBarChatBtn').classList.remove('active');
@@ -4591,25 +4662,28 @@ var TEAM_COLORS = {
         h += '<video controls style="max-width:100%;border-radius:8px;display:block;margin-bottom:8px;" src="'+esc(msg.videoUrl)+'"></video>';
         h += '<a href="'+esc(msg.videoUrl)+'" download target="_blank" style="display:inline-block;padding:6px 12px;border-radius:8px;background:rgba(232,121,249,0.15);border:1px solid rgba(232,121,249,0.3);color:#e879f9;font-size:11px;font-weight:600;text-decoration:none;">下载视频</a>';
         h += '</div>';
-      } else if((msg.imgItems && msg.imgItems.length) || msg.imgData){
+      } else if((msg.imgItems && msg.imgItems.length) || msg.imgData || msg._imagePreview){
         h += '<div class="aa-msg-body '+bodyClass+' aa-generated-message" style="'+bodyStyle+'">';
         if(msg.text) h += '<p>'+esc(msg.text)+'</p>';
-        var _renderImgs = (msg.imgItems && msg.imgItems.length) ? msg.imgItems : [{data:msg.imgData,mime:msg.imgMime}];
+        var _renderImgs = (msg.imgItems && msg.imgItems.length) ? msg.imgItems : msg.imgData?[{data:msg.imgData,mime:msg.imgMime}]:[];
         h += '<div class="aa-generated-list'+(_renderImgs.length>1?' multiple':'')+'">';
         _renderImgs.forEach(function(item, imageIndex){
           var _imgKey = 'aigen_'+msg.uid+'_'+imageIndex;
           window._aaImgClickStore = window._aaImgClickStore||{};
           window._aaImgClickStore[_imgKey] = 'data:'+(item.mime||'image/png')+';base64,'+item.data;
           window._aaImgStore[_imgKey] = {data:item.data,mime:item.mime||'image/png'};
-          h += '<div class="aa-generated-card">';
+          var imageDetails=msg.imageDetails&&msg.imageDetails[imageIndex];
+          h += '<div class="aa-generated-card'+(imageDetails&&imageDetails.background==='transparent'?' is-transparent':'')+'">';
           h += '<div class="aa-generated-stage"><img class="aa-generated-image" src="'+window._aaImgClickStore[_imgKey]+'" onload="window._aaGeneratedImgLoaded(this,\''+msg.uid+'\')" onclick="window._aaLightbox(window._aaImgClickStore[\''+_imgKey+'\'])" alt="AI 生成图片"></div>';
           h += '<div class="aa-generated-actions">';
-          if(['grok-imagine-image-2.0','gpt-image-2.5-sunburst','gemini-nano-banana-2.1','gemini-3.1-flash-image'].indexOf(msg.submodel) !== -1) h += '<button class="aa-generated-btn edit" onclick="window._aaEditGeneratedImage(\''+_imgKey+'\',\''+msg.submodel+'\')">编辑这张</button>';
+          if(['grok-imagine-image-2.0','gpt-image-2.5-sunburst','gpt-image-2.5-flare','gemini-nano-banana-2.1','gemini-3.1-flash-image'].indexOf(msg.submodel) !== -1) h += '<button class="aa-generated-btn edit" onclick="window._aaEditGeneratedImage(\''+_imgKey+'\',\''+msg.submodel+'\')">编辑这张</button>';
           h += '<button class="aa-generated-btn primary" onclick="window._aaLightbox(window._aaImgClickStore[\''+_imgKey+'\'])">查看大图</button>';
           h += '<button class="aa-generated-btn" onclick="window._aaDownloadImg(\''+_imgKey+'\')">'+(window.ArenaNative && ArenaNative.available()?'保存图片':'下载原图')+'</button>';
           if(window.ArenaNative && ArenaNative.available()) h += '<button class="aa-generated-btn" onclick="window._aaShareImg(\''+_imgKey+'\')">分享图片</button>';
           h += '</div></div>';
+          if(imageDetails)h+=renderOpenAIImageDetails(imageDetails);
         });
+        if(msg._imagePreview)h+=renderOpenAIImagePreview(msg._imagePreview,msg.isError);
         h += '</div>';
         h += '</div>';
       } else {
@@ -4867,6 +4941,7 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
     if(typeof workspaceController!=='undefined'&&workspaceController&&workspaceController.visible())workspaceController.hide();
     if(imageMode){
       setImageError('');
+      if(ArenaImage.isOpenAI(imageComposerModel)&&!ArenaImage.validSize(ArenaImage.outputSize(ArenaImage.normalize(imageComposerModel,imageSettingsState())))){setImageError('图片尺寸无效：宽高须为 16 的倍数，长宽比不超过 3:1，总像素 655,360–8,294,400，最长边不超过 3840。');return;}
       var refCount = sentImgs.length;
       if(refCount && imageComposerTask==='generation'){imageComposerTask=refCount===1?'edit':'multi-edit';syncImageComposer();}
       if(refCount>imageReferenceLimit()){setImageError('此模型最多支持 '+imageReferenceLimit()+' 张参考图。');return;}
@@ -4901,6 +4976,7 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
     var _swapImgs = _isSwap ? sentImgs.slice(0,2) : null;
     var _imgs = _swapImgs || sentImgs.slice(), _img = _imgs.length ? _imgs[0].data : null, _imgMime = _imgs.length ? _imgs[0].mime : null, _texts = submittedTexts.slice();
     var submittedImageParentUid=imageEditParentUid;
+    var submittedImageMask=imageMaskState&&_imgs[0]&&imageMaskState.source===_imgs[0].data?{data:imageMaskState.data,mime:'image/png'}:null;
     var _topicText = topic;
     if(_texts.length) topic = topic ? topic + '\n\n' + _texts.join('\n\n') : _texts.join('\n\n');
     var _quotedBlock = activeQuote ? activeQuote : null;
@@ -4939,8 +5015,12 @@ var expectsImage=!!(imageMode&&ArenaImage.cap(sub));
 var _nbStylePrefix = (sub === 'gemini-nano-banana-2.1' && nbStylePreset !== 'none') ? (NB_STYLE_PROMPTS[nbStylePreset] || '') : '';
 var _nbExtraOpts = { _imgs: _imgs };
 if(imageMode&&ArenaImage.cap(sub)){
-  var imageHistory=sub===ArenaImage.GOOGLE_MODEL&&imageEditParentUid!=null?ArenaImage.historyFor(msgs,imageEditParentUid):[];
+  var imageHistory=(sub===ArenaImage.GOOGLE_MODEL||ArenaImage.isOpenAI(sub))&&imageEditParentUid!=null?ArenaImage.historyFor(msgs,imageEditParentUid):[];
   _nbExtraOpts=ArenaImage.requestOptions(sub,imageComposerTask,imageSettingsState(),_imgs,imageHistory);
+  if(ArenaImage.isOpenAI(sub)){
+    msgObj.imageSettings=ArenaImage.normalize(sub,imageSettingsState());
+    if(submittedImageMask)_nbExtraOpts.imageMask=submittedImageMask;
+  }
 }
 var _skillSys = currentChatSystemPrompt(sub);
 var sysPrompt = _skillSys;
@@ -4955,7 +5035,7 @@ if(!imageMode){
   _nbExtraOpts.recovery={replyUid:uid,userMessage:serializeMsgs().slice(-1)[0],title:getChatTitle(),color:brandInfo.color};
   _nbExtraOpts._onRun=function(run){msgObj.run=Object.assign({},msgObj.run||{},run);};
 }
-if(sub===ArenaImage.GOOGLE_MODEL){
+if(sub===ArenaImage.GOOGLE_MODEL||ArenaImage.isOpenAI(sub)){
   msgObj.imageTurn={prompt:fullPrompt,parentUid:imageEditParentUid,references:_imgs.map(function(image){
     var parent=image.generatedUid!=null?msgs.find(function(m){return String(m.uid)===String(image.generatedUid)&&m.imgItems;}):null;
     if(!parent)parent=msgs.find(function(m){return m.imgItems&&m.imgItems.some(function(i){return i.data===image.data;});});
@@ -4971,14 +5051,15 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
               render(); return;
             }
             if(chunk.indexOf('\x00IMG\x00') === 0){
+              delete msgObj._imagePreview;
               var parts2 = chunk.split('\x00');
               var _chunkImage = {data:parts2[2], mime:parts2[4] || 'image/png'};
-              if(['grok-imagine-image-2.0','gpt-image-2.5-sunburst','gemini-nano-banana-2.1','mj_imagine'].indexOf(sub) !== -1){
+              if(['grok-imagine-image-2.0','gpt-image-2.5-sunburst','gpt-image-2.5-flare','gemini-nano-banana-2.1','mj_imagine'].indexOf(sub) !== -1){
                 msgObj.imgItems = msgObj.imgItems || [];
                 msgObj.imgItems.push(_chunkImage);
                 if(!msgObj.imgData){ msgObj.imgData=_chunkImage.data; msgObj.imgMime=_chunkImage.mime; }
                 window._aaImgStore['aigen_'+uid+'_'+(msgObj.imgItems.length-1)] = _chunkImage;
-                var _imageSpec = sub === 'gemini-nano-banana-2.1' ? nbImageSize : (sub === 'mj_imagine' ? 'MJ' : grokImageResolution.toUpperCase());
+                var _imageSpec = sub === 'gemini-nano-banana-2.1' ? nbImageSize : (ArenaImage.isOpenAI(sub)?'OpenAI':sub === 'mj_imagine' ? 'MJ' : grokImageResolution.toUpperCase());
                 msgObj.usageStr = _imageSpec+' · '+msgObj.imgItems.length+'张';
               } else {
                 msgObj.imgData = _chunkImage.data; msgObj.imgMime = _chunkImage.mime;
@@ -4992,9 +5073,9 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
                 msgObj.usageStr = 'Kling V2.5' + (_klingCost > 0 ? ' · $' + _klingCost.toFixed(4) : '');
               }
               var _imageSavedPrices = JSON.parse(localStorage.getItem('aa-model-prices') || '{}');
-              if(['grok-imagine-image-2.0','gpt-image-2.5-sunburst','gemini-nano-banana-2.1','mj_imagine'].indexOf(sub) !== -1){
+              if(['grok-imagine-image-2.0','gpt-image-2.5-sunburst','gpt-image-2.5-flare','gemini-nano-banana-2.1','mj_imagine'].indexOf(sub) !== -1){
                 var _imageCost = (_imageSavedPrices[sub] && _imageSavedPrices[sub].input) ? _imageSavedPrices[sub].input : 0;
-                if(_imageCost > 0) msgObj.usageStr += ' · $' + _imageCost.toFixed(4);
+                if(_imageCost > 0&&!ArenaImage.isOpenAI(sub)) msgObj.usageStr += ' · $' + _imageCost.toFixed(4);
               }
               if(firstChunk){ firstChunk=false; hideThink(sub); msgs.push(msgObj); }
               render(); return;
@@ -5085,6 +5166,9 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
           _nbExtraOpts,
           function(meta){
             if(meta.status)msgObj._activityPhase=meta.status;
+            if(meta.imagePreview){msgObj._imagePreview=meta.imagePreview;if(firstChunk){firstChunk=false;hideThink(sub);msgs.push(msgObj);}render();return;}
+            if(meta.imageDetails){msgObj.imageDetails=msgObj.imageDetails||[];msgObj.imageDetails[meta.imageDetails.index]=meta.imageDetails;render();}
+            if(meta.imageUsage){msgObj.imageUsage=meta.imageUsage;msgObj.usageStr='OpenAI · '+meta.imageUsage.images+'张 · 图像费用以官方账单为准';}
             if(meta.imageContext)msgObj.imageResponse=meta.imageContext.parts;
             if(meta.grounding)msgObj.grounding=meta.grounding;
             if(meta.context)msgObj.context=meta.context;
@@ -5120,6 +5204,7 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
     }
     function settleFinish(){
       aaRunning = false;
+      msgs.forEach(function(message){if(message._imagePreview){delete message._imagePreview;if(abortF&&!(message.imgItems&&message.imgItems.length)&&!message.text){message.text='已停止图片生成。';message.isError=true;}}});
       msgs.forEach(function(message){if(message.run&&message.run.status!=='running')forgetPendingChatRun(message.run.id);});
       if(imageMode&&imageFailure&&!abortF){
         setImageError('图片处理未完成，请查看对话中的错误说明。');
@@ -6354,14 +6439,14 @@ if(imageMode){
     if(switchEpoch!==scopeSwitchEpoch||aaRunning)return;
     var oldKey=activeProjectId||'general';
     clearDebateView();
-    workspaceViews.set(oldKey,{imageEditParentUid:imageEditParentUid,msgs:msgs,currentChatId:currentChatId,draft:$('aaTopic').value,sentImgs:sentImgs,sentTexts:sentTexts,quote:activeQuote,skill:activeSkill,scroll:$('aaMessages').scrollTop,mode:{debate:debate,image:imageMode,video:videoMode,debateMode:debateMode,brands:Object.assign({},activeBrands),selection:Object.assign({},brandSelection)}});
+    workspaceViews.set(oldKey,{imageMaskState:imageMaskState,imageEditParentUid:imageEditParentUid,msgs:msgs,currentChatId:currentChatId,draft:$('aaTopic').value,sentImgs:sentImgs,sentTexts:sentTexts,quote:activeQuote,skill:activeSkill,scroll:$('aaMessages').scrollTop,mode:{debate:debate,image:imageMode,video:videoMode,debateMode:debateMode,brands:Object.assign({},activeBrands),selection:Object.assign({},brandSelection)}});
     ++scopeEpoch;++chatLoadEpoch;
     activeProject=project;activeProjectId=project?project.id:null;
     if(activeProjectId)sessionStorage.setItem('aa-active-project',activeProjectId);else sessionStorage.removeItem('aa-active-project');
     _cachedMemory=null;_memoryLoaded=false;clearQuote();hideSelectionMenu();selectionQuote=null;
     if(workspaceController)workspaceController.closeFile();
     var view=workspaceViews.get(activeProjectId||'general');
-    imageEditParentUid=view?view.imageEditParentUid:null;
+    imageEditParentUid=view?view.imageEditParentUid:null;imageMaskState=view?view.imageMaskState||null:null;
     msgs=view?view.msgs:[];currentChatId=view?view.currentChatId:null;
     sentImgs=view?view.sentImgs:[];sentTexts=view?view.sentTexts:[];
     activeSkill=activeProjectId?null:(view?view.skill:null);

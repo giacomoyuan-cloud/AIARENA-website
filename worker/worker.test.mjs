@@ -223,17 +223,27 @@ test('Grok image generation uses the official endpoint and counts cost once',asy
   assert.equal(usage.calls,1); assert.equal(usage.cost,0.04);
 });
 
-test('OpenAI image generation sends official JSON without unsupported response_format',async t=>{
+test('OpenAI image generation uses the image tool through the official Responses transport',async t=>{
   const {env}=setup();
-  mockFetch(t,(url,options)=>{ assert.equal(url,'https://api.openai.com/v1/images/generations'); assert.equal(options.headers.Authorization,'Bearer '+env.OPENAI_API_KEY); const body=JSON.parse(options.body); assert.equal(body.size,'1536x1024'); assert.equal(body.response_format,undefined); assert.equal(typeof body.safety_identifier,'string'); return Response.json({data:[{b64_json:'aGVsbG8='}]}); });
+  mockFetch(t,(url,options)=>{
+    assert.equal(url,'https://api.openai.com/v1/responses');assert.equal(options.headers.Authorization,'Bearer '+env.OPENAI_API_KEY);
+    const body=JSON.parse(options.body),tool=body.tools[0];
+    assert.equal(body.model,'gpt-6.1-sol');assert.equal(body.store,false);assert.equal(tool.model,'gpt-image-2.5-sunburst');
+    assert.equal(tool.size,'1536x1024');assert.equal(tool.action,'generate');assert.equal(body.response_format,undefined);assert.equal(typeof body.safety_identifier,'string');
+    return stream([{type:'response.output_item.done',item:{type:'image_generation_call',id:'ig-test',result:'aGVsbG8='}},{type:'response.completed',response:{status:'completed'}}]);
+  });
   const output=events(await (await worker.fetch(request('gpt-image-2.5-sunburst',{aspectRatio:'3:2'}),env)).text());
-  assert.equal(output.find(value=>value.img).mime,'image/png');
+  assert.equal(output.find(value=>value.img).mime,'image/png');assert.equal(output.find(value=>value.imageContext).imageContext.parts[0].imageIndex,0);
 });
 
-test('OpenAI image editing uploads reference files as multipart data',async t=>{
+test('OpenAI multi-image editing forwards reference bytes to the official image tool',async t=>{
   const {env}=setup();
-  mockFetch(t,(url,options)=>{ assert.equal(url,'https://api.openai.com/v1/images/edits'); assert.equal(options.headers['Content-Type'],undefined); assert.ok(options.body instanceof FormData); assert.equal(options.body.getAll('image[]').length,2); assert.equal(options.body.get('model'),'gpt-image-2.5-sunburst'); return Response.json({data:[{b64_json:'aGVsbG8='}]}); });
-  const output=events(await (await worker.fetch(request('gpt-image-2.5-sunburst',{imageTask:'multi-edit',images:[{data:'aGVsbG8=',mime:'image/png'},{data:'aGVsbG8=',mime:'image/jpeg'}]}),env)).text());
+  mockFetch(t,(url,options)=>{
+    assert.equal(url,'https://api.openai.com/v1/responses');const body=JSON.parse(options.body);
+    assert.equal(body.tools[0].action,'edit');assert.equal(body.input[0].content.filter(p=>p.type==='input_image').length,2);
+    return stream([{type:'response.completed',response:{output:[{type:'image_generation_call',id:'ig-test',result:'aGVsbG8='}]}}]);
+  });
+  const output=events(await (await worker.fetch(request('gpt-image-2.5-sunburst',{imageTask:'multi-edit',images:[{data:'aGVsbG8=',mime:'image/png'},{data:'d29ybGQ=',mime:'image/jpeg'}]}),env)).text());
   assert.ok(output.some(value=>value.img));
 });
 
@@ -351,21 +361,16 @@ test('optional Cloudflare native gateway keeps OpenAI credentials, streaming and
   assert.equal(gatewayCalls.length,1); assert.equal(directCalls.length,0);
 });
 
-test('optional gateway uploads OpenAI edit files without converting multipart to JSON',async t=>{
-  const {env}=setup(); env.OPENAI_GATEWAY_ID='aiarena-official';
-  const directCalls=mockFetch(t,()=>{throw new Error('unexpected fallback');});
-  let calls=0;
+test('optional gateway preserves the Responses image tool and never falls back',async t=>{
+  const {env}=setup();env.OPENAI_GATEWAY_ID='aiarena-official';const directCalls=mockFetch(t,()=>{throw new Error('unexpected fallback');});let calls=0;
   env.AI={async fetch(url,options){
-    calls++;
-    assert.ok(url.endsWith('/openai/v1/images/edits'));
-    assert.ok(options.body instanceof FormData);
-    assert.equal(options.body.getAll('image[]').length,2);
-    assert.equal(options.headers.has('Content-Type'),false);
+    calls++;assert.ok(url.endsWith('/openai/v1/responses'));const body=JSON.parse(options.body);
+    assert.equal(body.tools[0].model,'gpt-image-2.5-sunburst');assert.equal(body.tools[0].action,'edit');
     assert.equal(options.headers.get('authorization'),'Bearer '+env.OPENAI_API_KEY);
-    return Response.json({data:[{b64_json:'aGVsbG8='}]});
+    return stream([{type:'response.completed',response:{output:[{type:'image_generation_call',id:'ig-test',result:'aGVsbG8='}]}}]);
   }};
-  const output=events(await (await worker.fetch(request('gpt-image-2.5-sunburst',{imageTask:'multi-edit',images:[{data:'aGVsbG8=',mime:'image/png'},{data:'aGVsbG8=',mime:'image/jpeg'}]}),env)).text());
-  assert.ok(output.some(value=>value.img)); assert.equal(calls,1); assert.equal(directCalls.length,0);
+  const output=events(await (await worker.fetch(request('gpt-image-2.5-sunburst',{imageTask:'multi-edit',images:[{data:'aGVsbG8=',mime:'image/png'},{data:'d29ybGQ=',mime:'image/jpeg'}]}),env)).text());
+  assert.ok(output.some(value=>value.img));assert.equal(calls,1);assert.equal(directCalls.length,0);
 });
 
 test('missing gateway binding or rejected gateway authentication never falls back',async t=>{
