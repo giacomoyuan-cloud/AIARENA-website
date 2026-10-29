@@ -28,7 +28,7 @@ function browser(saved = {}) {
 
 test('search summary distinguishes actual image, web and combined search results', () => {
   const context=vm.createContext({esc:value=>String(value),URL});
-  vm.runInContext(browserFunction('renderMessageActivity'),context);
+  vm.runInContext(browserFunction('syncActivityDisclosure')+'\n'+browserFunction('renderMessageActivity'),context);
   for(const [searchModes,label] of [[{web:false,image:true},'已搜索图片'],[{web:true,image:true},'已搜索网页与图片'],[{web:true,image:false},'已搜索网页'],[undefined,'已搜索网页']]){
     const html=context.renderMessageActivity({activity:[{kind:'search_results',searchModes,label:'Search'}]});
     assert.ok(html.includes('<summary>'+label+'</summary>'));
