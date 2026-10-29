@@ -30,20 +30,26 @@
   function outputSize(state){return state.size==='custom'?state.customWidth+'x'+state.customHeight:state.size;}
   function sizeInfo(value,state,large){
     state=state||{};var actual=value==='custom'?state.customWidth+'x'+state.customHeight:value,parts=String(actual).split('x').map(Number),w=parts[0],h=parts[1];
-    if(value==='auto')return {width:large?126:48,height:large?84:32,ratio:'随内容',orientation:'自动画幅',resolution:'自动'};
-    if(!Number.isFinite(w)||!Number.isFinite(h)||w<=0||h<=0)return {width:large?90:36,height:large?90:36,ratio:'—',orientation:'填写宽高',resolution:'输入宽度和高度',empty:true};
-    var scale=Math.min((large?156:50)/w,(large?108:44)/h),a=w,b=h;
+    if(value==='auto')return {width:large?126:34,height:large?84:26,ratio:'随内容',orientation:'自动画幅',resolution:'自动'};
+    if(!Number.isFinite(w)||!Number.isFinite(h)||w<=0||h<=0)return {width:large?90:32,height:large?90:32,ratio:'—',orientation:'填写宽高',resolution:'输入宽度和高度',empty:true};
+    var scale=Math.min(156/w,108/h),frame=ratioInfo(w+':'+h),a=w,b=h;
     if(Number.isInteger(a)&&Number.isInteger(b)){while(b){var next=a%b;a=b;b=next;}}
     else a=1;
-    return {width:Math.round(w*scale*100)/100,height:Math.round(h*scale*100)/100,ratio:(w/a)+':'+(h/a),orientation:w===h?'方形':w>h?'横幅':'竖幅',resolution:w+' × '+h};
+    return {width:large?Math.round(w*scale*100)/100:frame.width,height:large?Math.round(h*scale*100)/100:frame.height,ratio:(w/a)+':'+(h/a),orientation:w===h?'方形':w>h?'横幅':'竖幅',resolution:w+' × '+h};
   }
   function sizePreview(value,state,large){
     var info=sizeInfo(value,state,large);
-    return '<span class="arena-size-preview'+(large?' large':'')+'" aria-hidden="true"><span class="arena-size-paper'+(value==='auto'||info.empty?' automatic':'')+'" style="--size-w:'+info.width+'px;--size-h:'+info.height+'px">'+(value==='auto'||info.empty?'':'<svg viewBox="0 0 120 80" preserveAspectRatio="xMidYMid slice"><circle cx="86" cy="23" r="9" fill="currentColor" opacity=".28"/><path d="M0 69 37 31 72 67 94 46 120 72V80H0Z" fill="currentColor" opacity=".22"/></svg>')+'</span></span>';
+    return framePreview(info,value==='auto'||info.empty,large,' data-size-preview');
   }
   function sizeChoice(value,current,state){
-    var info=sizeInfo(value,state),label=value==='auto'?'自动':value==='custom'?'自定义':info.resolution;
-    return '<label class="arena-image-radio"'+(value==='custom'?' data-custom-size-card':'')+'><input type="radio" name="image-size" data-image-setting="size" value="'+escape(value)+'"'+(current===value?' checked':'')+'><span class="arena-image-radio-face arena-size-face"><span data-size-preview>'+sizePreview(value,state)+'</span><span>'+escape(label)+'</span><small data-size-ratio>'+escape(info.ratio+' '+info.orientation)+'</small></span></label>';
+    var info=sizeInfo(value,state),label=value==='auto'?'自动':value==='custom'?'自定义':info.ratio;
+    var caption=value==='auto'?'随内容':value==='custom'?info.ratio+' '+info.orientation:info.resolution.replace(/\s+/g,'');
+    return frameChoice('size',value,label,current,sizePreview(value,state),caption,value==='custom');
+  }
+  function sizeSummary(state){
+    var info=sizeInfo(state.size,state),label=info.resolution.replace(/\s+/g,'');
+    if(state.size==='custom')label='自定义 '+label;
+    return sizePreview(state.size,state)+'<span>'+escape(label)+' <small>'+escape(state.size==='auto'?'随内容':info.ratio+' '+info.orientation)+'</small></span>';
   }
   function customSizePreview(state){
     var info=sizeInfo('custom',state,true),valid=validSize(outputSize(Object.assign({},state,{size:'custom'})));
@@ -92,16 +98,24 @@
     var parts=String(value).split(':').map(Number),r=parts[0]/parts[1];if(!Number.isFinite(r)||r<=0)r=1;
     return {label:value,orientation:r===1?'方形':r>1?'横幅':'竖幅',width:Math.round(Math.min(40,32*r)*100)/100,height:Math.round(Math.min(32,40/r)*100)/100};
   }
-  function ratioPreview(value){
-    var r=ratioInfo(value);
-    return '<span class="arena-ratio-preview'+(value==='auto'?' automatic':'')+'" aria-hidden="true" style="--ratio-w:'+r.width+'px;--ratio-h:'+r.height+'px"><i></i></span>';
+  function framePreview(info,automatic,large,attributes){
+    return '<span class="arena-ratio-preview'+(automatic?' automatic':'')+(large?' large':'')+'"'+(attributes||'')+' aria-hidden="true" style="--ratio-w:'+info.width+'px;--ratio-h:'+info.height+'px"><i></i></span>';
   }
-  function radio(key,value,label,current,extra){
-    return '<label class="arena-image-radio"><input type="radio" name="image-'+key+'" data-image-setting="'+key+'" value="'+escape(value)+'"'+(String(current)===String(value)?' checked':'')+'><span class="arena-image-radio-face">'+(extra||'')+'<span>'+escape(label)+'</span></span></label>';
+  function ratioPreview(value){
+    return framePreview(ratioInfo(value),value==='auto');
+  }
+  function radio(key,value,label,current,extra,custom){
+    return '<label class="arena-image-radio"'+(custom?' data-custom-size-card':'')+'><input type="radio" name="image-'+key+'" data-image-setting="'+key+'" value="'+escape(value)+'"'+(String(current)===String(value)?' checked':'')+'><span class="arena-image-radio-face">'+(extra||'')+'<span>'+escape(label)+'</span></span></label>';
+  }
+  function frameChoice(key,value,label,current,preview,caption,custom){
+    return radio(key,value,label,current,preview+'<small class="arena-ratio-direction"'+(key==='size'?' data-size-ratio':'')+'>'+escape(caption)+'</small>',custom);
+  }
+  function frameSection(key,label,legend,summary,choices,extra){
+    return '<details class="arena-image-disclosure arena-image-span" data-image-section="'+key+'"><summary><span>'+escape(label)+'</span><span class="arena-image-selection" data-image-'+key+'-summary>'+summary+'</span>'+icon('chevron')+'</summary><fieldset class="arena-image-field"><legend class="arena-sr-only">'+escape(legend)+'</legend><div class="arena-ratio-grid">'+choices+'</div>'+(extra||'')+'</fieldset></details>';
   }
   function ratioMarkup(values,current){
     var r=ratioInfo(current);
-    return '<details class="arena-image-disclosure arena-image-span" data-image-section="ratio"><summary><span>画面比例</span><span class="arena-image-selection" data-image-ratio-summary>'+ratioPreview(current)+'<span>'+escape(r.label)+' <small>'+r.orientation+'</small></span></span>'+icon('chevron')+'</summary><fieldset class="arena-image-field"><legend class="arena-sr-only">选择画面比例</legend><div class="arena-ratio-grid">'+values.map(function(value){var info=ratioInfo(value);return radio('ratio',value,info.label,current,ratioPreview(value)+'<small class="arena-ratio-direction">'+info.orientation+'</small>');}).join('')+'</div></fieldset></details>';
+    return frameSection('ratio','画面比例','选择画面比例',ratioPreview(current)+'<span>'+escape(r.label)+' <small>'+r.orientation+'</small></span>',values.map(function(value){var info=ratioInfo(value);return frameChoice('ratio',value,info.label,current,ratioPreview(value),info.orientation);}).join(''));
   }
   function cards(key,label,options,current,hint){
     return '<fieldset class="arena-image-field arena-image-span"><legend>'+escape(label)+'</legend><div class="arena-image-cards">'+options.map(function(o){return radio(key,o[0],o[1],current,icon(o[2]));}).join('')+'</div>'+(hint?'<p class="arena-image-field-help">'+escape(hint)+'</p>':'')+'</fieldset>';
@@ -141,9 +155,9 @@
     var h='<div class="arena-image-heading"><div><h2 id="aaImageSettingsTitle">图像设置</h2><p>'+escape(c.label)+' <span>· '+c.provider+'</span></p></div><button type="button" data-image-close aria-label="关闭图像设置">'+icon('close')+'</button></div>';
     h+='<div class="arena-image-form'+(c.openai?' arena-image-openai':'')+'">';
     if(c.openai){
-      h+='<fieldset class="arena-image-field arena-image-span"><legend>图片尺寸</legend><div class="arena-image-size-grid">'+c.sizes.map(function(v){return sizeChoice(v,s.size,s);}).join('')+'</div></fieldset>';
-      h+='<div class="arena-image-custom-wrap arena-image-span"'+(s.size==='custom'?'':' hidden')+'><div class="arena-image-custom"><label>宽度（像素）<input type="number" data-image-setting="customWidth" aria-label="自定义图片宽度" min="256" max="3840" step="16" value="'+escape(s.customWidth)+'"></label><span>×</span><label>高度（像素）<input type="number" data-image-setting="customHeight" aria-label="自定义图片高度" min="256" max="3840" step="16" value="'+escape(s.customHeight)+'"></label></div><div class="arena-image-custom-preview" data-custom-size-preview aria-live="polite">'+customSizePreview(s)+'</div></div>';
-      h+='<p class="arena-image-field-help arena-image-span">尺寸须为 16 的倍数，长宽比不超过 3:1，总像素 655,360–8,294,400。超过 2560 × 1440 为实验性分辨率。</p>';
+      var custom='<div class="arena-image-custom-wrap"'+(s.size==='custom'?'':' hidden')+'><div class="arena-image-custom"><label>宽度（像素）<input type="number" data-image-setting="customWidth" aria-label="自定义图片宽度" min="256" max="3840" step="16" value="'+escape(s.customWidth)+'"></label><span>×</span><label>高度（像素）<input type="number" data-image-setting="customHeight" aria-label="自定义图片高度" min="256" max="3840" step="16" value="'+escape(s.customHeight)+'"></label></div><div class="arena-image-custom-preview" data-custom-size-preview aria-live="polite">'+customSizePreview(s)+'</div></div>';
+      custom+='<p class="arena-image-field-help">尺寸须为 16 的倍数，长宽比不超过 3:1，总像素 655,360–8,294,400。超过 2560 × 1440 为实验性分辨率。</p>';
+      h+=frameSection('size','画面比例','选择图片尺寸',sizeSummary(s),c.sizes.map(function(v){return sizeChoice(v,s.size,s);}).join(''),custom);
       h+=slider('quality','画质',[['low','草稿'],['medium','标准'],['high','精细'],['xhigh','超精细'],['max','最高']],s.quality,{auto:true,wide:true});
       if(model.endsWith('flare'))h+='<p class="arena-image-field-help arena-image-span">Flare 注重速度；对照片质感要求高，可选择画质优先的 Sunburst。</p>';
       h+=segments('format','文件格式',[['png','PNG'],['jpeg','JPEG'],['webp','WebP']],s.format);
@@ -196,6 +210,6 @@
       return [{role:'user',parts:parts},{role:'model',parts:response}];
     });
   }
-  var api={GOOGLE_MODEL:GOOGLE_MODEL,OPENAI_MODELS:OPENAI_MODELS,isOpenAI:isOpenAI,validSize:validSize,outputSize:outputSize,sizeInfo:sizeInfo,sizePreview:sizePreview,sizeChoice:sizeChoice,customSizePreview:customSizePreview,capabilities:capabilities,canonical:canonical,cap:cap,normalize:normalize,requestOptions:requestOptions,settingsMarkup:settingsMarkup,sliderValue:sliderValue,syncSliders:syncSliders,historyFor:historyFor,icon:icon,ratioInfo:ratioInfo,ratioPreview:ratioPreview};
+  var api={GOOGLE_MODEL:GOOGLE_MODEL,OPENAI_MODELS:OPENAI_MODELS,isOpenAI:isOpenAI,validSize:validSize,outputSize:outputSize,sizeInfo:sizeInfo,sizePreview:sizePreview,sizeChoice:sizeChoice,sizeSummary:sizeSummary,customSizePreview:customSizePreview,capabilities:capabilities,canonical:canonical,cap:cap,normalize:normalize,requestOptions:requestOptions,settingsMarkup:settingsMarkup,sliderValue:sliderValue,syncSliders:syncSliders,historyFor:historyFor,icon:icon,ratioInfo:ratioInfo,ratioPreview:ratioPreview};
   if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.ArenaImage=api;
 })(typeof window!=='undefined'?window:this);

@@ -864,7 +864,7 @@
   #ai-arena-app #aaSkillEditPrompt::placeholder { color: #888; opacity: 1; }
 
 </style>
-<link rel="stylesheet" href="/arena.css?v=20261030-chatmodes1">
+<link rel="stylesheet" href="/arena.css?v=20261030-image-unified1">
 <link rel="stylesheet" href="/arena-workspace.css?v=20261029-debateresume1">
 <link rel="stylesheet" href="/arena-controls.css?v=20261029-debateresume1">
 <link rel="stylesheet" href="/arena-pet.css?v=20261029-petnoghost1">
@@ -4019,7 +4019,8 @@ var TEAM_COLORS = {
   function updateOpenAIImageSizePreview(){
     if(!ArenaImage.isOpenAI(imageComposerModel))return;
     var state=ArenaImage.normalize(imageComposerModel,imageSettingsState()),card=$('aaImageSettingsPop').querySelector('[data-custom-size-card]');
-    if(card){card.querySelector('[data-size-preview]').innerHTML=ArenaImage.sizePreview('custom',state);var info=ArenaImage.sizeInfo('custom',state);card.querySelector('[data-size-ratio]').textContent=info.ratio+' '+info.orientation;}
+    if(card){card.querySelector('[data-size-preview]').outerHTML=ArenaImage.sizePreview('custom',state);var info=ArenaImage.sizeInfo('custom',state);card.querySelector('[data-size-ratio]').textContent=info.ratio+' '+info.orientation;}
+    var summary=$('aaImageSettingsPop').querySelector('[data-image-size-summary]');if(summary)summary.innerHTML=ArenaImage.sizeSummary(state);
     var preview=$('aaImageSettingsPop').querySelector('[data-custom-size-preview]');if(preview)preview.innerHTML=ArenaImage.customSizePreview(state);
   }
 
