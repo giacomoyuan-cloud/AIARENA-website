@@ -5,7 +5,7 @@ import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {DatabaseSync} from 'node:sqlite';
 import worker,{ChatRun,ProjectScheduler} from '../worker/worker.js';
-const root=path.resolve(import.meta.dirname,'../dist-site'),hash=s=>createHash('sha256').update(s).digest('hex');
+const root=path.resolve(process.env.ARENA_SITE_OUTPUT_DIR || path.resolve(import.meta.dirname,'../dist-site')),port=Number(process.env.ARENA_QA_PORT||4193),hash=s=>createHash('sha256').update(s).digest('hex');
 const data=new Map([['user:qa-reader',JSON.stringify({hash:hash('offline-fixture')})]]),events=[];
 const kv={get:async k=>data.get(k)||null,put:async(k,v)=>data.set(k,v),delete:async k=>data.delete(k),list:async({prefix})=>({keys:[...data.keys()].filter(k=>k.startsWith(prefix)).map(name=>({name})),list_complete:true})};
 const env={MEMORY_KV:kv,BIZ_KV:kv,PASSWORD:'synthetic-only',GROK_API_KEY:'synthetic-key',ANTHROPIC_API_KEY:'synthetic-key',OPENAI_API_KEY:'synthetic-key',GEMINI_API_KEY:'synthetic-key'};
@@ -22,6 +22,18 @@ globalThis.fetch=async(url,options)=>{
   const hostname=new URL(typeof url==='string'?url:url.url).hostname,payload=JSON.parse(options.body);
   if(!['api.x.ai','api.anthropic.com','api.openai.com','generativelanguage.googleapis.com'].includes(hostname))throw Error('External requests disabled by local fixture');
   events.push({kind:'synthetic-provider',model:payload.model,at:Date.now()});
+  const input=JSON.stringify(payload.messages||payload.input||''),timeoutCase=/仅摘要超时验收|正文后超时验收|空结果超时验收/.test(input);
+  if(timeoutCase){
+    const anthropic=hostname==='api.anthropic.com',items=[];
+    if(!input.includes('空结果超时验收'))items.push(anthropic?{type:'content_block_delta',delta:{type:'thinking_delta',thinking:'合成验收：这是服务商已经返回的公开摘要。超时后应直接展开，并在重新打开聊天时保留。'}}:{type:'response.reasoning_summary_text.delta',delta:'合成验收：这是服务商已经返回的公开摘要。超时后应直接展开，并在重新打开聊天时保留。'});
+    if(input.includes('正文后超时验收')){
+      const partial='## 已收到的正文\n\n这段合成回答在连接中断前已经返回，必须完整显示。\n\n- **第一步**：保留原始内容。\n- **第二步**：单独显示中断状态。\n\n```js\nconst received = true;\n```';
+      items.push(anthropic?{type:'content_block_delta',delta:{type:'text_delta',text:partial}}:{type:'response.output_text.delta',delta:partial});
+    }
+    const error={message:'本次生成超过 14 分钟，已保存收到的内容。'};
+    items.push(anthropic?{type:'error',error}:{type:'response.failed',response:{error}});
+    return new Response(items.map(item=>'data: '+JSON.stringify(item)+'\n\n').join(''),{headers:{'Content-Type':'text/event-stream'}});
+  }
   const text='这是本地合成验收结果。项目指令、记忆和资料按当前项目读取。任务结果已保存。';
   if(hostname==='api.anthropic.com')return new Response('data: '+JSON.stringify({type:'content_block_delta',delta:{type:'text_delta',text}})+'\n\n');
   return new Response('data: '+JSON.stringify({type:'response.output_text.delta',delta:text})+'\n\ndata: '+JSON.stringify({type:'response.completed',response:{usage:{input_tokens:10,output_tokens:10}}})+'\n\n');
@@ -35,6 +47,11 @@ await api('/projects',{action:'create',name:'市场研究',instructions:'提供�
 await api('/chats',{action:'save',chatId:'general-chat-001',title:'待加入项目的对话',messages:[{uid:1,isUser:true,text:'整理产品设计要求'},{uid:2,name:'AI',text:'这是普通聊天中的合成内容。'}]});
 await api('/chats',{action:'save',chatId:'general-chat-002',title:'周末安排',messages:[{uid:1,isUser:true,text:'规划周末'}]});
 await api('/chats',{action:'save',projectId:a.id,chatId:'project-chat-001',title:'第一版产品方案',messages:[{uid:1,isUser:true,text:'产品开发的第一版方案'},{uid:2,name:'AI',text:'这是已保存的项目对话。'}]});
+for(const [id,title,text,reasoning] of [
+  ['timeout-summary-001','超时：仅收到摘要','本次生成超过 14 分钟，已保存收到的内容。','合成验收：这是已经保存的公开思考摘要。之前它被折叠，只留下超时提示；现在应直接显示。\n\n模型尚未返回正文，这段内容仍是思考摘要。'],
+  ['timeout-partial-001','超时：已收到正文','## 已收到的正文\n\n**合成验收内容**：正文必须保留 Markdown 格式。\n\n- 已收到的第一项\n- 已收到的第二项\n\n[本次生成超过 14 分钟，已保存收到的内容。]','合成验收的公开摘要。'],
+  ['timeout-empty-001','超时：没有返回内容','本次生成超过 14 分钟，已保存收到的内容。','']
+])await api('/chats',{action:'save',chatId:id,title,messages:[{uid:1,isUser:true,text:'本地合成验收：'+title},{uid:2,name:'Claude Opus 5.5',brand:'anthropic',submodel:'claude-opus-5-5',text,reasoning,isError:true,completedAt:Date.now()-60000,run:{id:'fixture-'+id,status:'failed',chatId:id,projectId:null}}]});
 const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json','.png':'image/png','.webp':'image/webp','.webm':'video/webm','.mov':'video/quicktime'};
 http.createServer(async(req,res)=>{
   const url=new URL(req.url,'http://127.0.0.1');
@@ -56,4 +73,4 @@ http.createServer(async(req,res)=>{
     if(req.headers.range){const m=/^bytes=(\d+)-(\d*)$/.exec(req.headers.range);if(!m)throw Error('invalid range');const start=+m[1],end=m[2]?Math.min(+m[2],bytes.length-1):bytes.length-1;res.writeHead(206,{...headers,'Content-Range':`bytes ${start}-${end}/${bytes.length}`,'Content-Length':end-start+1});res.end(bytes.subarray(start,end+1));return;}
     res.writeHead(200,{...headers,'Content-Length':bytes.length});res.end(bytes);
   }catch(error){res.writeHead(500,{'Content-Type':types['.json']});res.end(JSON.stringify({error:error.message}));}
-}).listen(4193,'127.0.0.1',()=>console.log('Project acceptance: http://127.0.0.1:4193/ (qa-reader / offline-fixture; synthetic providers only)'));
+}).listen(port,'127.0.0.1',()=>console.log('Project acceptance: http://127.0.0.1:'+port+'/ (qa-reader / offline-fixture; synthetic providers only)'));

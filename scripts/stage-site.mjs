@@ -1,7 +1,7 @@
 import { cp, mkdir, readFile, readdir, rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
 const root=resolve(import.meta.dirname,'..');
-const target=resolve(root,'dist-site');
+const target=resolve(process.env.ARENA_SITE_OUTPUT_DIR || resolve(root,'dist-site'));
 await mkdir(target,{recursive:true});
 // Only public website assets go to Pages; Android sources, build outputs and keys stay local.
 const publicFiles=(await readdir(root)).filter(name => /^(index|android|pitch-analyzer)\.html$/.test(name)
