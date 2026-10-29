@@ -73,6 +73,7 @@
   min-height: 40px; height: 40px; width: 100%; padding: 0 11px;
   border: 0; border-radius: 7px; box-shadow: none; backdrop-filter: none;
   background: transparent !important; color: var(--arena-text) !important;
+  transition: none;
   font-size: 14px; font-weight: 400; text-align: left; cursor: pointer;
 }
 #ai-arena-app.arena-shell .arena-nav-item svg { color: var(--arena-text); width: 19px; height: 19px; }
