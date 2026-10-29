@@ -13,6 +13,17 @@ const post=(path,body)=>new Request('https://api.pickandcase.com'+path,{method:'
 async function project(env,action,fields={}){const response=await worker.fetch(post('/projects',{username:'tester',password:pass,action,...fields}),env);return {status:response.status,...await response.json()};}
 async function create(env,name){return (await project(env,'create',{name})).project;}
 const root=(projectId,question,fields={})=>post('/',{user:'tester',password:pass,model:'claude-sonnet-5-5',prompt:'LEGACY_PROMPT_MUST_NOT_BE_USED',projectId,chat:{scope:projectId||'general',chatId:'test-chat-123',question,query:question,history:[],...fields}});
+test('expanded ZIP members and new text formats retain original bytes and paths inside their own project',async()=>{
+  const {env}=setup(),a=await create(env,'ZIP A'),b=await create(env,'ZIP B');
+  for(const [name,text] of [['helper.py','print("source")'],['config.yaml','price: 42'],['notes.jsonl','{"value":42}'],['Dockerfile','FROM scratch']]){
+    const saved=await project(env,'upload',{projectId:a.id,file:{name,text,size:Buffer.byteLength(text),type:'text/plain',data:Buffer.from(text).toString('base64'),folder:'资料包.zip',relativePath:'src/'+name}});
+    assert.equal(saved.status,200);assert.equal(saved.file.folder,'资料包.zip');assert.equal(saved.file.relativePath,'src/'+name);
+    const original=await project(env,'download',{projectId:a.id,fileId:saved.file.id});
+    assert.equal(original.status,200);assert.equal(original.file.data,Buffer.from(text).toString('base64'));
+  }
+  assert.equal((await project(env,'get',{projectId:b.id})).project.files.length,0);
+  for(const name of ['raw.zip','program.exe'])assert.equal((await project(env,'upload',{projectId:a.id,file:{name,text:'source',size:6,data:Buffer.from('source').toString('base64')}})).status,400);
+});
 test('conversation modes are indexed on save and legacy classification returns only owned scoped metadata',async()=>{
   const {env,data,writes}=setup(),a=await create(env,'A');
   const chat=async(action,fields={})=>{const response=await worker.fetch(post('/chats',{username:'tester',password:pass,action,...fields}),env);return {status:response.status,...await response.json()};};

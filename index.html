@@ -985,7 +985,8 @@
           <button id="aaImgRemove" class="aa-img-rm">✕</button>
         </div>
       </div>
-      <div id="aaTextPreview" style="display:none;padding:0 0 8px 0;">
+      <div id="aaFileImportStatus" class="arena-file-import-status" role="status" aria-live="polite" hidden></div>
+        <div id="aaTextPreview" style="display:none;padding:0 0 8px 0;">
         <div style="position:relative;display:inline-flex;align-items:flex-start;gap:8px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:10px;padding:10px 12px;max-width:260px;">
           <div style="flex:1;min-width:0;">
             <div id="aaTextPreviewContent" style="font-size:11px;color:#9090b0;line-height:1.5;word-break:break-all;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;"></div>
@@ -1215,7 +1216,7 @@
         <div class="arena-attachment-wrap" style="position:relative;">
           <button id="aaPlusBtn" class="aa-plus-btn" type="button" aria-label="添加附件或工具" aria-haspopup="dialog" aria-expanded="false"><svg class="arena-default-attach-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><svg class="arena-debate-attach-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 13 6-6a3 3 0 0 1 4 4l-8 8a5 5 0 0 1-7-7l8-8a2 2 0 0 1 3 3l-8 8"/></svg><span class="arena-debate-attach-label">参考资料</span></button>
           <input type="file" id="aaImgInput" accept="image/jpeg,image/png,image/gif,image/webp" multiple style="display:none;">
-        <input type="file" id="aaFileInput" accept=".txt,.pdf,.docx,.xlsx,.xls,.pptx,.csv,.tsv,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/plain,text/csv" style="display:none;">
+        <input type="file" id="aaFileInput" multiple aria-label="上传文件" style="display:none;">
           <div id="aaPlusMenu" class="aa-plus-menu" role="dialog" aria-label="附件与工具" style="display:none;">
             <button id="aaPlusPhoto" class="aa-plus-item" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="m3 17 5-5 4 4 3-3 6 6"/><circle cx="8" cy="8" r="1.5"/></svg><span id="aaPlusPhotoLabel">上传照片</span></button>
             <button id="aaPlusFile" class="aa-plus-item" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9l-6-6Zm0 0v6h6M8 13h8M8 17h5"/></svg><span>上传文件</span></button>
@@ -1269,16 +1270,17 @@
 <script src="/arena-chat-mode.js?v=20261030-historymodes2"></script>
 <script src="/arena-skills-catalog.js?v=20261030-skills1"></script>
 <script src="/arena-skill-models.js?v=20261030-skillmodels1"></script>
-<script src="/arena-skills.js?v=20261030-skilldownload1"></script>
+<script src="/arena-files.js?v=20261030-filezip1"></script>
+<script src="/arena-skills.js?v=20261030-filezip1"></script>
 <script src="/arena-chat-runs.js?v=20261029-typingclock1"></script>
 <script src="/arena-controls.js?v=20261029-debateresume1"></script>
 <script src="/arena-model-control.js?v=20261030-imagesliders1"></script>
 <script src="/arena-debate.js?v=20261030-debatestudio3"></script>
 <script src="/arena-debate-studio.js?v=20261030-debatecontrols1"></script>
 <script src="/arena-debate-runs.js?v=20261030-debatestudio3"></script>
-<script src="/arena-workspace.js?v=20261029-debateresume1"></script>
+<script src="/arena-workspace.js?v=20261030-filezip1"></script>
 <script src="/arena-project-state.js?v=20261030-projectactions2"></script>
-<script src="/arena-project-page.js?v=20261030-projectactions1"></script>
+<script src="/arena-project-page.js?v=20261030-filezip1"></script>
 <script src="/arena-account.js?v=20261027-account2"></script>
 <script src="/arena-pet-catalog.js?v=20261029-petcycle1"></script>
 <script src="/arena-pet.js?v=20261029-petnoghost1"></script>
@@ -2523,6 +2525,7 @@ var TEAM_COLORS = {
   function clearPreview(options){
     if(!(options&&options.preserveSkillFiles))skillsRuntime.clear();
     sentImgs = []; sentTexts = [];
+    $('aaFileImportStatus').hidden=true;
     renderImgPreviews();
     renderTextPreviews();
     $('aaSendBtn').disabled = !$('aaTopic').value.trim();
@@ -2550,187 +2553,98 @@ var TEAM_COLORS = {
     $('aaFileInput').click();
     $('aaPlusMenu').style.display = 'none'; $('aaPlusBtn').setAttribute('aria-expanded','false');
   });
-  $('aaFileInput').addEventListener('change', function(ev){
-    var file = ev.target.files[0]; if(!file) return;
-    if(file.size>8*1024*1024){arenaNotice('文档最多 8MB，请拆分后上传');ev.target.value='';return;}
-    skillsRuntime.capture(file);
-    ev.target.value = '';
-    var ext = file.name.split('.').pop().toLowerCase();
-    if(ext === 'txt'){
-      var reader = new FileReader();
-      reader.onload = function(e){
-        var text = e.target.result;
-        if(!text.trim()){ alert('文件内容为空'); return; }
-        sentTexts.push('[文件: '+file.name+']\n' + text);
-        renderTextPreviews();
-        $('aaSendBtn').disabled = false;
-      };
-      reader.readAsText(file, 'UTF-8');
-    } else if(ext === 'pdf'){
-      if(!window.pdfjsLib){
-        var s = document.createElement('script');
-        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-        s.onload = function(){
-          window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-          extractPdf(file);
-        };
-        document.head.appendChild(s);
-      } else {
-        extractPdf(file);
-      }
-    } else if(ext === 'docx'){
-      if(!window.mammoth){
-        var s2 = document.createElement('script');
-        s2.src = 'https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js';
-        s2.onload = function(){ extractDocx(file); };
-        document.head.appendChild(s2);
-      } else {
-        extractDocx(file);
-      }
-     } else if(ext === 'xlsx' || ext === 'xls'){
-      extractXlsx(file);
-    } else if(ext === 'pptx'){
-      extractPptxFile(file);
-    } else if(ext === 'csv' || ext === 'tsv'){
-      var reader = new FileReader();
-      reader.onload = function(e){
-        var text = e.target.result;
-        if(!text.trim()){ alert('文件内容为空'); return; }
-        sentTexts.push('[文件: '+file.name+']\n' + text);
-        renderTextPreviews();
-        $('aaSendBtn').disabled = aaRunning;
-      };
-      reader.readAsText(file, 'UTF-8');
-    } else {
-      alert('不支持的文件格式，请上传 TXT、PDF、Word、Excel、PPT 或 CSV 文件');
+  var fileImporting = false;
+  function fileImportContext(){return scopeViewKey(activeProjectId)+':'+currentChatId+':'+_accountLoginEpoch+':'+(_incognitoMode?'private':'saved');}
+  function showFileImport(message,skipped){
+    var status=$('aaFileImportStatus');status.hidden=false;status.replaceChildren();
+    var summary=document.createElement('div');summary.textContent=message;status.appendChild(summary);
+    if(skipped&&skipped.length){
+      var details=document.createElement('details'),label=document.createElement('summary');label.textContent='查看 '+skipped.length+' 项未导入的文件';details.appendChild(label);
+      skipped.forEach(function(item){var line=document.createElement('div');line.textContent=item.name+'：'+item.reason;details.appendChild(line);});status.appendChild(details);
     }
-  });
-  function extractPdf(file){
-    var reader = new FileReader();
-    reader.onload = function(e){
-      var typedArray = new Uint8Array(e.target.result);
-      window.pdfjsLib.getDocument(typedArray).promise.then(function(pdf){
-        var pages = [], total = pdf.numPages;
-        var promises = [];
-        for(var i = 1; i <= total; i++){
-          promises.push(pdf.getPage(i).then(function(page){
-            return page.getTextContent().then(function(tc){
-              return tc.items.map(function(item){ return item.str; }).join(' ');
-            });
-          }));
+  }
+  async function importComposerFiles(files){
+    if(!files.length)return;
+    if(aaRunning){arenaNotice('回答完成后可以添加文件');return;}
+    if(fileImporting){arenaNotice('文件仍在解析，请稍候');return;}
+    var context=fileImportContext(),skipped=[],count=0;
+    fileImporting=true;$('aaFileInput').disabled=true;$('aaSendBtn').disabled=true;
+    $('aaPlusFile').setAttribute('aria-busy','true');
+    try{
+      await skillsRuntime.ready();
+      for(var i=0;i<files.length;i++){
+        if(context!==fileImportContext())break;
+        var source=files[i],originals=skillsRuntime.filesForTexts(sentTexts);
+        if(!ArenaFiles.isImage(source.name)&&(originals.length>=5||originals.reduce(function(n,f){return n+f.size;},0)+source.size>16*1024*1024)){
+          skipped.push({name:source.name,reason:'每轮最多 5 个文件或 ZIP，原文件合计不超过 16MB'});continue;
         }
-        Promise.all(promises).then(function(results){
-          var text = results.join('\n');
-          if(!text.trim()){ alert('PDF 无法提取文字（可能是扫描件）'); return; }
-          sentTexts.push('[文件: '+file.name+']\n' + text);
-          renderTextPreviews();
-          $('aaSendBtn').disabled = aaRunning;
-        });
-      }).catch(function(err){ alert('PDF 解析失败：' + err.message); });
-    };
-    reader.readAsArrayBuffer(file);
-  }
-  function extractDocx(file){
-    var reader = new FileReader();
-    reader.onload = function(e){
-      window.mammoth.extractRawText({ arrayBuffer: e.target.result }).then(function(result){
-        var text = result.value;
-        if(!text.trim()){ alert('Word 文件内容为空'); return; }
-        sentTexts.push('[文件: '+file.name+']\n' + text);
-        renderTextPreviews();
-        $('aaSendBtn').disabled = aaRunning;
-      }).catch(function(err){ alert('Word 解析失败：' + err.message); });
-    };
-    reader.readAsArrayBuffer(file);
-  }
-  function extractXlsx(file){
-    if(!window.XLSX){
-      var s = document.createElement('script');
-      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
-      s.onload = function(){ _doExtractXlsx(file); };
-      s.onerror = function(){ alert('Excel 解析库加载失败'); };
-      document.head.appendChild(s);
-    } else { _doExtractXlsx(file); }
-  }
-  function _doExtractXlsx(file){
-    var reader = new FileReader();
-    reader.onload = function(e){
-      try {
-        var wb = window.XLSX.read(e.target.result, {type:'array'});
-        var allText = [];
-        wb.SheetNames.forEach(function(name){
-          var ws = wb.Sheets[name];
-          var csv = window.XLSX.utils.sheet_to_csv(ws);
-          if(csv.trim()) allText.push('[Sheet: '+name+']\n'+csv);
-        });
-        var text = allText.join('\n\n');
-        if(!text.trim()){ alert('Excel 文件内容为空'); return; }
-        sentTexts.push('[文件: '+file.name+']\n' + text);
-        renderTextPreviews();
-        $('aaSendBtn').disabled = aaRunning;
-      } catch(err){ alert('Excel 解析失败：'+err.message); }
-    };
-    reader.readAsArrayBuffer(file);
-  }
-  function extractPptxFile(file){
-    if(!window.JSZip){
-      var s = document.createElement('script');
-      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
-      s.onload = function(){ _doExtractPptx(file); };
-      s.onerror = function(){ alert('PPT 解析库加载失败'); };
-      document.head.appendChild(s);
-    } else { _doExtractPptx(file); }
-  }
-  async function _doExtractPptx(file){
-    try {
-      var arrayBuf = await file.arrayBuffer();
-      var zip = await window.JSZip.loadAsync(arrayBuf);
-      var slideFiles = Object.keys(zip.files).filter(function(f){ return /^ppt\/slides\/slide\d+\.xml$/.test(f); }).sort(function(a,b){
-        var na = parseInt(a.match(/slide(\d+)/)[1]);
-        var nb = parseInt(b.match(/slide(\d+)/)[1]);
-        return na - nb;
-      });
-      var allText = [];
-      for(var i = 0; i < slideFiles.length; i++){
-        var xml = await zip.file(slideFiles[i]).async('string');
-        var texts = [];
-        var matches = xml.match(/<a:t>([^<]*)<\/a:t>/g);
-        if(matches) matches.forEach(function(m){ var t = m.replace(/<\/?a:t>/g,'').trim(); if(t) texts.push(t); });
-        if(texts.length) allText.push('[Slide '+(i+1)+']\n'+texts.join(' '));
+        if(originals.some(function(f){return f.name===source.name;})){skipped.push({name:source.name,reason:'已添加同名附件，请先移除旧附件'});continue;}
+        try{
+          var result=await ArenaFiles.prepareChatFile(source,{progress:function(message){if(context===fileImportContext())showFileImport(message);}});
+          if(context!==fileImportContext())break;
+          skipped=skipped.concat(result.skipped);
+          if(result.text){
+            if(!imageMode&&sentImgs.length>5){skipped.push({name:source.name,reason:'文档任务最多同时使用 5 张参考图，请先移除多余图片'});continue;}
+            if(sentTexts.join('').length+result.text.length>ArenaFiles.LIMITS.chatCharacters){skipped.push({name:source.name,reason:'本轮附件文字合计超过 4 万字符，请分批上传或添加到项目资料'});continue;}
+            skillsRuntime.capture(source);await skillsRuntime.ready();
+            if(context!==fileImportContext())break;
+            sentTexts.push(result.text);renderTextPreviews();count++;
+          }
+          for(var j=0;j<result.images.length;j++){
+            var added=await handleImageFile(result.images[j],context);
+            if(!added)skipped.push({name:result.images[j].name,reason:'图片解码失败或超出当前模型图片数量限制'});
+            else if(!result.text)count++;
+          }
+        }catch(error){skipped.push({name:source.name,reason:error.message||'文件读取失败'});}
       }
-      var text = allText.join('\n\n');
-      if(!text.trim()){ alert('PPT 文件内容为空'); return; }
-      sentTexts.push('[文件: '+file.name+']\n' + text);
-      renderTextPreviews();
-      $('aaSendBtn').disabled = aaRunning;
-    } catch(err){ alert('PPT 解析失败：'+err.message); }
+      if(context===fileImportContext())showFileImport(count?'已添加 '+count+' 个附件'+(skipped.length?'，部分文件未导入':''):'没有添加附件',skipped);
+    }catch(error){if(context===fileImportContext())showFileImport('文件导入失败：'+error.message);}
+    finally{
+      fileImporting=false;$('aaFileInput').disabled=false;$('aaPlusFile').removeAttribute('aria-busy');
+      if(!aaRunning)$('aaSendBtn').disabled=!$('aaTopic').value.trim()&&!sentImgs.length&&!sentTexts.length;
+    }
   }
+  $('aaFileInput').accept=ArenaFiles.CHAT_ACCEPT;
+  $('aaFileInput').addEventListener('change',function(ev){var files=Array.from(ev.target.files||[]);ev.target.value='';importComposerFiles(files);});
   document.addEventListener('click', function(e){
     if(!e.target.closest('#aaPlusBtn') && !e.target.closest('#aaPlusMenu')) $('aaPlusMenu').style.display = 'none';
   });
-  function imageReferenceLimit(){return imageMode&&ArenaImage.cap(imageComposerModel)?ArenaImage.cap(imageComposerModel).references:10;}
-  function handleImageFile(f){
-    if(f.size > 10*1024*1024){ alert('图片不能超过 10MB'); return; }
-    var reader = new FileReader();
-    reader.onload = function(e){
-      var img = new Image();
-      img.onload = function(){
-        if(imageMode&&ArenaImage.isOpenAI(imageComposerModel)&&['image/png','image/jpeg','image/webp'].indexOf(f.type)!==-1){
-          if(sentImgs.length>=imageReferenceLimit()){setImageError('此模型最多上传 '+imageReferenceLimit()+' 张参考图');return;}
-          sentImgs.push({data:e.target.result.split(',')[1],mime:f.type,preview:e.target.result});setImageError('');renderImgPreviews();return;
-        }
-        var maxW = 1024, maxH = 1024, w = img.width, h = img.height;
-        if(w > maxW || h > maxH){ var ratio = Math.min(maxW/w, maxH/h); w = Math.round(w*ratio); h = Math.round(h*ratio); }
-        var canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h;
-        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-        var compressed = canvas.toDataURL('image/jpeg', 0.8);
-        if(sentImgs.length >= imageReferenceLimit()){ alert('此模型最多上传 '+imageReferenceLimit()+' 张参考图'); return; }
-        sentImgs.push({data: compressed.split(',')[1], mime: 'image/jpeg', preview: compressed});setImageError('');
-        if(!aaRunning) $('aaSendBtn').disabled = false; renderImgPreviews();
+  function imageReferenceLimit(){
+    if(imageMode&&ArenaImage.cap(imageComposerModel))return ArenaImage.cap(imageComposerModel).references;
+    return skillsRuntime.filesForTexts(sentTexts).length?5:10;
+  }
+  function handleImageFile(f,context){
+    return new Promise(function(resolve){
+      function current(){return context===undefined||context===fileImportContext();}
+      if(f.size>10*1024*1024){arenaNotice('图片不能超过 10MB');resolve(false);return;}
+      if(sentImgs.length>=imageReferenceLimit()){setImageError('本轮最多添加 '+imageReferenceLimit()+' 张参考图');resolve(false);return;}
+      var reader=new FileReader();
+      reader.onerror=function(){if(current())arenaNotice('图片读取失败：'+f.name);resolve(false);};
+      reader.onload=function(e){
+        if(!current()){resolve(false);return;}
+        var img=new Image();
+        img.onerror=function(){if(current())arenaNotice('图片无法解码：'+f.name);resolve(false);};
+        img.onload=function(){
+          if(!current()){resolve(false);return;}
+          if(sentImgs.length>=imageReferenceLimit()){setImageError('本轮最多添加 '+imageReferenceLimit()+' 张参考图');resolve(false);return;}
+          if(imageMode&&ArenaImage.isOpenAI(imageComposerModel)&&['image/png','image/jpeg','image/webp'].indexOf(f.type)!==-1){
+            sentImgs.push({data:e.target.result.split(',')[1],mime:f.type,preview:e.target.result});
+          }else{
+            var maxW=1024,maxH=1024,w=img.width,h=img.height;
+            if(w>maxW||h>maxH){var ratio=Math.min(maxW/w,maxH/h);w=Math.round(w*ratio);h=Math.round(h*ratio);}
+            var canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;
+            canvas.getContext('2d').drawImage(img,0,0,w,h);
+            var compressed=canvas.toDataURL('image/jpeg',0.8);
+            sentImgs.push({data:compressed.split(',')[1],mime:'image/jpeg',preview:compressed});
+          }
+          setImageError('');renderImgPreviews();
+          if(!aaRunning&&!fileImporting)$('aaSendBtn').disabled=false;
+          resolve(true);
+        };
+        img.src=e.target.result;
       };
-      img.src = e.target.result;
-    };
-    reader.readAsDataURL(f);
+      reader.readAsDataURL(f);
+    });
   }
   $('aaImgInput').addEventListener('change', function(ev){ var files = Array.from(ev.target.files); files.slice(0, imageReferenceLimit() - sentImgs.length).forEach(function(f){ handleImageFile(f); }); ev.target.value = ''; });
    $('aaImgRemove').addEventListener('click', clearPreview);
@@ -5078,6 +4992,7 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
 
   // === Main start ===
   async function aaStart(){
+    if(fileImporting){arenaNotice('文件仍在解析，请稍候再发送');return;}
     if(scopeSwitchPending){arenaNotice('正在切换对话，请稍候');return;}
     if(aaRunning||skillSubmitPending)return;
     if(debate){var previousScope=debateDraftScope;restoreDebateDraft();if(previousScope!==debateDraftScope){syncArenaLayout();arenaNotice('讨论范围已变化，请确认席位和思考深度后再发送。');return;}}
