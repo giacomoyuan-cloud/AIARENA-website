@@ -240,7 +240,9 @@
    以下规则改的是摆放方式，不只是颜色：空白状态居中、整个输入区是一张卡片、回复去掉头像。 */
 
 /* 空白状态：问候语 + 输入卡片 + 快捷按钮作为一组停在视觉中心 */
-#ai-arena-app.arena-shell .aa-chat.empty-state { justify-content: safe center; padding-bottom: 8vh; }
+#ai-arena-app.arena-shell .aa-chat.empty-state { justify-content: safe center !important; padding-bottom: 8vh; }
+#ai-arena-app.arena-shell.arena-project-scope .aa-chat.empty-state { padding-top: 44px; }
+#ai-arena-app.arena-shell .aa-chat.empty-state .arena-project-bar { position: absolute; inset: 0 0 auto; }
 #ai-arena-app.arena-shell .aa-chat.empty-state .aa-messages { flex: 0 0 auto; height: 0; min-height: 0; padding: 0; overflow: hidden; }
 #ai-arena-app.arena-shell .aa-chat.empty-state .aa-welcome { position: static; inset: auto; transform: none; display: flex; align-items: center; justify-content: center; gap: 12px; margin: 0 16px 26px; pointer-events: auto; }
 #ai-arena-app.arena-shell .aa-chat.empty-state .aa-kitten--welcome { width: 60px; height: 60px; }
@@ -367,7 +369,7 @@
 #ai-arena-app.arena-shell .aa-seat-slots { flex-direction: row; }
 
 /* ---------- 模型与思考强度菜单：左侧档位 + 恢复默认 / 整行模型 / 细轨道滑块 + 两端档位 ---------- */
-#ai-arena-app.arena-shell #aaChatModelPop { --effort-accent: var(--arena-accent); width: 290px; padding: 6px; }
+#ai-arena-app.arena-shell .arena-effort-popover { --effort-accent: var(--arena-accent); width: 290px; padding: 6px; }
 #ai-arena-app.arena-shell .arena-effort-heading { grid-template-columns: minmax(0, 1fr) 28px; min-height: 32px; padding: 2px 4px 2px 10px; }
 #ai-arena-app.arena-shell .arena-effort-heading > span:first-child { display: none; }
 #ai-arena-app.arena-shell .arena-effort-heading > output,
@@ -376,11 +378,11 @@
 #ai-arena-app.arena-shell .arena-effort-model > span { flex: 1; text-align: left; }
 #ai-arena-app.arena-shell .arena-effort-model svg { color: var(--arena-muted); }
 /* 滑块几何由 arena-effort.js 按 32px 圆点计算，这里只改外观：轨道变 4px 细线，圆点视觉 18px、外框仍是 32px */
-#ai-arena-app.arena-shell #aaChatModelPop .arena-effort-scale { height: 44px; margin: 8px 6px 0; }
-#ai-arena-app.arena-shell #aaChatModelPop .arena-effort-track { inset: 20px 0; height: 4px; border-radius: 4px; }
-#ai-arena-app.arena-shell #aaChatModelPop .arena-effort-thumb > span { width: 18px; height: 18px; margin: 7px; border: 2px solid var(--arena-accent); background: var(--arena-surface); box-shadow: 0 1px 4px rgba(0, 0, 0, .2); }
-#ai-arena-app.arena-shell #aaChatModelPop .arena-effort-halo { box-shadow: 0 0 0 6px var(--claude-accent-soft); }
-#ai-arena-app.arena-shell #aaChatModelPop .arena-effort-ticks > span { opacity: .6; }
+#ai-arena-app.arena-shell .arena-effort-popover .arena-effort-scale { height: 44px; margin: 8px 6px 0; }
+#ai-arena-app.arena-shell .arena-effort-popover .arena-effort-track { inset: 20px 0; height: 4px; border-radius: 4px; }
+#ai-arena-app.arena-shell .arena-effort-popover .arena-effort-thumb > span { width: 18px; height: 18px; margin: 7px; border: 2px solid var(--arena-accent); background: var(--arena-surface); box-shadow: 0 1px 4px rgba(0, 0, 0, .2); }
+#ai-arena-app.arena-shell .arena-effort-popover .arena-effort-halo { box-shadow: 0 0 0 6px var(--claude-accent-soft); }
+#ai-arena-app.arena-shell .arena-effort-popover .arena-effort-ticks > span { opacity: .6; }
 #ai-arena-app.arena-shell .arena-effort-ends { display: flex; justify-content: space-between; margin: -6px 8px 4px; font-size: 11.5px; color: var(--arena-muted); }
 #ai-arena-app.arena-shell .arena-model-picker .arena-model-option { min-height: 38px; padding: 8px 10px; border-radius: 8px; font-size: 14px; }
 #ai-arena-app.arena-shell .arena-model-picker .arena-model-option[aria-pressed="true"] .arena-model-check { color: var(--claude-accent-2); }

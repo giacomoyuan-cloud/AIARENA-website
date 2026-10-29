@@ -17,7 +17,7 @@
     var epoch=0,account='',kind='',current=null,chats=[],tasks=[],catalog=[],archiveCatalog=[],archived=false,taskTab='mine',taskScope,taskSearch='',taskFilter='all',taskSort='next',projectSearch='',sort='updated',uploading=false,formSave=null,creationTarget=null;
     var menu=document.createElement('div');menu.className='arena-project-menu';menu.setAttribute('popover','auto');menu.setAttribute('role','menu');host.appendChild(menu);
     var menuAction=null,menuAnchor=null;
-    var legacy=mountLegacy(Object.assign({},app,{switchScope:async function(p){await app.switchScope(p);if(p)await home(p.id,true);else hide();},refreshProject:function(p){app.refreshProject(p);if(current&&current.id===p.id){current=Object.assign({},current,p);if(kind==='home')renderHome();}loadPins();}}));
+    var legacy=mountLegacy(Object.assign({},app,{switchScope:async function(p){if(await app.switchScope(p)===false)return false;if(p)await home(p.id,true);else hide();return true;},refreshProject:function(p){app.refreshProject(p);if(current&&current.id===p.id){current=Object.assign({},current,p);if(kind==='home')renderHome();}loadPins();}}));
     function auth(){return app.pinContext?app.pinContext():{};}
     function key(){return app.accountKey?app.accountKey():'';}
     function valid(n){return n===epoch&&account===key();}
@@ -51,9 +51,13 @@
       if(account!==a){shortcuts.innerHTML='';shortcuts.hidden=true;}account=a;
       try{var result=await app.api('list',credentials);if(a!==key())return;catalog=result.projects;paintPins();}catch(err){}
     }
+    function syncScope(){
+      var id=app.currentScope?app.currentScope():app.currentProject()?.id;
+      shortcuts.querySelectorAll('[data-shortcut]').forEach(function(b){if(id&&b.dataset.shortcut===id)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});
+    }
     function paintPins(){
       var pinned=catalog.filter(function(p){return p.pinned;});shortcuts.hidden=!pinned.length;
-      shortcuts.innerHTML='<div class="arena-project-shortcuts-label">已置顶</div>'+pinned.map(function(p){return '<div class="arena-project-shortcut">'+button(icon('folder')+'<span>'+e(p.name)+'</span>','data-shortcut="'+e(p.id)+'"'+(app.currentProject()&&app.currentProject().id===p.id?' aria-current="page"':''))+button(icon('more'),'data-shortcut-menu="'+e(p.id)+'" aria-label="项目菜单：'+e(p.name)+'" aria-haspopup="menu"')+'</div>';}).join('');
+      shortcuts.innerHTML='<div class="arena-project-shortcuts-label">已置顶</div>'+pinned.map(function(p){return '<div class="arena-project-shortcut">'+button(icon('folder')+'<span>'+e(p.name)+'</span>','data-shortcut="'+e(p.id)+'"')+button(icon('more'),'data-shortcut-menu="'+e(p.id)+'" aria-label="项目菜单：'+e(p.name)+'" aria-haspopup="menu"')+'</div>';}).join('');syncScope();
     }
     shortcuts.addEventListener('click',function(ev){var b=ev.target.closest('button');if(!b)return;if(b.dataset.shortcut)enter(b.dataset.shortcut);if(b.dataset.shortcutMenu)projectMenu(catalog.find(function(p){return p.id===b.dataset.shortcutMenu;}),b);});
     async function list(){
@@ -80,8 +84,8 @@
       show('home',heading('项目',button('所有项目','data-list'))+'<p role="status">正在加载项目…</p>');
       try{
         var data=await app.api('get',Object.assign({projectId:id},credentials));if(!valid(n))return;current=data.project;
-        if(!app.currentProject()||app.currentProject().id!==id){await app.switchScope(current);if(!valid(n))return;}else app.refreshProject(current);
-        if(start){await app.flushChat();if(!valid(n))return;app.newChat();}
+        if(!app.currentProject()||app.currentProject().id!==id){if(await app.switchScope(current)===false)throw Error('项目切换未完成，请保留当前对话后重试');if(!valid(n))return;}else app.refreshProject(current);
+        if(start){await app.flushChat();if(!valid(n))return;app.newChat({preserveDraft:true});}
         var results=await Promise.allSettled([app.chatApi('list',Object.assign({projectId:id},credentials)),app.scheduleApi('list',Object.assign({projectId:id},credentials))]);
         if(!valid(n))return;
         var chatData=results[0];if(chatData.status!=='fulfilled'||!chatData.value||!Array.isArray(chatData.value.chats))throw Error('项目对话加载失败，请重试');
@@ -227,8 +231,23 @@
       if(b.hasAttribute('data-template'))return taskEditor(null,templates[Number(b.dataset.template)]);
       if(b.dataset.taskTab){taskTab=b.dataset.taskTab;return renderTasks();}
     }catch(err){error(err.message);}});
-    // Sending restores the shared composer through the existing aaStart validation.
-    ['aaNewBtn','aaBarChatBtn','aaBarDebateBtn','aaBarImageBtn','aaProjectExit'].forEach(function(id){host.querySelector('#'+id).addEventListener('click',hide,true);});
-    return Object.assign({},legacy,{list:list,enter:enter,home:function(){var p=app.currentProject();return p?home(p.id,true):list();},hide:hide,preload:loadPins,schedules:function(){return schedules();},chatMenu:chatMenu,chooseProject:chooseProject,refresh:refreshHome,visible:function(){return !page.hidden;}});
+    // Sidebar destinations are global. Project-home actions keep their own scope.
+    var replayingNavigation=false;
+    ['aaNewBtn','aaBarChatBtn','aaBarDebateBtn','aaBarImageBtn','aaProjectExit'].forEach(function(id){
+      var destination=host.querySelector('#'+id);
+      destination.addEventListener('click',function(ev){
+        if(replayingNavigation)return;
+        ev.preventDefault();ev.stopImmediatePropagation();
+        if(app.busy()){notice('回答完成后可以切换对话');return;}
+        hide();var n=epoch,owner=key();
+        Promise.resolve(app.switchScope(null)).then(function(switched){
+          if(switched===false||n!==epoch||owner!==key()||app.busy()||(app.currentScope&&app.currentScope()))return;
+          if(id==='aaProjectExit')return;
+          replayingNavigation=true;
+          try{destination.click();}finally{replayingNavigation=false;}
+        }).catch(function(err){notice(err.message||'切换失败，请重试');});
+      },true);
+    });
+    return Object.assign({},legacy,{list:list,enter:enter,home:function(){var p=app.currentProject();return p?home(p.id,true):list();},hide:hide,preload:loadPins,syncScope:syncScope,schedules:function(){return schedules();},chatMenu:chatMenu,chooseProject:chooseProject,refresh:refreshHome,visible:function(){return !page.hidden;}});
   };
 })(window);

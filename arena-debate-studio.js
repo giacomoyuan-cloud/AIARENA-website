@@ -23,39 +23,38 @@
       objective:['explore','decision','stress-test'].indexOf(value.objective)!==-1?value.objective:'explore',detail:['concise','balanced','detailed'].indexOf(value.detail)!==-1?value.detail:'balanced',
       context:String(value.context||'').slice(0,6000),constraints:String(value.constraints||'').slice(0,2000)};
   }
-  function mountEffort(container,options,onChange){
-    var field=container.querySelector('.arena-debate-effort');
-    if(!field){field=document.createElement('label');field.className='arena-debate-effort';field.innerHTML='<span>思考深度</span><select></select>';container.appendChild(field);field.querySelector('select').addEventListener('change',function(event){onChange(event.target.dataset.seat,event.target.value);});}
-    var select=field.querySelector('select'),levels=options.levels||[],key=levels.join('|');
-    field.hidden=!levels.length;
-    if(select.dataset.choices!==key){select.innerHTML=levels.map(function(v){return '<option value="'+v+'">'+(effortNames[v]||v)+'</option>';}).join('');select.dataset.choices=key;}
-    select.dataset.seat=options.id;select.value=options.value||'';select.disabled=!!options.disabled;
-    select.setAttribute('aria-label',options.label+'的思考深度');
-    return field;
-  }
   function settings(host,options){
-    var dialog=host.querySelector('#aaDebateSettingsDialog');
-    if(!dialog){dialog=document.createElement('dialog');dialog.id='aaDebateSettingsDialog';dialog.className='arena-debate-settings-dialog';host.appendChild(dialog);}
+    var doc=host.ownerDocument,dialog=host.querySelector('#aaDebateSettingsDialog');
+    if(!dialog){dialog=doc.createElement('dialog');dialog.id='aaDebateSettingsDialog';dialog.className='arena-debate-settings-dialog';host.appendChild(dialog);}
     var s=options.state,common=options.common||[];
-    function option(value,label,current){return '<option value="'+value+'"'+(current===value?' selected':'')+'>'+label+'</option>';}
+    function group(key,label,items,current){
+      return '<fieldset class="wide"><legend>'+label+'</legend><div class="arena-debate-choice-group" role="radiogroup" aria-label="'+label+'">'+items.map(function(item){return '<button type="button" role="radio" data-debate-setting="'+key+'" value="'+item[0]+'" aria-checked="'+(current===item[0])+'" tabindex="'+(current===item[0]?0:-1)+'">'+item[1]+'</button>';}).join('')+'</div></fieldset>';
+    }
     dialog.setAttribute('aria-labelledby','aaDebateSettingsTitle');
     dialog.innerHTML='<form method="dialog"><header><div><h2 id="aaDebateSettingsTitle">讨论设置</h2><p>先明确目标，再让观点充分交锋。</p></div><button type="submit" class="arena-icon-btn" aria-label="关闭讨论设置"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg></button></header>'
-      +'<div class="arena-debate-settings-grid"><label><span>讨论目标</span><select data-debate-setting="objective" aria-label="讨论目标">'+option('explore','多角度探索',s.objective)+option('decision','辅助决策',s.objective)+option('stress-test','方案压力测试',s.objective)+'</select></label>'
-      +'<label><span>回答详略</span><select data-debate-setting="detail" aria-label="回答详略">'+option('concise','简洁 · 聚焦核心',s.detail)+option('balanced','均衡 · 论点与理由',s.detail)+option('detailed','深入 · 证据与边界',s.detail)+'</select></label>'
-      +'<label class="wide"><span>统一思考深度 <small>可选</small></span><select data-debate-bulk-effort aria-label="统一所有席位思考深度"><option value="">每席单独设置</option>'+common.map(function(v){return option(v,effortNames[v],'');}).join('')+'</select><small>应用到本场所有席位及总结；之后仍可逐席调整。</small></label>'
+      +'<div class="arena-debate-settings-grid">'+group('objective','讨论目标',[['explore','多角度探索'],['decision','辅助决策'],['stress-test','方案压力测试']],s.objective)
+      +group('detail','回答详略',[['concise','简洁'],['balanced','均衡'],['detailed','深入']],s.detail)
+      +(common.length?'<fieldset class="wide"><legend>批量设置席位深度 <small>可选</small></legend><div class="arena-debate-choice-group arena-debate-bulk">'+common.map(function(v){return '<button type="button" data-debate-bulk-effort value="'+v+'" aria-pressed="'+(v===options.bulkEffort)+'">'+effortNames[v].split(' · ')[0]+'</button>';}).join('')+'</div><small>仅应用到参与席位，也可在各席位的模型入口里单独调整。</small></fieldset>':'')
       +'<label class="wide"><span>讨论背景 <small>可选</small></span><textarea data-debate-setting="context" aria-label="讨论背景" maxlength="6000" rows="3" placeholder="相关事实、已有方案，或你希望大家了解的前提…">'+escape(s.context)+'</textarea></label>'
-      +'<label class="wide"><span>目标与约束 <small>可选</small></span><textarea data-debate-setting="constraints" aria-label="目标与约束" maxlength="2000" rows="2" placeholder="例如：预算、时间、评价标准，以及这次不讨论的范围">'+escape(s.constraints)+'</textarea></label>'
-      +'<label class="wide"><span>总结的思考深度</span><select data-debate-summary-effort aria-label="总结的思考深度"'+(!options.summaryLevels.length?' disabled':'')+'>'+(!options.summaryLevels.length?'<option>先选择总结模型</option>':options.summaryLevels.map(function(v){return option(v,effortNames[v],options.summaryEffort);}).join(''))+'</select></label></div>'
-      +'<footer><small>思考深度影响模型推理投入，可能增加耗时和用量。回答详略控制表达篇幅。</small><button type="submit" class="arena-debate-settings-done">完成</button></footer></form>';
-    dialog.oninput=function(event){if(event.target.dataset.debateSetting)options.onChange(event.target.dataset.debateSetting,event.target.value);};
-    dialog.onchange=function(event){
-      if(event.target.dataset.debateSetting&&event.target.tagName==='SELECT')options.onChange(event.target.dataset.debateSetting,event.target.value);
-      if(event.target.hasAttribute('data-debate-bulk-effort')&&event.target.value){options.onBulk(event.target.value);var summary=dialog.querySelector('[data-debate-summary-effort]');if(!summary.disabled)summary.value=event.target.value;}
-      if(event.target.hasAttribute('data-debate-summary-effort'))options.onSummaryEffort(event.target.value);
+      +'<label class="wide"><span>目标与约束 <small>可选</small></span><textarea data-debate-setting="constraints" aria-label="目标与约束" maxlength="2000" rows="2" placeholder="例如：预算、时间、评价标准，以及这次不讨论的范围">'+escape(s.constraints)+'</textarea></label></div>'
+      +'<footer><small>思考深度影响推理投入；回答详略控制表达篇幅。总结设置在「讨论总结」入口。</small><button type="submit" class="arena-debate-settings-done">完成</button></footer></form>';
+    dialog.oninput=function(event){if(event.target.tagName==='TEXTAREA')options.onChange(event.target.dataset.debateSetting,event.target.value);};
+    dialog.onclick=function(event){
+      var button=event.target.closest('button[data-debate-setting],button[data-debate-bulk-effort]');if(!button)return;
+      var group=button.parentElement,bulk=button.hasAttribute('data-debate-bulk-effort');
+      group.querySelectorAll('button').forEach(function(item){item.setAttribute(bulk?'aria-pressed':'aria-checked',String(item===button));if(!bulk)item.tabIndex=item===button?0:-1;});
+      if(bulk)options.onBulk(button.value);else options.onChange(button.dataset.debateSetting,button.value);
+    };
+    dialog.onkeydown=function(event){
+      var button=event.target.closest('[role="radio"]');if(!button)return;
+      var buttons=Array.from(button.parentElement.children),index=buttons.indexOf(button),next;
+      if(event.key==='ArrowRight'||event.key==='ArrowDown')next=(index+1)%buttons.length;
+      if(event.key==='ArrowLeft'||event.key==='ArrowUp')next=(index-1+buttons.length)%buttons.length;
+      if(event.key==='Home')next=0;if(event.key==='End')next=buttons.length-1;
+      if(next!==undefined){event.preventDefault();buttons[next].focus();buttons[next].click();}
     };
     dialog.onclose=function(){options.onClose();};
-    dialog.showModal();
-    return dialog;
+    dialog.showModal();return dialog;
   }
   function requestConfig(plan){
     var summary=plan.turns.find(function(t){return t.summary;});
@@ -66,5 +65,5 @@
     var values={},conflicts={};plan.turns.forEach(function(t){var m=t.member;if(m.effort===undefined)return;if(values[m.model]&&values[m.model]!==m.effort)conflicts[m.model]=true;values[m.model]=m.effort;});
     Object.keys(conflicts).forEach(function(id){delete values[id];});return values;
   }
-  return {effort:effort,commonEfforts:commonEfforts,cleanDraft:cleanDraft,mountEffort:mountEffort,settings:settings,effortNames:effortNames,requestConfig:requestConfig,legacyEfforts:legacyEfforts};
+  return {effort:effort,commonEfforts:commonEfforts,cleanDraft:cleanDraft,settings:settings,effortNames:effortNames,requestConfig:requestConfig,legacyEfforts:legacyEfforts};
 });
