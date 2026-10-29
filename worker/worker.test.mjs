@@ -36,7 +36,7 @@ for (const model of ['claude-opus-5-5','claude-sonnet-5-5','grok-4.7']) test(mod
     const body = JSON.parse(options.body);
     if(model.startsWith('claude')) {
       assert.deepEqual(body.output_config,{effort:expected});
-      assert.equal(body.thinking,undefined,'retain the model default adaptive thinking');
+      assert.deepEqual(body.thinking,{type:'adaptive',display:'summarized'});
       assert.equal(body.reasoning,undefined);
       return stream([{type:'content_block_delta',delta:{type:'text_delta',text:'OK'}}]);
     }
@@ -99,6 +99,64 @@ test('Grok progress follows Responses reasoning and search events',async t=>{
   assert.deepEqual(output.filter(event=>event.status).map(event=>event.status),['thinking','searching','thinking','responding']);
 });
 
+for(const [model,summaryEvent,answerEvent] of [
+  ['claude-sonnet-5-5',{type:'content_block_delta',delta:{type:'thinking_delta',thinking:'正在核对条件。'}},{type:'content_block_delta',delta:{type:'text_delta',text:'结果'}}],
+  ['gemini-4-argon',{candidates:[{content:{parts:[{thought:true,text:'正在核对条件。',thoughtSignature:'encrypted-only'}]}}]},{candidates:[{content:{parts:[{text:'结果'}]}}]}],
+  ['grok-4.7',{type:'response.reasoning_text.delta',delta:'正在核对条件。'},{type:'response.output_text.delta',delta:'结果'}],
+  ['gpt-6.1-sol',{type:'response.reasoning_summary_text.delta',delta:'正在核对条件。'},{type:'response.output_text.delta',delta:'结果'}]
+])test(model+' delivers its public summary before the upstream answer or stream end',async t=>{
+  const {env}=setup();let upstream;
+  mockFetch(t,(_url,options)=>{
+    const body=JSON.parse(options.body);
+    if(model.startsWith('claude'))assert.deepEqual(body.thinking,{type:'adaptive',display:'summarized'});
+    if(model.startsWith('gemini'))assert.deepEqual(body.generationConfig.thinkingConfig,{includeThoughts:true,thinkingLevel:'LOW'});
+    if(model.startsWith('gpt'))assert.deepEqual(body.reasoning,{effort:'low',summary:'auto'});
+    if(model.startsWith('grok'))assert.deepEqual(body.reasoning,{effort:'low'},'xAI summaries need no OpenAI-only request field');
+    return new Response(new ReadableStream({start(controller){upstream=controller;controller.enqueue(new TextEncoder().encode('data: '+JSON.stringify(summaryEvent)+'\n\n'));}}));
+  });
+  const response=await worker.fetch(request(model,{effort:'low'}),env),reader=response.body.getReader(),decoder=new TextDecoder();let received='';
+  while(!events(received).some(event=>event.r)){
+    const part=await reader.read();assert.equal(part.done,false);received+=decoder.decode(part.value,{stream:true});
+  }
+  assert.deepEqual(events(received).filter(event=>event.r).map(event=>event.r),['正在核对条件。']);
+  assert.equal(events(received).some(event=>event.t),false,'summary reaches the page while the model is still generating');
+  upstream.enqueue(new TextEncoder().encode('data: '+JSON.stringify(answerEvent)+'\n\n'));upstream.close();
+  while(true){const part=await reader.read();if(part.done)break;received+=decoder.decode(part.value,{stream:true});}
+  assert.deepEqual(events(received).filter(event=>event.status).map(event=>event.status),['thinking','responding']);
+  assert.equal(events(received).filter(event=>event.t).map(event=>event.t).join(''),'结果');
+  assert.equal(received.includes('encrypted-only'),false);
+});
+
+test('OpenAI summary opt-in preserves omitted effort and only public summary events are surfaced',async t=>{
+  const {env}=setup();
+  mockFetch(t,(_url,options)=>{
+    assert.deepEqual(JSON.parse(options.body).reasoning,{summary:'auto'});
+    return stream([
+      {type:'response.reasoning_text.delta',delta:'not-a-public-summary'},
+      {type:'response.output_item.done',item:{type:'reasoning',encrypted_content:'encrypted-only'}},
+      {type:'response.reasoning_summary_text.delta',delta:'公开摘要'},
+      {type:'response.output_text.delta',delta:'结果'}
+    ]);
+  });
+  const text=await (await worker.fetch(request('gpt-6.1-sol'),env)).text();
+  assert.deepEqual(events(text).filter(event=>event.r).map(event=>event.r),['公开摘要']);
+  assert.equal(text.includes('not-a-public-summary'),false);assert.equal(text.includes('encrypted-only'),false);
+});
+
+test('an empty Claude thinking block and a text-only Gemini response invent no summary',async t=>{
+  const {env}=setup();
+  mockFetch(t,(url)=>url.includes('anthropic')?stream([
+    {type:'content_block_start',content_block:{type:'thinking'}},
+    {type:'content_block_delta',delta:{type:'thinking_delta',thinking:''}},
+    {type:'content_block_delta',delta:{type:'signature_delta',signature:'encrypted-only'}},
+    {type:'content_block_delta',delta:{type:'text_delta',text:'结果'}}
+  ]):stream([{candidates:[{content:{parts:[{text:'结果'}]}}]}]));
+  for(const model of ['claude-sonnet-5-5','gemini-4-argon']){
+    const text=await (await worker.fetch(request(model),env)).text();
+    assert.equal(events(text).filter(event=>event.r).length,0);assert.equal(text.includes('encrypted-only'),false);
+  }
+});
+
 for(const [model,host,binding] of [
 ['grok-4.7','api.x.ai','GROK_API_KEY'],['gpt-6-astra','api.openai.com','OPENAI_API_KEY'],['gpt-6.1-sol','api.openai.com','OPENAI_API_KEY'],['gpt-5.6-sol','api.openai.com','OPENAI_API_KEY']
 ]) test(model+' uses the matching official Responses API and key',async t=>{
@@ -114,7 +172,7 @@ for(const [model,host,binding] of [
 
 for(const model of ['gpt-6-astra','gpt-6.1-sol'])test(model+' forwards all supported reasoning levels and rejects invalid settings before API calls',async t=>{
   const {env}=setup();let count=0;
-  mockFetch(t,(url,options)=>{count++;assert.equal(url,'https://api.openai.com/v1/responses');const body=JSON.parse(options.body);assert.equal(body.model,model);assert.equal(body.store,false);assert.ok(['low','medium','high','xhigh','max'].includes(body.reasoning.effort));assert.equal(body.temperature,undefined);return responses();});
+  mockFetch(t,(url,options)=>{count++;assert.equal(url,'https://api.openai.com/v1/responses');const body=JSON.parse(options.body);assert.equal(body.model,model);assert.equal(body.store,false);assert.ok(['low','medium','high','xhigh','max'].includes(body.reasoning.effort));assert.equal(body.reasoning.summary,'auto');assert.equal(body.temperature,undefined);return responses();});
   for(const effort of ['low','medium','high','xhigh','max']){
     const response=await worker.fetch(request(model,{effort}),env);assert.equal(response.status,200);assert.match(await response.text(),/你好/);
   }
@@ -143,7 +201,7 @@ test('Gemini 4 thinking levels, image input and search use the official Google s
   const {env}=setup();let level;
   const calls=mockFetch(t,(_url,options)=>{
     const body=JSON.parse(options.body);
-    assert.deepEqual(body.generationConfig,{maxOutputTokens:65536,thinkingConfig:{thinkingLevel:level.toUpperCase()}});
+    assert.deepEqual(body.generationConfig,{maxOutputTokens:65536,thinkingConfig:{includeThoughts:true,thinkingLevel:level.toUpperCase()}});
     assert.deepEqual(body.contents[0].parts,[{inline_data:{mime_type:'image/png',data:'aGVsbG8='}},{text:'Test prompt'}]);
     assert.deepEqual(body.tools,[{google_search:{}}]);
     return stream([{candidates:[{content:{parts:[{text:'Gemini 4'}]}}]}]);

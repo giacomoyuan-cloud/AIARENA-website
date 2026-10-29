@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>AI 助手</title>
-<meta name="app-version" content="20261029-typingclock1">
+<meta name="app-version" content="20261030-thinking1">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2726,6 +2726,7 @@ var TEAM_COLORS = {
     try{var saved=JSON.parse(sessionStorage.getItem(pendingChatRunKey())||'null');if(saved&&saved.id===id)sessionStorage.removeItem(pendingChatRunKey());}catch(ignore){}
   }
   function chatRunConnectionState(state){
+    document.querySelectorAll('#aaThinkingArea [data-think]').forEach(function(row){row.dataset.connection=state;paintThinkStatus(row);});
     if(state==='reconnecting'&&lastChatConnectionState!==state)arenaNotice('连接恢复中，回答仍在后台生成，请稍候。');
     else if(state==='connected'&&lastChatConnectionState==='reconnecting')arenaNotice('已恢复连接，正在接回回答。');
     lastChatConnectionState=state;
@@ -2836,19 +2837,23 @@ var TEAM_COLORS = {
       if(turn.status==='pending'){var queued=msgs.find(function(m){return m.uid===turn.reply.uid;});if(queued&&queued.debateStatus!=='pending'){queued.debateStatus='pending';queued.debateError='';queued.isError=false;changed=true;}return;}
       var message=msgs.find(function(m){return m.uid===turn.reply.uid;}),fresh=!message,previousStatus=message&&message.debateStatus,previousAttempt=message&&message.debateAttempt;
       if(!message){message={uid:turn.reply.uid,text:''};msgs.push(message);changed=true;}
-      var oldText=message.text;
+      var oldText=message.text,oldReasoning=message.reasoning;
       Object.assign(message,turn.reply,{debateRun:ref,debateTurn:turn.index,debateStatus:turn.status,debateAttempt:turn.attempt,debateError:turn.error||'',debateOutdated:!!turn.outdated,
         isError:['failed','interrupted','cancelled','skipped'].includes(turn.status),completedAt:turn.status==='running'?undefined:turn.updatedAt});
       if(message.usage&&typeof message.usage.cost==='number')message.usageStr='$'+message.usage.cost.toFixed(4);
       message._activityDirty=true;_uidCounter=Math.max(_uidCounter,message.uid);
       if(restored&&turn.status==='running')liveReplies.seed(message.uid,message.text);
-      else if(!restored&&(fresh||oldText!==message.text||previousAttempt!==turn.attempt))liveUpdate(message.uid,message.text,message.reasoning);
+      else if(!restored&&(fresh||oldText!==message.text||oldReasoning!==message.reasoning||previousAttempt!==turn.attempt))liveUpdate(message.uid,message.text,message.reasoning);
       if(turn.status!=='running'&&(!restored||liveReplies.has(message.uid))&&(previousStatus!==turn.status||previousAttempt!==turn.attempt||liveReplies.has(message.uid)))finalizeMsg(message.uid,message.text,message.isError,message.reasoning);
       if(previousStatus!==turn.status||previousAttempt!==turn.attempt)changed=true;
     });
     if(data.status==='running'){
       var pending=data.turns.find(function(turn){return turn.status==='running';});
-      if(pending&&!pending.reply.text)showThink(pending.reply.submodel);else hideThink();
+      if(pending&&!pending.reply.text){
+        showThink(pending.reply.submodel,pending.reply.uid+':'+pending.attempt);
+        var phase=(pending.reply.activity||[]).filter(function(item){return item.kind==='thinking'||item.kind==='searching';}).at(-1);
+        if(phase)updateThinkStatus(pending.reply.submodel,phase.kind);
+      }else hideThink();
     }else hideThink();
     if(data.total&&(data.status==='running'||data.status==='paused'||data.status==='stopped'))rememberDebate(ref);else forgetDebate(ref);
     if(changed){_skipNextChatSave=true;render();}
@@ -2948,7 +2953,8 @@ var TEAM_COLORS = {
     var searchLabel = imageSearch?(webSearch?'已思考，已搜索网页与图片':'已思考，已搜索图片'):'已思考，已搜索网页';
     var usedFiles=entries.some(function(item){return item.kind==='project_files';});
     var attempted = entries.some(function(item){return /search/.test(item.kind);});
-    var h = '<details class="arena-operation-details"><summary>'+ (usedFiles?'已查阅项目资料':searched?searchLabel:attempted?'思考与搜索过程':'思考记录')+'</summary><div class="arena-operation-card">';
+    var liveSummary=!!msg.reasoning&&!msg.completedAt&&!msg.isError&&((msg.run&&msg.run.status==='running')||msg.debateStatus==='running');
+    var h = '<details class="arena-operation-details"'+(liveSummary?' open':'')+'><summary>'+ (usedFiles?'已查阅项目资料':searched?searchLabel:attempted?'思考与搜索过程':'思考记录')+'</summary><div class="arena-operation-card">';
     entries.forEach(function(item){
       if(item.kind==='project_files'){
         h+='<div class="arena-operation-row">已查阅项目资料 · '+Number(item.fragments||0)+' 个片段 '+(item.files||[]).map(function(file){return '<button data-context-file="'+esc(file.id)+'" data-project="'+esc((msg.context||{}).scope||activeProjectId||'')+'">'+esc(file.name)+'</button>';}).join(' ')+'</div>';return;
@@ -2962,7 +2968,7 @@ var TEAM_COLORS = {
       if(extra) h += '<details class="arena-operation-row"><summary>'+esc(item.label||'网页搜索')+'</summary><div class="arena-operation-content">'+extra+'</div></details>';
       else h += '<div class="arena-operation-row plain'+(item.kind==='search_error'?' failed':'')+'">'+esc(item.label||'模型思考')+'</div>';
     });
-    if(msg.reasoning) h += '<details class="arena-operation-row"><summary>模型提供的思考摘要</summary><div class="arena-operation-content aa-reasoning-content">'+esc(msg.reasoning)+'</div></details>';
+    if(msg.reasoning) h += '<details class="arena-operation-row"'+(liveSummary?' open':'')+'><summary>模型提供的思考摘要</summary><div class="arena-operation-content aa-reasoning-content">'+esc(msg.reasoning)+'</div></details>';
     return h+'</div></details>';
   }
 
@@ -3010,10 +3016,16 @@ var TEAM_COLORS = {
     }
     var message = msgs.find(function(m){return m.uid===uid;});
     if(message && (message._activityDirty || reasoning)){
-      var existing = el.querySelector('.arena-operation-details'), open = existing && existing.open;
+      var existing = el.querySelector('.arena-operation-details'), previousSummary=existing&&existing.querySelector('.aa-reasoning-content');
       var holder = document.createElement('div'); holder.innerHTML = renderMessageActivity(message);
       if(holder.firstElementChild){
-        holder.firstElementChild.open = !!open;
+        if(existing&&(!reasoning||previousSummary))holder.firstElementChild.open=existing.open;
+        var nextSummary=holder.querySelector('.aa-reasoning-content');
+        if(previousSummary&&nextSummary){
+          nextSummary.parentElement.open=previousSummary.parentElement.open;
+          if(previousSummary.scrollHeight-previousSummary.scrollTop-previousSummary.clientHeight<32)nextSummary.scrollTop=nextSummary.scrollHeight;
+          else nextSummary.scrollTop=previousSummary.scrollTop;
+        }
         if(existing) existing.replaceWith(holder.firstElementChild);
         else el.insertBefore(holder.firstElementChild,el.querySelector('.aa-msg-body'));
       }
@@ -4475,24 +4487,33 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
 
   // Progress is driven by upstream events; elapsed time is measured, not simulated.
   var thinkingClock = null;
+  function paintThinkStatus(row){
+    var phase=row.dataset.phase||'waiting',labels={waiting:'正在等待模型响应',thinking:'正在思考',searching:'正在搜索网页',responding:'正在生成回答',working:'正在生成图像'};
+    var quiet=Date.now()-Number(row.dataset.lastContentAt||row.dataset.startedAt)>=45000;
+    row.querySelector('.arena-progress-label').textContent=row.dataset.connection==='reconnecting'?'连接恢复中':quiet?(phase==='waiting'?'仍在等待模型响应':'等待模型继续返回内容'):(labels[phase]||labels.waiting);
+  }
   function tickThinkingClock(){
     var rows = document.querySelectorAll('#aaThinkingArea [data-started-at]');
     rows.forEach(function(row){
       var seconds = Math.max(0, Math.floor((Date.now() - Number(row.dataset.startedAt)) / 1000));
-      row.querySelector('.arena-progress-time').textContent = seconds ? seconds + '秒' : '';
+      row.querySelector('.arena-progress-time').textContent = seconds ? '总用时 '+seconds + '秒' : '';
+      paintThinkStatus(row);
     });
     if(!rows.length && thinkingClock){ clearInterval(thinkingClock); thinkingClock = null; }
   }
-  function showThink(submodel){
+  function showThink(submodel, generationKey){
     var area = $('aaThinkingArea'), info = SUBS[submodel];
     if(!area || !info) return;
+    var existing=area.querySelector('[data-think="'+submodel+'"]'),key=generationKey==null?'':String(generationKey);
+    if(existing&&existing.dataset.generationKey===key)return;
     hideThink(submodel);
     syncKitten();
     var row = document.createElement('div');
     row.className = 'aa-msg aa-pending-message'; row.dataset.think = submodel; row.dataset.startedAt = Date.now();
+    row.dataset.generationKey=key;row.dataset.lastContentAt=row.dataset.startedAt;row.dataset.phase=imageMode?'working':'waiting';
     row.innerHTML = '<div class="aa-msg-head"><span class="aa-msg-name">'+esc(info.name)+'</span></div>'
       +'<div class="arena-progress">'+(window.ArenaKitten ? window.ArenaKitten.markup('progress', imageMode?'working':'thinking', submodel) : '<span class="arena-progress-dots" aria-hidden="true"><i></i><i></i><i></i></span>')
-      +'<span class="arena-progress-label" role="status">'+(imageMode?'正在生成图像':'正在准备回答')+'</span><span class="arena-progress-time" aria-hidden="true"></span></div>';
+      +'<span class="arena-progress-label" role="status">'+(imageMode?'正在生成图像':'正在等待模型响应')+'</span><span class="arena-progress-time" title="从发送开始的总用时，包含等待、连接和模型处理" aria-hidden="true"></span></div>';
     area.appendChild(row);
     if(window.ArenaKitten) window.ArenaKitten.progress(submodel, imageMode?'working':'thinking');
     if(!thinkingClock) thinkingClock = setInterval(tickThinkingClock, 1000);
@@ -4500,21 +4521,24 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
   }
   function updateThinkStatus(submodel, status, generation){
     var row = document.querySelector('#aaThinkingArea [data-think="'+submodel+'"]');
-    var labels = {thinking:'正在思考',searching:'正在搜索网页',responding:'正在生成回答'};
-    if(row && labels[status]) row.querySelector('.arena-progress-label').textContent = labels[status];
+    if(row && ['waiting','thinking','searching','responding'].includes(status)){row.dataset.phase=status;row.dataset.lastContentAt=Date.now();paintThinkStatus(row);}
     if(window.ArenaKitten) window.ArenaKitten.progress(submodel, status, generation);
   }
   function appendThinkSummary(submodel, text, generation){
+    if(typeof text!=='string'||!text)return;
     var row = document.querySelector('#aaThinkingArea [data-think="'+submodel+'"]');
     if(!row) return;
     updateThinkStatus(submodel, 'thinking', generation);
     var content = row.querySelector('.aa-reasoning-content');
     if(!content){
-      var details = document.createElement('details'); details.className = 'aa-reasoning-block';
+      var details = document.createElement('details'); details.className = 'aa-reasoning-block';details.open=true;
       details.innerHTML = '<summary class="aa-reasoning-toggle">思考摘要</summary><div class="aa-reasoning-content"></div>';
       row.appendChild(details); content = details.querySelector('.aa-reasoning-content');
     }
+    var follow=content.scrollHeight-content.scrollTop-content.clientHeight<32;
     content.textContent += text;
+    if(follow)content.scrollTop=content.scrollHeight;
+    if(!userScrolledUp)$('aaMessages').scrollTop=$('aaMessages').scrollHeight;
   }
   function hideThink(submodel){
     var area = $('aaThinkingArea'); if(!area) return;
