@@ -10,7 +10,7 @@ const workerSource=readFileSync(new URL('./worker.js',import.meta.url),'utf8');
 const hash=Buffer.from(await crypto.subtle.digest('SHA-256',new TextEncoder().encode('contract-test-password'))).toString('hex');
 const image={data:'aGVsbG8=',mime:'image/png'};
 function fn(name){return source.match(new RegExp('  function '+name+'\\([^]*?\\n  }'))[0];}
-function setup(){const data=new Map();const kv={get:async k=>data.get(k)||null,put:async(k,v)=>data.set(k,v)};return {MEMORY_KV:kv,BIZ_KV:kv,PASSWORD:'contract-test-password',GEMINI_API_KEY:'test-only-google',GROK_API_KEY:'test-only-xai',ANTHROPIC_API_KEY:'test-only-claude'};}
+function setup(){const data=new Map();const kv={get:async k=>data.get(k)||null,put:async(k,v)=>data.set(k,v)};return {MEMORY_KV:kv,BIZ_KV:kv,PASSWORD:'contract-test-password',GEMINI_API_KEY:'test-only-google',GROK_API_KEY:'test-only-xai',ANTHROPIC_API_KEY:'test-only-claude',OPENAI_API_KEY:'test-only-openai'};}
 function browser(env){
  const payloads=[],output=[],meta=[];
  const context=vm.createContext({

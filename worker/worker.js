@@ -151,6 +151,7 @@ const OFFICIAL_MODELS = {
   "claude-opus-5-5": { provider: "anthropic", binding: "ANTHROPIC_API_KEY", name: "Claude Opus 5.5", maxTokens: 128000 },
   "claude-sonnet-5-5": { provider: "anthropic", binding: "ANTHROPIC_API_KEY", name: "Claude Sonnet 5.5", maxTokens: 128000 },
   "gpt-6-astra": { provider: "openai", binding: "OPENAI_API_KEY", name: "GPT-6 Astra", maxTokens: 128000 },
+  "gpt-6.1-sol": { provider: "openai", binding: "OPENAI_API_KEY", name: "GPT-6.1 Sol", maxTokens: 128000 },
   "gpt-5.6-sol": { provider: "openai", binding: "OPENAI_API_KEY", name: "GPT-5.6 Sol", maxTokens: 128000 },
   "claude-fable-5-1": { provider: "anthropic", binding: "ANTHROPIC_API_KEY", name: "Claude Fable 5.1", maxTokens: 128000 },
   "claude-opus-5": { provider: "anthropic", binding: "ANTHROPIC_API_KEY", name: "Claude Opus 5", maxTokens: 128000 },
@@ -163,6 +164,8 @@ const OFFICIAL_MODELS = {
   "gemini-nano-banana-2.1": { provider: "google", binding: "GEMINI_API_KEY", name: "Nano Banana 2.1", image: true }
 };
 const MODEL_EFFORT_LEVELS = {
+  "gpt-6-astra": ["low", "medium", "high", "xhigh", "max"],
+  "gpt-6.1-sol": ["low", "medium", "high", "xhigh", "max"],
   "claude-fable-5-1": ["low", "medium", "high", "xhigh", "max"],
   "claude-opus-5-5": ["low", "medium", "high", "xhigh", "max"],
   "claude-sonnet-5-5": ["low", "medium", "high", "xhigh", "max"],
@@ -1341,7 +1344,7 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
             return {role:message.role,content:message.content};
           });
         }
-        if (isXai && effort !== undefined) payload.reasoning = { effort };
+        if (effort !== undefined) payload.reasoning = { effort };
         if (search) payload.tools = [{ type: "web_search" }];
       }
       const response = await fetchRetry(endpoint, { method: "POST", headers, body: JSON.stringify(payload) });
