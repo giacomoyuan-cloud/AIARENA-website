@@ -77,12 +77,13 @@
       var stream=new ReadableStream({
         async start(controller){
           function reconnect(){if(connection)connection.abort();}
-          function visibility(){reconnect();}
+          // Keep receiving while hidden so the display clock starts when text
+          // arrives. Returning may reconnect a suspended observer, never the run.
+          function visibility(){if(!doc.hidden&&!finished)reconnect();}
           if(doc)doc.addEventListener('visibilitychange',visibility);
           if(events&&events.addEventListener){events.addEventListener('online',reconnect);events.addEventListener('pageshow',reconnect);}
           try{
             while(!closed&&!finished){
-              await waitVisible(doc,signal);
               if(signal&&signal.aborted)throw abortError();
               connection=new AbortController();
               var timer;
@@ -123,7 +124,7 @@
                 if(reader){reader.cancel().catch(function(){});reader=null;}
                 connection=null;
               }
-              if(!finished&&!closed){await waitVisible(doc,signal);await delay(500,signal);}
+              if(!finished&&!closed)await delay(500,signal);
             }
             if(!closed)controller.close();
           }catch(error){if(!closed)controller.error(error);}

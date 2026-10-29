@@ -27,7 +27,8 @@
   function create(options) {
     options = options || {};
     var later = options.setTimeout || setTimeout, cancel = options.clearTimeout || clearTimeout;
-    var now = options.now || function () { return performance.now(); };
+    // Wall time includes time spent in a throttled/frozen background page.
+    var now = options.now || Date.now;
     var paint = options.onUpdate || function () {};
     var interval = 1000 / (options.rate || 15), streams = new Map(), idle = [], paused = false;
     function notifyIdle() {
@@ -35,12 +36,12 @@
       var callbacks = idle; idle = []; callbacks.forEach(function (resolve) { resolve(); });
     }
     function schedule(state) {
-      if (paused || state.timer !== null || state.index >= state.units.length) return;
+      if (paused || state.timer !== null || state.nextAt === null || state.index >= state.units.length) return;
       state.timer = later(function () {
         state.timer = null;
         if (streams.get(state.key) !== state || paused) return;
         advance(state);
-      }, Math.max(0, state.nextAt - now()));
+      }, Math.max(1, state.nextAt - now()));
     }
     function settle(state) {
       if (!state.ended || state.index < state.units.length) return false;
@@ -52,10 +53,13 @@
       notifyIdle(); return true;
     }
     function advance(state) {
-      if (state.index < state.units.length) {
-        state.visible += state.units[state.index++];
-        // Never catch up with a whole batch after a long task or background tab.
-        state.nextAt = now() + interval;
+      var due = state.nextAt === null ? 0 : Math.max(0, Math.floor((now() - state.nextAt) / interval + 1e-7) + 1);
+      var count = Math.min(due, state.units.length - state.index);
+      if (count > 0) {
+        state.visible += state.units.slice(state.index, state.index + count).join('');
+        state.index += count;
+        // The deadline belongs to the reply, not to the last timer callback.
+        state.nextAt += count * interval;
         paint(state.key, state.visible, false);
       }
       if (!settle(state)) schedule(state);
@@ -64,7 +68,7 @@
       text = String(text || '');
       var state = streams.get(key);
       if (!state) {
-        state = { key: key, target: '', units: [], index: 0, visible: '', nextAt: now(), timer: null, ended: false, waiters: [] };
+        state = { key: key, target: '', units: [], index: 0, visible: '', nextAt: null, timer: null, ended: false, waiters: [] };
         streams.set(key, state);
       }
       if (state.target !== text || ended) {
@@ -74,6 +78,8 @@
         var visible = units.slice(0, common).join('');
         if (state.visible !== visible) { state.visible = visible; paint(key, visible, false); }
       }
+      // Reasoning/status-only updates must not spend the reply's typing time.
+      if (state.nextAt === null && state.units.length) state.nextAt = now();
       state.ended = state.ended || !!ended;
       if (!paused && state.timer === null && state.index < state.units.length && now() >= state.nextAt) advance(state);
       else if (!settle(state)) schedule(state);
@@ -108,8 +114,10 @@
         paused = !!value;
         streams.forEach(function (state) {
           if (state.timer !== null) cancel(state.timer);
-          state.timer = null; state.nextAt = now() + interval;
-          if (!paused) schedule(state);
+          state.timer = null;
+          // Only rendering sleeps in the background. Catch up synchronously
+          // before the first foreground frame instead of restarting the clock.
+          if (!paused) advance(state);
         });
       }
     };
