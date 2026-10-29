@@ -85,14 +85,14 @@ test('preview UI never offers download or edit actions and escapes provider-supp
 function settingsEvents(){
   const handlers={}, saved={},model=A.OPENAI_MODELS[1];let error='';
   const pop={addEventListener:(name,fn)=>handlers[name]=fn,querySelector:()=>null,querySelectorAll:()=>[]};
-  const c=vm.createContext({ArenaImage:A,imageComposerModel:model,openAIImageSettings:{[model]:{format:'webp',count:1,compression:100,partial:2}},
+  const c=vm.createContext({Event,ArenaImage:A,imageSettingSliders:null,imageComposerModel:model,openAIImageSettings:{[model]:{format:'webp',count:1,compression:100,partial:2}},
     $:id=>id==='aaImageSettingsPop'?pop:{setAttribute(){},textContent:''},localStorage:{setItem:(k,v)=>saved[k]=v},
     imageSettingsState:()=>c.openAIImageSettings[model],updateOpenAIImageSizePreview(){},imageSettingsSummary:()=>'',setImageError:text=>error=text});
   for(const name of ['input','change']){
     const begin=source.indexOf("  $('aaImageSettingsPop').addEventListener('"+name+"'");assert.ok(begin>=0);
     const end=source.indexOf('\n  });',begin);assert.ok(end>begin);vm.runInContext(source.slice(begin,end+6),c);
   }
-  return {dispatch(name,key,value,min='',max=''){const control={dataset:{imageSetting:key},value:String(value),min,max,closest(){return this;}};handlers[name]({target:control});return control;},
+  return {dispatch(name,key,value,min='',max='',stops){const control={dataset:{imageSetting:key,...(stops===undefined?{}:{imageSlider:stops.join('|')})},value:String(value),min,max,closest(){return this;},dispatchEvent(event){handlers[event.type]({target:this});}};handlers[name]({target:control});return control;},
     options:()=>A.requestOptions(model,'generation',c.openAIImageSettings[model],[]),error:()=>error,saved};
 }
 
@@ -108,4 +108,16 @@ test('preview radios accept all supported values without numeric input attribute
   const ui=settingsEvents();
   for(const value of [0,1,2,3]){ui.dispatch('change','partial',value);assert.equal(ui.options().partialImages,value);assert.equal(ui.error(),'');}
   ui.dispatch('change','partial',4);assert.equal(ui.options().partialImages,3);assert.match(ui.error(),/0–3/);
+});
+
+test('dragging image sliders immediately saves the correct API values and can return to automatic quality',()=>{
+  const ui=settingsEvents(),qualities=['low','medium','high','xhigh','max'];
+  qualities.forEach((quality,index)=>{ui.dispatch('input','quality',index,'0','4',qualities);assert.equal(ui.options().quality,quality);});
+  ui.dispatch('input','count',10,'1','10',[]);ui.dispatch('input','compression',0,'0','100',[]);ui.dispatch('input','partial',3,'0','3',[]);
+  assert.equal(ui.options().n,10);assert.equal(ui.options().outputCompression,0);assert.equal(ui.options().partialImages,3);
+  ui.dispatch('input','count',1,'1','10',[]);ui.dispatch('input','compression',100,'0','100',[]);ui.dispatch('input','partial',0,'0','3',[]);
+  assert.equal(ui.options().n,1);assert.equal(ui.options().outputCompression,100);assert.equal(ui.options().partialImages,0);
+  ui.dispatch('change','quality','auto');assert.equal(ui.options().quality,'auto');
+  const persisted=JSON.parse(ui.saved['aa-openai-image-settings'])[A.OPENAI_MODELS[1]];
+  assert.equal(persisted.quality,'auto');assert.equal(persisted.count,1);assert.equal(persisted.compression,100);assert.equal(persisted.partial,0);
 });
