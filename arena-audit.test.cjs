@@ -17,13 +17,13 @@ function navigation(){
     imageMode:false,imageComposerTask:'generation',imageEditParentUid:null,debatePriorRunId:null,
     brandSelection:{xai:'grok-4.7'},_memoryLoaded:true,_cachedMemory:'memory',scopeSaveInFlight:null,
     clearTimeout(){},syncArenaLayout(){},syncArenaNavigation(){},clearDebateView(){},clearQuote(){c.activeQuote=null;},
-    genChatId:()=> 'new-chat-'+(++sequence),debateRunKey:()=> 'fixture',sessionStorage:{removeItem(){}},
+    genChatId:()=> 'new-chat-'+(++sequence),debateRunKey:()=> 'fixture',sessionStorage:{removeItem(){}},loadChatList(){},getLastAssistantReplyAt:()=>0,
     clearPreview(){c.sentImgs=[];c.sentTexts=[];},render(){},hideThink(){},setImageError(){},syncImageComposer(){},
     renderImgPreviews(){},renderTextPreviews(){},closeHistory(){},syncKitten(){},loadMemory(){},updateSkillsBtn(){},
     debateOwnsChat:()=>false,serializeMsgs:()=>plain(c.msgs),getChatTitle:()=> 'test',arenaNotice:message=>notices.push(message),
     saveCurrentChat(){c._saveTimer=2;},chatApiCall:async(action,extra)=>{writes.push({action,...plain(extra)});return {ok:true};}
   });
-  vm.runInContext(['scopeViewKey','flushScopeChat','beginNewChat','toggleIncognito'].map(fn).join('\n'),c);
+  vm.runInContext(['scopeViewKey','saveChatSnapshot','flushScopeChat','beginNewChat','toggleIncognito'].map(fn).join('\n'),c);
   return {c,$,writes,notices};
 }
 test('leaving incognito clears its messages, draft and chat ID before saving can resume',async()=>{
@@ -49,6 +49,12 @@ test('generation and pending submission cannot change privacy mode',async()=>{
     const {c,writes}=navigation();c[flag]=true;await c.toggleIncognito();assert.equal(c._incognitoMode,false);assert.equal(writes.length,0);
   }
 });
+test('a cancelled new-chat transition never releases private messages into ordinary mode',async()=>{
+  for(const privateMode of [true,false]){
+    const {c}=navigation();c._incognitoMode=privateMode;c.beginNewChat=async()=>false;
+    await c.toggleIncognito();assert.equal(c._incognitoMode,privateMode);assert.equal(c.msgs[0].text,'original message');
+  }
+});
 test('ordinary and incognito project view caches cannot restore one another',()=>{
   const {c}=navigation(),ordinary=c.scopeViewKey('project-1');c._incognitoMode=true;
   assert.notEqual(c.scopeViewKey('project-1'),ordinary);assert.notEqual(c.scopeViewKey(null),c.scopeViewKey('project-1'));
@@ -57,6 +63,23 @@ test('opening another chat waits for its outgoing save and preserves data when t
   const {c,notices}=navigation(),actions=[];c.chatApiCall=async action=>{actions.push(action);return null;};
   vm.runInContext(fn('loadChat'),c);assert.equal(await c.loadChat('another-chat'),false);
   assert.deepEqual(actions,['save']);assert.equal(c.currentChatId,'original-chat');assert.equal(c.msgs[0].text,'original message');assert.match(notices.at(-1),/保存失败/);
+});
+test('new chat waits for an autosave already on the network and refuses to discard an unsaved conversation',async()=>{
+  const {c,notices}=navigation();let timer,finish;
+  c.setTimeout=callback=>(timer=callback,42);c.chatApiCall=()=>new Promise(resolve=>finish=resolve);
+  vm.runInContext(fn('saveCurrentChat'),c);c.saveCurrentChat();timer();assert.equal(c._saveTimer,null);
+  const moving=c.beginNewChat();assert.equal(c.currentChatId,'original-chat');finish(null);
+  assert.equal(await moving,false);assert.equal(c.currentChatId,'original-chat');assert.match(notices.at(-1),/保存失败/);
+});
+test('edits queued behind an older autosave are written in order before navigation commits',async()=>{
+  const {c}=navigation(),snapshots=[],finished=[];let timer;
+  c.setTimeout=callback=>(timer=callback,42);
+  c.chatApiCall=(action,payload)=>{snapshots.push(plain(payload));return new Promise(resolve=>finished.push(resolve));};
+  vm.runInContext(fn('saveCurrentChat'),c);c.saveCurrentChat();timer();
+  c.msgs[0].text='newest edit';c.saveCurrentChat();const moving=c.beginNewChat();
+  assert.equal(snapshots.length,1);finished[0]({ok:true});for(let i=0;i<8;i++)await Promise.resolve();
+  assert.equal(snapshots.length,2);assert.equal(snapshots[1].messages[0].text,'newest edit');
+  assert.equal(c.currentChatId,'original-chat');finished[1]({ok:true});assert.equal(await moving,true);assert.equal(c.msgs.length,0);
 });
 test('incognito never reads saved memory',async()=>{
   const c=vm.createContext({_incognitoMode:true,_cachedMemory:'SAVED_MEMORY',fetch(){throw Error('must not read memory');}});
@@ -74,7 +97,7 @@ test('a stale visible model or effort prevents a paid request and retains the dr
     $('aaChatModelBtn').dataset={selectedModel:'gpt-6.1-sol',selectedEffort:'low'};
     const c=vm.createContext({$,scopeSwitchPending:false,chatNavigationPending:false,privacySwitchPending:false,aaRunning:false,skillSubmitPending:false,
       debate:false,imageMode:false,videoMode:false,activeProjectId:null,currentChatId:'chat-1',msgs:[],sentImgs:[],sentTexts:[],activeQuote:null,
-      skillsRuntime:{settings:()=>({mode:'off',ids:[]}),ready:async()=>{}},getPass:()=> 'synthetic',getActiveSubmodels:()=>[actual],effortFor:()=>effort,
+      skillsRuntime:{settings:()=>({mode:'off',ids:[]}),ready:async()=>{}},flushScopeChat:async()=>({ok:true}),getPass:()=> 'synthetic',getActiveSubmodels:()=>[actual],effortFor:()=>effort,
       syncBrandUI(){},updateSkillsBtn(){},arenaNotice:message=>notices.push(message),fetch(){throw Error('must not call provider');}});
     const start=html.indexOf('  async function aaStart(){'),end=html.indexOf("    if(debate&&debateMode==='free'",start);
     vm.runInContext(html.slice(start,end)+'\n  }',c);await c.aaStart();
@@ -93,6 +116,12 @@ function skills(){
 test('resolving a login alias preserves the current explicit Skill choice instead of reviving stale canonical settings',()=>{
   const f=skills();f.data.set('aa-skills-v2:alias:general:chat',JSON.stringify({mode:'off',ids:[]}));
   f.data.set('aa-skills-v2:stable:general:chat',JSON.stringify({mode:'manual',ids:['pptx']}));
+  f.runtime.migrateAccount('alias','stable');f.user('stable');assert.equal(f.runtime.settings().mode,'off');
+});
+test('another tab cannot silently replace the current composer Skill choice through shared storage',()=>{
+  const f=skills(),key='aa-skills-v2:alias:general:chat';f.data.set(key,JSON.stringify({mode:'off',ids:[]}));
+  assert.equal(f.runtime.settings().mode,'off');f.data.set(key,JSON.stringify({mode:'manual',ids:['pptx']}));
+  assert.equal(f.runtime.settings().mode,'off');
   f.runtime.migrateAccount('alias','stable');f.user('stable');assert.equal(f.runtime.settings().mode,'off');
 });
 test('an attachment still being read during account canonicalization remains available and can still be cleared',async()=>{

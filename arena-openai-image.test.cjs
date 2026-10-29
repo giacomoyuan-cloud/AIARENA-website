@@ -29,8 +29,9 @@ test('resolution cards show the actual frame proportions without checkmarks',()=
   for(const size of ['1024x1024','1536x1024','1024x1536','2048x1152','1152x2048','3840x2160']){
     const info=A.sizeInfo(size),[w,h]=size.split('x').map(Number);
     assert.ok(Math.abs(info.width/info.height-w/h)<.002,size);
-    const html=A.sizeChoice(size,size,{});assert.ok(html.includes(info.resolution));assert.ok(html.includes('arena-size-paper'));
-    assert.doesNotMatch(html,/m5 12 4 4L19 6|arena-image-pop-check/);
+    const html=A.sizeChoice(size,size,{});assert.ok(html.includes(info.resolution.replace(/\s+/g,'')));assert.ok(html.includes('arena-ratio-preview'));
+    assert.doesNotMatch(html,/m5 12 4 4L19 6|arena-image-pop-check|<svg|arena-size-paper/);
+    const common=A.ratioInfo(info.ratio);assert.equal(info.width,common.width);assert.equal(info.height,common.height);
   }
   assert.equal(A.sizeInfo('1024x1024').ratio,'1:1');assert.equal(A.sizeInfo('1536x1024').ratio,'3:2');
 });

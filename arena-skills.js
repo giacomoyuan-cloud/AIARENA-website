@@ -2,14 +2,20 @@
   'use strict';
   function escape(value){return String(value||'').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
   function install(options){
-    var catalog=root.ArenaSkillCatalog||[],files=[],pending=[],epochs={},sequence=0;
+    var catalog=root.ArenaSkillCatalog||[],files=[],pending=[],epochs={},sequence=0,settingsKey=null,currentSettings=null;
     function fileScope(){var a=options.auth();return String(a.username||a.user||'').toLowerCase()+':'+options.scope();}
     function key(){var a=options.auth();return 'aa-skills-v2:'+String(a.username||a.user||'').toLowerCase()+':'+options.scope()+':'+options.mode();}
     function settings(){
-      try{var value=JSON.parse(localStorage.getItem(key())||'null');if(value&&['auto','manual','off'].indexOf(value.mode)!==-1)return {mode:value.mode,ids:(value.ids||[]).filter(function(id){return catalog.some(function(s){return s.id===id;});}).slice(0,3)};}catch(e){}
-      return {mode:'auto',ids:[]};
+      var nextKey=key();
+      if(settingsKey!==nextKey||!currentSettings){
+        settingsKey=nextKey;currentSettings={mode:'auto',ids:[]};
+        try{var value=JSON.parse(localStorage.getItem(nextKey)||'null');if(value&&['auto','manual','off'].indexOf(value.mode)!==-1)currentSettings={mode:value.mode,ids:(Array.isArray(value.ids)?value.ids:[]).filter(function(id){return catalog.some(function(s){return s.id===id;});}).slice(0,3)};}catch(e){}
+      }
+      // Another tab may remember its own preference, but cannot change the
+      // current composer's visible choice underneath an in-flight submission.
+      return {mode:currentSettings.mode,ids:currentSettings.ids.slice()};
     }
-    function set(value){localStorage.setItem(key(),JSON.stringify(value));update();if(options.selectionChanged)options.selectionChanged(value);}
+    function set(value){localStorage.setItem(key(),JSON.stringify(value));settingsKey=key();currentSettings={mode:value.mode,ids:value.ids.slice()};update();if(options.selectionChanged)options.selectionChanged(value);}
     function update(){
       var value=settings(),skill=catalog.find(function(s){return s.id===value.ids[0];});
       document.getElementById('aaSkillsBtn').textContent=value.mode==='manual'&&skill?skill.name:'Skills · '+(value.mode==='off'?'关闭':'自动');
@@ -52,6 +58,7 @@
       var prefix='aa-skills-v2:'+from+':',keys=[];
       for(var i=0;i<localStorage.length;i++){var name=localStorage.key(i);if(name&&name.indexOf(prefix)===0)keys.push(name);}
       keys.forEach(function(name){localStorage.setItem('aa-skills-v2:'+to+':'+name.slice(prefix.length),localStorage.getItem(name));});
+      if(settingsKey&&settingsKey.indexOf(prefix)===0&&currentSettings){settingsKey='aa-skills-v2:'+to+':'+settingsKey.slice(prefix.length);localStorage.setItem(settingsKey,JSON.stringify(currentSettings));}
       files.forEach(function(file){if(file.scope.indexOf(from+':')===0)file.scope=to+file.scope.slice(from.length);});
       pending.forEach(function(entry){if(entry.scope.indexOf(from+':')!==0)return;var old=entry.scope,next=to+old.slice(from.length);entry.epoch=entry.epoch===(epochs[old]||0)?(epochs[next]||0):-1;entry.scope=next;});
     }

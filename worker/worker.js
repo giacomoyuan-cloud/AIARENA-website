@@ -7,6 +7,7 @@ import { createProjectScheduler } from './project-schedules.js';
 import { isOpenAIImage, validateOpenAIImage, buildImagePayload, readImageStream, IMAGE_ORCHESTRATOR } from './openai-images.js';
 import DebateCore from '../arena-debate.js';
 import SkillModels from '../arena-skill-models.js';
+import ChatMode from '../arena-chat-mode.js';
 var __defProp = Object.defineProperty;
 var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
 
@@ -721,6 +722,16 @@ var worker_default = {
         const [list,pins] = await Promise.all([getList(),pinnedIds(env.BIZ_KV,scopePrefix+":pin:")]);
         return new Response(JSON.stringify({ chats: list.map(chat=>pins.has(chat.id)?{...chat,pinned:true}:chat) }), { headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
       }
+      if (action === "modes") {
+        if(!Array.isArray(body2.chatIds)||body2.chatIds.length>8||body2.chatIds.some(id=>!validResourceId(id)))return projectReply({error:'会话编号无效，单次最多 8 条'},400);
+        const list=await getList(),ids=[...new Set(body2.chatIds)].filter(id=>list.some(chat=>chat.id===id)),modes=[];
+        // Classify old records in bounded batches; never send their image data to the sidebar.
+        for(let i=0;i<ids.length;i+=2)modes.push(...await Promise.all(ids.slice(i,i+2).map(async id=>{
+          try{const raw=await env.BIZ_KV.get(scopePrefix+':'+id);return {id,mode:raw?ChatMode.infer(JSON.parse(raw)).mode:null};}
+          catch{return {id,mode:null};}
+        })));
+        return projectReply({modes});
+      }
       if (action === "pin") {
         if(!validResourceId(chatId)||typeof body2.pinned!=="boolean")return projectReply({error:"置顶状态无效"},400);
         const list=await getList();
@@ -752,11 +763,13 @@ var worker_default = {
         const list = await getList();
         const now = Date.now();
         const existing = list.find((c) => c.id === chatId);
+        const mode = ChatMode.infer(safeMessages).mode;
         if (existing) {
           existing.updatedAt = now;
+          existing.mode = mode;
           if (title&&!existing.customTitle) existing.title = title;
         } else {
-          list.unshift({ id: chatId, title: title || "\u65B0\u4F1A\u8BDD", updatedAt: now });
+          list.unshift({ id: chatId, title: title || "\u65B0\u4F1A\u8BDD", updatedAt: now, mode });
         }
         list.sort((a, b) => b.updatedAt - a.updatedAt);
         await putList(list);
@@ -948,7 +961,7 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
       return new Response(JSON.stringify(result), { headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
     }
     if (request.method === "GET" && url.pathname !== "/memory") {
-      return new Response(JSON.stringify({ mode: "official", debate:DebateCore.version==='studio-v3'&&DebateRun.contractVersion==='studio-v3'?'studio-v3':null, skillsVersion:"20261030-skillmodels1", xai: !!env.GROK_API_KEY, openai: !!env.OPENAI_API_KEY, anthropic: !!env.ANTHROPIC_API_KEY, google: !!env.GEMINI_API_KEY, mj: false }), {
+      return new Response(JSON.stringify({ mode: "official", debate:DebateCore.version==='studio-v3'&&DebateRun.contractVersion==='studio-v3'?'studio-v3':null, skillsVersion:"20261030-skillmodels1", chatModesVersion:"20261030-chatmodes1", xai: !!env.GROK_API_KEY, openai: !!env.OPENAI_API_KEY, anthropic: !!env.ANTHROPIC_API_KEY, google: !!env.GEMINI_API_KEY, mj: false }), {
         status: 200,
         headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*", "Cache-Control":"no-store" }
       });
