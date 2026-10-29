@@ -7,6 +7,7 @@ import { createProjectScheduler } from './project-schedules.js';
 import { isOpenAIImage, validateOpenAIImage, buildImagePayload, readImageStream, IMAGE_ORCHESTRATOR } from './openai-images.js';
 import DebateCore from '../arena-debate.js';
 import SkillModels from '../arena-skill-models.js';
+import ChatMode from '../arena-chat-mode.js';
 var __defProp = Object.defineProperty;
 var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
 
@@ -580,7 +581,8 @@ async function handleChatRunRequest(request, env) {
       if (message._quote && typeof message._quote.text === 'string') userMessage._quote = { author: String(message._quote.author || '').slice(0, 100), text: message._quote.text.slice(0, 6000) };
       const clean = { ...payload }; delete clean.password; delete clean.passwordHash; delete clean.username; delete clean.user;
       internal.fingerprint = await hashText(JSON.stringify(clean));
-      internal.payload = { ...clean, user, username: user, password, passwordHash: password };
+      // One explicitly started run must never silently become a second attempt.
+      internal.payload = { ...clean, noAutomaticRetry: true, user, username: user, password, passwordHash: password };
       internal.recovery = { user, projectId, chatId: body.chatId, incognito: !!chat.incognito, title: String(recovery.title || chat.question).replace(/\s+/g, ' ').slice(0, 80), userMessage, historyEndUid: chat.historyEndUid,
         reply: { uid: recovery.replyUid, name: config.name, submodel: payload.model, effort: payload.effort, brand: config.provider === 'anthropic' ? 'anthropic' : config.provider === 'xai' ? 'xai' : config.provider, color: recovery.color || '#777777', text: '', reasoning: '', citations: [], activity: [] } };
     }
@@ -730,6 +732,16 @@ var worker_default = {
         const [list,pins] = await Promise.all([getList(),pinnedIds(env.BIZ_KV,scopePrefix+":pin:")]);
         return new Response(JSON.stringify({ chats: list.map(chat=>pins.has(chat.id)?{...chat,pinned:true}:chat) }), { headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
       }
+      if (action === "modes") {
+        if(!Array.isArray(body2.chatIds)||body2.chatIds.length>8||body2.chatIds.some(id=>!validResourceId(id)))return projectReply({error:'会话编号无效，单次最多 8 条'},400);
+        const list=await getList(),ids=[...new Set(body2.chatIds)].filter(id=>list.some(chat=>chat.id===id)),modes=[];
+        // Classify old records in bounded batches; never send their image data to the sidebar.
+        for(let i=0;i<ids.length;i+=2)modes.push(...await Promise.all(ids.slice(i,i+2).map(async id=>{
+          try{const raw=await env.BIZ_KV.get(scopePrefix+':'+id);return {id,mode:raw?ChatMode.infer(JSON.parse(raw)).mode:null};}
+          catch{return {id,mode:null};}
+        })));
+        return projectReply({modes});
+      }
       if (action === "pin") {
         if(!validResourceId(chatId)||typeof body2.pinned!=="boolean")return projectReply({error:"置顶状态无效"},400);
         const list=await getList();
@@ -761,11 +773,13 @@ var worker_default = {
         const list = await getList();
         const now = Date.now();
         const existing = list.find((c) => c.id === chatId);
+        const mode = ChatMode.infer(safeMessages).mode;
         if (existing) {
           existing.updatedAt = now;
+          existing.mode = mode;
           if (title&&!existing.customTitle) existing.title = title;
         } else {
-          list.unshift({ id: chatId, title: title || "\u65B0\u4F1A\u8BDD", updatedAt: now });
+          list.unshift({ id: chatId, title: title || "\u65B0\u4F1A\u8BDD", updatedAt: now, mode });
         }
         list.sort((a, b) => b.updatedAt - a.updatedAt);
         await putList(list);
@@ -957,7 +971,7 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
       return new Response(JSON.stringify(result), { headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
     }
     if (request.method === "GET" && url.pathname !== "/memory") {
-      return new Response(JSON.stringify({ mode: "official", debate:DebateCore.version==='studio-v3'&&DebateRun.contractVersion==='studio-v3'?'studio-v3':null, skillsVersion:"20261030-skillmodels1", projectsVersion:"20261030-projectactions1", xai: !!env.GROK_API_KEY, openai: !!env.OPENAI_API_KEY, anthropic: !!env.ANTHROPIC_API_KEY, google: !!env.GEMINI_API_KEY, mj: false }), {
+      return new Response(JSON.stringify({ mode: "official", debate:DebateCore.version==='studio-v3'&&DebateRun.contractVersion==='studio-v3'?'studio-v3':null, skillsVersion:"20261030-skillmodels1", chatModesVersion:"20261030-chatmodes1", projectsVersion:"20261030-projectactions1", xai: !!env.GROK_API_KEY, openai: !!env.OPENAI_API_KEY, anthropic: !!env.ANTHROPIC_API_KEY, google: !!env.GEMINI_API_KEY, mj: false }), {
         status: 200,
         headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*", "Cache-Control":"no-store" }
       });
@@ -1106,6 +1120,9 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
     async function sendUsage(inputTokens, outputTokens) {
       await writer.write(encoder.encode("data: " + JSON.stringify({ usage: { input: inputTokens, output: outputTokens } }) + "\n\n"));
     }
+    async function sendDiagnostics(diagnostics) {
+      await writer.write(encoder.encode("data: " + JSON.stringify({ diagnostics }) + "\n\n"));
+    }
     __name(sendUsage, "sendUsage");
     async function sendCost(cost) {
       await writer.write(encoder.encode("data: " + JSON.stringify({ cost }) + "\n\n"));
@@ -1195,7 +1212,7 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
       } finally { reader.releaseLock(); }
     }
     async function parseAnthropicStream(response) {
-      let usage;
+      let usage, lastPing = 0;
       const searchInputs = new Map(), blockCitations = new Map();
       async function flushCitations(index) {
         const values = blockCitations.get(index) || [], seen = new Set();
@@ -1205,6 +1222,18 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
       await readOfficialStream(response, async event => {
         if (event.type === "message_start" && event.message?.usage) usage = { ...event.message.usage };
         if (event.type === "message_delta" && event.usage) usage = { ...usage, ...event.usage };
+        if ((event.type === "message_start" || event.type === "message_delta") && usage) {
+          // A cancelled stream can still have consumed tokens. Checkpoint only;
+          // aggregate billing is recorded once by callOfficialChat on success.
+          await writer.write(encoder.encode("data: " + JSON.stringify({ usageCheckpoint: { input: usage.input_tokens || 0, output: usage.output_tokens || 0, partial: true } }) + "\n\n"));
+        }
+        if (event.type === "message_delta" && typeof event.delta?.stop_reason === "string") {
+          await sendDiagnostics({ stopReason: event.delta.stop_reason.slice(0, 80) });
+        }
+        if (event.type === "message_stop") await sendDiagnostics({ providerCompleted: true });
+        if (event.type === "ping" && (!lastPing || Date.now() - lastPing >= 10000)) {
+          lastPing = Date.now(); await sendDiagnostics({ lastProviderPingAt: lastPing });
+        }
         if (event.type === "content_block_start" && event.content_block?.type === "thinking") await sendStatus("thinking");
         if (event.type === "content_block_start" && event.content_block?.type === "server_tool_use" && event.content_block.name === "web_search") {
           await sendStatus("searching");
@@ -1499,6 +1528,9 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
       }
       const response = await fetchRetry(endpoint, { method: "POST", headers, body: JSON.stringify(payload) });
       if (!response?.ok) throw new Error(await getUpstreamError(response, config.provider + " 官方接口请求失败"));
+      const requestId = response.headers.get('request-id') || response.headers.get('x-request-id');
+      await sendDiagnostics({ provider: config.provider, model, effort, maxOutputTokens: outputLimit, upstreamStatus: response.status,
+        ...(requestId && /^[a-zA-Z0-9_-]{1,200}$/.test(requestId) ? { providerRequestId: requestId } : {}) });
       const usage = config.provider === "anthropic" ? await parseAnthropicStream(response)
         : config.provider === "google" ? await parseGeminiStream(response) : await parseResponsesStream(response, config.provider);
       if (usage) {

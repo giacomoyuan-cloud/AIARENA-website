@@ -13,6 +13,26 @@ const post=(path,body)=>new Request('https://api.pickandcase.com'+path,{method:'
 async function project(env,action,fields={}){const response=await worker.fetch(post('/projects',{username:'tester',password:pass,action,...fields}),env);return {status:response.status,...await response.json()};}
 async function create(env,name){return (await project(env,'create',{name})).project;}
 const root=(projectId,question,fields={})=>post('/',{user:'tester',password:pass,model:'claude-sonnet-5-5',prompt:'LEGACY_PROMPT_MUST_NOT_BE_USED',projectId,chat:{scope:projectId||'general',chatId:'test-chat-123',question,query:question,history:[],...fields}});
+test('conversation modes are indexed on save and legacy classification returns only owned scoped metadata',async()=>{
+  const {env,data,writes}=setup(),a=await create(env,'A');
+  const chat=async(action,fields={})=>{const response=await worker.fetch(post('/chats',{username:'tester',password:pass,action,...fields}),env);return {status:response.status,...await response.json()};};
+  const image=[{uid:1,isUser:true,text:'合成图片'},{uid:2,submodel:'gpt-image-2.5-flare',imgItems:[{data:'IMAGE_DATA_MUST_NOT_LEAVE_ARCHIVE',mime:'image/png'}]}];
+  for(const [chatId,messages,mode] of [['image-chat-123',image,'image'],['debate-chat-123',[{uid:1,isUser:true,debateRun:{id:'run'}}],'debate'],['normal-chat-123',[{uid:1,isUser:true,text:'文本问题'},{uid:2,submodel:'gpt-6.1-sol',text:'文本回答'}],'chat']]){
+    assert.equal((await chat('save',{chatId,messages})).status,200);
+    assert.equal((await chat('list')).chats.find(item=>item.id===chatId).mode,mode);
+  }
+  data.set('chats:tester:list',JSON.stringify([{id:'legacy-chat-123',updatedAt:123}]));data.set('chats:tester:legacy-chat-123',JSON.stringify(image));
+  data.set('chats:another:foreign-chat-123',JSON.stringify(image));data.set('project:tester:'+a.id+':chats:legacy-chat-123',JSON.stringify([{isUser:true,debateRun:{id:'project-run'}}]));
+  data.set('project:tester:'+a.id+':chats:list',JSON.stringify([{id:'legacy-chat-123'}]));
+  writes.length=0;const before=data.get('chats:tester:legacy-chat-123');
+  const metadata=await chat('modes',{chatIds:['legacy-chat-123','foreign-chat-123','not-listed-123']});
+  assert.deepEqual(metadata.modes,[{id:'legacy-chat-123',mode:'image'}]);assert.ok(!JSON.stringify(metadata).includes('IMAGE_DATA'));
+  assert.deepEqual((await chat('modes',{projectId:a.id,chatIds:['legacy-chat-123']})).modes,[{id:'legacy-chat-123',mode:'debate'}]);
+  assert.equal(data.get('chats:tester:legacy-chat-123'),before);assert.equal(writes.length,0,'classification never rewrites old records');
+  assert.equal((await chat('modes',{chatIds:Array(9).fill('legacy-chat-123')})).status,400);
+  assert.equal((await chat('modes',{chatIds:['../../private']})).status,400);
+  const foreignProject=await worker.fetch(post('/chats',{username:'another',password:pass,projectId:a.id,action:'modes',chatIds:['legacy-chat-123']}),env);assert.equal(foreignProject.status,404);
+});
 function streamText(text='已回复'){
   return new Response('data: '+JSON.stringify({type:'content_block_delta',delta:{type:'text_delta',text}})+'\n\n',{headers:{'Content-Type':'text/event-stream'}});
 }
