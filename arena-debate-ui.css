@@ -29,7 +29,7 @@
 #ai-arena-app.arena-shell.arena-debate-mode #aaSeatsArea { grid-column:1/-1;grid-row:5;max-height:300px;min-height:0;margin:0;padding:15px 22px;border-top:1px solid var(--arena-border);border-bottom:1px solid var(--arena-border);background:var(--arena-bg);overflow-y:auto;scrollbar-width:thin; }
 #ai-arena-app.arena-shell.arena-debate-mode .arena-persona-heading { margin:0 0 10px;font-size:12px;font-weight:400; }
 #ai-arena-app.arena-shell.arena-debate-mode .arena-persona-heading button { padding:3px 0;color:var(--arena-accent);font-size:12px; }
-#ai-arena-app.arena-shell.arena-debate-mode .arena-free-seat { padding:6px 10px;border:1px solid var(--arena-border);border-radius:9px;background:var(--arena-surface);gap:7px; }
+#ai-arena-app.arena-shell.arena-debate-mode .arena-free-seat { padding:4px 0;border:0;border-radius:0;background:transparent;gap:7px; }
 #ai-arena-app.arena-shell.arena-debate-mode .arena-seat-number { font-size:10px;white-space:nowrap; }
 #ai-arena-app.arena-shell.arena-debate-mode .arena-free-seat .arena-select-trigger { border:0;min-height:31px;background:transparent;padding:4px 2px;font-size:13px; }
 #ai-arena-app.arena-shell.arena-debate-mode .aa-persona-slot { gap:8px;padding:10px 12px;border:1px solid var(--arena-border);border-radius:9px;background:var(--arena-surface); }
@@ -157,6 +157,9 @@
 /* The same model / effort popovers used by ordinary chat, anchored to each seat. */
 #ai-arena-app.arena-shell .arena-model-control-popover { position:fixed;inset:auto;margin:0;box-sizing:border-box;z-index:100005; }
 #ai-arena-app.arena-shell .arena-model-control { gap:8px;min-width:0;box-sizing:border-box; }
+#ai-arena-app.arena-shell.arena-debate-mode .arena-model-control,
+#ai-arena-app.arena-shell.arena-debate-mode .arena-model-control:hover,
+#ai-arena-app.arena-shell.arena-debate-mode .arena-model-control[aria-expanded="true"] { border:0;background:transparent !important;border-radius:6px;box-shadow:none; }
 #ai-arena-app.arena-shell .arena-model-control-name { flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
 #ai-arena-app.arena-shell .arena-model-control-depth { color:var(--arena-muted);font-size:11px;font-weight:400;white-space:nowrap;flex-shrink:0; }
 #ai-arena-app.arena-shell.arena-debate-mode .arena-free-seat { grid-template-columns:auto minmax(0,1fr) auto; }

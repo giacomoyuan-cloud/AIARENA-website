@@ -864,16 +864,16 @@
   #ai-arena-app #aaSkillEditPrompt::placeholder { color: #888; opacity: 1; }
 
 </style>
-<link rel="stylesheet" href="/arena.css?v=20261030-debatecontrols1">
+<link rel="stylesheet" href="/arena.css?v=20261030-sliderends1">
 <link rel="stylesheet" href="/arena-workspace.css?v=20261029-debateresume1">
 <link rel="stylesheet" href="/arena-controls.css?v=20261029-debateresume1">
 <link rel="stylesheet" href="/arena-pet.css?v=20261029-petnoghost1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&family=Noto+Serif+SC:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="/arena-claude.css?v=20261030-projectscope1">
+<link rel="stylesheet" href="/arena-claude.css?v=20261030-sliderends1">
 <link rel="stylesheet" href="/arena-project-page.css?v=20261030-projects1">
-<link rel="stylesheet" href="/arena-debate-ui.css?v=20261030-debatecontrols1">
+<link rel="stylesheet" href="/arena-debate-ui.css?v=20261030-sliderends1">
 <link rel="preload" as="image" href="/assets/kitten/motion/knead-14b49069b5fd.png">
 
 <!-- Login overlay -->
@@ -1257,10 +1257,10 @@
 
 <script src="/arena-markdown.js?v=20261027-account1"></script>
 <link rel="stylesheet" href="/arena-image-editor.css?v=20261030-openai-image1">
-<script src="/arena-image.js?v=20261030-openai-image1"></script>
+<script src="/arena-image.js?v=20261030-sliderends1"></script>
 <script src="/arena-image-editor.js?v=20261030-openai-image1"></script>
 <script src="/arena-native.js?v=20261028-smooth2"></script>
-<script src="/arena-effort.js?v=20261030-debatecontrols1"></script>
+<script src="/arena-effort.js?v=20261030-sliderends1"></script>
 <script src="/arena-context.js?v=20261027-account1"></script>
 <script src="/arena-skills-catalog.js?v=20261030-skills1"></script>
 <script src="/arena-skill-models.js?v=20261030-skillmodels1"></script>
@@ -3943,7 +3943,7 @@ var TEAM_COLORS = {
   function buildImageModelPop(){
     $('aaImageModelPop').innerHTML = '<div class="arena-image-menu-title">图像模型</div>'+IMAGE_MODELS.map(function(m){
       var c=ArenaImage.cap(m.value);
-      return popItem(m.value, m.label, m.value === imageComposerModel, '', m.disabled,c?(c.openai?(m.value.endsWith('sunburst')?'OpenAI · 注重编辑精度':'OpenAI · 快速日常创作'):c.provider+' · 生成与编辑 · 最多 '+c.references+' 张参考图'):'','image');
+      return popItem(m.value, m.label, m.value === imageComposerModel, '', m.disabled,c?(c.openai?(m.value.endsWith('sunburst')?'OpenAI · 画质优先':'OpenAI · 速度优先'):c.provider+' · 生成与编辑 · 最多 '+c.references+' 张参考图'):'','image');
     }).join('');
   }
 
