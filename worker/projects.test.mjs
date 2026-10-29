@@ -51,11 +51,7 @@ function upstream(t,calls){
   t.mock.method(globalThis,'fetch',async(url,options)=>{
     assert.ok(['api.anthropic.com','api.x.ai'].includes(new URL(url).hostname));assert.equal(options.redirect,'manual');
     const payload=JSON.parse(options.body);calls.push({url,payload});
-    if(payload.model==='claude-haiku-5-5'){
-      assert.deepEqual(payload.thinking,{type:'disabled'});assert.deepEqual(payload.output_config,{effort:'low'});assert.equal(payload.service_tier,'standard_only');
-      for(const name of ['temperature','top_p','top_k'])assert.ok(!(name in payload));
-      return Response.json({content:[{type:'text',text:'旧摘要：保留预算 73921.50 元和既定约定。'}],usage:{input_tokens:20,output_tokens:10}});
-    }
+    if(payload.model==='claude-haiku-4-5-20251001')return Response.json({content:[{type:'text',text:'旧摘要：保留预算 73921.50 元和既定约定。'}],usage:{input_tokens:20,output_tokens:10}});
     return payload.stream&&new URL(url).hostname==='api.x.ai'?new Response('data: '+JSON.stringify({type:'response.output_text.delta',delta:'Grok 回复'})+'\n\n'):streamText();
   });
 }
@@ -187,16 +183,16 @@ test('generic project wording in a memory question does not pull unrelated file 
   assert.ok(!reads.some(k=>k.includes(':chunk:')));assert.ok(result.includes('"fileFragments":0'));
   assert.ok(!JSON.stringify(calls).includes('37 天'));
 });
-test('large conversation context is summarized and retrieves exact older facts without resending all history',async t=>{
+test('history that fits the model is sent in full without a paid summarizer or archive changes',async t=>{
   const {env,data}=setup(),calls=[];upstream(t,calls);
   const messages=Array.from({length:40},(_,i)=>({uid:i+1,isUser:i%2===0,text:i===0?'蓝莓项目预算为 73921.50 元，截止日期 2027-03-19。':'一般对话 '+i+' '+('其他资料。'.repeat(80))}));
   data.set('chats:tester:test-chat-123',JSON.stringify(messages));
   const response=await worker.fetch(root(null,'蓝莓项目预算和截止日期是多少？'),env),text=await response.text();
   const main=calls.find(c=>c.payload.model==='claude-sonnet-5-5').payload;
-  assert.ok(main.system.includes('73921.50'));assert.ok(main.system.includes('2027-03-19'));
-  assert.ok(main.messages.length<=9);assert.ok(JSON.stringify(main).length<22000);assert.ok(text.includes('"olderSummary":true'));
-  assert.ok(data.has('chats:tester:summary:test-chat-123'));
-  assert.ok(calls.some(c=>c.payload.model==='claude-haiku-5-5'));assert.equal(JSON.parse(data.get('chats:tester:summary:test-chat-123')).kind,'摘要');
+  assert.ok(main.messages[0].content.includes('73921.50'));assert.ok(main.messages[0].content.includes('2027-03-19'));
+  assert.equal(main.messages.length,41);assert.ok(text.includes('"olderSummary":false'));assert.ok(text.includes('"historyPolicy":"full"'));
+  assert.equal(calls.length,1);assert.equal(main.max_tokens,128000);
+  assert.equal(data.has('chats:tester:summary:test-chat-123'),false);
   assert.equal(JSON.parse(data.get('chats:tester:test-chat-123')).length,40);
 });
 test('incognito requests do not read or write stored memories, conversations or summaries',async t=>{

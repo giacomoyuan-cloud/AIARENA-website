@@ -168,6 +168,23 @@ for(const refused of [false,true])test('Haiku 5.5 memory extraction '+(refused?'
   assert.equal(result.usage.model,'claude-haiku-5-5');assert.equal(result.usage.costUsd,'0.00006');
   const stats=await usageSummary(env,'tester');assert.equal(stats.total.calls,1);assert.equal(stats.total.knownCostUsd,'0.00006');
 });
+test('Gemini native long decode records one final receipt including thinking exactly once',async t=>{
+  t.mock.timers.enable({apis:['Date'],now:at});
+  const {env,hash}=await authenticatedFixture();env.GEMINI_API_KEY='synthetic-google-key';let creates=0;
+  t.mock.method(globalThis,'fetch',(url,options)=>{
+    if(url.endsWith(':countTokens'))return Response.json({totalTokens:100});
+    assert.ok(url.startsWith('https://generativelanguage.googleapis.com/v1beta/interactions'));
+    if(options.method==='POST'){creates++;return Response.json({id:'v1_billing_interaction'});}
+    const usage={total_input_tokens:100,total_cached_tokens:10,total_output_tokens:20,total_thought_tokens:30,total_tokens:150};
+    return new Response([{event_type:'step.delta',event_id:'evt_billing_text',delta:{type:'text',text:'synthetic'}},{event_type:'interaction.completed',event_id:'evt_billing_done',interaction:{status:'completed',usage}}].map(event=>'data: '+JSON.stringify(event)+'\n\n').join(''),{headers:{'Content-Type':'text/event-stream'}});
+  });
+  const response=await worker.fetch(new Request('https://api.pickandcase.com/',{method:'POST',body:JSON.stringify({user:'tester',password:hash,model:'gemini-4-argon',prompt:'synthetic long decode',search:false})}),env);
+  const events=(await response.text()).split('\n').filter(l=>l.startsWith('data: {')).map(l=>JSON.parse(l.slice(6)));
+  assert.ok(!events.some(event=>event.error),JSON.stringify(events.filter(event=>event.error)));
+  const receipts=events.filter(event=>event.usage);assert.equal(receipts.length,1);assert.equal(creates,1);
+  assert.equal(receipts[0].usage.input,100);assert.equal(receipts[0].usage.output,50);assert.equal(receipts[0].usage.costUsd,'0.000681');
+  const stats=await usageSummary(env,'tester');assert.equal(stats.total.calls,1);assert.equal(stats.total.knownCostUsd,'0.000681');
+});
 for(const model of ['gemini-nano-banana-2.1','grok-imagine-image-2.0'])test(model+' generation and editing enter the account ledger without invented tokens',async t=>{
   const {env,hash}=await authenticatedFixture();env.GEMINI_API_KEY='synthetic-google-key';env.GROK_API_KEY='synthetic-xai-key';let calls=0;
   t.mock.method(globalThis,'fetch',(url,options)=>{

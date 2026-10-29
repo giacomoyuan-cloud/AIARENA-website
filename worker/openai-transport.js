@@ -18,7 +18,7 @@ export class OpenAITransport {
       if(typeof input.body!=='string'||input.body.length>16*1024*1024)return Response.json({error:'请求内容过大或无效。'},{status:400});
       let payload;try{payload=JSON.parse(input.body)}catch{return Response.json({error:'请求内容无效。'},{status:400})}
       if(!MODELS.has(payload.model))return Response.json({error:'模型不可用。'},{status:400});
-      this.job={body:input.body,phase:'queued',chunks:[],bytes:0,finished:false,started:false,subscribed:false,abort:new AbortController()};
+      this.job={body:input.body,countOnly:input.countOnly===true,phase:'queued',chunks:[],bytes:0,finished:false,started:false,subscribed:false,abort:new AbortController()};
       await this.ctx.storage.setAlarm(Date.now()+100);
       return Response.json({phase:'queued'},{status:202});
     }
@@ -58,7 +58,7 @@ export class OpenAITransport {
     if(!job||job.started||job.cancelled)return;
     job.started=true;job.phase='fetching';
     try{
-      const response=await fetch('https://api.openai.com/v1/responses',{
+      const response=await fetch('https://api.openai.com/v1/responses'+(job.countOnly?'/input_tokens':''),{
         method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+this.env.OPENAI_API_KEY},
         body:job.body,signal:job.abort.signal,redirect:'manual'
       });
@@ -78,7 +78,7 @@ export class OpenAITransport {
   }
 }
 
-export async function openAIBackgroundFetch(namespace,body,signal){
+export async function openAIBackgroundFetch(namespace,body,signal,{countOnly=false}={}){
   const regional=namespace.jurisdiction('us');
   const stub=regional.get(regional.idFromName('openai-dispatch:'+crypto.randomUUID()));
   const request=(path,value)=>new Request(ORIGIN+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(value||{})});
@@ -88,7 +88,7 @@ export async function openAIBackgroundFetch(namespace,body,signal){
   let reader;
   try{
     aborted();
-    const started=await stub.fetch(request('/start',{body}));
+    const started=await stub.fetch(request('/start',{body,...(countOnly?{countOnly:true}:{})}));
     if(!started.ok)throw new Error((await started.json()).error||'后台连接启动失败。');
     // Consume and close the enqueue response before waiting for provider headers.
     await started.json();

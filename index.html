@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>AI 助手</title>
-<meta name="app-version" content="20261030-nativeupdate1">
+<meta name="app-version" content="20261030-tokenlimits1">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -865,7 +865,7 @@
   #ai-arena-app #aaSkillEditPrompt::placeholder { color: #888; opacity: 1; }
 
 </style>
-<link rel="stylesheet" href="/arena.css?v=20261030-filezip1">
+<link rel="stylesheet" href="/arena.css?v=20261030-tokenlimits1">
 <link rel="stylesheet" href="/arena-workspace.css?v=20261029-debateresume1">
 <link rel="stylesheet" href="/arena-controls.css?v=20261029-debateresume1">
 <link rel="stylesheet" href="/arena-pet.css?v=20261029-petnoghost1">
@@ -1265,7 +1265,8 @@
 <script src="/arena-image-editor.js?v=20261030-openai-image1"></script>
 <script src="/arena-native.js?v=20261030-nativeupdate1"></script>
 <script src="/arena-effort.js?v=20261030-imagesliders1"></script>
-<script src="/arena-context.js?v=20261027-account1"></script>
+<script src="/arena-token-limits.js?v=20261030-tokenlimits1"></script>
+<script src="/arena-context.js?v=20261030-tokenlimits1"></script>
 <script src="/arena-chat-mode.js?v=20261030-historymodes2"></script>
 <script src="/arena-skills-catalog.js?v=20261030-skills1"></script>
 <script src="/arena-skill-models.js?v=20261030-skillmodels1"></script>
@@ -2863,7 +2864,7 @@ var TEAM_COLORS = {
     payload.projectId=activeProjectId;
     if(effortFor(submodel)) payload.effort = effortFor(submodel);
     if(extraOpts){var wireOpts=Object.assign({},extraOpts);delete wireOpts._imgs;delete wireOpts._onRun;Object.assign(payload,wireOpts);}
-    if(activeProjectId&&!payload.chat&&!imageMode)payload.chat={scope:activeProjectId,chatId:currentChatId,question:ArenaContext.clip(prompt,16000),history:[],incognito:!!_incognitoMode};
+    if(activeProjectId&&!payload.chat&&!imageMode)payload.chat={scope:activeProjectId,chatId:currentChatId,question:prompt,history:[],incognito:!!_incognitoMode};
     if(payload.chat)payload.prompt='';
     var controller=new AbortController(),settled=false;activeStreamControllers.add(controller);
     function completed(terminal){if(settled)return;settled=true;activeStreamControllers.delete(controller);if(!controller.signal.aborted)onDone(terminal);}
@@ -5015,7 +5016,7 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
     }
     var skillFileInputs=debate||imageMode||skillsRuntime.settings().mode==='off'?[]:skillsRuntime.filesForTexts(sentTexts);
     var submittedTexts=sentTexts.map(function(text){return skillFileInputs.some(function(file){return text.indexOf('[文件: '+file.name+']')===0;})&&text.length>4000?text.slice(0,4000)+'\n[附件预览；全文由文档工具读取]':text;});
-    if(!imageMode&&topic.length+submittedTexts.join('').length+(activeQuote?activeQuote.text.length:0)>50000){arenaNotice('内容较长，请保存到项目资料后按需查阅');return;}
+    if(!imageMode&&topic.length+submittedTexts.join('').length+(activeQuote?activeQuote.text.length:0)>ArenaTokenLimits.maxTextChars){arenaNotice('文字超过单次传输容量，请拆分资料后发送');return;}
     var act = getActiveSubmodels();
     if(debate&&debateMode==='free'&&(act.length<2||debateModels.some(function(id){return !id;}))){arenaNotice('请为每个席位选择模型');var empty=debateModels.findIndex(function(id){return !id;});if(empty>=0&&freePickers[empty])freePickers[empty].picker.trigger.focus();return;}
     if(debate&&debateMode==='2v2'&&!is2v2Ready()){arenaNotice('请为正反双方各选择两个模型');var missingTeam=seatState.pro.indexOf(null)>=0?'pro':'con',missingSeat=seatState[missingTeam].indexOf(null);if(missingSeat>=0)seatPickers[missingTeam][missingSeat].trigger.focus();return;}
@@ -6041,6 +6042,10 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
   function renderArenaModelMenu(){
     var model=getActiveSubmodels()[0],info=SUBS[model];
     $('aaChatModelPop').innerHTML=ArenaModelControl.effortHTML({prefix:'aa',model:model,modelLabel:info?info.name.replace(/^Claude /,''):'选择模型',levels:EFFORT_LEVELS[model]||[],value:effortFor(model),labels:EFFORT_LABELS,descriptions:EFFORT_DESCRIPTIONS});
+    if(typeof ArenaTokenLimits!=='undefined'){
+      var capacity=ArenaTokenLimits.get(model);
+      if(capacity)$('aaChatModelPop').innerHTML+='<p class="arena-model-capacity">上下文最多 '+capacity.contextTokens.toLocaleString()+' tokens<br>单次输出最多 '+(_incognitoMode&&capacity.privateMaxOutputTokens?capacity.privateMaxOutputTokens:capacity.maxOutputTokens).toLocaleString()+' tokens'+(capacity.sharedWindow?'<br>输入与输出共享容量，发送时预留回答空间。':'')+'</p>';
+    }
     if(typeof ArenaEffort!=='undefined')ArenaEffort.mount($('aaEffortScale'));
     $('aaModelPickerBtn').setAttribute('aria-controls','aaModelsSubmenu');
     $('aaModelsSubmenu').innerHTML=ArenaModelControl.choicesHTML({label:skillModelRestricted()?'当前 Skill 仅支持 Claude':'选择模型',back:true,items:eligibleChatModels().map(function(id){return {value:id,label:SUBS[id].name.replace(/^Claude /,'')};})});
@@ -6552,7 +6557,7 @@ if(imageMode){
     finally{if(switchEpoch===scopeSwitchEpoch){scopeSwitchPending=false;syncArenaNavigation();}}
   }
   function scopedChatInput(question,system,query){
-    var previous=msgs.slice(0,-1),recent=ArenaContext.selectRecent(previous);
+    var previous=msgs.slice(0,-1),recent=ArenaContext.fullHistory(previous);
     var previousSkillMessage=previous.filter(function(m){return !m.isUser&&(m.skills||m.skillSession);}).slice(-1)[0];
     return {skills:skillsRuntime.settings(),artifactInputs:previousSkillMessage&&previousSkillMessage.artifacts?previousSkillMessage.artifacts.filter(function(f){return !f.deleted&&!f.unavailable&&f.token;}).slice(-5).map(function(f){return f.token;}):[],previousSkillIds:previousSkillMessage&&previousSkillMessage.skills?previousSkillMessage.skills.map(function(s){return s.id;}):[],skillSession:previousSkillMessage&&previousSkillMessage.skillSession||null,scope:activeProjectId||'general',chatId:currentChatId,question:question,query:query||question,system:activeProjectId?'':system,systemMode:activeProjectId?'project':chatSystemMode(getActiveSubmodels()[0]),history:recent.messages,historyLength:previous.length,historyEndUid:previous.length?String(previous[previous.length-1].uid):null,incognito:!!_incognitoMode,
       notes:_incognitoMode?ArenaContext.notes(recent.earlier,1400):'',
@@ -6560,11 +6565,13 @@ if(imageMode){
   }
   function renderContextInfo(message){
     var context=message.context;if(!context)return '';
-    var labels=['最近 '+context.historyCount+' 条'];
+    var labels=[(context.historyPolicy==='full'?'完整文字历史 ':context.historyPolicy==='compacted'?'容量内文字历史 ':'最近 ')+context.historyCount+' 条'];
+    if(context.contextTokens)labels.push('上下文上限 '+context.contextTokens.toLocaleString()+' tokens');
     if(context.olderSummary)labels.push('较早'+context.summaryKind);
     if(context.retrievedMessages)labels.push('旧原文 '+context.retrievedMessages+' 段');
     if(context.fileFragments)labels.push('资料 '+context.fileFragments+' 段');
-    return '<details class="arena-context-info"><summary>本轮上下文 · '+esc(labels.join(' · '))+'</summary><p>原聊天记录完整保留。较早内容通过摘要和按问题检索的原文补充，摘要可能省略细节。'+(context.scope!=='general'?'记忆和资料仅限当前项目。':'')+'</p>'+(context.files||[]).map(function(file){return '<button data-context-file="'+esc(file.id)+'" data-project="'+esc(context.scope)+'">'+esc(file.name)+'</button>';}).join('')+'</details>';
+    var explanation=context.historyPolicy==='full'?'已携带当前分支的完整文字历史，未进行摘要或截取。':context.historyPolicy==='compacted'?'已接近模型容量；较早文字用摘记和相关原文片段补充，细节可能省略，原聊天记录完整保留。':'原聊天记录完整保留。较早内容通过摘要和按问题检索的原文补充，摘要可能省略细节。';
+    return '<details class="arena-context-info"><summary>本轮上下文 · '+esc(labels.join(' · '))+'</summary><p>'+explanation+(context.scope!=='general'?'记忆和资料仅限当前项目。':'')+'</p>'+(context.files||[]).map(function(file){return '<button data-context-file="'+esc(file.id)+'" data-project="'+esc(context.scope)+'">'+esc(file.name)+'</button>';}).join('')+'</details>';
   }
   workspaceController=ArenaWorkspace.mount({
     host:$('ai-arena-app'),api:projectApi,busy:function(){return aaRunning;},notice:arenaNotice,currentProject:function(){return activeProject;},currentScope:function(){return activeProjectId;},
