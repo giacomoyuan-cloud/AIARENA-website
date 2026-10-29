@@ -13,7 +13,7 @@ const providerEnv = { ANTHROPIC_API_KEY: 'synthetic-provider-key' };
 const accountHash = 'synthetic-account-hash';
 const skill = id => skillCatalog.find(item => item.id === id);
 const selection = ids => ({ mode: 'auto', ids, skills: ids.map(skill), output: 'text' });
-const fakeRouter = value => async () => Response.json({ content: [{ type: 'text', text: JSON.stringify(value) }], usage: { input_tokens: 3, output_tokens: 2 } });
+const fakeRouter = value => async () => Response.json({ content: [{ type: 'tool_use', id: 'selection_test', name: 'select_skills', input: value }], usage: { input_tokens: 3, output_tokens: 2 } });
 function executionResult({ code = 0, fileId, stop = 'end_turn' } = {}) {
   return {
     container: { id: 'container_test_123' }, stop_reason: stop,
@@ -59,6 +59,23 @@ test('an already-cancelled task never starts a classifier request', async () => 
 test('routing keeps valid skills and discards names invented by the model', async () => {
   const result = await selectSkills({ settings: { mode: 'auto' }, question: '帮我润色此段文字', env: providerEnv, fetcher: fakeRouter({ ids: ['humanizer', 'shell-access', 'unknown'], output: 'text' }) });
   assert.deepEqual(result.ids, ['humanizer']);
+});
+
+test('automatic routing forces a single structured selection from the available directory', async () => {
+  let payload;
+  const result = await selectSkills({ settings: { mode: 'auto' }, question: '生成两页PPT', search: false, env: providerEnv, fetcher: async (url, options) => {
+    payload = JSON.parse(options.body);
+    return fakeRouter({ ids: ['pptx'], output: 'file' })();
+  } });
+  assert.deepEqual(payload.tool_choice, { type: 'tool', name: 'select_skills', disable_parallel_tool_use: true });
+  assert.deepEqual(payload.tools[0].input_schema.required, ['ids', 'output']);
+  assert(!payload.tools[0].input_schema.properties.ids.items.enum.includes('deep-research'));
+  assert.deepEqual(result.ids, ['pptx']);
+  assert.equal(result.output, 'file');
+});
+
+test('prose returned instead of a routing tool call is rejected without parsing model text', async () => {
+  await assert.rejects(() => selectSkills({ settings: { mode: 'auto' }, question: '生成PPT', env: providerEnv, fetcher: async () => Response.json({ content: [{ type: 'text', text: '我来为你生成这份验收材料。' }] }) }), /未返回有效的结构化结果/);
 });
 
 test('manual editing of a long original document retains its native file reader', async () => {
