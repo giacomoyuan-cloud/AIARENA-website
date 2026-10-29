@@ -4034,8 +4034,10 @@ var TEAM_COLORS = {
     if(e.target.closest('[data-image-close]')){closeImagePopovers();$('aaImageSettingsBtn').focus();}
   });
   $('aaImageSettingsPop').addEventListener('input',function(e){
-    var control=e.target.closest('[data-image-setting]');if(!control||!ArenaImage.isOpenAI(imageComposerModel)||!/^custom(Width|Height)$/.test(control.dataset.imageSetting))return;
-    var state=Object.assign({},ArenaImage.normalize(imageComposerModel,imageSettingsState()));state[control.dataset.imageSetting]=Number(control.value);
+    var control=e.target.closest('[data-image-setting]');if(!control||!ArenaImage.isOpenAI(imageComposerModel)||!/^(customWidth|customHeight|count|compression)$/.test(control.dataset.imageSetting))return;
+    var key=control.dataset.imageSetting,number=Number(control.value);
+    if((key==='count'||key==='compression')&&(!control.value||!Number.isInteger(number)||number<Number(control.min)||number>Number(control.max)))return;
+    var state=Object.assign({},ArenaImage.normalize(imageComposerModel,imageSettingsState()));state[key]=number;
     openAIImageSettings[imageComposerModel]=state;localStorage.setItem('aa-openai-image-settings',JSON.stringify(openAIImageSettings));updateOpenAIImageSizePreview();
     $('aaImageSettingsSummary').textContent=imageSettingsSummary();$('aaImageSettingsBtn').setAttribute('aria-label','图像设置：'+imageSettingsSummary());
   });
@@ -4046,7 +4048,7 @@ var TEAM_COLORS = {
       var previous=ArenaImage.normalize(imageComposerModel,imageSettingsState()),next=Object.assign({},previous);
       if(['customWidth','customHeight'].indexOf(key)!==-1)value=Number(value);
       else if(['count','compression','partial'].indexOf(key)!==-1){
-        var number=Number(value),min=Number(control.min),max=Number(control.max);
+        var number=Number(value),min=key==='partial'?0:Number(control.min),max=key==='partial'?3:Number(control.max);
         if(!value||!Number.isInteger(number)||number<min||number>max){control.value=previous[key];setImageError('请填写 '+min+'–'+max+' 的整数。');return;}value=number;
       }
       next[key]=value;next=ArenaImage.normalize(imageComposerModel,next);openAIImageSettings[imageComposerModel]=next;
