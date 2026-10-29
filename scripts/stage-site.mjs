@@ -2,6 +2,9 @@ import { cp, mkdir, readFile, readdir, rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
 const root=resolve(import.meta.dirname,'..');
 const target=resolve(process.env.ARENA_SITE_OUTPUT_DIR || resolve(root,'dist-site'));
+const version=JSON.parse(await readFile(resolve(root,'app-version.json'),'utf8')).version;
+const html=await readFile(resolve(root,'index.html'),'utf8');
+if(typeof version!=='string'||!version||html.match(/<meta name="app-version" content="([^"]+)"/)?.[1]!==version)throw new Error('HTML and app-version.json must identify the same release');
 await mkdir(target,{recursive:true});
 // Only public website assets go to Pages; Android sources, build outputs and keys stay local.
 const publicFiles=(await readdir(root)).filter(name => /^(index|android|pitch-analyzer)\.html$/.test(name)

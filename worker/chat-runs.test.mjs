@@ -84,6 +84,25 @@ test('stopping OpenAI before its alarm finalizes the answer without a provider c
   assert.equal(JSON.parse(f.data.get('chats:tester:chat-test-001'))[1].run.status,'cancelled');
 });
 
+test('chat recovery preserves uploaded image previews using validated request bytes',async t=>{
+  const f=setup(t),image={mime:'image/png',data:'aGVsbG8='};
+  f.payload.images=[image];f.payload.recovery.userMessage.text+=' [img]';
+  f.payload.recovery.userMessage.imgSrcs=['UNTRUSTED_RECOVERY_METADATA'];
+  assert.equal((await f.call('start',{payload:f.payload})).status,202);
+  await f.waitFor(()=>f.upstreams.length===1);f.upstreams[0].text('image answer');f.upstreams[0].end();await Promise.all(f.pending);
+  const saved=JSON.parse(f.data.get('chats:tester:chat-test-001'));
+  assert.deepEqual(saved[0].imgSrcs,['data:image/png;base64,'+image.data]);
+  assert.ok(!JSON.stringify(saved).includes('UNTRUSTED_RECOVERY_METADATA'));
+});
+
+test('invalid chat image attachments are rejected before creating a run or calling a provider',async t=>{
+  const f=setup(t);
+  for(const images of [{data:'invalid'},[{data:'aGVsbG8=',mime:'image/svg+xml'}],Array.from({length:11},()=>({data:'aGVsbG8=',mime:'image/png'}))]){
+    f.payload.images=images;assert.equal((await f.call('start',{payload:f.payload})).status,413);
+  }
+  assert.equal(f.objects.size,0);assert.equal(f.upstreams.length,0);
+});
+
 test('stopping an active OpenAI alarm cancels its upstream and retains the received text',async t=>{
   const f=setup(t,'gpt-6-astra');await f.call('start',{payload:f.payload});
   const actor=Array.from(f.objects.values())[0],executing=actor.alarm();

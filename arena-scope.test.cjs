@@ -39,7 +39,7 @@ function fixture(){
     activeQuote:{author:'reader',text:'general quote',color:'blue'},activeSkill:{id:'general-skill'},
     imageMaskState:{data:'general-mask'},imageEditParentUid:null,debate:false,imageMode:false,videoMode:false,debateMode:'free',
     activeBrands:{xai:true},brandSelection:{xai:'grok-4.7'},aaRunning:false,_saveTimer:null,
-    _incognitoMode:false,_cachedMemory:'general memory',_memoryLoaded:true,_skipNextChatSave:false,
+    _incognitoMode:false,privacySwitchPending:false,skillSubmitPending:false,_cachedMemory:'general memory',_memoryLoaded:true,_skipNextChatSave:false,
     chatPins:{version:()=>1},debateOwnsChat:()=>false,serializeMsgs:()=>plain(c.msgs),getChatTitle:()=> 'synthetic title',
     arenaNotice:text=>notices.push(text),clearDebateView(){},clearQuote:()=>{c.activeQuote=null;},
     setQuote:(author,text,color)=>{c.activeQuote={author,text,color};},hideSelectionMenu(){},
@@ -101,13 +101,14 @@ test('opening a project home keeps its unsent draft while starting an independen
   const {c,get}=fixture();let clearedFiles=0;
   Object.assign(c,{genChatId:()=> 'new-project-chat',hideThink(){},setImageError(){},syncKitten(){},skillsRuntime:{clear(){clearedFiles++;}}});
   c.activeProjectId=A.id;c.sentImgs.push({autoFollowup:true,name:'automatic.png'});
-  vm.runInContext(fn('clearPreview')+'\n'+fn('beginNewChat'),c);c.beginNewChat({preserveDraft:true});
+  vm.runInContext(fn('clearPreview')+'\n'+fn('beginNewChat'),c);await c.beginNewChat({preserveDraft:true});
   assert.equal(c.activeProjectId,A.id);assert.equal(c.currentChatId,'new-project-chat');assert.equal(c.msgs.length,0);
   assert.equal(get('aaTopic').value,'general draft');assert.equal(c.sentTexts[0].name,'general.txt');
   assert.equal(c.sentImgs.length,1);assert.equal(c.sentImgs[0].name,'general.png');assert.equal(c.activeQuote.text,'general quote');
   assert.equal(c.imageMaskState.data,'general-mask');
   assert.equal(clearedFiles,0,'original Skill upload bytes must survive a project-home draft round trip');
-  c.beginNewChat();assert.equal(get('aaTopic').value,'');assert.equal(c.sentTexts.length,0);
+  assert.equal(get('aaIncognitoBtn').disabled,false,'navigation releases the privacy control');
+  await c.beginNewChat();assert.equal(get('aaTopic').value,'');assert.equal(c.sentTexts.length,0);
   assert.equal(c.sentImgs.length,0);assert.equal(c.activeQuote,null);
   assert.equal(c.imageMaskState,null);assert.equal(clearedFiles,1);
 });

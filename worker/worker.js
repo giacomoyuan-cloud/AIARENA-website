@@ -563,6 +563,9 @@ async function handleChatRunRequest(request, env) {
       if (!recovery || !Number.isSafeInteger(recovery.replyUid) || !Number.isSafeInteger(recovery.userMessage?.uid) || typeof recovery.userMessage.text !== 'string' || recovery.userMessage.text.length > 60000) return projectReply({ error: '缺少有效的聊天恢复信息。' }, 400);
       const message = recovery.userMessage;
       const userMessage = { uid: message.uid, isUser: true, brand: 'user', name: String(message.name || '用户').slice(0, 60), text: message.text, topicText: String(message.topicText || '').slice(0, 50000), color: '#A78BFA' };
+      const images=payload.images|| (payload.image?[{data:payload.image,mime:payload.imageMime||'image/jpeg'}]:[]);
+      if(!Array.isArray(images)||images.length>10||images.some(image=>!validImage(image))||images.reduce((size,image)=>size+image.data.length,0)>12*1024*1024)return projectReply({error:'参考图片过多或过大，请压缩后重试。'},413);
+      if(images.length)userMessage.imgSrcs=images.map(image=>'data:'+(image.mime||'image/jpeg')+';base64,'+image.data);
       if (Array.isArray(message.pastedTexts)) userMessage.pastedTexts = message.pastedTexts.filter(x => typeof x === 'string').map(x => x.slice(0, 50000)).slice(0, 10);
       if (message._quote && typeof message._quote.text === 'string') userMessage._quote = { author: String(message._quote.author || '').slice(0, 100), text: message._quote.text.slice(0, 6000) };
       const clean = { ...payload }; delete clean.password; delete clean.passwordHash; delete clean.username; delete clean.user;

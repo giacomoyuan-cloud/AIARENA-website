@@ -226,7 +226,7 @@ test('switching chats never carries an automatic image reference into another co
       ArenaImage, ArenaModelControl: require('./arena-model-control.js'),aaRunning:false,scopeSwitchPending:false,activeProjectId:null,scopeEpoch:1,chatLoadEpoch:0,_saveTimer:null,currentChatId:'old-chat',
       imageEditParentUid:1,imageMode:true,imageComposerTask:'edit',imageComposerModel:ArenaImage.GOOGLE_MODEL,
       sentImgs,sentTexts:[],msgs:[],_uidCounter:0,_skipNextChatSave:false,$:()=>({value:draft}),
-      chatApiCall:async()=>({messages:next}),getLastAssistantReplyAt:()=>0,rememberChatReplyTime:()=>{},
+      flushScopeChat:async()=>({ok:true}),chatApiCall:async()=>({messages:next}),getLastAssistantReplyAt:()=>0,rememberChatReplyTime:()=>{},
       render:()=>{},renderImgPreviews:()=>{},syncImageComposer:()=>{},setImageError:()=>{},closeHistory:()=>{},arenaNotice:()=>{}
     });
     vm.runInContext(browserFunction('setGeneratedImageReference')+'\n'+browserFunction('loadChat'),c);

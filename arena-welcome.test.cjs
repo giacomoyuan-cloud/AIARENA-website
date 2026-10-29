@@ -43,7 +43,7 @@ test('Pages staging includes the animation and controller without publishing tes
   try{
     for(const name of ['scripts','songs','downloads','welcome-media'])await fs.mkdir(path.join(root,name));
     await fs.copyFile(path.join(__dirname,'scripts/stage-site.mjs'),path.join(root,'scripts/stage-site.mjs'));
-    for(const [name,text]of [['index.html','welcome'],['arena-welcome.js','controller'],['arena-welcome.test.cjs','exclude'],['private.env','exclude'],['welcome-media/jiujiu-knead-v1.webp','animation'],['welcome-media/jiujiu-poster-v1.png','poster']])await fs.writeFile(path.join(root,name),text);
+    for(const [name,text]of [['index.html','<meta name="app-version" content="fixture">'],['app-version.json','{"version":"fixture"}'],['arena-welcome.js','controller'],['arena-welcome.test.cjs','exclude'],['private.env','exclude'],['welcome-media/jiujiu-knead-v1.webp','animation'],['welcome-media/jiujiu-poster-v1.png','poster']])await fs.writeFile(path.join(root,name),text);
     execFileSync(process.execPath,[path.join(root,'scripts/stage-site.mjs')]);
     const output=path.join(root,'dist-site');assert.equal(await fs.readFile(path.join(output,'welcome-media/jiujiu-knead-v1.webp'),'utf8'),'animation');
     assert.equal(await fs.readFile(path.join(output,'arena-welcome.js'),'utf8'),'controller');
