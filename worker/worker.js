@@ -2,6 +2,8 @@ import Billing from '../arena-billing.js';
 import { recordProviderUsage, usageSummary, usageReceipt } from './billing-ledger.js';
 import { createChatRunClass } from './chat-runs.js';
 import { createDebateRunClass } from './debate-runs.js';
+import { OpenAITransport, openAIBackgroundFetch } from './openai-transport.js';
+import { createProjectScheduler } from './project-schedules.js';
 import DebateCore from '../arena-debate.js';
 var __defProp = Object.defineProperty;
 var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
@@ -385,7 +387,7 @@ async function handleProjectRequest(request,env){
     }
     if(action==="update"||action==="archive"){
       if(action==="update"){
-        const name=String(body.name||"").trim(),instructions=String(body.instructions||"");
+        const name=String(body.name===undefined?project.name:body.name).trim(),instructions=String(body.instructions===undefined?project.instructions:body.instructions);
         if(!name||name.length>80||instructions.length>4000)return projectReply({error:"项目名称或说明过长"},400);
         project.name=name;project.instructions=instructions;
         if(body.memory!==undefined){
@@ -398,7 +400,10 @@ async function handleProjectRequest(request,env){
       return projectReply({project});
     }
     if(action==="upload"){
-      const file=body.file,files=await projectFiles(env,user,project.id);
+      const file=body.file,previousFiles=await projectFiles(env,user,project.id);
+      const replaced=body.replaceFileId?previousFiles.find(f=>f.id===body.replaceFileId):null;
+      if(body.replaceFileId&&!replaced)return projectReply({error:"待更新资料不存在"},404);
+      const files=previousFiles.filter(f=>!replaced||f.id!==replaced.id);
       if(files.length>=15)return projectReply({error:"每个项目最多保存 15 份资料"},400);
       if(!file||typeof file.name!=="string"||typeof file.text!=="string"||!file.text.trim()||file.text.length>400000)return projectReply({error:"资料为空或提取文字超过 40 万字"},400);
       if(!/^[\s\S]{1,180}$/.test(file.name)||/[\u0000-\u001f]/.test(file.name))return projectReply({error:"文件名无效"},400);
@@ -407,6 +412,11 @@ async function handleProjectRequest(request,env){
       if(!Number.isInteger(file.size)||file.size<0||file.size>8*1024*1024)return projectReply({error:"单份资料上限 8 MB"},413);
       if(files.reduce((n,f)=>n+f.size,0)+file.size>40*1024*1024)return projectReply({error:"每个项目资料总量上限 40 MB"},413);
       const id=crypto.randomUUID(),record={id,name:file.name,size:file.size,type:String(file.type||"application/octet-stream").slice(0,120),createdAt:Date.now(),characters:file.text.length};
+      if(file.folder!==undefined){
+        if(typeof file.folder!=="string"||!file.folder.trim()||file.folder.length>180||/[\u0000-\u001f/\\]/.test(file.folder))return projectReply({error:"文件夹名称无效"},400);
+        if(typeof file.relativePath!=="string"||file.relativePath.length>500||file.relativePath.split(/[\\/]/).some(p=>!p||p==='.'||p==='..')||/[\u0000-\u001f]/.test(file.relativePath))return projectReply({error:"文件路径无效"},400);
+        record.folder=file.folder;record.relativePath=file.relativePath;
+      }
       const index=ArenaContext.indexDocument(file.text);
       await putProjectKV(env.BIZ_KV,prefix+":file:"+id+":original",JSON.stringify({...record,data:file.data,text:file.text}));
       for(let offset=0;offset<index.parts.length;offset+=16){
@@ -414,6 +424,7 @@ async function handleProjectRequest(request,env){
       }
       await putProjectKV(env.BIZ_KV,prefix+":file:"+id+":index",JSON.stringify({postings:index.postings,count:index.count}));
       files.push(record);await putProjectKV(env.BIZ_KV,prefix+":files",JSON.stringify(files));
+      if(replaced){const removed=JSON.parse(await env.BIZ_KV.get(prefix+":removed-files")||"[]");removed.push(replaced);await putProjectKV(env.BIZ_KV,prefix+":removed-files",JSON.stringify(removed));}
       return projectReply({file:record,files});
     }
     if(action==="removed_files")return projectReply({files:JSON.parse(await env.BIZ_KV.get(prefix+":removed-files")||"[]")});
@@ -475,6 +486,7 @@ async function handleDebateRunRequest(request, env) {
     if (!['start','status','stop','resume','retry','skip','finish'].includes(body.action) || !validResourceId(body.runId) || !validResourceId(body.chatId)) return projectReply({ error: '讨论信息无效。' }, 400);
     const projectId = body.projectId || null;
     if (projectId) await ownedProject(env, user, projectId);
+    if(body.action==='start'&&!body.input?.incognito&&await env.BIZ_KV.get(chatStoragePrefix(user,projectId)+':moved:'+body.chatId))return projectReply({error:'对话已移动，请从目标项目打开'},409);
     if (!env.CHAT_RUNS) return projectReply({ error: '后台恢复服务尚未部署，请稍后再试。' }, 503);
     if (!['start','status'].includes(body.action) && !validResourceId(body.operationId)) return projectReply({ error: '操作编号无效。' }, 400);
     const internal = { kind: 'debate', action: body.action, runId: body.runId, after: body.after, operationId: body.operationId, turn: body.turn, attempt: body.attempt };
@@ -523,6 +535,7 @@ async function handleChatRunRequest(request, env) {
     if (!['start', 'events', 'status', 'stop'].includes(body.action) || !validResourceId(body.runId) || !validResourceId(body.chatId)) return projectReply({ error: '任务信息无效。' }, 400);
     const projectId = body.projectId || null;
     if (projectId) await ownedProject(env, user, projectId);
+    if(body.action==='start'&&!body.payload?.chat?.incognito&&await env.BIZ_KV.get(chatStoragePrefix(user,projectId)+':moved:'+body.chatId))return projectReply({error:'对话已移动，请从目标项目打开'},409);
     if (!env.CHAT_RUNS) return projectReply({ error: '后台恢复服务尚未部署，请稍后再试。' }, 503);
     const internal = { action: body.action, runId: body.runId, after: body.after };
     if (body.action === 'start') {
@@ -579,6 +592,16 @@ var worker_default = {
       }catch{return projectReply({error:'用量台账暂时不可用，单次请求明细仍会保留。'},503);}
     }
     if (url.pathname === "/projects" && request.method === "POST") return handleProjectRequest(request,env);
+    if (url.pathname === "/schedules" && request.method === "POST") {
+      try {
+        const body=await accountRequestBody(await request.json(),env),user=String(body.user||body.username||'').trim().toLowerCase();
+        if(!await registeredAccount(env,user,body.password||body.passwordHash))return projectReply({error:'请使用账号登录'},401);
+        if(body.projectId)await ownedProject(env,user,body.projectId);
+        if(!env.PROJECT_SCHEDULES)return projectReply({error:'定时任务服务暂不可用，请稍后重试'},503);
+        const {password,passwordHash,username,...safe}=body;
+        return env.PROJECT_SCHEDULES.get(env.PROJECT_SCHEDULES.idFromName('schedules:'+user)).fetch(new Request('https://internal.invalid/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...safe,user})}));
+      }catch(error){return projectReply({error:error.status?error.message:'任务请求失败'},error.status||400);}
+    }
     if (url.pathname === "/system-prompt" && request.method === "POST") return handleSystemPromptRequest(request,env);
     if (url.pathname === "/account" && request.method === "POST") return handleAccountRequest(request,env);
     if (url.pathname === "/chats" && request.method === "POST") {
@@ -624,6 +647,53 @@ var worker_default = {
         await env.BIZ_KV.put(listKey, JSON.stringify(list));
       }
       __name(putList, "putList");
+      if(['rename','move','group','groups','create_group'].includes(action)){
+        try{
+        if(!chatAuthOk)return projectReply({error:'请使用账号登录'},401);
+        const groupKey=scopePrefix+':groups',groups=JSON.parse(await env.BIZ_KV.get(groupKey)||'[]');
+        if(action==='groups')return projectReply({groups});
+        if(action==='create_group'){
+          const name=String(body2.name||'').trim();
+          if(!name||name.length>40||groups.length>=20)return projectReply({error:'分组名称需为 1–40 字，最多 20 个分组'},400);
+          const existing=groups.find(g=>g.name===name);if(existing)return projectReply({group:existing});
+          const group={id:crypto.randomUUID(),name};groups.push(group);await putProjectKV(env.BIZ_KV,groupKey,JSON.stringify(groups));return projectReply({group});
+        }
+        if(!validResourceId(chatId))return projectReply({error:'对话编号无效'},400);
+        const list=await getList(),item=list.find(c=>c.id===chatId);
+        const movedKey=scopePrefix+':moved:'+chatId,previousMove=JSON.parse(await env.BIZ_KV.get(movedKey)||'null');
+        if(!item){if(action==='move'&&previousMove&&(previousMove.projectId||null)===(body2.targetProjectId||null))return projectReply({ok:true,...previousMove});return projectReply({error:'对话不存在'},404);}
+        if(action==='rename'){
+          const name=String(title||'').trim();if(!name||name.length>80)return projectReply({error:'对话名称需为 1–80 字'},400);
+          item.title=name;item.customTitle=true;await putList(list);return projectReply({ok:true,chat:item});
+        }
+        if(action==='group'){
+          if(body2.groupId&&!groups.some(g=>g.id===body2.groupId))return projectReply({error:'分组不存在'},404);
+          item.groupId=body2.groupId||null;await putList(list);return projectReply({ok:true,chat:item});
+        }
+        const targetProjectId=body2.targetProjectId||null;
+        if(targetProjectId===projectId)return projectReply({error:'对话已在此项目中'},400);
+        if(targetProjectId)await ownedProject(env,normalizedUsername,targetProjectId);
+        const raw=await env.BIZ_KV.get(scopePrefix+':'+chatId);
+        if(!raw)return projectReply({error:'对话暂不可用，请重试'},503);
+        const source=JSON.parse(raw);
+        if(source.some(m=>m.run?.status==='running'||m.debateRun?.status==='running'))return projectReply({error:'对话仍在执行，请完成或停止后再移动'},409);
+        const targetPrefix=chatStoragePrefix(normalizedUsername,targetProjectId),targetList=JSON.parse(await env.BIZ_KV.get(targetPrefix+':list')||'[]');
+        const targetId=previousMove?.chatId||((targetList.some(c=>c.id===chatId)||await env.BIZ_KV.get(targetPrefix+':'+chatId)||await env.BIZ_KV.get(targetPrefix+':moved:'+chatId))?crypto.randomUUID():chatId);
+        const copied=source.map(m=>{const {run,debateRun,...saved}=m;return saved;});
+        const target={...item,id:targetId,groupId:null,updatedAt:Date.now()};delete target.pinned;
+        // Copy and verify the destination before removing the source. A receipt blocks stale browser saves.
+        await putProjectKV(env.BIZ_KV,targetPrefix+':'+targetId,JSON.stringify(copied));
+        await putProjectKV(env.BIZ_KV,targetPrefix+':list',JSON.stringify([target,...targetList.filter(c=>c.id!==targetId)]));
+        if(!await env.BIZ_KV.get(targetPrefix+':'+targetId))return projectReply({error:'目标保存未确认，原对话已保留，请重试'},503);
+        const receipt={projectId:targetProjectId,chatId:targetId};
+        await putProjectKV(env.BIZ_KV,movedKey,JSON.stringify(receipt));
+        await putList(list.filter(c=>c.id!==chatId));
+        await env.BIZ_KV.delete(scopePrefix+':'+chatId);
+        await env.BIZ_KV.delete(scopePrefix+':pin:'+chatId);
+        await env.BIZ_KV.delete(scopePrefix+':summary:'+chatId);
+        return projectReply({ok:true,...receipt});
+        }catch(error){return projectReply({error:error.status?error.message:'对话操作暂未完成，请重试'},error.status||500);}
+      }
       if (action === "list") {
         const [list,pins] = await Promise.all([getList(),pinnedIds(env.BIZ_KV,scopePrefix+":pin:")]);
         return new Response(JSON.stringify({ chats: list.map(chat=>pins.has(chat.id)?{...chat,pinned:true}:chat) }), { headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
@@ -643,6 +713,7 @@ var worker_default = {
       }
       if (action === "save") {
         if (!chatId || !messages) return new Response(JSON.stringify({ error: "Missing chatId or messages" }), { status: 400, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
+        if(await env.BIZ_KV.get(scopePrefix+':moved:'+chatId))return projectReply({error:'对话已移动，请从目标项目打开'},409);
         let safeMessages = messages;
         if (Array.isArray(messages) && messages.some(message => message.run?.id)) {
           const previous = JSON.parse(await env.BIZ_KV.get(scopePrefix + ':' + chatId) || '[]');
@@ -660,7 +731,7 @@ var worker_default = {
         const existing = list.find((c) => c.id === chatId);
         if (existing) {
           existing.updatedAt = now;
-          if (title) existing.title = title;
+          if (title&&!existing.customTitle) existing.title = title;
         } else {
           list.unshift({ id: chatId, title: title || "\u65B0\u4F1A\u8BDD", updatedAt: now });
         }
@@ -912,6 +983,7 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
     if(body.chat){
       if(typeof body.chat!=="object"||typeof body.chat.question!=="string"||body.chat.question.length>50000||!Array.isArray(body.chat.history)||body.chat.history.length>16)return projectReply({error:"聊天内容过长或格式无效，请将长文件保存为项目资料"},400);
       if(body.chat.scope!==(projectId||"general"))return projectReply({error:"聊天范围已变化，请重新发送"},409);
+      if(authOk&&!body.chat.incognito&&validResourceId(body.chat.chatId)&&await env.BIZ_KV.get(chatStoragePrefix(authUser,projectId)+':moved:'+body.chat.chatId))return projectReply({error:'对话已移动，请从目标项目打开'},409);
     }
     const modelConfig = Object.hasOwn(OFFICIAL_MODELS, model) ? OFFICIAL_MODELS[model] : null;
     if (!modelConfig) {
@@ -1190,6 +1262,9 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
         // Cloudflare's native binding preserves the provider's response stream and multipart uploads.
         return env.AI.fetch("https://workers-binding.ai/ai-gateway/gateways/" + encodeURIComponent(gatewayId) + "/openai" + target.pathname + target.search,
           { ...options, headers, redirect: "manual" });
+      }
+      if (target.hostname === "api.openai.com" && target.pathname === "/v1/responses" && typeof env.CHAT_RUNS?.jurisdiction === "function") {
+        return openAIBackgroundFetch(env.CHAT_RUNS, options.body, options.signal);
       }
       return fetch(url, { ...options, redirect: "manual" });
     }
@@ -1504,6 +1579,12 @@ const DebateRun = createDebateRunClass(executeRun, async (job, env) => {
   return { user: job.user, username: job.user, password: record.hash, passwordHash: record.hash };
 }, DebateCore);
 const ChatRun = createChatRunClass(executeRun, DebateRun, {
-  deferStart: payload => OFFICIAL_MODELS[payload.model]?.provider === 'openai'
+  deferStart: payload => OFFICIAL_MODELS[payload.model]?.provider === 'openai',
+  createTransport: (ctx, env) => new OpenAITransport(ctx, env)
 });
-export { worker_default as default, ChatRun };
+const ProjectScheduler = createProjectScheduler({execute:executeRun,project:ownedProject,models:Object.keys(OFFICIAL_MODELS).filter(id=>!OFFICIAL_MODELS[id].image),credentials:async(env,user)=>{
+  const record=JSON.parse(await env.MEMORY_KV.get('user:'+user)||'null');
+  if(!record?.hash)throw new Error('账号已不可用');
+  return {user,username:user,password:record.hash};
+}});
+export { worker_default as default, ChatRun, ProjectScheduler };

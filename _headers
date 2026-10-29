@@ -16,6 +16,10 @@
   Cache-Control: no-cache, max-age=0, must-revalidate
 /arena-workspace.css
   Cache-Control: no-cache, max-age=0, must-revalidate
+/arena-project-page.js
+  Cache-Control: no-cache, max-age=0, must-revalidate
+/arena-project-page.css
+  Cache-Control: no-cache, max-age=0, must-revalidate
 
 /arena-account.js
   Cache-Control: no-cache, max-age=0, must-revalidate
@@ -50,3 +54,6 @@
   Cache-Control: no-cache, max-age=0, must-revalidate
 /assets/kitten/motion/*
   Cache-Control: public, max-age=3600
+
+/arena-debate-ui.css
+  Cache-Control: no-cache, max-age=0, must-revalidate

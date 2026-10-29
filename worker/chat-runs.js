@@ -9,11 +9,12 @@ const cors = { 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' }
 const json = (value, status = 200) => Response.json(value, { status, headers: cors });
 const terminal = status => status && status !== 'running';
 
-export function createChatRunClass(execute, DebateRun, { deferStart = () => false } = {}) {
+export function createChatRunClass(execute, DebateRun, { deferStart = () => false, createTransport } = {}) {
   return class ChatRun {
     constructor(ctx, env) {
       this.ctx = ctx;
       this.env = env;
+      this.transport = createTransport?.(ctx, env);
       this.listeners = new Set();
       this.privateEvents = [];
       this.execution = null;
@@ -234,6 +235,7 @@ export function createChatRunClass(execute, DebateRun, { deferStart = () => fals
     async fetch(request) {
       const target=new URL(request.url);
       if(target.hostname==='usage-ledger.internal'&&target.pathname==='/__billing')return handleBillingLedger(this.ctx,request);
+      if (this.transport?.matches(request)) return this.transport.fetch(request);
       const body = await request.json();
       if (body.kind === 'debate' && this.debate) return this.debate.fetchBody(body);
       if (body.action === 'start') {
@@ -301,6 +303,7 @@ export function createChatRunClass(execute, DebateRun, { deferStart = () => fals
     }
 
     async alarm() {
+      if (this.transport?.active) return this.transport.alarm();
       if (this.execution) return;
       if (this.pendingRun) {
         const pending = this.pendingRun; this.pendingRun = null;

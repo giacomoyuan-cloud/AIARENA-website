@@ -159,7 +159,7 @@ test('completion waits for every parallel model and preserves final text correct
 });
 
 function appFixture() {
-  const timer = clock(), body = { innerHTML: '', dataset: {}, classList: { contains: () => false, add() {} } };
+  const timer = clock(), body = { innerHTML: '', dataset: {}, querySelector: () => null, classList: { contains: () => false, add() {} } };
   const listeners = new Map(), document = { hidden: false, addEventListener(type, listener) { listeners.set(type, listener); } };
   const element = { querySelector: selector => selector === '.aa-msg-body' ? body : null };
   const messages = { querySelector: () => element, scrollTop: 0, scrollHeight: 100 };
@@ -169,10 +169,11 @@ function appFixture() {
     ArenaImage: require('./arena-image.js'), Map, Promise,
     document, msgs: [message], userScrolledUp: false,
     $: () => messages, renderMd: text => text, esc: text => text, currentChatId: null,
-    highlightCodeBlocks() {}, requestAnimationFrame: fn => timer.setTimeout(fn, 16), cancelAnimationFrame: timer.clearTimeout,
+    highlightCodeBlocks() {}, updateMessageActivity() {}, requestAnimationFrame: fn => timer.setTimeout(fn, 16), cancelAnimationFrame: timer.clearTimeout,
     render() { body.innerHTML = context.liveReplies.text(1, message.text); }
   });
   const source = readFileSync(require('node:path').join(__dirname, 'index.html'), 'utf8');
+  vm.runInContext(source.match(/var AVAILABLE_CHAT_MODELS = \[[^\]]+\];/)[0],context);
   vm.runInContext(source.slice(source.indexOf('  var liveFrames='), source.indexOf('  function cleanThinkTags')), context);
   return { timer, body, message, context, visibility(hidden) { document.hidden = hidden; listeners.get('visibilitychange')(); } };
 }
