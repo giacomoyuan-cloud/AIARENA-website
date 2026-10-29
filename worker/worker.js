@@ -1189,6 +1189,12 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
     async function fetchOfficial(url, options) {
       options={...options,signal:upstreamAbort.signal};
       const target = new URL(url);
+      if (target.hostname === "api.openai.com" && target.pathname === "/v1/responses" && options.method === "POST" && env.OPENAI_RELAY_ORIGIN) {
+        const relay = new URL(String(env.OPENAI_RELAY_ORIGIN));
+        if (relay.protocol !== "https:" || !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.up\.railway\.app$/.test(relay.hostname) || relay.username || relay.password || relay.port || relay.pathname !== "/" || relay.search || relay.hash) throw new Error("OpenAI 服务器连接地址配置无效");
+        const headers = new Headers({ "Content-Type": "application/json", Authorization: "Bearer " + env.OPENAI_API_KEY });
+        return fetch(new URL("/v1/responses", relay).href, { ...options, headers, redirect: "manual" });
+      }
       if (target.hostname === "api.openai.com" && env.OPENAI_GATEWAY_ID) {
         const gatewayId = String(env.OPENAI_GATEWAY_ID);
         if (!/^[a-z0-9][a-z0-9_-]{0,63}$/.test(gatewayId)) throw new Error("OpenAI 官方网关名称配置无效");

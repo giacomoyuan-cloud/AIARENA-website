@@ -293,6 +293,51 @@ test('optional Cloudflare native gateway keeps OpenAI credentials, streaming and
   assert.equal(gatewayCalls.length,1); assert.equal(directCalls.length,0);
 });
 
+for (const model of ['gpt-6-astra','gpt-6.1-sol']) test(model+' can stream through the explicitly configured Railway transport',async t=>{
+  const {env}=setup(); env.OPENAI_RELAY_ORIGIN='https://aiarena-openai-relay-production.up.railway.app';
+  env.OPENAI_GATEWAY_ID='unused-gateway';
+  env.AI={async fetch(){throw new Error('unexpected gateway fallback');}};
+  let calls=0;
+  t.mock.method(globalThis,'fetch',async(url,options)=>{
+    calls++;
+    assert.equal(String(url),env.OPENAI_RELAY_ORIGIN+'/v1/responses');
+    assert.equal(options.headers.get('Authorization'),'Bearer '+env.OPENAI_API_KEY);
+    assert.equal(options.redirect,'manual');
+    assert.equal(JSON.parse(options.body).model,model);
+    assert.equal(JSON.parse(options.body).store,false);
+    return responses();
+  });
+  const output=events(await (await worker.fetch(request(model),env)).text());
+  assert.equal(output.filter(value=>value.t).map(value=>value.t).join(''),'你好 world');
+  assert.equal(calls,1);
+});
+
+test('an invalid relay origin cannot receive the provider credential',async t=>{
+  const {env}=setup(); let calls=0;
+  t.mock.method(globalThis,'fetch',async()=>{calls++;throw new Error('unexpected outbound request');});
+  for(const origin of ['http://service.up.railway.app','https://service.up.railway.app.evil.example','https://user:password@service.up.railway.app','https://service.up.railway.app/path','https://service.up.railway.app?query=1','https://service.up.railway.app#fragment']){
+    env.OPENAI_RELAY_ORIGIN=origin;
+    const output=await (await worker.fetch(request('gpt-6-astra'),env)).text();
+    assert.match(output,/连接地址配置无效/);
+    assert.ok(!output.includes(env.OPENAI_API_KEY));
+  }
+  assert.equal(calls,0);
+});
+
+test('a relay rejection is returned without a second provider request',async t=>{
+  const {env}=setup(); env.OPENAI_RELAY_ORIGIN='https://aiarena-openai-relay-production.up.railway.app';
+  let calls=0;
+  t.mock.method(globalThis,'fetch',async(url)=>{
+    calls++;
+    assert.equal(String(url),env.OPENAI_RELAY_ORIGIN+'/v1/responses');
+    return Response.json({error:{message:'Relay rejected '+env.OPENAI_API_KEY}},{status:403});
+  });
+  const output=await (await worker.fetch(request('gpt-6.1-sol'),env)).text();
+  assert.match(output,/Relay rejected/);
+  assert.ok(!output.includes(env.OPENAI_API_KEY));
+  assert.equal(calls,1);
+});
+
 test('optional gateway uploads OpenAI edit files without converting multipart to JSON',async t=>{
   const {env}=setup(); env.OPENAI_GATEWAY_ID='aiarena-official';
   const directCalls=mockFetch(t,()=>{throw new Error('unexpected fallback');});
