@@ -96,12 +96,16 @@ export async function recordProviderUsage(env,owner,model,raw,options={}){
   // Record only counter metadata, never provider keys, prompts, images or replies.
   if(raw&&typeof raw==='object'){
     const allowed=['input_tokens','output_tokens','total_tokens','input_tokens_details','output_tokens_details','cache_read_input_tokens','cache_creation_input_tokens','cache_creation','server_tool_use','cost_in_usd_ticks',
-      'promptTokenCount','cachedContentTokenCount','candidatesTokenCount','toolUsePromptTokenCount','thoughtsTokenCount','totalTokenCount','promptTokensDetails','cacheTokensDetails','candidatesTokensDetails','toolUsePromptTokensDetails','serviceTier'];
+      'promptTokenCount','cachedContentTokenCount','candidatesTokenCount','toolUsePromptTokenCount','thoughtsTokenCount','totalTokenCount','promptTokensDetails','cacheTokensDetails','candidatesTokensDetails','toolUsePromptTokensDetails','serviceTier','service_tier'];
     receipt.providerUsage=Object.fromEntries(allowed.filter(key=>raw[key]!==undefined).map(key=>[key,raw[key]]));
   }
   const account=owner||'anonymous';
-  try{await call(env,{action:'record',owner:account,receipt});return {...receipt,ledgerStatus:'recorded'};}
-  catch{
+  // Retry only this idempotent ledger write; never repeat a provider request.
+  for(let attempt=0;attempt<2;attempt++){
+    try{await call(env,{action:'record',owner:account,receipt});return {...receipt,ledgerStatus:'recorded'};}
+    catch{}
+  }
+  {
     // An immutable receipt cannot lose a concurrent update, unlike KV read/modify/write totals.
     try{await env.BIZ_KV.put('billing:pending:'+account+':'+receipt.id,JSON.stringify(receipt));return {...receipt,ledgerStatus:'pending'};}
     catch{return {...receipt,ledgerStatus:'unrecorded'};}

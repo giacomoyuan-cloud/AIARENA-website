@@ -11,6 +11,7 @@ test('every official enabled model and the internal summary model has a sourced 
   const source=fs.readFileSync('worker/worker.js','utf8');
   const block=source.slice(source.indexOf('const OFFICIAL_MODELS'),source.indexOf('const MODEL_EFFORT_LEVELS'));
   const ids=[...block.matchAll(/"([^"]+)": \{ provider:/g)].map(m=>m[1]).concat('claude-haiku-4-5-20251001');
+  assert.ok(ids.length>=15,'the configured-model source block must actually be discovered');
   for(const id of ids){assert.ok(B.MODELS[id],id);assert.ok(['developers.openai.com','platform.claude.com','ai.google.dev','docs.x.ai'].includes(new URL(B.MODELS[id].source).hostname),id);}
 });
 test('all seven selectable text models use their separately verified Standard rates',()=>{
@@ -111,4 +112,20 @@ test('the receipt UI preserves exact USD decimals, handles legacy records, and e
   assert.match(html,/0\.0037756/);assert.match(html,/输入 199/);assert.match(html,/已含工具费用/);
   const old=UI.render({input:12,output:6},'<img src=x onerror=alert(1)>');assert.match(old,/历史/);assert.doesNotMatch(old,/<img/);assert.match(old,/&lt;img/);
   assert.match(B.label({...r,knownCostPico:'bad'}),/需核实/);
+});
+
+test('automatic OpenAI project routing is not assumed to have Standard pricing',()=>{
+  const r=B.receipt('gpt-6.1-sol',responses(),{...options,serviceTier:'auto'});
+  assert.equal(r.billingComplete,false);assert.equal(r.costUsd,null);assert.ok(r.notes.includes('service_tier_unpriced'));
+});
+
+test('an actual xAI amount is not described as an unknown input fee',()=>{
+  const value=B.receipt('grok-4.7',{input_tokens:199,output_tokens:1,cost_in_usd_ticks:'37756000'},options);
+  const html=UI.render(value);
+  assert.ok(html.includes('$0.0037756'));assert.ok(html.includes('本次金额以官方返回值为准'));
+  assert.ok(!html.includes('输入费用暂未完整核算'));
+});
+test('an unexpected Anthropic Priority response is not priced as Standard',()=>{
+  const value=B.receipt('claude-haiku-4-5-20251001',{input_tokens:100,output_tokens:100,service_tier:'priority'},options);
+  assert.equal(value.costUsd,null);assert.ok(value.notes.includes('service_tier_unpriced'));
 });

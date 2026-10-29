@@ -49,7 +49,7 @@ Streaming `status` events reflect provider thinking, web search and answer event
 
 The shared Markdown renderer keeps currency literal, preserves repeated source lines, supports inline formatting in table cells, and escapes raw HTML. Check it with `node --test arena-markdown.test.cjs` from the repository root, in addition to the Worker tests.
 
-New usage records include `official~` in their model key so earlier aggregate records are not reclassified as official traffic. Earlier records remain in place. Per-message cost amounts remain estimates, not provider billing records. Manual credit pools and cost settings have been removed; their old stored data is left untouched.
+New usage uses immutable, per-request receipts and atomic SQLite totals through the existing `CHAT_RUNS` binding. Input/output counts come from provider usage metadata; there is no character-based estimate or frontend price override. xAI's returned monetary amount is shown as the official amount; other requests show the calculation from the dated public rate card. Cache reads/writes, reasoning, image modalities, search and background Haiku calls are accounted for separately. Missing usage or unresolved Google search fees are shown as pending, never as a free request. Historical `official~` aggregates and old manual-price data remain untouched and are not included in the new totals. See [PRICING.md](PRICING.md).
 
 Run the offline routing and streaming tests with:
 

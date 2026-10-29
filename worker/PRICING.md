@@ -1,0 +1,90 @@
+# Official API usage and pricing
+
+Checked 2026-10-30. Currency: USD. Token prices below are per **one million tokens**, for Standard, synchronous API service. The shared implementation is `arena-billing.js`, version `official-2026-10-30-v1`.
+
+## Current conversation models
+
+| Model | Ordinary input | Cache read | Output, including reasoning |
+| --- | ---: | ---: | ---: |
+| Claude Fable 5.1 | $10 | $0.25 | $50 |
+| Claude Opus 5.5 | $4 | $0.20 | $20 |
+| Claude Sonnet 5.5 | $2 | $0.10 | $10 |
+| GPT-6 Astra | $10 | $1 | $50 |
+| GPT-6.1 Sol | $2 | $0.10 | $10 |
+| Grok 4.7 | $2 | $0.50 | $6 |
+| Gemini 4 (`gemini-4-argon`) | $2 | $0.10 | $10 |
+
+Sources: [Anthropic](https://platform.claude.com/docs/en/about-claude/pricing), [OpenAI](https://developers.openai.com/api/docs/pricing), [xAI](https://docs.x.ai/developers/pricing), [Google](https://ai.google.dev/gemini-api/docs/pricing).
+
+GPT input **above 272,000** uses the long-context rate for the whole request: Astra $20 / $2 / $75; Sol $4 / $0.20 / $15, in input/cache/output order. Grok input **at or above 200,000** uses $4 / $1 / $12 for the whole request. Current Fable, Opus and Sonnet have no additional long-context surcharge.
+
+Google advertises Gemini 4's rates from **2026-12-01** as $4 input, $0.20 cache read, $20 output. The receipt stores the rate card used, rather than recalculating saved expenses with today's price.
+
+## Cache writes and background calls
+
+| Model | Short cache write | Long cache write | Lifetimes |
+| --- | ---: | ---: | --- |
+| Fable 5.1 | $12.50 | $20 | 5 minutes / 1 hour |
+| Opus 5.5 | $5 | $8 | 5 minutes / 1 hour |
+| Sonnet 5.5 | $2.50 | $4 | 5 minutes / 1 hour |
+| GPT-6 Astra | $12.50 | $25 | 30 minutes / 12 hours |
+| GPT-6.1 Sol | $2.50 | $5 | 30 minutes / 12 hours |
+| Internal Haiku 4.5 | $1.25 | $2 | 5 minutes / 1 hour |
+
+GPT long-context cache-write rates are Astra $25 / $50 and Sol $5 / $10. Internal `claude-haiku-4-5-20251001` input/cache/output rates are $1 / $0.10 / $5. Context summaries and memory extraction each keep a separate receipt; their expense can attach to the originating reply without relabeling their tokens as the selected conversation model's tokens.
+
+Anthropic's `input_tokens` **excludes** cache reads and writes. Total input is ordinary input + `cache_read_input_tokens` + `cache_creation_input_tokens`. Cache creation is split by `cache_creation.ephemeral_5m_input_tokens` and `ephemeral_1h_input_tokens`.
+
+OpenAI's `input_tokens` **includes** cache reads and writes. Ordinary input subtracts both `cached_tokens` and `cache_write_tokens`. The `ttl_30m_tokens` and `ttl_12h_tokens` write counters are non-overlapping; the write total must not be charged again. Missing positive-input cache metadata leaves the input charge pending.
+
+Sources: [Anthropic cache semantics](https://platform.claude.com/docs/en/build-with-claude/prompt-caching), [OpenAI cache semantics](https://developers.openai.com/api/docs/guides/prompt-caching).
+
+## Images
+
+Nano Banana 2.1 (`gemini-nano-banana-2.1`): input $1.50, text/reasoning output $7.50, image output $30 per million tokens. The documented square-image examples are 1K 1,120 image tokens ($0.0336), 2K 1,680 ($0.0504), 4K 3,780 ($0.1134). These are examples of the image-output component, not a fixed all-inclusive price per request.
+
+Google output is `candidatesTokenCount + thoughtsTokenCount`. Image/text candidate counts come from `candidatesTokensDetails`; thoughts are charged at the text-output rate. Grounding retrieval content is not added as a guessed image-input charge. Missing modality metadata leaves the charge pending rather than pricing all output as image tokens.
+
+Grok Image 2.0 (`grok-imagine-image-2.0`): reference input $0.01/image. Generated images: 1K Low $0.04, 1K Medium $0.06; 2K Low $0.06, 2K Medium $0.08. The actual expense comes from the returned `cost_in_usd_ticks`, rather than requested image count or these illustrative unit prices.
+
+Sources: [Google image pricing](https://ai.google.dev/gemini-api/docs/pricing), [Google usage schema](https://ai.google.dev/api/generate-content#UsageMetadata), [xAI prices](https://docs.x.ai/developers/pricing), [xAI returned costs](https://docs.x.ai/developers/cost-tracking).
+
+## Compatibility models still accepted by the backend
+
+| Model ID | Input | Cache read | Output |
+| --- | ---: | ---: | ---: |
+| `claude-opus-5` | $5 | $0.50 | $25 |
+| `gpt-5.6-sol` | $4 | $0.40 | $20 |
+| `gemini-3.8-flash` | $0.75 | $0.075 | $3.75 |
+| `gemini-3.1-pro-preview` | $2 | $0.20 | $12 |
+| `gemini-3.1-flash-image` | $0.50 | n/a | Text/thinking $3; image $60 |
+| `gpt-image-2.5-sunburst` | Text $5; image $8 | n/a for this native Image API | Image $30 |
+
+Opus 5 cache writes are $6.25 / $10. GPT-5.6 Sol cache writes are $5 / $10; above 272,000 input tokens its input/cache/output/write-short/write-long rates are $8 / $0.80 / $30 / $10 / $20. This is the promotional public rate verified on the checked date.
+
+Gemini 3.1 Pro input above 200,000 uses $4 input, $0.40 cached input, $18 output. Google advertises Gemini 3.8 Flash's rates from 2027-01-01 as $1.50 / $0.15 / $7.50. No new model is enabled by adding its price to this compatibility table.
+
+## Search and service tiers
+
+OpenAI and Anthropic web search: $10/1,000 calls; xAI: $5/1,000 calls. Returned token usage already includes billable search-context tokens. Search calls use provider-reported counts or completed tool-call IDs, never the number of citations. xAI's actual returned monetary amount already includes tools, so tool fees are not added a second time.
+
+Google Gemini 3+ search shares 5,000 free monthly requests across web/image search, followed by $14/1,000 queries. Multiple queries can occur in one request. A single response cannot establish the shared allowance remaining or the final billable quantity. The UI therefore shows the known token subtotal plus **pending search fees**, not a guessed zero or an invented final total.
+
+Anthropic requests, including summaries and memory, explicitly set `service_tier: standard_only`. An unexpected non-Standard response is not priced as Standard. [Anthropic service tiers](https://platform.claude.com/docs/en/api/service-tiers) describes this control.
+
+OpenAI requests explicitly set `service_tier: default`, which requests Standard pricing. The response's actual tier takes precedence: Fast/Priority 2x, Ultrafast 6x, Flex 0.5x token rates. Tool fees are not multiplied by the token service tier. `auto` without the effective tier is not assumed to mean Standard. Google returned service tiers use the model's documented multipliers; unknown tiers stay pending.
+
+Sources: [OpenAI pricing](https://developers.openai.com/api/docs/pricing), [OpenAI service tiers](https://developers.openai.com/api/reference/python/resources/responses/methods/create), [Anthropic search](https://platform.claude.com/docs/en/agents-and-tools/tool-use/web-search-tool), [Google pricing](https://ai.google.dev/gemini-api/docs/pricing), [xAI pricing](https://docs.x.ai/developers/pricing).
+
+## Receipts, totals and historical data
+
+- Input/output come from provider counters, never text length. OpenAI/xAI output already contains reasoning; Google adds its separate thought counter once. Cumulative stream snapshots are merged, never summed as new calls.
+- Each provider attempt has a unique receipt. Failed attempts retain returned usage, including an attempt preceding a retry. Missing final usage is shown explicitly. A ledger retry repeats only an idempotent database write, never a model request.
+- xAI's integer ticks use 10,000,000,000 ticks/USD. Money is accumulated as integer USD picodollars, serialized as strings. No binary floating-point running total or display rounding changes a saved charge.
+- The existing `CHAT_RUNS` SQLite binding hosts a private named billing object. Receipt insertion and total updates share a synchronous transaction. Duplicate IDs with identical data do not count twice; conflicting data cannot rewrite a saved receipt. No new binding or migration is required.
+- Ledger outages retain immutable `billing:pending:` KV receipts. Reading the authenticated summary imports backups idempotently. Totals mean receipts already entered in the ledger; a receipt marked pending/unrecorded is shown accordingly.
+- `POST /usage` requires the registered account's credentials and scopes receipts to their owner. Only the existing administrator can request global totals. Shared-password traffic cannot claim another registered account's financial ownership. `GET /pricing` makes no provider call.
+- Only counters, amounts, model, dates, rate snapshots and receipt relationships are recorded. Provider keys, prompts, images and reply bodies are not copied into billing receipts.
+- Existing chat history, `official~` KV aggregates, custom-price storage and manual-credit data remain untouched. Old rounded costs without original cache/tool/modality counters cannot be accurately reconstructed, so the new totals do not silently combine or rewrite them.
+
+“Official amount” means money returned by the provider. “At official rates” means arithmetic from actual usage and the dated public rate card. Public-rate calculations do not incorporate account-specific credits, discounts, taxes or invoice adjustments.

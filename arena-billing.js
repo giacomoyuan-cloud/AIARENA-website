@@ -118,12 +118,13 @@
   function receipt(model,raw,options){
     options=options||{};var config=ownCard(model),provider=options.provider||(config&&config.provider)||'unknown';
     var normalized=counterDetails(raw,provider,model,options),d=normalized.details,issues=normalized.issues.slice(),items=[],known=0n;
-    var timestamp=options.at===undefined?Date.now():Number(options.at),rates=config&&Object.assign({},config),tier=String(options.serviceTier||(raw&&raw.serviceTier)||'STANDARD').toUpperCase(),long=false;
+    var timestamp=options.at===undefined?Date.now():Number(options.at),rates=config&&Object.assign({},config),tier=String(options.serviceTier||(raw&&(raw.serviceTier||raw.service_tier))||'STANDARD').toUpperCase(),long=false;
     if(rates&&rates.effectiveUntil&&new Date(timestamp).toISOString().slice(0,10)>=rates.effectiveUntil)Object.assign(rates,rates.next);
     if(rates&&((rates.longAt!==undefined&&normalized.input>=rates.longAt)||(rates.longAbove!==undefined&&normalized.input>rates.longAbove))){Object.assign(rates,rates.long);long=true;}
     if(rates&&rates.long&&normalized.input===null){['input','output','cached','writeShort','writeLong'].forEach(function(key){rates[key]=null;});issues.push('context_tier_unknown');}
     var multiplier='1';
-    if(provider==='openai'&&!rates?.image){multiplier=({STANDARD:'1',DEFAULT:'1',AUTO:'1',FAST:'2',PRIORITY:'2',FLEX:'0.5',ULTRAFAST:'6'})[tier];}
+    if(provider==='openai'&&!rates?.image){multiplier=({STANDARD:'1',DEFAULT:'1',FAST:'2',PRIORITY:'2',FLEX:'0.5',ULTRAFAST:'6'})[tier];}
+    else if(provider==='anthropic'&&tier!=='STANDARD'&&tier!=='STANDARD_ONLY')multiplier=null;
     else if(provider==='google'&&tier!=='STANDARD'&&tier!=='SERVICE_TIER_UNSPECIFIED'&&tier!=='DEFAULT')multiplier=rates&&rates.tiers&&rates.tiers[tier];
     if(!multiplier)issues.push('service_tier_unpriced');
     function add(kind,n,rate,scale){

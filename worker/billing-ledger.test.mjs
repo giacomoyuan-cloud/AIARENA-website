@@ -5,6 +5,7 @@ import Billing from '../arena-billing.js';
 import {handleBillingLedger,recordProviderUsage,usageSummary,usageReceipt} from './billing-ledger.js';
 import {createChatRunClass} from './chat-runs.js';
 import worker from './worker.js';
+import {OpenAITransport} from './openai-transport.js';
 
 const at=Date.parse('2026-10-30T12:00:00Z');
 function fixture(){
@@ -13,6 +14,18 @@ function fixture(){
   const namespace={idFromName:name=>name,get:()=>({fetch:request=>handleBillingLedger(ctx,request)})};
   const kv={get:async key=>data.get(key)||null,put:async(key,value)=>data.set(key,value),list:async({prefix})=>({keys:[...data.keys()].filter(k=>k.startsWith(prefix)).map(name=>({name})),list_complete:true})};
   const env={BIZ_KV:kv,MEMORY_KV:kv,CHAT_RUNS:namespace};
+  const transports=new Map();
+  namespace.jurisdiction=region=>{
+    assert.equal(region,'us');
+    return {idFromName:name=>name,get(id){
+      if(!transports.has(id)){
+        let actor;
+        actor=new OpenAITransport({storage:{setAlarm:async()=>{queueMicrotask(()=>actor.alarm());}}},env);
+        transports.set(id,actor);
+      }
+      return {fetch:request=>transports.get(id).fetch(request)};
+    }};
+  };
   return {db,ctx,data,env,namespace};
 }
 const raw=()=>({input_tokens:1000,output_tokens:1000,input_tokens_details:{cached_tokens:0,cache_write_tokens:0,cache_write_tokens_details:{ttl_30m_tokens:0,ttl_12h_tokens:0}}});
@@ -86,9 +99,45 @@ test('pricing is read-only and aggregate/receipt endpoints require account authe
 test('usage emitted by a real streaming handler and the persisted receipt use the same counters and charge',async t=>{
   const {env,data}=fixture();env.OPENAI_API_KEY='synthetic-provider-key';env.PASSWORD='synthetic-password';
   const hash=Buffer.from(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(env.PASSWORD))).toString('hex');data.set('user:tester',JSON.stringify({hash}));
-  t.mock.method(globalThis,'fetch',()=>new Response('data: '+JSON.stringify({type:'response.output_text.delta',delta:'synthetic'})+'\n\ndata: '+JSON.stringify({type:'response.completed',response:{usage:raw(),service_tier:'default',output:[]}})+'\n\n'));
+  let providerCalls=0;
+  t.mock.method(globalThis,'fetch',(url,options)=>{
+    providerCalls++;assert.equal(url,'https://api.openai.com/v1/responses');assert.equal(JSON.parse(options.body).service_tier,'default');
+    return new Response('data: '+JSON.stringify({type:'response.output_text.delta',delta:'synthetic'})+'\n\ndata: '+JSON.stringify({type:'response.completed',response:{usage:raw(),service_tier:'default',output:[]}})+'\n\n');
+  });
   const response=await worker.fetch(new Request('https://api.pickandcase.com/',{method:'POST',body:JSON.stringify({user:'tester',password:hash,model:'gpt-6.1-sol',prompt:'synthetic'})}),env);
   const text=await response.text(),events=text.split('\n').filter(l=>l.startsWith('data: {')).map(l=>JSON.parse(l.slice(6))),usage=events.find(e=>e.usage).usage;
   assert.equal(usage.input,1000);assert.equal(usage.output,1000);assert.equal(usage.costUsd,'0.012');assert.equal(usage.ledgerStatus,'recorded');
+  assert.equal(providerCalls,1,'the isolated background dispatch forwards one provider request');
   const saved=await usageReceipt(env,'tester',usage.id);assert.equal(saved.receipt.costPico,usage.costPico);assert.equal((await usageSummary(env,'tester')).total.calls,1);
+});
+
+test('a lost ledger acknowledgement retries the same receipt without another charge',async()=>{
+  const {env,namespace,data}=fixture(),get=namespace.get;let lost=true;
+  namespace.get=(...args)=>{const stub=get(...args);return {fetch:async request=>{
+    const response=await stub.fetch(request);if(lost){lost=false;throw Error('synthetic lost acknowledgement');}return response;
+  }};};
+  const result=await recordProviderUsage(env,'user-a','gpt-6.1-sol',raw(),{at,id:'lost-ack-receipt-1'});
+  assert.equal(result.ledgerStatus,'recorded');assert.equal(data.size,0);assert.equal((await usageSummary(env,'user-a')).total.calls,1);
+});
+async function authenticatedFixture(){
+  const f=fixture();f.env.OPENAI_API_KEY='synthetic-provider-key';f.env.PASSWORD='synthetic-password';
+  f.hash=Buffer.from(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(f.env.PASSWORD))).toString('hex');
+  f.data.set('user:tester',JSON.stringify({hash:f.hash}));return f;
+}
+const completedResponse=()=>new Response('data: '+JSON.stringify({type:'response.completed',response:{usage:raw(),service_tier:'default',output:[]}})+'\n\n');
+test('a failed attempt and the successful retry retain separate official usage and fees',async t=>{
+  const {env,hash}=await authenticatedFixture();let calls=0;
+  t.mock.method(globalThis,'fetch',()=>++calls===1?Response.json({error:{message:'synthetic retry'},usage:raw()},{status:500}):completedResponse());
+  const response=await worker.fetch(new Request('https://api.pickandcase.com/',{method:'POST',body:JSON.stringify({user:'tester',password:hash,model:'gpt-6.1-sol',prompt:'synthetic'})}),env);
+  const events=(await response.text()).split('\n').filter(l=>l.startsWith('data: {')).map(l=>JSON.parse(l.slice(6))),value=events.find(e=>e.usage).usage;
+  assert.equal(calls,2);assert.equal(value.input,1000);assert.equal(value.output,1000);assert.equal(value.costUsd,'0.024');
+  assert.equal(value.auxiliary.length,1);assert.equal(value.auxiliary[0].purpose,'retry');
+  const stats=await usageSummary(env,'tester');assert.equal(stats.total.calls,2);assert.equal(stats.total.input,2000);assert.equal(stats.total.output,2000);assert.equal(stats.total.knownCostUsd,'0.024');
+});
+test('a final failed response still records the usage the provider returned',async t=>{
+  const {env,hash}=await authenticatedFixture();
+  t.mock.method(globalThis,'fetch',()=>Response.json({error:{message:'synthetic final failure'},usage:raw()},{status:502}));
+  const response=await worker.fetch(new Request('https://api.pickandcase.com/',{method:'POST',body:JSON.stringify({user:'tester',password:hash,model:'gpt-6.1-sol',prompt:'synthetic',noAutomaticRetry:true})}),env);
+  const events=(await response.text()).split('\n').filter(l=>l.startsWith('data: {')).map(l=>JSON.parse(l.slice(6)));
+  assert.equal(events.find(e=>e.usage).usage.costUsd,'0.012');assert.ok(events.some(e=>e.error));assert.equal((await usageSummary(env,'tester')).total.calls,1);
 });
