@@ -7,7 +7,7 @@ The browser remains on Cloudflare Pages. `worker.js` serves the existing `ai` Wo
 | Models | API host | Existing secret binding |
 | --- | --- | --- |
 | Grok 4.7, Grok Imagine Image 2.0 | `api.x.ai` | `GROK_API_KEY` |
-| GPT-6 Astra, GPT-5.6 Sol, GPT Image 2.5 Sunburst | `api.openai.com` | `OPENAI_API_KEY` |
+| GPT-6 Astra, GPT-6.1 Sol, GPT-5.6 Sol, GPT Image 2.5 Sunburst | `api.openai.com` | `OPENAI_API_KEY` |
 | Claude Fable 5.1, Claude Opus 5.5, Claude Sonnet 5.5 (earlier Opus routes retained for compatibility); memory extraction with the existing Haiku model | `api.anthropic.com` | `ANTHROPIC_API_KEY` |
 | Gemini 4 Argon, Nano Banana 2.1 (earlier Gemini image/chat routes retained for compatibility) | `generativelanguage.googleapis.com` | `GEMINI_API_KEY` |
 
@@ -108,6 +108,8 @@ The frontend consumes upstream SSE text events immediately and coalesces DOM ren
 ## Mobile connection recovery
 
 Ordinary signed-in text chats use authenticated `POST /chat-runs` actions (`start`, `events`, `status`, `stop`). The `CHAT_RUNS` SQLite Durable Object owns one generation per account/project/chat, independently of the phone's streaming subscription. A stable request ID makes lost start acknowledgements idempotent. Each response event has a monotonic ID; reconnection replays only unseen events. Ten-second heartbeats cover long thinking/search gaps. Returning to the foreground or restoring connectivity reconnects the observer; it does not send the question to the model again. Only the explicit Stop action cancels the running provider request.
+
+OpenAI chat generations start in the existing Durable Object's alarm handler, rather than inheriting the initiating browser request's execution context. Live verification on this deployment confirmed both GPT-6 Astra and GPT-6.1 Sol replies through this path after HTTP-initiated calls returned a region error. The queued payload stays in memory; no account credential or provider key is stored with the alarm. Stopping before dispatch makes no provider request, duplicate alarms do not repeat a generation, and a process restart reports interruption instead of replaying a paid call. Existing chat IDs, bindings and other providers' dispatch paths are preserved.
 
 The server saves the question and answer placeholder before calling the provider, checkpoints partial output in its original chat, and saves terminal output and citations even if the phone stays offline. A reloaded signed-in page can reopen the pending chat using a session-local pointer containing IDs only and follow its saved progress. Normal tasks retain their recovery log for 24 hours; their ordinary chat history is retained as before. Incognito bodies and recovery events remain in memory only and do not create saved chats. Account password hashes and API keys are never persisted in task storage.
 

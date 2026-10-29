@@ -8,7 +8,7 @@ const cors = { 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' }
 const json = (value, status = 200) => Response.json(value, { status, headers: cors });
 const terminal = status => status && status !== 'running';
 
-export function createChatRunClass(execute, DebateRun) {
+export function createChatRunClass(execute, DebateRun, { deferStart = () => false } = {}) {
   return class ChatRun {
     constructor(ctx, env) {
       this.ctx = ctx;
@@ -16,6 +16,7 @@ export function createChatRunClass(execute, DebateRun) {
       this.listeners = new Set();
       this.privateEvents = [];
       this.execution = null;
+      this.pendingRun = null;
       this.abort = null;
       this.sql = ctx.storage.sql;
       if (DebateRun) this.debate = new DebateRun(ctx, env);
@@ -187,6 +188,10 @@ export function createChatRunClass(execute, DebateRun) {
           this.persistMeta();
           await this.saveChat();
         } catch { this.meta.saveError = true; this.persistMeta(); }
+        if (this.meta.alarmRetainUntil && !this.meta.incognito) {
+          try { await this.ctx.storage.setAlarm(this.meta.alarmRetainUntil); }
+          catch { this.meta.saveError = true; this.persistMeta(); }
+        }
         this.listeners.forEach(wake => wake());
         this.execution = null;
       }
@@ -233,14 +238,30 @@ export function createChatRunClass(execute, DebateRun) {
           if (this.meta.fingerprint && this.meta.fingerprint !== body.fingerprint) return json({ error: '请求编号已存在，请勿修改后重复发送。' }, 409);
           return json(this.snapshot());
         }
-        if (this.meta?.status === 'running') return json({ error: '这段对话仍有回答正在生成，请先等待或停止。' }, 409);
+        if (this.meta?.status === 'running' || this.execution || this.pendingRun) return json({ error: '这段对话仍有回答正在生成，请先等待或停止。' }, 409);
         if (!body.payload || !body.recovery) return json({ error: '缺少恢复信息。' }, 400);
         this.sql.exec('DELETE FROM run_events'); this.sql.exec('DELETE FROM run_meta'); this.privateEvents = [];
         this.meta = { ...body.recovery, runId: body.runId, fingerprint: body.fingerprint, status: 'running', sequence: 0, createdAt: Date.now(), updatedAt: Date.now(), logBytes: 0 };
+        const deferred = deferStart(body.payload);
+        if (deferred) this.meta.alarmRetainUntil = Date.now() + RETENTION_MS;
         this.persistMeta();
-        if (!this.meta.incognito) await this.ctx.storage.setAlarm(Date.now() + RETENTION_MS);
-        this.execution = this.generate(body.payload);
-        this.ctx.waitUntil(this.execution);
+        if (deferred) {
+          // An alarm starts a server-originated request without inheriting the
+          // browser request's network context. Keep credentials in memory only.
+          this.pendingRun = { runId: body.runId, payload: body.payload };
+          try { await this.ctx.storage.setAlarm(Date.now() + 1); }
+          catch (error) {
+            this.pendingRun = null;
+            this.meta.status = 'failed';
+            this.meta.error = '后台任务启动失败，请重新发送。';
+            this.persistMeta();
+            throw error;
+          }
+        } else {
+          if (!this.meta.incognito) await this.ctx.storage.setAlarm(Date.now() + RETENTION_MS);
+          this.execution = this.generate(body.payload);
+          this.ctx.waitUntil(this.execution);
+        }
         return json(this.snapshot(), 202);
       }
       if (body.action === 'stop' && !this.meta) {
@@ -261,6 +282,12 @@ export function createChatRunClass(execute, DebateRun) {
       }
       if (body.action === 'stop') {
         if (this.meta.status === 'running') { this.meta.status = 'cancelled'; this.abort?.abort(); }
+        if (this.pendingRun?.runId === this.meta.runId) {
+          const pending = this.pendingRun; this.pendingRun = null;
+          // Finalize a queued cancellation without making a provider request.
+          this.execution = this.generate(pending.payload);
+          this.ctx.waitUntil(this.execution);
+        }
         this.persistMeta(); this.listeners.forEach(wake => wake());
         return json(this.snapshot());
       }
@@ -271,7 +298,19 @@ export function createChatRunClass(execute, DebateRun) {
     }
 
     async alarm() {
+      if (this.execution) return;
+      if (this.pendingRun) {
+        const pending = this.pendingRun; this.pendingRun = null;
+        if (pending.runId !== this.meta?.runId) return;
+        this.execution = this.generate(pending.payload);
+        await this.execution;
+        return;
+      }
       if (this.debate?.hasJobs) return this.debate.alarm();
+      if (this.meta?.alarmRetainUntil > Date.now()) {
+        await this.ctx.storage.setAlarm(this.meta.alarmRetainUntil);
+        return;
+      }
       if (this.meta?.status === 'running') { await this.ctx.storage.setAlarm(Date.now() + RETENTION_MS); return; }
       this.sql.exec('DELETE FROM run_events'); this.sql.exec('DELETE FROM run_meta'); this.meta = null;
     }
