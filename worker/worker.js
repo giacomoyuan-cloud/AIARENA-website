@@ -567,7 +567,8 @@ async function handleChatRunRequest(request, env) {
       if (message._quote && typeof message._quote.text === 'string') userMessage._quote = { author: String(message._quote.author || '').slice(0, 100), text: message._quote.text.slice(0, 6000) };
       const clean = { ...payload }; delete clean.password; delete clean.passwordHash; delete clean.username; delete clean.user;
       internal.fingerprint = await hashText(JSON.stringify(clean));
-      internal.payload = { ...clean, user, username: user, password, passwordHash: password };
+      // One explicitly started run must never silently become a second attempt.
+      internal.payload = { ...clean, noAutomaticRetry: true, user, username: user, password, passwordHash: password };
       internal.recovery = { user, projectId, chatId: body.chatId, incognito: !!chat.incognito, title: String(recovery.title || chat.question).replace(/\s+/g, ' ').slice(0, 80), userMessage, historyEndUid: chat.historyEndUid,
         reply: { uid: recovery.replyUid, name: config.name, submodel: payload.model, effort: payload.effort, brand: config.provider === 'anthropic' ? 'anthropic' : config.provider === 'xai' ? 'xai' : config.provider, color: recovery.color || '#777777', text: '', reasoning: '', citations: [], activity: [] } };
     }
@@ -1093,6 +1094,9 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
     async function sendUsage(inputTokens, outputTokens) {
       await writer.write(encoder.encode("data: " + JSON.stringify({ usage: { input: inputTokens, output: outputTokens } }) + "\n\n"));
     }
+    async function sendDiagnostics(diagnostics) {
+      await writer.write(encoder.encode("data: " + JSON.stringify({ diagnostics }) + "\n\n"));
+    }
     __name(sendUsage, "sendUsage");
     async function sendCost(cost) {
       await writer.write(encoder.encode("data: " + JSON.stringify({ cost }) + "\n\n"));
@@ -1182,7 +1186,7 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
       } finally { reader.releaseLock(); }
     }
     async function parseAnthropicStream(response) {
-      let usage;
+      let usage, lastPing = 0;
       const searchInputs = new Map(), blockCitations = new Map();
       async function flushCitations(index) {
         const values = blockCitations.get(index) || [], seen = new Set();
@@ -1192,6 +1196,18 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
       await readOfficialStream(response, async event => {
         if (event.type === "message_start" && event.message?.usage) usage = { ...event.message.usage };
         if (event.type === "message_delta" && event.usage) usage = { ...usage, ...event.usage };
+        if ((event.type === "message_start" || event.type === "message_delta") && usage) {
+          // A cancelled stream can still have consumed tokens. Checkpoint only;
+          // aggregate billing is recorded once by callOfficialChat on success.
+          await writer.write(encoder.encode("data: " + JSON.stringify({ usageCheckpoint: { input: usage.input_tokens || 0, output: usage.output_tokens || 0, partial: true } }) + "\n\n"));
+        }
+        if (event.type === "message_delta" && typeof event.delta?.stop_reason === "string") {
+          await sendDiagnostics({ stopReason: event.delta.stop_reason.slice(0, 80) });
+        }
+        if (event.type === "message_stop") await sendDiagnostics({ providerCompleted: true });
+        if (event.type === "ping" && (!lastPing || Date.now() - lastPing >= 10000)) {
+          lastPing = Date.now(); await sendDiagnostics({ lastProviderPingAt: lastPing });
+        }
         if (event.type === "content_block_start" && event.content_block?.type === "thinking") await sendStatus("thinking");
         if (event.type === "content_block_start" && event.content_block?.type === "server_tool_use" && event.content_block.name === "web_search") {
           await sendStatus("searching");
@@ -1486,6 +1502,9 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
       }
       const response = await fetchRetry(endpoint, { method: "POST", headers, body: JSON.stringify(payload) });
       if (!response?.ok) throw new Error(await getUpstreamError(response, config.provider + " 官方接口请求失败"));
+      const requestId = response.headers.get('request-id') || response.headers.get('x-request-id');
+      await sendDiagnostics({ provider: config.provider, model, effort, maxOutputTokens: outputLimit, upstreamStatus: response.status,
+        ...(requestId && /^[a-zA-Z0-9_-]{1,200}$/.test(requestId) ? { providerRequestId: requestId } : {}) });
       const usage = config.provider === "anthropic" ? await parseAnthropicStream(response)
         : config.provider === "google" ? await parseGeminiStream(response) : await parseResponsesStream(response, config.provider);
       if (usage) {

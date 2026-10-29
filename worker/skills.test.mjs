@@ -84,7 +84,11 @@ test('automatic routing from Grok to a document reports the real Claude model',a
 });
 function actorStorage() {
   const db = new DatabaseSync(':memory:');
-  return { db, sql: { exec(query, ...values) { const statement = db.prepare(query); const rows = statement.columns().length ? statement.all(...values) : (statement.run(...values), []); return { toArray: () => rows }; } }, setAlarm: async () => {} };
+  return { db, transactionSync(callback) {
+    db.exec('BEGIN');
+    try { const value = callback(); db.exec('COMMIT'); return value; }
+    catch (error) { db.exec('ROLLBACK'); throw error; }
+  }, sql: { exec(query, ...values) { const statement = db.prepare(query); const rows = statement.columns().length ? statement.all(...values) : (statement.run(...values), []); return { toArray: () => rows }; } }, setAlarm: async () => {} };
 }
 
 test('disabled skills and greetings do not make a classifier request', async () => {
