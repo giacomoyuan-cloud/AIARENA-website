@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+  <meta name="color-scheme" content="light dark">
+  <meta name="robots" content="noindex,nofollow">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob:; media-src 'self' blob:; connect-src 'none'; form-action 'none'; object-src 'none'; base-uri 'self'">
+  <meta name="theme-color" content="#090b10">
+  <title>AI 助手 · 10 个全新整站设计</title>
+  <link rel="stylesheet" href="./foundation.css">
+  <link rel="stylesheet" href="./future.css">
+  <script type="module" src="./design.js"></script>
+</head>
+<body data-theme="apple" data-page="welcome">
+  <header class="review-bar" aria-label="设计预览控制栏">
+    <a class="review-brand" href="#apple/welcome"><b>DESIGN</b><span>EXPLORATION / 02</span></a>
+    <nav id="themes" class="theme-picker" aria-label="十套设计切换"></nav>
+    <div class="review-actions"><button class="review-pages" data-action="state-picker">状态预览</button><button class="review-pages" data-action="page-picker">全站页面 <span>↗</span></button></div>
+  </header>
+  <div class="review-caption"><p id="direction"></p><button data-action="preview-about">示例数据 · 零 API 调用 <span>ⓘ</span></button></div>
+  <div class="stage" id="stage"><div id="app" class="app"></div></div>
+  <dialog id="modal" class="modal" aria-labelledby="modal-title"></dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  <input id="file-picker" type="file" hidden multiple>
+  <noscript>请启用 JavaScript，以浏览十套可交互的整站设计。</noscript>
+</body>
+</html>
