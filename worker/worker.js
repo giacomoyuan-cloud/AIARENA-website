@@ -1,5 +1,6 @@
 import { createChatRunClass } from './chat-runs.js';
 import { createDebateRunClass } from './debate-runs.js';
+import { OpenAITransport, openAIBackgroundFetch } from './openai-transport.js';
 import DebateCore from '../arena-debate.js';
 var __defProp = Object.defineProperty;
 var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
@@ -1203,6 +1204,9 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
         return env.AI.fetch("https://workers-binding.ai/ai-gateway/gateways/" + encodeURIComponent(gatewayId) + "/openai" + target.pathname + target.search,
           { ...options, headers, redirect: "manual" });
       }
+      if (target.hostname === "api.openai.com" && target.pathname === "/v1/responses" && typeof env.CHAT_RUNS?.jurisdiction === "function") {
+        return openAIBackgroundFetch(env.CHAT_RUNS, options.body, options.signal);
+      }
       return fetch(url, { ...options, redirect: "manual" });
     }
     async function fetchRetry(url, options) {
@@ -1537,6 +1541,7 @@ const DebateRun = createDebateRunClass(executeRun, async (job, env) => {
   return { user: job.user, username: job.user, password: record.hash, passwordHash: record.hash };
 }, DebateCore);
 const ChatRun = createChatRunClass(executeRun, DebateRun, {
-  deferStart: payload => OFFICIAL_MODELS[payload.model]?.provider === 'openai'
+  deferStart: payload => OFFICIAL_MODELS[payload.model]?.provider === 'openai',
+  createTransport: (ctx, env) => new OpenAITransport(ctx, env)
 });
 export { worker_default as default, ChatRun };
