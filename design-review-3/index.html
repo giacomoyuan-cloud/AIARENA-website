@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#f5f5f7">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob:; media-src 'self' blob:; connect-src 'none'; form-action 'none'; object-src 'none'; base-uri 'self'">
+  <title>AI 助手 · 十种不同的使用方式</title>
+  <link rel="stylesheet" href="./controls.css">
+  <link rel="stylesheet" href="./layouts.css">
+  <script type="module" src="./design.js"></script>
+</head>
+<body data-theme="apple" data-page="debate">
+  <header class="review-bar" aria-label="预览工具栏">
+    <a class="review-brand" href="#apple/compare" aria-label="打开十套布局对照">DESIGN <small>03</small></a>
+    <nav id="themes" aria-label="设计方案"></nav>
+    <div class="review-actions">
+      <button data-action="compare" title="同一页面并排比较">布局对照</button>
+      <button data-action="monochrome" aria-pressed="false" title="移除颜色，比较结构">去色</button>
+      <button data-action="page-picker">全站页面 <span>↗</span></button>
+    </div>
+  </header>
+  <div class="review-caption"><p id="direction"></p><button data-action="state-picker">界面状态 <span>⌄</span></button><button data-action="preview-about">交互预览 · 零 API 费用</button></div>
+  <div id="stage"><div id="app"></div></div>
+  <dialog id="modal" class="modal" aria-labelledby="modal-title"></dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  <input id="file-picker" type="file" hidden multiple>
+</body>
+</html>
