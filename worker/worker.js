@@ -1128,13 +1128,13 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
         if (event.usageMetadata) usage = event.usageMetadata;
         await sendGoogleGrounding(event.candidates?.[0]?.groundingMetadata);
         for (const part of event.candidates?.[0]?.content?.parts || []) {
-          if (part.thought && part.text) await sendReasoning(part.text);
-          else if (part.text) await sendChunk(part.text);
+          if (part.thought && part.text) { await sendStatus("thinking"); await sendReasoning(part.text); }
+          else if (part.text) { await sendStatus("responding"); await sendChunk(part.text); }
         }
       });
       return usage;
     }
-    async function parseResponsesStream(response) {
+    async function parseResponsesStream(response, provider) {
       let usage;
       const citations = new Set(), searches = new Set();
       async function annotation(value) {
@@ -1150,7 +1150,7 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
         if ((event.type === "response.output_item.added" && event.item?.type === "web_search_call") || /^response\.web_search_call\.(in_progress|searching)$/.test(event.type)) await sendStatus("searching");
         if (event.type === "response.web_search_call.completed") await sendStatus("thinking");
         if (event.type === "response.output_text.delta" || event.type === "response.refusal.delta") { await sendStatus("responding"); await sendChunk(event.delta || ""); }
-        if (event.type === "response.reasoning_summary_text.delta") { await sendStatus("thinking"); await sendReasoning(event.delta || ""); }
+        if (event.type === "response.reasoning_summary_text.delta" || (provider === "xai" && event.type === "response.reasoning_text.delta")) { await sendStatus("thinking"); await sendReasoning(event.delta || ""); }
         if (event.type === "response.output_text.annotation.added") await annotation(event.annotation);
         if (event.type === "response.output_item.done" && event.item?.type === "web_search_call") {
           const action = event.item.action || {};
@@ -1318,7 +1318,7 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
       if (config.provider === "anthropic") {
         endpoint = "https://api.anthropic.com/v1/messages";
         headers = { "Content-Type": "application/json", Authorization: "Bearer " + env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" };
-        payload = { model, max_tokens: outputLimit, stream: true, messages: [{ role: "user", content: buildAnthropicContent(prompt, image, imageMime) }] };
+        payload = { model, max_tokens: outputLimit, stream: true, thinking: { type: "adaptive", display: "summarized" }, messages: [{ role: "user", content: buildAnthropicContent(prompt, image, imageMime) }] };
         if(scoped){
           payload.system=scoped.system;
           payload.messages=scoped.messages.map((message,index)=>({role:message.role,content:index===scoped.messages.length-1?buildAnthropicContent(message.content,image,imageMime):message.content}));
@@ -1328,9 +1328,9 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
       } else if (config.provider === "google") {
         endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse`;
         headers = { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY };
-        payload = { contents: [{ parts: buildGeminiParts(prompt, image, imageMime) }], generationConfig: { maxOutputTokens: outputLimit } };
+        payload = { contents: [{ parts: buildGeminiParts(prompt, image, imageMime) }], generationConfig: { maxOutputTokens: outputLimit, thinkingConfig: { includeThoughts: true } } };
         if(scoped){payload.systemInstruction={parts:[{text:scoped.system}]};payload.contents=scoped.messages.map((message,index)=>({role:message.role==="assistant"?"model":"user",parts:index===scoped.messages.length-1?buildGeminiParts(message.content,image,imageMime):[{text:message.content}]}));}
-        if (effort !== undefined) payload.generationConfig.thinkingConfig = { thinkingLevel: effort.toUpperCase() };
+        if (effort !== undefined) payload.generationConfig.thinkingConfig.thinkingLevel = effort.toUpperCase();
         if (search) payload.tools = [{ google_search: {} }];
       } else {
         const isXai = config.provider === "xai";
@@ -1345,12 +1345,13 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
           });
         }
         if (effort !== undefined) payload.reasoning = { effort };
+        if (!isXai) payload.reasoning = { ...payload.reasoning, summary: "auto" };
         if (search) payload.tools = [{ type: "web_search" }];
       }
       const response = await fetchRetry(endpoint, { method: "POST", headers, body: JSON.stringify(payload) });
       if (!response?.ok) throw new Error(await getUpstreamError(response, config.provider + " 官方接口请求失败"));
       const usage = config.provider === "anthropic" ? await parseAnthropicStream(response)
-        : config.provider === "google" ? await parseGeminiStream(response) : await parseResponsesStream(response);
+        : config.provider === "google" ? await parseGeminiStream(response) : await parseResponsesStream(response, config.provider);
       if (usage) {
         const input = usage.input_tokens ?? usage.promptTokenCount ?? 0;
         const output = usage.output_tokens ?? ((usage.candidatesTokenCount || 0) + (usage.thoughtsTokenCount || 0));
