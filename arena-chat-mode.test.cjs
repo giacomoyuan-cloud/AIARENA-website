@@ -110,14 +110,16 @@ test('repeated image/chat/debate history round trips restore mode, model and ref
   }
   assert.deepEqual(requests,Array(9).fill('load'));
 });
-test('sidebar current-page marker and active class select exactly the restored mode',()=>{
+test('sidebar current-page marker, pressed state and active class select exactly the restored mode',()=>{
   const nodes=new Map(),get=id=>{if(!nodes.has(id))nodes.set(id,{classList:{contains:()=>false,toggle(name,value){this[name]=value;}},attrs:{},setAttribute(name,value){this.attrs[name]=value;}});return nodes.get(id);};
   const c=vm.createContext({$:get,window:{matchMedia:()=>({matches:false})},document:{querySelector:()=>({})},activeProjectId:null,scopeSwitchPending:false,debate:false,imageMode:false,videoMode:false});
   vm.runInContext(fn('syncArenaNavigation'),c);
   for(const mode of ['Image','Chat','Debate','Image','Debate','Chat']){
     c.imageMode=mode==='Image';c.debate=mode==='Debate';c.syncArenaNavigation();
-    for(const name of ['Chat','Debate','Image','Video']){assert.equal(get('aaBar'+name+'Btn').classList.active,name===mode);assert.equal(get('aaBar'+name+'Btn').attrs['aria-current'],name===mode?'page':'false');}
+    for(const name of ['Chat','Debate','Image','Video']){assert.equal(get('aaBar'+name+'Btn').classList.active,name===mode);assert.equal(get('aaBar'+name+'Btn').attrs['aria-current'],name===mode?'page':'false');assert.equal(get('aaBar'+name+'Btn').attrs['aria-pressed'],name===mode?'true':'false');}
   }
+  c.activeProjectId='project-history';c.syncArenaNavigation();
+  for(const name of ['Chat','Debate','Image','Video']){assert.equal(get('aaBar'+name+'Btn').classList.active,false);assert.equal(get('aaBar'+name+'Btn').attrs['aria-current'],'false');assert.equal(get('aaBar'+name+'Btn').attrs['aria-pressed'],'false');}
 });
 test('restoring a saved debate rehydrates its own seats, efforts and summary instead of the previous draft',()=>{
   const plan={mode:'free',rounds:1,members:[{id:'seat-1',model:'gpt-6.1-sol',effort:'low'},{id:'seat-2',model:'claude-sonnet-5-5',effort:'high'}],turns:[{summary:true,member:{model:'gpt-6-astra',effort:'medium'}}]};

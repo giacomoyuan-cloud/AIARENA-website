@@ -865,7 +865,7 @@
   #ai-arena-app #aaSkillEditPrompt::placeholder { color: #888; opacity: 1; }
 
 </style>
-<link rel="stylesheet" href="/arena.css?v=20261030-image-unified1">
+<link rel="stylesheet" href="/arena.css?v=20261030-historymodes3">
 <link rel="stylesheet" href="/arena-workspace.css?v=20261029-debateresume1">
 <link rel="stylesheet" href="/arena-controls.css?v=20261029-debateresume1">
 <link rel="stylesheet" href="/arena-pet.css?v=20261029-petnoghost1">
@@ -6042,7 +6042,7 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
     document.querySelector('.arena-topbar').inert = mobile && expanded;
     document.querySelector('.aa-main').inert = (mobile && expanded)||!!scopeSwitchPending;
     var general=!activeProjectId&&!$('ai-arena-app').classList.contains('arena-workspace-visible');
-    ['Chat','Debate','Image','Video'].forEach(function(name){var button=$('aaBar'+name+'Btn'),selected=name==='Chat'?!debate&&!imageMode&&!videoMode:name==='Debate'?debate:name==='Image'?imageMode:videoMode;if(button){button.classList.toggle('active',general&&selected);button.setAttribute('aria-current',general&&selected?'page':'false');}});
+    ['Chat','Debate','Image','Video'].forEach(function(name){var button=$('aaBar'+name+'Btn'),selected=general&&(name==='Chat'?!debate&&!imageMode&&!videoMode:name==='Debate'?debate:name==='Image'?imageMode:videoMode);if(button){button.classList.toggle('active',selected);button.setAttribute('aria-current',selected?'page':'false');button.setAttribute('aria-pressed',selected?'true':'false');}});
   }
   function syncArenaEffort(){
     var slider=$('aaEffortSlider');
