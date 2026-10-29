@@ -19,8 +19,8 @@ function fn(name,source=html){
   return source.slice(start,end+1);
 }
 function element(){
-  const classes=new Set();
-  return {value:'',hidden:true,textContent:'',style:{},scrollTop:0,focus(){},hasAttribute(){return false;},
+  const classes=new Set(),attributes=new Map();
+  return {value:'',hidden:true,textContent:'',style:{},scrollTop:0,focus(){},setAttribute:(name,value)=>attributes.set(name,String(value)),getAttribute:name=>attributes.get(name)||null,hasAttribute:name=>attributes.has(name),
     classList:{contains:name=>classes.has(name),toggle(name,on){if(on)classes.add(name);else classes.delete(name);},add:name=>classes.add(name),remove:name=>classes.delete(name)}};
 }
 function fixture(){

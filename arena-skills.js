@@ -59,7 +59,11 @@
         var response=await fetch(options.worker()+'/skill-files',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
         if(!response.ok){var error=await response.json().catch(function(){return {};});throw Error(error.error||'文件操作失败');}
         if(deleting){file.deleted=true;options.changed();return;}
-        var blob=await response.blob(),url=URL.createObjectURL(blob),anchor=document.createElement('a');anchor.href=url;anchor.download=file.name;document.body.appendChild(anchor);anchor.click();anchor.remove();setTimeout(function(){URL.revokeObjectURL(url);},60000);
+        var blob=await response.blob(),url=URL.createObjectURL(blob),anchor=document.createElement('a');
+        anchor.href=url;anchor.download=file.name;anchor.className='arena-skill-save';anchor.textContent='保存文件';
+        anchor.dataset.executionModel=message.executionModel||'';anchor.dataset.provider=file.provider||'';
+        button.replaceWith(anchor);anchor.click();
+        setTimeout(function(){if(anchor.isConnected)anchor.replaceWith(button);URL.revokeObjectURL(url);},60000);
       }catch(error){options.notice(error.message);}finally{if(!file.deleted)button.disabled=false;}
     });
     return {settings:settings,update:update,render:render,activate:activate,automatic:function(){set({mode:'auto',ids:[]});},capture:capture,ready:ready,filesForTexts:filesForTexts,clear:clear,artifacts:artifacts};

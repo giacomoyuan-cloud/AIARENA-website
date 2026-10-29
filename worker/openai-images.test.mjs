@@ -19,6 +19,7 @@ function events(body){return body.split('\n').filter(s=>s.startsWith('data: ')&&
 for(const model of models)test(model+' supports generation, previews, transparency, details and saved edit context',async t=>{
   const calls=[];t.mock.method(globalThis,'fetch',async(url,opts)=>{calls.push({url,opts});return generated();});
   const output=events(await (await worker.fetch(request(model,{size:'1536x864',quality:'xhigh',outputFormat:'webp',background:'transparent',outputCompression:72,moderation:'low',partialImages:3}),env())).text());
+  assert.equal(output.find(e=>e.error)?.error,undefined);
   assert.equal(calls.length,1);assert.equal(calls[0].url,'https://api.openai.com/v1/responses');assert.equal(calls[0].opts.redirect,'manual');
   const p=JSON.parse(calls[0].opts.body);assert.equal(p.model,'gpt-6.1-sol');assert.equal(p.store,false);
   assert.deepEqual(p.tools,[{type:'image_generation',model,action:'generate',size:'1536x864',quality:'xhigh',output_format:'webp',background:'transparent',moderation:'low',partial_images:3,output_compression:72}]);
@@ -28,7 +29,8 @@ for(const model of models)test(model+' supports generation, previews, transparen
   assert.equal(output.find(e=>e.img).mime,'image/webp');
   assert.equal(output.find(e=>e.imageDetails).imageDetails.revisedPrompt,'A simple blue circle');
   assert.deepEqual(output.find(e=>e.imageContext).imageContext.parts,[{imageIndex:0}]);
-  assert.equal(output.at(-1).imageUsage.mainline.input,12);assert.equal(output.at(-1).imageUsage.imageCostAvailable,false);
+  assert.equal(output.filter(e=>e.imageUsage).at(-1).imageUsage.mainline.input,12);assert.equal(output.filter(e=>e.imageUsage).at(-1).imageUsage.imageCostAvailable,false);
+  assert.equal(output.at(-1).usage.schemaVersion,2);assert.equal(output.at(-1).usage.model,model);assert.equal(output.at(-1).usage.input,null);assert.equal(output.at(-1).usage.costUsd,null);
 });
 
 test('invalid image settings, incompatible transparency and malformed masks never call the paid API',async t=>{
@@ -51,6 +53,7 @@ test('successive edits keep the selected image first, retain prior requirements,
 test('multi-image edits accept 16 explicit references and batches retain each completed image without retries',async t=>{
   const calls=[];t.mock.method(globalThis,'fetch',async(_url,opts)=>{calls.push(JSON.parse(opts.body));return generated();});
   const output=events(await (await worker.fetch(request(models[1],{imageTask:'multi-edit',images:Array(16).fill(image),n:3}),env())).text());
+  assert.equal(output.find(e=>e.error)?.error,undefined);
   assert.equal(calls.length,3);assert.equal(calls[0].input[0].content.filter(p=>p.type==='input_image').length,16);
   assert.equal(output.filter(e=>e.img).length,3);assert.deepEqual(output.filter(e=>e.imageDetails).map(e=>e.imageDetails.index),[0,1,2]);
   assert.deepEqual(output.filter(e=>e.imageContext).at(-1).imageContext.parts,[{imageIndex:0},{imageIndex:1},{imageIndex:2}]);
@@ -60,6 +63,7 @@ test('a failed second variant preserves the first result and never starts a thir
   let calls=0;t.mock.method(globalThis,'fetch',async()=>{calls++;return calls===1?generated():Response.json({error:{message:'insufficient_quota'}},{status:429});});
   const output=events(await (await worker.fetch(request(models[0],{n:3}),env())).text());
   assert.equal(calls,2);assert.equal(output.filter(e=>e.img).length,1);assert.match(output.find(e=>e.error).error,/429|insufficient_quota/);
+  assert.equal(output.filter(e=>e.imageUsage).at(-1).imageUsage.mainline.input,null,'missing failed-attempt usage is not reported as zero or omitted');
 });
 
 test('stream interruption preserves final images but never promotes previews to final results',async()=>{

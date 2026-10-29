@@ -77,3 +77,57 @@ test('legacy history classification stays bounded, caches by account/scope/revis
   let finish;c.chatList=[{id:'other-chat',updatedAt:456}];c.chatApiCall=()=>new Promise(resolve=>finish=resolve);
   const pending=c.hydrateHistoryModes(null,1,1);c.scopeEpoch++;finish({modes:[{id:'other-chat',mode:'image'}]});await pending;assert.equal(c.chatList[0].mode,undefined);
 });
+test('history type cache survives reload, isolates account and project keys and never stores content',()=>{
+  const values=new Map(),storage={getItem:key=>values.get(key),setItem:(key,value)=>values.set(key,value)};
+  const cache=Modes.createCache(storage);cache.set('alice:general:shared',{mode:'image',updatedAt:123,text:'PRIVATE_PROMPT',password:'PRIVATE_CREDENTIAL'});
+  cache.set('bob:general:shared',{mode:'chat',updatedAt:456});cache.set('alice:project-1:shared',{mode:'debate',updatedAt:789});
+  const reloaded=Modes.createCache(storage);assert.deepEqual(reloaded.get('alice:general:shared'),{mode:'image',updatedAt:123});
+  assert.equal(reloaded.get('bob:general:shared').mode,'chat');assert.equal(reloaded.get('alice:project-1:shared').mode,'debate');assert.equal(reloaded.get('alice:project-2:shared'),undefined);
+  assert.ok(!values.get('aa-history-modes-v1').includes('PRIVATE_'));
+  for(let i=0;i<605;i++)cache.set('alice:general:bounded-'+i,{mode:'image',updatedAt:i});
+  assert.equal(JSON.parse(values.get('aa-history-modes-v1')).length,600);
+  const blocked=Modes.createCache({getItem(){throw Error('blocked');},setItem(){throw Error('blocked');}});blocked.set('test',{mode:'chat',updatedAt:1});assert.equal(blocked.get('test').mode,'chat');
+});
+test('failed or unsupported classification ends the loading state instead of leaving ellipses forever',async()=>{
+  const chats=Array.from({length:19},(_,i)=>({id:'history-'+i,updatedAt:123}));let requests=0;
+  const {c}=fixture({chatList:chats,chatListEpoch:1,historyModeCache:new Map(),scopeViewKey:()=> 'tester:general',renderHistoryList(){},chatApiCall:async()=>{requests++;return {error:'Unknown action'};}});
+  vm.runInContext(fn('hydrateHistoryModes'),c);await c.hydrateHistoryModes(null,1,1);
+  assert.equal(requests,1);assert.ok(chats.every(chat=>Modes.badge(chat).label==='待识别'));assert.match(Modes.badge(chats[0]).title,/打开会话后/);
+  assert.equal(Modes.badge({}).label,'识别中');assert.equal(Modes.badge({mode:'image'}).label,'图像');
+});
+test('history search accepts the visible conversation type as well as the title',()=>{
+  assert.equal(Modes.matches({mode:'debate',title:'一个具体话题'},'辩论'),true);assert.equal(Modes.matches({mode:'image',title:'边牧'},'图像'),true);
+  assert.equal(Modes.matches({mode:'chat',title:'Hello WORLD'},'world'),true);assert.equal(Modes.matches({title:'未识别记录'},'图像'),false);
+});
+test('repeated image/chat/debate history round trips restore mode, model and references without sending messages',async()=>{
+  const records={image:imageMessages,chat:[{uid:10,submodel:'gpt-6.1-sol',text:'普通回复'}],debate:[{uid:20,isUser:true,debateRun:{id:'existing-run'}}]};
+  const requests=[],{c}=fixture({chatApiCall:async(action,{chatId})=>{requests.push(action);return {messages:records[chatId]};}});
+  for(const mode of ['image','chat','debate','image','debate','chat','image','chat','debate']){
+    await c.loadChat(mode);assert.equal(c.imageMode,mode==='image');assert.equal(c.debate,mode==='debate');
+    if(mode==='image'){assert.equal(c.imageComposerModel,'gpt-image-2.5-flare');assert.equal(c.imageEditParentUid,2);}
+    else{assert.equal(c.sentImgs.length,0);assert.equal(c.imageEditParentUid,null);}
+    if(mode==='chat')assert.equal(c.brandSelection.openai,'gpt-6.1-sol');
+  }
+  assert.deepEqual(requests,Array(9).fill('load'));
+});
+test('sidebar current-page marker and active class select exactly the restored mode',()=>{
+  const nodes=new Map(),get=id=>{if(!nodes.has(id))nodes.set(id,{classList:{contains:()=>false,toggle(name,value){this[name]=value;}},attrs:{},setAttribute(name,value){this.attrs[name]=value;}});return nodes.get(id);};
+  const c=vm.createContext({$:get,window:{matchMedia:()=>({matches:false})},document:{querySelector:()=>({})},activeProjectId:null,scopeSwitchPending:false,debate:false,imageMode:false,videoMode:false});
+  vm.runInContext(fn('syncArenaNavigation'),c);
+  for(const mode of ['Image','Chat','Debate','Image','Debate','Chat']){
+    c.imageMode=mode==='Image';c.debate=mode==='Debate';c.syncArenaNavigation();
+    for(const name of ['Chat','Debate','Image','Video']){assert.equal(get('aaBar'+name+'Btn').classList.active,name===mode);assert.equal(get('aaBar'+name+'Btn').attrs['aria-current'],name===mode?'page':'false');}
+  }
+});
+test('restoring a saved debate rehydrates its own seats, efforts and summary instead of the previous draft',()=>{
+  const plan={mode:'free',rounds:1,members:[{id:'seat-1',model:'gpt-6.1-sol',effort:'low'},{id:'seat-2',model:'claude-sonnet-5-5',effort:'high'}],turns:[{summary:true,member:{model:'gpt-6-astra',effort:'medium'}}]};
+  const view={ref:{id:'saved-debate'}},noop=()=>{};let current=true;
+  const c=vm.createContext({debateCurrent:v=>current&&v===view,debate:false,imageMode:true,videoMode:false,debateMode:'persona',rounds:3,debateModels:['grok-4.7','grok-4.7'],debateSeatEfforts:{summary:'max'},judgeModel:'none',
+    AVAILABLE_CHAT_MODELS:['gpt-6.1-sol','claude-sonnet-5-5','gpt-6-astra'],msgs:[],syncBrandUI:noop,sync2v2UI:noop,syncArenaLayout:noop,hideThink:noop,forgetDebate:noop,syncDebateRecovery:noop});
+  vm.runInContext(fn('applyDebatePlan')+'\n'+fn('applyDebateSnapshot'),c);
+  c.applyDebateSnapshot(view,{revision:1,status:'completed',plan,turns:[]},true);
+  assert.equal(c.debate,true);assert.equal(c.imageMode,false);assert.equal(c.rounds,1);assert.deepEqual(Array.from(c.debateModels),['gpt-6.1-sol','claude-sonnet-5-5']);
+  assert.equal(c.debateSeatEfforts['seat-1'],'low');assert.equal(c.debateSeatEfforts['seat-2'],'high');assert.equal(c.judgeModel,'gpt-6-astra');assert.equal(c.debateSeatEfforts.summary,'medium');
+  c.debateModels=['grok-4.7','grok-4.7'];c.applyDebateSnapshot(view,{revision:2,status:'completed',turns:[]},false);assert.equal(c.debateModels[0],'grok-4.7');
+  current=false;c.applyDebateSnapshot(view,{revision:3,status:'completed',plan,turns:[]},true);assert.equal(c.debateModels[0],'grok-4.7','a detached history response never changes the active composer');
+});
