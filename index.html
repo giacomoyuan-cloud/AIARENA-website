@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>AI 助手</title>
-<meta name="app-version" content="20261030-imagechoices1">
+<meta name="app-version" content="20261030-replyvisible1">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -864,7 +864,7 @@
   #ai-arena-app #aaSkillEditPrompt::placeholder { color: #888; opacity: 1; }
 
 </style>
-<link rel="stylesheet" href="/arena.css?v=20261030-imagechoices1">
+<link rel="stylesheet" href="/arena.css?v=20261030-replyvisible1">
 <link rel="stylesheet" href="/arena-workspace.css?v=20261029-debateresume1">
 <link rel="stylesheet" href="/arena-controls.css?v=20261029-debateresume1">
 <link rel="stylesheet" href="/arena-pet.css?v=20261029-petnoghost1">
@@ -1613,7 +1613,7 @@ var TEAM_COLORS = {
 
   function serializeMsgs(){
     return msgs.map(function(m){
-      var obj = {uid:m.uid, brand:m.brand, name:m.name, text:m.text, color:m.color, isUser:m.isUser, isError:m.isError, round:m.round, _team:m._team, _liked:m._liked, _comment:m._comment, topicText:m.topicText, pastedTexts:m.pastedTexts, _quote:m._quote, context:m.context, reasoning:m.reasoning, activity:m.activity, citations:m.citations, _feedback:m._feedback, effort:m.effort, submodel:m.submodel, completedAt:m.completedAt, moderationHelp:m.moderationHelp, suggestedPrompt:m.suggestedPrompt, moderationTask:m.moderationTask, imageTurn:m.imageTurn, imageResponse:m.imageResponse, grounding:m.grounding,participantId:m.participantId,debateSessionId:m.debateSessionId,debateStage:m.debateStage};
+      var obj = {uid:m.uid, brand:m.brand, name:m.name, text:m.text, color:m.color, isUser:m.isUser, isError:m.isError, generationError:m.generationError, round:m.round, _team:m._team, _liked:m._liked, _comment:m._comment, topicText:m.topicText, pastedTexts:m.pastedTexts, _quote:m._quote, context:m.context, reasoning:m.reasoning, activity:m.activity, citations:m.citations, _feedback:m._feedback, effort:m.effort, submodel:m.submodel, completedAt:m.completedAt, moderationHelp:m.moderationHelp, suggestedPrompt:m.suggestedPrompt, moderationTask:m.moderationTask, imageTurn:m.imageTurn, imageResponse:m.imageResponse, grounding:m.grounding,participantId:m.participantId,debateSessionId:m.debateSessionId,debateStage:m.debateStage};
       if(m.run) obj.run = m.run;
       if(m.debateRun) { obj.debateRun=m.debateRun;obj.debateTurn=m.debateTurn;obj.debateAttempt=m.debateAttempt;obj.debateStatus=m.debateStatus;obj.debateError=m.debateError;obj.debateOutdated=m.debateOutdated;obj.usage=m.usage; }
       if(m.imgSrcs && m.debateRun) obj.imgSrcs=m.imgSrcs;
@@ -2146,7 +2146,8 @@ var TEAM_COLORS = {
 
   // Markdown is shared with the regression tests; code actions stay in this app.
   function plainMessageText(message){
-    var text=message.text||'';
+    var reply=chatReplyView(message),text=reply.text;
+    if(reply.error&&!text.trim()&&String(message.reasoning||'').trim())return '思考摘要（未生成正文）\n'+message.reasoning;
     if(!message.citations || message.isUser)return text;
     return text.replace(/\[\[aa-citation:(\d+)\]\]/g,function(match,index){var source=message.citations[Number(index)-1];return source?' ['+(source.title||'来源')+']('+source.url+')':'';});
   }
@@ -2877,7 +2878,7 @@ var TEAM_COLORS = {
       if(scope!==activeProjectId||chatId!==currentChatId)return;
       if(data.reply)Object.assign(message,data.reply);
       message.run=Object.assign({},ref,{status:data.status});
-      if(data.error){message.isError=true;message.text=(message.text||'')+'\n\n['+data.error+']';}
+      if(data.error){message.isError=true;message.generationError=data.error;}
       if(data.status==='cancelled'&&!message.text)message.text='已停止生成。';
       if(data.status!=='running'){message.completedAt=data.updatedAt;forgetPendingChatRun(ref.id);}
       render();
@@ -3089,13 +3090,41 @@ var TEAM_COLORS = {
     }
     return h+'</div>';
   }
+  function chatReplyView(msg){
+    var text=typeof msg.text==='string'?msg.text:'',error=typeof msg.generationError==='string'?msg.generationError:'';
+    if(msg.isUser||msg.moderationHelp||msg.imgData||msg.videoUrl||AVAILABLE_CHAT_MODELS.indexOf(msg.submodel)===-1)return {text:text,error:''};
+    var failed=msg.isError||error||(msg.run&&['failed','interrupted'].indexOf(msg.run.status)!==-1);
+    if(failed){
+      // Older server/client versions appended transport failures to the answer.
+      // Read those records without rewriting or discarding the saved response.
+      var suffix=text.match(/(?:^|\n+)\[(?:错误:\s*)?([^\n]+)\]\s*$/);
+      if(suffix&&(!error||suffix[1]===error)){error=suffix[1];text=text.slice(0,suffix.index);}
+      else if(!error&&/^(?:本次生成超过 \d+ 分钟|上游连接中断|服务器连接已中断|暂时无法连接服务器)[^\n]*$/.test(text.trim())){error=text.trim();text='';}
+    }
+    return {text:text,error:error};
+  }
+  function renderReplyNotice(msg){
+    var reply=chatReplyView(msg);if(!reply.error)return '';
+    var timeout=reply.error.match(/^本次生成超过 (\d+) 分钟/);
+    var detail=reply.text.trim()?'已显示收到的正文。':String(msg.reasoning||'').trim()?'模型未返回正文，已展开收到的思考摘要。':'模型未返回正文或可展示的思考摘要。';
+    return '<div class="arena-reply-notice" role="status">'+esc(timeout?'本次生成超过 '+timeout[1]+' 分钟。':reply.error)+' '+esc(detail)+'</div>';
+  }
+  function failChatReply(submodel,message,error){
+    message.generationError=String(error||'生成中断');message.isError=true;message.completedAt=Date.now();
+    if(msgs.indexOf(message)===-1)beginStreamedReply(submodel,message);
+    message._activityPhase='done';
+    // The provider has stopped: expose the entire received prefix immediately.
+    if(liveReplies.has(message.uid))liveReplies.seed(message.uid,message.text||'');
+    finalizeMsg(message.uid,message.text||'',true,message.reasoning||'');render();
+  }
   function syncActivityDisclosure(msg){
     var finished=!!msg.completedAt||msg.isError||(msg.run&&msg.run.status!=='running')||(msg.debateStatus&&msg.debateStatus!=='running');
     var phase=msg._activityPhase;
     var thinking=!finished&&(phase==='thinking'||phase==='searching'||(!phase&&!String(msg.text||'').trim()&&((msg.run&&msg.run.status==='running')||msg.debateStatus==='running')));
-    var stage=thinking?'thinking':'answer';
+    var reply=chatReplyView(msg),summaryOnly=!!reply.error&&!reply.text.trim()&&!!String(msg.reasoning||'').trim();
+    var stage=summaryOnly?'interrupted':thinking?'thinking':'answer';
     if(msg._activityStage===stage)return false;
-    msg._activityStage=stage;msg._activityOpen=!!thinking;
+    msg._activityStage=stage;msg._activityOpen=!!(thinking||summaryOnly);
     return true;
   }
   function renderMessageActivity(msg){
@@ -3117,7 +3146,7 @@ var TEAM_COLORS = {
     var usedFiles=entries.some(function(item){return item.kind==='project_files';});
     var attempted = entries.some(function(item){return /search/.test(item.kind);});
     var expanded=msg._activityOpen;
-    var h = '<details class="arena-operation-details"'+(expanded?' open':'')+'><summary>'+ (usedFiles?'已查阅项目资料':searched?searchLabel:attempted?'搜索记录':reasoning?(msg._activityStage==='thinking'?'思考摘要':'已思考'):'处理记录')+'</summary><div class="arena-operation-card">';
+    var h = '<details class="arena-operation-details"'+(msg._activityStage==='interrupted'?' data-incomplete="true"':'')+(expanded?' open':'')+'><summary>'+ (msg._activityStage==='interrupted'?'已收到的思考摘要':usedFiles?'已查阅项目资料':searched?searchLabel:attempted?'搜索记录':reasoning?(msg._activityStage==='thinking'?'思考摘要':'已思考'):'处理记录')+'</summary><div class="arena-operation-card">';
     entries.forEach(function(item){
       if(item.kind==='project_files'){
         h+='<div class="arena-operation-row">已查阅项目资料 · '+Number(item.fragments||0)+' 个片段 '+(item.files||[]).map(function(file){return '<button data-context-file="'+esc(file.id)+'" data-project="'+esc((msg.context||{}).scope||activeProjectId||'')+'">'+esc(file.name)+'</button>';}).join(' ')+'</div>';return;
@@ -3288,7 +3317,7 @@ var TEAM_COLORS = {
     if(body){
       body.dataset.streaming='false';
       if(body._renderTimer){ clearTimeout(body._renderTimer); body._renderTimer = null; }
-      if(isError){ body.classList.add('error'); body.innerHTML = esc(text); }
+      if(isError&&!(completedMsg&&chatReplyView(completedMsg).error)){ body.classList.add('error'); body.innerHTML = esc(text); }
       else body.innerHTML = renderMd(text, completedMsg && completedMsg.citations);
     }
     if(!userScrolledUp) c.scrollTop = c.scrollHeight;
@@ -4527,7 +4556,7 @@ var TEAM_COLORS = {
       h += '</div>';
       var bodyClass = msg.isUser ? 'user' : 'ai-bubble';
       if(msg.moderationHelp) bodyClass += ' moderation-help';
-      else if(msg.isError) bodyClass += ' error';
+      else if(msg.isError&&!chatReplyView(msg).error) bodyClass += ' error';
       var bodyStyle = (!msg.isUser && (!msg.isError || msg.moderationHelp)) ? 'border-color:'+brandInfo.border : '';
       if(!msg.isUser) h += renderMessageActivity(msg);
       if(msg.isUser){
@@ -4594,7 +4623,7 @@ var TEAM_COLORS = {
         // 提取所有 [MJ_IMAGE]...[/MJ_IMAGE] 链接
         var mjImgUrls = [];
         var mjButtonsData = msg.mjButtons || null;
-        var cleanText = liveReplies.text(msg.uid, msg.text || '')
+        var cleanText = liveReplies.text(msg.uid, chatReplyView(msg).text)
           .replace(/\[MJ_IMAGE\]([\s\S]*?)\[\/MJ_IMAGE\]/g, function(match, url){ mjImgUrls.push(url); return ''; })
           .replace(/\[MJ_BUTTONS\]([\s\S]*?)\[\/MJ_BUTTONS\]/g, function(match, json){
             try { mjButtonsData = JSON.parse(json); } catch(e){}
@@ -4602,7 +4631,7 @@ var TEAM_COLORS = {
           })
           .trim();
 
-        h += '<div class="aa-msg-body '+bodyClass+'" data-streaming="'+liveReplies.has(msg.uid)+'" style="'+bodyStyle+'">';
+        h += '<div class="aa-msg-body '+bodyClass+'"'+(!cleanText&&chatReplyView(msg).error?' hidden':'')+' data-streaming="'+liveReplies.has(msg.uid)+'" style="'+bodyStyle+'">';
         if(cleanText){
           h += renderMd(cleanText, msg.citations);
         }
@@ -4639,6 +4668,7 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
           }
         h += '</div>';
 
+        h += renderReplyNotice(msg);
         if(msg.usageStr) h += '<div class="aa-usage-tag" style="font-size:10px;color:#555;margin-top:4px;margin-left:13px;letter-spacing:0.02em;font-family:\'Sora\',sans-serif;">'+esc(msg.usageStr)+'</div>';
         h += renderContextInfo(msg);
         h += '<div class="arena-message-actions">'
@@ -5039,6 +5069,8 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
               window._aaModerationRetryStore[uid] = _imgs.slice();
               if(firstChunk){ firstChunk = false; hideThink(sub); msgs.push(msgObj); }
               render();
+            } else if(!expectsImage){
+              firstChunk=false;failChatReply(sub,msgObj,em);
             } else if(firstChunk){
               firstChunk=false;msgObj.text = em; msgObj.isError = true; beginStreamedReply(sub,msgObj);
             } else {
