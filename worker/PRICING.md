@@ -62,7 +62,6 @@ The current image workflow also invokes GPT-6.1 Sol as an orchestrator. Each ima
 | `gemini-3.8-flash` | $0.75 | $0.075 | $3.75 |
 | `gemini-3.1-pro-preview` | $2 | $0.20 | $12 |
 | `gemini-3.1-flash-image` | $0.50 | n/a | Text/thinking $3; image $60 |
-| `gpt-image-2.5-sunburst` | Text $5; image $8 | n/a for this native Image API | Image $30 |
 
 Opus 5 cache writes are $6.25 / $10. GPT-5.6 Sol cache writes are $5 / $10; above 272,000 input tokens its input/cache/output/write-short/write-long rates are $8 / $0.80 / $30 / $10 / $20. This is the promotional public rate verified on the checked date.
 

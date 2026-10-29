@@ -1556,10 +1556,10 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
           }finally{
             const receipt=await recordUsage(model,imageRaw,{purpose:'image-generation',primary:imageReceipts.length===0,responsesImage:true,incompleteUsage:!imageRaw});imageReceipts.push(receipt);
             await recordUsage(IMAGE_ORCHESTRATOR,mainRaw,{purpose:'image-orchestrator',serviceTier:mainTier,incompleteUsage:!mainRaw,searches:0});
+            if(Number.isSafeInteger(mainRaw?.input_tokens)&&mainRaw.input_tokens>=0)mainInput+=mainRaw.input_tokens;else knownMainInput=false;
+            if(Number.isSafeInteger(mainRaw?.output_tokens)&&mainRaw.output_tokens>=0)mainOutput+=mainRaw.output_tokens;else knownMainOutput=false;
+            try{await writer.write(encoder.encode('data: '+JSON.stringify({imageUsage:{images:received,mainline:{model:IMAGE_ORCHESTRATOR,input:knownMainInput?mainInput:null,output:knownMainOutput?mainOutput:null},imageCostAvailable:false}})+'\n\n'));}catch{}
           }
-          if(Number.isSafeInteger(mainRaw?.input_tokens))mainInput+=mainRaw.input_tokens;else knownMainInput=false;
-          if(Number.isSafeInteger(mainRaw?.output_tokens))mainOutput+=mainRaw.output_tokens;else knownMainOutput=false;
-          await writer.write(encoder.encode('data: '+JSON.stringify({imageUsage:{images:received,mainline:{model:IMAGE_ORCHESTRATOR,input:knownMainInput?mainInput:null,output:knownMainOutput?mainOutput:null},imageCostAvailable:false}})+'\n\n'));
         }}finally{
           if(imageReceipts.length){try{await writer.write(encoder.encode('data: '+JSON.stringify({usage:Billing.combine(imageReceipts[0],auxiliaryUsage)})+'\n\n'));}catch{}}
         }

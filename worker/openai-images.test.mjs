@@ -63,6 +63,7 @@ test('a failed second variant preserves the first result and never starts a thir
   let calls=0;t.mock.method(globalThis,'fetch',async()=>{calls++;return calls===1?generated():Response.json({error:{message:'insufficient_quota'}},{status:429});});
   const output=events(await (await worker.fetch(request(models[0],{n:3}),env())).text());
   assert.equal(calls,2);assert.equal(output.filter(e=>e.img).length,1);assert.match(output.find(e=>e.error).error,/429|insufficient_quota/);
+  assert.equal(output.filter(e=>e.imageUsage).at(-1).imageUsage.mainline.input,null,'missing failed-attempt usage is not reported as zero or omitted');
 });
 
 test('stream interruption preserves final images but never promotes previews to final results',async()=>{
