@@ -2616,6 +2616,7 @@ var TEAM_COLORS = {
     return new Promise(function(resolve){
       function current(){return context===undefined||context===fileImportContext();}
       if(f.size>10*1024*1024){arenaNotice('图片不能超过 10MB');resolve(false);return;}
+      if(sentImgs.length>=imageReferenceLimit()){setImageError('本轮最多添加 '+imageReferenceLimit()+' 张参考图');resolve(false);return;}
       var reader=new FileReader();
       reader.onerror=function(){if(current())arenaNotice('图片读取失败：'+f.name);resolve(false);};
       reader.onload=function(e){

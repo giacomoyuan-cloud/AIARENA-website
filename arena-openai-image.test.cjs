@@ -55,6 +55,13 @@ test('OpenAI uploads preserve original resolution, alpha and MIME instead of con
   assert.equal(c.sentImgs[0].data,'cG5nLW9yaWdpbmFs');assert.equal(c.sentImgs[0].mime,'image/png');assert.equal(rendered,1);
 });
 
+test('a full image batch rejects further ZIP images before reading or decoding them',async()=>{
+  let error='';
+  class UnexpectedReader{constructor(){assert.fail('must not read another image after the limit');}}
+  const c=vm.createContext({sentImgs:Array(5).fill({}),imageReferenceLimit:()=>5,setImageError:message=>{error=message;},FileReader:UnexpectedReader});
+  vm.runInContext(fn('handleImageFile'),c);assert.equal(await c.handleImageFile({size:1024}),false);assert.match(error,/5/);
+});
+
 test('image history retains previous instructions and only stores one copy of each generated image',()=>{
   const image={data:'final-image',mime:'image/webp'};
   const c=vm.createContext({msgs:[{uid:1,submodel:A.OPENAI_MODELS[0],text:'',imgItems:[image],imgData:image.data,imgMime:image.mime,
