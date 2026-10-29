@@ -10,6 +10,7 @@ function setup() {
   const kv = { get: async key => data.get(key) ?? null, put: async (key,value) => data.set(key,value), list: async () => ({keys:[]}) };
   return { data, env: { PASSWORD:'test-only-access-password', ANTHROPIC_API_KEY:'test-only-anthropic', OPENAI_API_KEY:'test-only-openai', GROK_API_KEY:'test-only-xai', GEMINI_API_KEY:'test-only-google', QUICK:'test-only-third-party-must-never-be-used', MEMORY_KV:kv, BIZ_KV:kv } };
 }
+function usageRecords(data,owner,model){return [...data].filter(([key])=>key.startsWith('billing:pending:'+owner+':')).map(([,value])=>JSON.parse(value)).filter(value=>value.model===model);}
 function stream(events) {
   // Exercise arbitrary UTF-8 chunk boundaries and a final line without a newline.
   const bytes = new TextEncoder().encode(events.map(value=>'data: '+JSON.stringify(value)).join('\n\n'));
@@ -165,8 +166,8 @@ for(const [model,host,binding] of [
   const response=await worker.fetch(request(model,{search:true}),env);
   const output=events(await response.text());
   assert.equal(output.filter(value=>value.t).map(value=>value.t).join(''),'你好 world');
-  assert.deepEqual(output.find(value=>value.usage).usage,{input:11,output:7});
-  assert.equal(JSON.parse(data.get('usage:user:tester:official~'+model)).calls,1);
+  assert.equal(output.find(value=>value.usage).usage.input,11);assert.equal(output.find(value=>value.usage).usage.output,7);
+  assert.equal(usageRecords(data,'shared-access',model).length,1);
   assert.equal(calls.length,1);
 });
 
@@ -186,7 +187,7 @@ for(const model of ['claude-fable-5-1','claude-opus-5','claude-opus-5-5','claude
   mockFetch(t,(url,options)=>{ assert.equal(url,'https://api.anthropic.com/v1/messages'); assert.equal(options.headers.Authorization,'Bearer '+env.ANTHROPIC_API_KEY); assert.equal(JSON.parse(options.body).model,model); return stream([{type:'message_start',message:{usage:{input_tokens:23,output_tokens:1}}},{type:'content_block_delta',delta:{type:'text_delta',text:'Claude 官方'}},{type:'message_delta',usage:{output_tokens:9}}]); });
   const output=events(await (await worker.fetch(request(model),env)).text());
   assert.equal(output.filter(value=>value.t).map(value=>value.t).join(''),'Claude 官方');
-  assert.deepEqual(output.find(value=>value.usage).usage,{input:23,output:9});
+  assert.equal(output.find(value=>value.usage).usage.input,23);assert.equal(output.find(value=>value.usage).usage.output,9);
 });
 
 for(const model of ['gemini-4-argon','gemini-3.8-flash','gemini-3.1-pro-preview']) test(model+' uses Google without putting its key in the URL',async t=>{
@@ -194,7 +195,7 @@ for(const model of ['gemini-4-argon','gemini-3.8-flash','gemini-3.1-pro-preview'
   mockFetch(t,(url,options)=>{ assert.equal(new URL(url).hostname,'generativelanguage.googleapis.com'); assert.ok(url.includes('/'+model+':streamGenerateContent')); assert.equal(new URL(url).searchParams.has('key'),false); assert.equal(options.headers['x-goog-api-key'],env.GEMINI_API_KEY); return stream([{candidates:[{content:{parts:[{text:'Gemini 官方'}]}}],usageMetadata:{promptTokenCount:13,candidatesTokenCount:6}}]); });
   const output=events(await (await worker.fetch(request(model),env)).text());
   assert.equal(output.find(value=>value.t).t,'Gemini 官方');
-  assert.deepEqual(output.find(value=>value.usage).usage,{input:13,output:6});
+  assert.equal(output.find(value=>value.usage).usage.input,13);assert.equal(output.find(value=>value.usage).usage.output,6);
 });
 
 test('Gemini 4 thinking levels, image input and search use the official Google schema',async t=>{
@@ -219,8 +220,8 @@ test('Grok image generation uses the official endpoint and counts cost once',asy
   mockFetch(t,(url,options)=>{ assert.equal(url,'https://api.x.ai/v1/images/generations'); assert.equal(options.headers.Authorization,'Bearer '+env.GROK_API_KEY); const body=JSON.parse(options.body); assert.equal(body.response_format,'b64_json'); assert.equal(body.n,2); return Response.json({data:[{b64_json:'aGVsbG8='}],usage:{input_tokens:null,output_tokens:null,cost_in_usd_ticks:400000000}}); });
   const output=events(await (await worker.fetch(request('grok-imagine-image-2.0',{n:2,resolution:'2k'}),env)).text());
   assert.equal(output.find(value=>value.img).img,'aGVsbG8=');
-  const usage=JSON.parse(data.get('usage:user:tester:official~grok-imagine-image-2.0'));
-  assert.equal(usage.calls,1); assert.equal(usage.cost,0.04);
+  const receipts=usageRecords(data,'shared-access','grok-imagine-image-2.0');
+  assert.equal(receipts.length,1);assert.equal(receipts[0].costUsd,'0.04');assert.equal(receipts[0].input,null);
 });
 
 test('OpenAI image generation sends official JSON without unsupported response_format',async t=>{
@@ -311,7 +312,7 @@ test('new official usage does not overwrite the previous aggregate',async t=>{
   mockFetch(t,()=>responses());
   await (await worker.fetch(request('gpt-6-astra'),env)).text();
   assert.deepEqual(JSON.parse(data.get('usage:user:tester:gpt-6-astra')),original);
-  assert.equal(JSON.parse(data.get('usage:user:tester:official~gpt-6-astra')).calls,1);
+  assert.equal(usageRecords(data,'shared-access','gpt-6-astra').length,1);
 });
 
 test('memory extraction retains the official Anthropic route and stores text only',async t=>{
@@ -411,7 +412,7 @@ test('cached Grok 4.6 clients upgrade to 4.7 with the actual model name and usag
   mockFetch(t,(url,options)=>{assert.equal(JSON.parse(options.body).model,'grok-4.7');return responses();});
   const output=events(await(await worker.fetch(request('grok-4.6'),env)).text());
   assert.equal(output.find(row=>row.modelName).modelName,'Grok 4.7');
-  assert.equal(JSON.parse(data.get('usage:user:tester:official~grok-4.7')).calls,1);
+  assert.equal(usageRecords(data,'shared-access','grok-4.7').length,1);
   assert.equal(data.has('usage:user:tester:official~grok-4.6'),false);
 });
 
@@ -505,7 +506,7 @@ test('Oakley requests retain the original usage ownership and reject a wrong acc
   data.set('user:oakleyyuen',JSON.stringify({hash:ownerHash}));
   const calls=mockFetch(t,()=>responses());
   await (await worker.fetch(request('grok-4.7',{user:'Oakley',password:ownerHash}),env)).text();
-  assert.equal(JSON.parse(data.get('usage:user:oakleyyuen:official~grok-4.7')).calls,1);
+  assert.equal(usageRecords(data,'oakleyyuen','grok-4.7').length,1);
   assert.equal(data.has('usage:user:oakley:official~grok-4.7'),false);
   const rejected=await worker.fetch(request('grok-4.7',{user:'Oakley',password:await sha('wrong-password')}),env);
   assert.equal(rejected.status,401);assert.equal(calls.length,1);

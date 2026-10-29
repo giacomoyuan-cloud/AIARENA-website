@@ -41,7 +41,7 @@ test('saved account prompts survive new requests, reset restores defaults and me
   await chat(env);assert.match(calls.at(-1).system,/CUSTOM_ACCOUNT_CANARY/);assert.doesNotMatch(calls.at(-1).system,/CLIENT_DEFAULT/);assert.match(calls.at(-1).system,/SCOPED_MEMORY/);
   const reset=await setting(env,'reset');assert.equal(reset.custom,false);assert.equal(reset.prompt,reset.defaultPrompt);
   await chat(env);assert.doesNotMatch(calls.at(-1).system,/CUSTOM_ACCOUNT_CANARY/);assert.match(calls.at(-1).system,/CLIENT_DEFAULT/);
-  assert.equal(data.get('mem:tester'),'SCOPED_MEMORY');assert.ok(writes.every(k=>k==='system-prompt:tester'));
+  assert.equal(data.get('mem:tester'),'SCOPED_MEMORY');assert.ok(writes.every(k=>k==='system-prompt:tester'||k.startsWith('billing:pending:tester:')));
 });
 test('account prompt settings require account authentication and cannot select another owner',async t=>{
   const {env,reads,writes}=setup(),calls=providers(t);
@@ -52,7 +52,7 @@ test('account prompt settings require account authentication and cannot select a
   await setting(env,'save',{prompt:'OWNER_ONLY',owner:'other',username:'tester'});
   assert.equal((await setting(env,'get',{user:'other'})).custom,false);
   reads.length=0;await chat(env,{password:shared});assert.ok(!reads.some(k=>k.startsWith('system-prompt:')));assert.doesNotMatch(calls.at(-1).system,/OWNER_ONLY/);
-  assert.deepEqual(writes,['system-prompt:tester']);
+  assert.deepEqual(writes.filter(k=>!k.startsWith('billing:pending:shared-access:')),['system-prompt:tester']);
 });
 test('Oakley uses the existing account key without changing its credentials',async()=>{
   const {env,data}=setup();data.set('user:oakleyyuen',JSON.stringify({hash:pass}));

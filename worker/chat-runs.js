@@ -1,3 +1,4 @@
+import { handleBillingLedger } from './billing-ledger.js';
 // A generation belongs to its chat, not to a phone's HTTP connection.
 // Credentials and provider keys are never written to Durable Object storage.
 const encoder = new TextEncoder();
@@ -231,6 +232,8 @@ export function createChatRunClass(execute, DebateRun, { deferStart = () => fals
     }
 
     async fetch(request) {
+      const target=new URL(request.url);
+      if(target.hostname==='usage-ledger.internal'&&target.pathname==='/__billing')return handleBillingLedger(this.ctx,request);
       const body = await request.json();
       if (body.kind === 'debate' && this.debate) return this.debate.fetchBody(body);
       if (body.action === 'start') {
