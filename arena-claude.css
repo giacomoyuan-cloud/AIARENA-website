@@ -223,3 +223,167 @@
   /* 原设计在手机上把设置按钮做成纯图标，这里保留，只把它补成和其他按钮一样的方块 */
   #ai-arena-app.arena-shell .aa-image-tool.settings { width: var(--claude-h); max-width: var(--claude-h); flex: 0 0 var(--claude-h); padding: 0; justify-content: center; }
 }
+
+/* ================= 布局：按 Claude 原型 =================
+   以下规则改的是摆放方式，不只是颜色：空白状态居中、整个输入区是一张卡片、回复去掉头像。 */
+
+/* 空白状态：问候语 + 输入卡片 + 快捷按钮作为一组停在视觉中心 */
+#ai-arena-app.arena-shell .aa-chat.empty-state { justify-content: safe center; padding-bottom: 8vh; }
+#ai-arena-app.arena-shell .aa-chat.empty-state .aa-messages { flex: 0 0 auto; height: 0; min-height: 0; padding: 0; overflow: hidden; }
+#ai-arena-app.arena-shell .aa-chat.empty-state .aa-welcome { position: static; inset: auto; transform: none; display: flex; align-items: center; justify-content: center; gap: 12px; margin: 0 16px 26px; pointer-events: auto; }
+#ai-arena-app.arena-shell .aa-chat.empty-state .aa-kitten--welcome { width: 60px; height: 60px; }
+#ai-arena-app.arena-shell .aa-chat.empty-state .aa-welcome h1 { margin: 0; text-align: left; }
+#ai-arena-app.arena-shell.arena-debate-mode .aa-chat.empty-state .aa-welcome { display: flex !important; width: auto; column-gap: 12px; }
+#ai-arena-app.arena-shell.arena-debate-mode .aa-chat.empty-state .arena-kitten-greeting,
+#ai-arena-app.arena-shell.arena-debate-mode .aa-chat.empty-state .aa-kitten--welcome { width: 60px; height: 60px; }
+#ai-arena-app.arena-shell.arena-debate-mode .aa-chat.empty-state .aa-welcome h1 { font: 400 clamp(26px, 3.4vw, 34px)/1.2 var(--claude-serif); }
+
+/* 快捷按钮：只在对话模式的空白状态出现 */
+#ai-arena-app.arena-shell .arena-starters { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; width: calc(100% - 32px); max-width: var(--arena-reading-width); margin: 14px auto 0; }
+#ai-arena-app.arena-shell .arena-starters button { height: var(--claude-h); display: inline-flex; align-items: center; gap: 7px; padding: 0 12px; border: .5px solid var(--claude-line-2); border-radius: 10px; background: transparent; color: var(--claude-text-2); font: 14px var(--arena-ui-font); cursor: pointer; }
+#ai-arena-app.arena-shell .arena-starters button:hover { background: var(--arena-hover); color: var(--arena-text); }
+#ai-arena-app.arena-shell .arena-starters svg { width: 16px; height: 16px; color: var(--arena-muted); }
+#ai-arena-app.arena-shell .aa-chat:not(.empty-state) .arena-starters,
+#ai-arena-app.arena-shell.arena-debate-mode .arena-starters,
+#ai-arena-app.arena-shell.arena-image-mode .arena-starters { display: none; }
+
+/* 整个输入区是一张卡片：附件、引用、辩论设置、技能标签都在卡片里，输入行本身不再单独描边 */
+#ai-arena-app.arena-shell .aa-input-area,
+#ai-arena-app.arena-shell .aa-chat.empty-state.image-composer-state .aa-input-area { width: calc(100% - 32px); max-width: var(--arena-reading-width); margin: 0 auto max(16px, env(safe-area-inset-bottom)); padding: 10px; border-radius: 20px; background: var(--arena-surface); box-shadow: var(--claude-shadow); transition: box-shadow .15s; }
+#ai-arena-app.arena-shell .aa-chat.empty-state .aa-input-area { margin-bottom: 0; }
+#ai-arena-app.arena-shell .aa-input-area:focus-within { box-shadow: var(--claude-shadow-focus); }
+#ai-arena-app.arena-shell .aa-input-row,
+#ai-arena-app.arena-shell .aa-input-row.image-mode-layout,
+#ai-arena-app.arena-shell .aa-input-row:focus-within,
+#ai-arena-app.arena-shell:not(.arena-image-mode) .aa-input-row,
+#ai-arena-app.arena-shell .aa-chat:not(.empty-state) .aa-input-row { padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+#ai-arena-app.arena-shell .arena-composer-footer { display: none; }
+#ai-arena-app.arena-shell:has(#aaIncognitoBtn[aria-pressed="true"]) .aa-input-area { background: transparent; box-shadow: none; outline: 1px dashed var(--claude-line-2); outline-offset: -1px; }
+#ai-arena-app.arena-shell:has(#aaIncognitoBtn[aria-pressed="true"]) .aa-input-row { border: 0; }
+#ai-arena-app.arena-shell.arena-debate-mode .aa-input-row { margin-top: 8px; padding-top: 8px; border-top: .5px solid var(--claude-line); }
+
+/* 技能标签：选中 Skills 后出现在输入框里，点 ✕ 停用 */
+#ai-arena-app.arena-shell .arena-skill-pill { display: inline-flex; align-items: center; gap: 6px; height: 32px; margin: 0 0 8px; padding: 0 3px 0 10px; border-radius: 9px; background: var(--claude-accent-soft); color: var(--claude-accent-2); font: 500 13.5px var(--arena-ui-font); }
+#ai-arena-app.arena-shell .arena-skill-pill[hidden] { display: none; }
+#ai-arena-app.arena-shell .arena-skill-pill svg { width: 15px; height: 15px; }
+#ai-arena-app.arena-shell .arena-skill-pill button { width: 24px; height: 24px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 6px; background: transparent; color: inherit; cursor: pointer; }
+#ai-arena-app.arena-shell .arena-skill-pill button svg { width: 14px; height: 14px; }
+#ai-arena-app.arena-shell .arena-skill-pill button:hover { background: var(--claude-accent-soft); }
+
+/* 回复：不放头像，模型名放到操作按钮那一行的右边；生成中的状态小猫保留但缩小 */
+#ai-arena-app.arena-shell .aa-msg:not(.user-msg) { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; }
+#ai-arena-app.arena-shell .aa-msg:not(.user-msg) > * { grid-column: 1 / -1; min-width: 0; }
+#ai-arena-app.arena-shell .aa-msg:not(.user-msg) > .aa-msg-head { display: contents; }
+#ai-arena-app.arena-shell .aa-msg .aa-kitten--reply { display: none; }
+#ai-arena-app.arena-shell .aa-msg:not(.user-msg) > .arena-message-actions { grid-column: 1; order: 9; margin-top: 8px; }
+#ai-arena-app.arena-shell .aa-msg:not(.user-msg) .aa-msg-name { grid-column: 2; order: 10; align-self: end; margin: 8px 0 4px; color: var(--arena-muted) !important; font-size: 12.5px; font-weight: 400; }
+#ai-arena-app.arena-shell .aa-kitten--progress { width: 40px; height: 40px; }
+#ai-arena-app.arena-shell .arena-progress:has(.aa-kitten) { min-height: 40px; gap: 8px; }
+#ai-arena-app.arena-shell .aa-msg.user-msg .arena-user-actions { opacity: 0; transition: opacity .15s; }
+#ai-arena-app.arena-shell .aa-msg.user-msg:hover .arena-user-actions,
+#ai-arena-app.arena-shell .aa-msg.user-msg:focus-within .arena-user-actions { opacity: 1; }
+@media (hover: none) { #ai-arena-app.arena-shell .aa-msg.user-msg .arena-user-actions { opacity: 1; } }
+
+@media (max-width: 600px) {
+  #ai-arena-app.arena-shell .aa-input-area,
+  #ai-arena-app.arena-shell .aa-chat.empty-state.image-composer-state .aa-input-area { width: calc(100% - 20px); margin-bottom: max(10px, env(safe-area-inset-bottom)); max-height: 63%; }
+  #ai-arena-app.arena-shell .aa-chat.empty-state .aa-welcome { flex-direction: column; gap: 8px; }
+  #ai-arena-app.arena-shell .aa-chat.empty-state .aa-welcome h1 { text-align: center; }
+  #ai-arena-app.arena-shell .aa-chat.empty-state .aa-kitten--welcome { width: 56px; height: 56px; }
+  #ai-arena-app.arena-shell .arena-starters { width: calc(100% - 20px); }
+}
+
+/* 无痕按钮：图标 + “无痕模式”，按下状态表示开启；手机上只留图标 */
+#ai-arena-app.arena-shell #aaIncognitoBtn { display: inline-flex; align-items: center; gap: 6px; }
+#ai-arena-app.arena-shell #aaIncognitoBtn svg { width: 16px; height: 16px; }
+@media (max-width: 600px) {
+  #ai-arena-app.arena-shell #aaIncognitoBtn { width: 34px; padding: 0; justify-content: center; }
+  #ai-arena-app.arena-shell #aaIncognitoBtn span { display: none; }
+}
+
+/* ---------- 辩论设置：方式 + 总结 / 轮数 + 调用次数 + 阶段 / 席位胶囊 ---------- */
+#ai-arena-app.arena-shell #aaDebateControls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+#ai-arena-app.arena-shell #aaDebateControls > .arena-debate-control-row { flex: 1 0 100%; justify-content: flex-start; gap: 8px; }
+#ai-arena-app.arena-shell #aaDebateControls > .arena-debate-round-row { flex: 0 1 auto; margin-top: 0; }
+#ai-arena-app.arena-shell #aaDebateControls > .arena-debate-round-row > span:first-child { color: var(--arena-muted); }
+#ai-arena-app.arena-shell #aaDebateBudget { margin-left: 2px; color: var(--arena-muted); font-size: 12.5px; }
+#ai-arena-app.arena-shell #aaDebateStageHelp { margin: 0 0 0 auto; font-size: 12.5px; color: var(--arena-muted); }
+#ai-arena-app.arena-shell #aaDebateProgress { flex: 1 0 100%; margin: 0; }
+
+/* 自由讨论：每个席位是一颗胶囊，“添加席位”跟在最后 */
+#ai-arena-app.arena-shell .arena-free-participants { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
+#ai-arena-app.arena-shell .arena-free-participants > .arena-persona-heading { display: contents; }
+#ai-arena-app.arena-shell .arena-free-participants > .arena-persona-heading > span { display: none; }
+#ai-arena-app.arena-shell .arena-free-grid { display: contents; }
+#ai-arena-app.arena-shell .arena-free-seat { display: inline-flex; align-items: center; height: 32px; padding-right: 3px; border: .5px solid var(--claude-line-2); border-radius: 999px; background: var(--arena-surface); }
+#ai-arena-app.arena-shell .arena-free-seat .arena-seat-number { display: none; }
+#ai-arena-app.arena-shell .arena-free-seat .arena-free-model { min-width: 0; }
+#ai-arena-app.arena-shell .arena-free-seat .arena-select-trigger { width: auto; height: 30px; min-height: 30px; padding: 0 6px 0 12px; gap: 6px; border: 0; border-radius: 999px; background: transparent; font-size: 13.5px; }
+#ai-arena-app.arena-shell .arena-free-seat .arena-role-remove,
+#ai-arena-app.arena-shell .aa-persona-slot .arena-role-remove { width: 24px; height: 24px; min-width: 24px; padding: 0; border-radius: 6px; }
+#ai-arena-app.arena-shell #aaAddParticipant,
+#ai-arena-app.arena-shell #aaAddPersona { order: 2; height: 32px; display: inline-flex; align-items: center; gap: 5px; padding: 0 12px 0 10px; border: .5px dashed var(--claude-line-2); border-radius: 999px; background: transparent; color: var(--arena-muted); font: 13.5px var(--arena-ui-font); cursor: pointer; }
+#ai-arena-app.arena-shell #aaAddParticipant::before,
+#ai-arena-app.arena-shell #aaAddPersona::before { content: "+"; font-size: 16px; line-height: 1; }
+#ai-arena-app.arena-shell #aaAddParticipant:hover,
+#ai-arena-app.arena-shell #aaAddPersona:hover { color: var(--arena-text); background: var(--arena-hover); }
+
+/* 角色讨论：每个角色一张小卡片，不放字段标签 */
+/* 角色区靠行内 style.display 切换显示；只在显示（block）时改成纵向弹性布局，隐藏状态保持不变 */
+#ai-arena-app.arena-shell #aaPersonaArea[style*="block"] { display: flex !important; flex-direction: column; align-items: flex-start; gap: 8px; margin-top: 10px; }
+#ai-arena-app.arena-shell .aa-persona-area > .arena-persona-heading { display: contents; }
+#ai-arena-app.arena-shell .aa-persona-area > .arena-persona-heading > span { display: none; }
+#ai-arena-app.arena-shell .aa-persona-grid { align-self: stretch; display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px; }
+#ai-arena-app.arena-shell .aa-persona-slot { display: flex; flex-direction: column; gap: 6px; padding: 8px; border: .5px solid var(--claude-line-2); border-radius: 12px; background: var(--arena-bg); }
+#ai-arena-app.arena-shell .arena-role-heading { min-height: 24px; padding-left: 2px; font-size: 12.5px; font-weight: 400; color: var(--arena-muted); }
+#ai-arena-app.arena-shell .arena-role-field { gap: 0; }
+#ai-arena-app.arena-shell .arena-role-field > span { display: none; }
+#ai-arena-app.arena-shell .aa-persona-model .arena-select-trigger { height: 32px; min-height: 32px; padding: 0 10px; border: .5px solid var(--claude-line-2); border-radius: 8px; background: var(--arena-surface); font-size: 13.5px; }
+#ai-arena-app.arena-shell .aa-persona-input { height: 32px; padding: 6px 10px; font-size: 13.5px; }
+
+/* 2v2：正方 / 反方各两颗胶囊，排成一行 */
+#ai-arena-app.arena-shell .aa-seats-row { display: flex; flex-wrap: wrap; gap: 10px 18px; margin-top: 10px; }
+#ai-arena-app.arena-shell .aa-seat-zone { display: inline-flex; align-items: center; gap: 6px; padding: 0; border: 0; border-radius: 0; background: transparent; }
+#ai-arena-app.arena-shell .aa-seat-title { margin: 0 2px 0 0; font-size: 12.5px; color: var(--arena-muted); }
+#ai-arena-app.arena-shell .aa-seat-slots { display: flex; gap: 6px; }
+#ai-arena-app.arena-shell .aa-seat-slots .arena-select-trigger { width: auto; height: 32px; min-height: 32px; padding: 0 10px 0 12px; border: .5px solid var(--claude-line-2); border-radius: 999px; background: var(--arena-surface); font-size: 13.5px; }
+#ai-arena-app.arena-shell .aa-persona-grid { width: 100%; }
+#ai-arena-app.arena-shell .aa-persona-slot { align-items: stretch; }
+#ai-arena-app.arena-shell .aa-persona-slot .arena-role-heading { width: auto; }
+#ai-arena-app.arena-shell .aa-seats-row { justify-content: flex-start; }
+#ai-arena-app.arena-shell .aa-seat-zone { flex: 0 0 auto; }
+#ai-arena-app.arena-shell .aa-seat-slots { flex-direction: row; }
+
+/* ---------- 模型与思考强度菜单：左侧档位 + 恢复默认 / 整行模型 / 细轨道滑块 + 两端档位 ---------- */
+#ai-arena-app.arena-shell #aaChatModelPop { --effort-accent: var(--arena-accent); width: 290px; padding: 6px; }
+#ai-arena-app.arena-shell .arena-effort-heading { grid-template-columns: minmax(0, 1fr) 28px; min-height: 32px; padding: 2px 4px 2px 10px; }
+#ai-arena-app.arena-shell .arena-effort-heading > span:first-child { display: none; }
+#ai-arena-app.arena-shell .arena-effort-heading > output,
+#ai-arena-app.arena-shell:not(.light-mode) .arena-effort-heading > output { text-align: left; color: var(--arena-text); font: 500 15px/1.4 var(--claude-serif); letter-spacing: 0; }
+#ai-arena-app.arena-shell .arena-effort-model { justify-content: flex-start; gap: 9px; min-height: 40px; margin-top: 2px; padding: 0 10px; border-radius: 9px; background: var(--arena-hover); color: var(--arena-text); font-size: 14px; }
+#ai-arena-app.arena-shell .arena-effort-model > span { flex: 1; text-align: left; }
+#ai-arena-app.arena-shell .arena-effort-model svg { color: var(--arena-muted); }
+/* 滑块几何由 arena-effort.js 按 32px 圆点计算，这里只改外观：轨道变 4px 细线，圆点视觉 18px、外框仍是 32px */
+#ai-arena-app.arena-shell #aaChatModelPop .arena-effort-scale { height: 44px; margin: 8px 6px 0; }
+#ai-arena-app.arena-shell #aaChatModelPop .arena-effort-track { inset: 20px 0; height: 4px; border-radius: 4px; }
+#ai-arena-app.arena-shell #aaChatModelPop .arena-effort-thumb > span { width: 18px; height: 18px; margin: 7px; border: 2px solid var(--arena-accent); background: var(--arena-surface); box-shadow: 0 1px 4px rgba(0, 0, 0, .2); }
+#ai-arena-app.arena-shell #aaChatModelPop .arena-effort-halo { box-shadow: 0 0 0 6px var(--claude-accent-soft); }
+#ai-arena-app.arena-shell #aaChatModelPop .arena-effort-ticks > span { opacity: .6; }
+#ai-arena-app.arena-shell .arena-effort-ends { display: flex; justify-content: space-between; margin: -6px 8px 4px; font-size: 11.5px; color: var(--arena-muted); }
+#ai-arena-app.arena-shell .arena-model-picker .arena-model-option { min-height: 38px; padding: 8px 10px; border-radius: 8px; font-size: 14px; }
+#ai-arena-app.arena-shell .arena-model-picker .arena-model-option[aria-pressed="true"] .arena-model-check { color: var(--claude-accent-2); }
+
+/* ---------- 登录：大猫 + 衬线标题 + 两个独立输入框 + 整宽按钮，不包卡片 ---------- */
+#ai-arena-app.arena-shell #aaLoginOverlay { background: var(--arena-bg) !important; }
+#ai-arena-app.arena-shell #aaLoginOverlay > div { max-width: 360px !important; }
+#ai-arena-app.arena-shell #aaLoginOverlay h2 { margin: 4px 0 22px !important; font: 400 36px/1.1 var(--claude-serif) !important; letter-spacing: -.01em; }
+#ai-arena-app.arena-shell #aaLoginOverlay > div > p:empty { display: none; }
+#ai-arena-app.arena-shell #aaLoginOverlay > div > div:nth-of-type(2) { padding: 0 !important; border: 0 !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+#ai-arena-app.arena-shell #aaLoginOverlay .aa-key-input { height: 46px; padding: 0 14px; border: .5px solid var(--claude-line-2) !important; border-radius: 12px !important; background: var(--arena-surface) !important; font-size: 15px; outline: 0; }
+#ai-arena-app.arena-shell #aaLoginOverlay .aa-key-input:focus { border-color: var(--arena-accent) !important; box-shadow: 0 0 0 3px var(--claude-accent-soft); }
+#ai-arena-app.arena-shell #aaLoginBtn { height: 46px !important; margin-top: 4px !important; border-radius: 12px !important; font-size: 15px !important; font-weight: 500 !important; }
+#ai-arena-app.arena-shell #aaLoginBtn:hover { background: var(--claude-accent-2) !important; }
+
+/* ---------- 图像结果：圆角卡片 ---------- */
+#ai-arena-app.arena-shell .aa-generated-stage { border-radius: 14px; overflow: hidden; }
+#ai-arena-app.arena-shell .aa-generated-image { border-radius: 14px; }
