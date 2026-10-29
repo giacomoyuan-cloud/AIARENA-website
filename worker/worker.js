@@ -1536,5 +1536,7 @@ const DebateRun = createDebateRunClass(executeRun, async (job, env) => {
   // Retrieve the existing credential only for this execution, never store it in a job.
   return { user: job.user, username: job.user, password: record.hash, passwordHash: record.hash };
 }, DebateCore);
-const ChatRun = createChatRunClass(executeRun, DebateRun);
+const ChatRun = createChatRunClass(executeRun, DebateRun, {
+  deferStart: payload => OFFICIAL_MODELS[payload.model]?.provider === 'openai'
+});
 export { worker_default as default, ChatRun };
