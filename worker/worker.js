@@ -302,11 +302,11 @@ async function handleAccountRequest(request,env){
     return projectReply({ok:true,profile:accountProfile(user,record,updated)});
   }catch(error){return projectReply({error:error instanceof SyntaxError?"账号请求无效":"保存失败，请稍后重试"},error instanceof SyntaxError?400:500);}
 }
-async function ownedProject(env,user,id,includeArchived=false){
+async function ownedProject(env,user,id,includeArchived=false,includeDeleted=false){
   if(!validResourceId(id))throw Object.assign(new Error("项目不存在"),{status:404});
   const value=await env.BIZ_KV.get(projectKey(user,id)+":meta");
   const project=value?JSON.parse(value):null;
-  if(!project||project.owner!==user||(!includeArchived&&project.archivedAt))throw Object.assign(new Error("项目不存在或已归档"),{status:404});
+  if(!project||project.owner!==user||(!includeDeleted&&project.deletedAt)||(!includeArchived&&project.archivedAt))throw Object.assign(new Error("项目不存在、已归档或已删除"),{status:404});
   return project;
 }
 const GENERAL_CHAT_RULE="You are a helpful AI assistant. Answer in the user's language.";
@@ -357,7 +357,7 @@ async function pinnedIds(kv,prefix){
   return ids;
 }
 async function saveProjectCatalog(env,user,project){
-  const list=await projectCatalog(env,user),item={id:project.id,name:project.name,createdAt:project.createdAt,updatedAt:project.updatedAt,archivedAt:project.archivedAt||null};
+  const list=await projectCatalog(env,user),item={id:project.id,name:project.name,createdAt:project.createdAt,updatedAt:project.updatedAt,archivedAt:project.archivedAt||null,deletedAt:project.deletedAt||null};
   const index=list.findIndex(p=>p.id===project.id);
   if(index<0)list.unshift(item);else list[index]=item;
   await putProjectKV(env.BIZ_KV,"projects:"+user+":list",JSON.stringify(list));
@@ -370,20 +370,33 @@ async function handleProjectRequest(request,env){
     const action=body.action||"list";
     if(action==="list"){
       const [list,pins]=await Promise.all([projectCatalog(env,user),pinnedIds(env.BIZ_KV,"projects:"+user+":pin:")]);
-      return projectReply({projects:list.filter(p=>body.includeArchived?!!p.archivedAt:!p.archivedAt).map(p=>pins.has(p.id)?{...p,pinned:true}:p)});
+      return projectReply({projects:list.filter(p=>body.includeDeleted===true?!!p.deletedAt:!p.deletedAt&&(body.includeArchived===true?!!p.archivedAt:!p.archivedAt)).map(p=>!p.deletedAt&&pins.has(p.id)?{...p,pinned:true}:p)});
     }
     if(action==="create"){
       const name=String(body.name||"").trim(),instructions=String(body.instructions||"");
       if(!name||name.length>80||instructions.length>4000)return projectReply({error:"项目名称需为 1–80 字，说明不超过 4000 字"},400);
       const catalog=await projectCatalog(env,user);
-      if(catalog.filter(p=>!p.archivedAt).length>=30)return projectReply({error:"最多保留 30 个未归档项目"},400);
+      if(catalog.filter(p=>!p.archivedAt&&!p.deletedAt).length>=30)return projectReply({error:"最多保留 30 个未归档项目"},400);
       const project={id:crypto.randomUUID(),owner:user,name,instructions,createdAt:Date.now(),updatedAt:Date.now(),archivedAt:null};
       await putProjectKV(env.BIZ_KV,projectKey(user,project.id)+":meta",JSON.stringify(project));
       await saveProjectCatalog(env,user,project);
       return projectReply({project:{...project,files:[],memory:""}});
     }
-    const project=await ownedProject(env,user,body.projectId,action==="archive");
+    const project=await ownedProject(env,user,body.projectId,["archive","delete","restore"].includes(action),["delete","restore"].includes(action));
     const prefix=projectKey(user,project.id);
+    if(action==="delete"||action==="restore"){
+      if(action==="restore"&&!project.deletedAt)return projectReply({ok:true,project});
+      if(action==="restore"&&(await projectCatalog(env,user)).filter(p=>!p.archivedAt&&!p.deletedAt&&p.id!==project.id).length>=30)return projectReply({error:"项目已满，请先归档或删除一个项目后再恢复"},400);
+      if(action==="delete")project.deletedAt=project.deletedAt||Date.now();
+      else {project.deletedAt=null;project.archivedAt=null;}
+      project.updatedAt=Math.max(Date.now(),Number(project.updatedAt||0)+1);
+      // Keep chats, materials, memory and prompts recoverable, but ordinary
+      // endpoints and scheduled executions must reject the deleted project.
+      await putProjectKV(env.BIZ_KV,prefix+":meta",JSON.stringify(project));
+      await saveProjectCatalog(env,user,project);
+      await env.BIZ_KV.delete("projects:"+user+":pin:"+project.id);
+      return projectReply({ok:true,project});
+    }
     if(action==="pin"){
       if(typeof body.pinned!=="boolean")return projectReply({error:"置顶状态无效"},400);
       const key="projects:"+user+":pin:"+project.id;
@@ -404,7 +417,7 @@ async function handleProjectRequest(request,env){
           await putProjectKV(env.MEMORY_KV,memoryStorageKey(user,project.id),body.memory);
         }
       }else project.archivedAt=body.archived===false?null:Date.now();
-      project.updatedAt=Date.now();
+      project.updatedAt=Math.max(Date.now(),Number(project.updatedAt||0)+1);
       await putProjectKV(env.BIZ_KV,prefix+":meta",JSON.stringify(project));await saveProjectCatalog(env,user,project);
       return projectReply({project});
     }
@@ -974,7 +987,7 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
       return new Response(JSON.stringify(result), { headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
     }
     if (request.method === "GET" && url.pathname !== "/memory") {
-      return new Response(JSON.stringify({ mode: "official", debate:DebateCore.version==='studio-v3'&&DebateRun.contractVersion==='studio-v3'?'studio-v3':null, skillsVersion:"20261030-skillmodels1", chatModesVersion:"20261030-chatmodes1", xai: !!env.GROK_API_KEY, openai: !!env.OPENAI_API_KEY, anthropic: !!env.ANTHROPIC_API_KEY, google: !!env.GEMINI_API_KEY, mj: false }), {
+      return new Response(JSON.stringify({ mode: "official", debate:DebateCore.version==='studio-v3'&&DebateRun.contractVersion==='studio-v3'?'studio-v3':null, skillsVersion:"20261030-skillmodels1", chatModesVersion:"20261030-chatmodes1", projectsVersion:"20261030-projectactions1", xai: !!env.GROK_API_KEY, openai: !!env.OPENAI_API_KEY, anthropic: !!env.ANTHROPIC_API_KEY, google: !!env.GEMINI_API_KEY, mj: false }), {
         status: 200,
         headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*", "Cache-Control":"no-store" }
       });
