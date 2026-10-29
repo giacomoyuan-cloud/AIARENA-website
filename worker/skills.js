@@ -1,6 +1,7 @@
 import catalog from './skills-catalog.js';
+import SkillModels from '../arena-skill-models.js';
 export const ROUTER_MODEL='claude-haiku-4-5-20251001';
-export const DOCUMENT_MODEL='claude-sonnet-5-5';
+export const DOCUMENT_MODEL=SkillModels.defaultModel;
 export const skillCatalog=catalog;
 export function normalizeSettings(value){
   if(!value)return {mode:'off',ids:[]}; // Cached clients retain their previous behavior.

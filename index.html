@@ -1263,7 +1263,8 @@
 <script src="/arena-effort.js?v=20261028-effortfix1"></script>
 <script src="/arena-context.js?v=20261027-account1"></script>
 <script src="/arena-skills-catalog.js?v=20261030-skills1"></script>
-<script src="/arena-skills.js?v=20261030-skills1"></script>
+<script src="/arena-skill-models.js?v=20261030-skillmodels1"></script>
+<script src="/arena-skills.js?v=20261030-skillmodels1"></script>
 <script src="/arena-chat-runs.js?v=20261029-typingclock1"></script>
 <script src="/arena-controls.js?v=20261029-debateresume1"></script>
 <script src="/arena-debate.js?v=20261030-debatestudio3"></script>
@@ -1524,7 +1525,8 @@ var TEAM_COLORS = {
   var skillsRuntime=ArenaSkills.install({
     auth:function(){return {username:$('aaUsername').value.trim(),password:getPass()};},
     scope:function(){return activeProjectId||'general';},mode:function(){return debate?'debate':'chat';},worker:function(){return WORKER;},
-    messages:function(){return msgs;},notice:function(text){arenaNotice(text);},changed:function(){render();saveCurrentChat();}
+    messages:function(){return msgs;},notice:function(text){arenaNotice(text);},changed:function(){render();saveCurrentChat();},
+    selectionChanged:function(){closeArenaModelMenu(false);enforceSkillModel();syncBrandUI();}
   });
   var _incognitoMode = false;
   var judgeModel = 'none';
@@ -1533,6 +1535,7 @@ var TEAM_COLORS = {
     'gpt-6-astra': {input:10,output:50},
     'gpt-6.1-sol': {input:2,output:10},
     'grok-4.7': {input:2,output:6},
+    'claude-fable-5-1': {input:10,output:50},
     'claude-sonnet-5-5': {input:2,output:10},
     'claude-opus-5-5': {input:4,output:20}
   };
@@ -1966,7 +1969,31 @@ var TEAM_COLORS = {
   }
 
   // === Get active submodel IDs for sending ===
+  function skillModelRestricted(){
+    return !debate&&!imageMode&&!videoMode&&!!skillsRuntime&&ArenaSkillModels.restricted(skillsRuntime.settings(),ArenaSkillCatalog);
+  }
+  function eligibleChatModels(){
+    return skillModelRestricted()?AVAILABLE_CHAT_MODELS.filter(ArenaSkillModels.supported):AVAILABLE_CHAT_MODELS;
+  }
+  function enforceSkillModel(){
+    if(aaRunning||!skillModelRestricted())return;
+    var model=ArenaSkillModels.choose(brandSelection.anthropic);
+    if(activeBrands.anthropic&&brandSelection.anthropic===model&&!Object.keys(activeBrands).some(function(brand){return brand!=='anthropic'&&activeBrands[brand];}))return;
+    activeBrands={xai:false,anthropic:true,openai:false,google:false,mj:false,kling:false};
+    brandSelection.anthropic=model;
+    saveState();
+  }
+  function adoptSkillExecutionModel(model,message){
+    if(!ArenaSkillModels.supported(model))return;
+    message.executionModel=model;message.submodel=model;message.brand='anthropic';message.name=SUBS[model].name+' · 官方文档';message.color=BRANDS.anthropic.color;
+    if(debate||imageMode||videoMode)return;
+    if(activeBrands.anthropic&&brandSelection.anthropic===model&&!Object.keys(activeBrands).some(function(brand){return brand!=='anthropic'&&activeBrands[brand];}))return;
+    activeBrands={xai:false,anthropic:true,openai:false,google:false,mj:false,kling:false};
+    brandSelection.anthropic=model;
+    saveState();syncBrandUI();
+  }
   function getActiveSubmodels(){
+    enforceSkillModel();
     normalizeAvailableModels();
     var result = [];
     if(videoMode && activeBrands['kling']){
@@ -5183,7 +5210,7 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
             if(meta.context)msgObj.context=meta.context;
             if(meta.skills)msgObj.skills=meta.skills;
             if(meta.skillSession)msgObj.skillSession=meta.skillSession;
-            if(meta.executionModel)msgObj.executionModel=meta.executionModel;
+            if(meta.executionModel)adoptSkillExecutionModel(meta.executionModel,msgObj);
             if(meta.artifacts)msgObj.artifacts=(msgObj.artifacts||[]).concat(meta.artifacts);
             if((meta.executionModel||meta.artifacts)&&firstChunk){firstChunk=false;beginStreamedReply(sub,msgObj);}
             if(meta.citation){
@@ -5999,8 +6026,8 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
     }
     $('aaChatModelPop').innerHTML=h;
     if(typeof ArenaEffort!=='undefined') ArenaEffort.mount($('aaEffortScale'));
-    $('aaModelsSubmenu').innerHTML='<div class="arena-model-picker-heading"><span>选择模型</span><button type="button" data-arena-model-back aria-label="返回思考强度">'+arrow+'</button></div>'
-      +AVAILABLE_CHAT_MODELS.map(function(id){return '<button type="button" class="arena-model-option" data-arena-model="'+id+'" aria-pressed="false"><span>'+SUBS[id].name.replace(/^Claude /,'')+'</span>'+check+'</button>';}).join('');
+    $('aaModelsSubmenu').innerHTML='<div class="arena-model-picker-heading"><span>'+(skillModelRestricted()?'当前 Skill 仅支持 Claude':'选择模型')+'</span><button type="button" data-arena-model-back aria-label="返回思考强度">'+arrow+'</button></div>'
+      +eligibleChatModels().map(function(id){return '<button type="button" class="arena-model-option" data-arena-model="'+id+'" aria-pressed="false"><span>'+SUBS[id].name.replace(/^Claude /,'')+'</span>'+check+'</button>';}).join('');
     syncArenaLayout();
   }
   $('aaChatModelPop').addEventListener('input', function(e){
@@ -6047,6 +6074,8 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
     if(!button) return;
     e.stopPropagation();
     var id = button.dataset.arenaModel;
+    if(!SUBS[id])return;
+    if(!debate&&eligibleChatModels().indexOf(id)===-1){arenaNotice('当前 Skill 仅支持 Claude');return;}
     var brand = SUBS[id].brand;
     if(debate && debateMode==='free'){
       var index=debateModels.indexOf(id);if(index===-1)debateModels.push(id);else debateModels.splice(index,1);

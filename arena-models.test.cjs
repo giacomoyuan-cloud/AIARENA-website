@@ -14,6 +14,7 @@ function browser(saved = {}) {
   const storage = new Map(Object.entries(saved));
   const context = vm.createContext({
     ArenaImage,
+    ArenaSkillModels:require('./arena-skill-models.js'),ArenaSkillCatalog:require('./skills/catalog.json'),skillsRuntime:null,aaRunning:false,
     localStorage: { getItem: key => storage.get(key) ?? null },
     document: { querySelectorAll: () => ['xai', 'anthropic', 'openai', 'google'].map(brand => ({ dataset: { brand } })) },
     imageMode: false, videoMode: false, debate: false, debateMode: 'free',
@@ -22,7 +23,7 @@ function browser(saved = {}) {
     brandSelection: { xai: 'grok-4.7', anthropic: 'claude-sonnet-5-5', google: 'gemini-4-argon' }
   });
   vm.runInContext(source.slice(source.indexOf('  var AVAILABLE_CHAT_MODELS'), source.indexOf('  var SYS_DEBATE')), context);
-  for (const name of ['loadState', 'normalizeAvailableModels', 'getActiveSubmodels']) vm.runInContext(browserFunction(name), context);
+  for (const name of ['skillModelRestricted','eligibleChatModels','enforceSkillModel','loadState', 'normalizeAvailableModels', 'getActiveSubmodels']) vm.runInContext(browserFunction(name), context);
   return context;
 }
 
