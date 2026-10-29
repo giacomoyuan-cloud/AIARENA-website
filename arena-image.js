@@ -125,7 +125,7 @@
       h+='<label class="arena-image-number"'+(s.format==='png'?' hidden':'')+'>输出压缩（0–100）<input type="number" data-image-setting="compression" aria-label="输出压缩" min="0" max="100" step="1" value="'+s.compression+'"></label>';
       h+='<p class="arena-image-field-help arena-image-span">每张独立生成，逐张显示并计费。画质越高、尺寸越大，通常等待越久、费用越高。</p>';
       h+='<details class="arena-image-disclosure arena-image-span"><summary><span>高级选项</span>'+icon('chevron')+'</summary>'+segments('partial','生成过程预览',[[0,'关闭'],[1,'1 次'],[2,'2 次'],[3,'3 次']],s.partial)+segments('moderation','内容过滤',[['auto','标准'],['low','较宽松']],s.moderation)+'<p class="arena-image-field-help">预览次数是上限，可能提前成图；每次预览额外计入 100 个图像输出 token。较宽松仍须符合 OpenAI 内容政策。</p></details>';
-      return h+'</div><div class="arena-image-settings-foot"><span>最多 16 张参考图 · 按实际 token 计费</span><a href="https://developers.openai.com/api/docs/guides/image-generation" target="_blank" rel="noopener noreferrer">OpenAI 官方说明</a></div>';
+      return h+'</div><div class="arena-image-settings-foot"><span>最多 16 张参考图 · 单图 10MB · 按 token 计费</span><a href="https://developers.openai.com/api/docs/guides/image-generation" target="_blank" rel="noopener noreferrer">OpenAI 官方说明</a></div>';
     }
     h+=ratioMarkup(c.ratios,s.ratio);
     if(!c.thinking&&task==='generation')h+=segments('count','生成数量',[[1,'1 张'],[2,'2 张'],[3,'3 张'],[4,'4 张']],s.count);

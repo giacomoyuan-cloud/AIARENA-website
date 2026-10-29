@@ -1434,7 +1434,7 @@ var grokImageResolution = localStorage.getItem('aa-grok-resolution') || '1k';
 var grokAspectRatio = localStorage.getItem('aa-grok-ratio') || '1:1';
 var grokImageQuality = localStorage.getItem('aa-grok-quality') || 'auto';
 var grokImageCount = parseInt(localStorage.getItem('aa-grok-count') || '2', 10);
-var openAIImageSettings={};try{openAIImageSettings=JSON.parse(localStorage.getItem('aa-openai-image-settings')||'{}');}catch(ignore){}
+var openAIImageSettings={};try{openAIImageSettings=JSON.parse(localStorage.getItem('aa-openai-image-settings')||'{}');if(!openAIImageSettings||typeof openAIImageSettings!=='object'||Array.isArray(openAIImageSettings))openAIImageSettings={};}catch(ignore){}
 var imageMaskState=null;
 var mjAspectRatio = localStorage.getItem('aa-mj-ratio') || '1:1';
 var TEAM_COLORS = {
@@ -2324,10 +2324,10 @@ var TEAM_COLORS = {
     var mime=['image/png','image/jpeg','image/webp'].indexOf(preview.mime)!==-1?preview.mime:'image/png';
     return '<div class="aa-generated-card arena-image-preview"><div class="aa-generated-stage"><img class="aa-generated-image" src="data:'+mime+';base64,'+esc(preview.data)+'" alt="生成过程预览"></div><p role="status">'+(failed?'生成未完成，预览不会保存为成图':'正在生成第 '+(Number(preview.batchIndex||0)+1)+' 张 · 此图为过程预览')+'</p></div>';
   }
-  function renderOpenAIImageDetails(details){
+  function renderOpenAIImageDetails(details,usage){
     var quality={auto:'自动画质',low:'草稿',medium:'标准',high:'精细',xhigh:'超精细',max:'最高'}[details.quality]||details.quality||'';
     var summary=[details.size==='auto'?'自动尺寸':details.size,quality,String(details.format||'png').toUpperCase(),details.background==='transparent'?'透明背景':''].filter(Boolean).join(' · ');
-    return '<details class="arena-image-result-details"><summary>生成详情 <span>'+esc(summary)+'</span></summary>'+(details.revisedPrompt?'<p class="arena-image-field-help">本次使用的描述</p><p>'+esc(details.revisedPrompt)+'</p>':'')+(details.usage?'<p>图像 token：输入 '+esc(details.usage.input_tokens??'—')+' · 输出 '+esc(details.usage.output_tokens??'—')+'</p>':'<p>图像用量与最终金额以 OpenAI 账单为准；对话式改图还会产生文字模型的用量。</p>')+'</details>';
+    return '<details class="arena-image-result-details"><summary>生成详情 <span>'+esc(summary)+'</span></summary>'+(details.revisedPrompt?'<p class="arena-image-field-help">本次使用的描述</p><p>'+esc(details.revisedPrompt)+'</p>':'')+(details.usage?'<p>图像 token：输入 '+esc(details.usage.input_tokens??'—')+' · 输出 '+esc(details.usage.output_tokens??'—')+'</p>':'<p>图像用量与最终金额以 OpenAI 账单为准；对话式改图还会产生文字模型的用量。</p>')+(usage&&usage.mainline?'<p>本次任务描述理解与编辑上下文：GPT-6.1 Sol · 输入 '+esc(usage.mainline.input)+' · 输出 '+esc(usage.mainline.output)+' token。</p>':'')+'</details>';
   }
   function showPreview(dataUrl){ if(!dataUrl) return; if(sentImgs.length < imageReferenceLimit()){ sentImgs.push({data: dataUrl.split(',').length > 1 ? dataUrl.split(',')[1] : dataUrl, mime: 'image/jpeg', preview: dataUrl}); setImageError('');renderImgPreviews(); } }
   function renderTextPreviews(){
@@ -4680,8 +4680,9 @@ var TEAM_COLORS = {
           h += '<button class="aa-generated-btn primary" onclick="window._aaLightbox(window._aaImgClickStore[\''+_imgKey+'\'])">查看大图</button>';
           h += '<button class="aa-generated-btn" onclick="window._aaDownloadImg(\''+_imgKey+'\')">'+(window.ArenaNative && ArenaNative.available()?'保存图片':'下载原图')+'</button>';
           if(window.ArenaNative && ArenaNative.available()) h += '<button class="aa-generated-btn" onclick="window._aaShareImg(\''+_imgKey+'\')">分享图片</button>';
-          h += '</div></div>';
-          if(imageDetails)h+=renderOpenAIImageDetails(imageDetails);
+          h += '</div>';
+          if(imageDetails)h+=renderOpenAIImageDetails(imageDetails,msg.imageUsage);
+          h += '</div>';
         });
         if(msg._imagePreview)h+=renderOpenAIImagePreview(msg._imagePreview,msg.isError);
         h += '</div>';
@@ -4960,6 +4961,7 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
   } else {
     $('aaBizBanner').style.display = 'none';
   }
+    if(imageMode)closeImagePopovers();
     var finished=false,finishingDisplay=false,followupImage=null,imageFailure=false;
     clearDebateView();
     activeDebateRunId=debatePlan?debatePlan.id:null;

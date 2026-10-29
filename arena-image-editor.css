@@ -6,7 +6,7 @@
 #ai-arena-app.arena-shell .arena-size-paper { display:block; width:var(--size-w); height:var(--size-h); box-sizing:border-box; overflow:hidden; border:1.3px solid currentColor; border-radius:3px; color:var(--arena-muted); background:var(--arena-user); }
 #ai-arena-app.arena-shell .arena-size-paper.automatic { border-style:dashed; }
 #ai-arena-app.arena-shell .arena-size-paper svg { display:block; width:100%; height:100%; stroke:none; fill:none; }
-#ai-arena-app.arena-shell .arena-image-radio > input:checked + .arena-size-face { border-color:var(--arena-text); background:var(--arena-user); }
+#ai-arena-app.arena-shell .arena-image-radio > input:checked + .arena-size-face { border-color:var(--arena-text); background:var(--arena-selected); }
 #ai-arena-app.arena-shell .arena-image-radio > input:checked + .arena-size-face .arena-size-paper { color:var(--arena-text); }
 #ai-arena-app.arena-shell .arena-image-openai .arena-image-field-help { display:block; }
 #ai-arena-app.arena-shell .arena-image-custom-wrap { display:grid; gap:16px; }

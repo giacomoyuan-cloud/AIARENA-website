@@ -1093,7 +1093,7 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
       await writer.write(encoder.encode("data: " + JSON.stringify({ cost }) + "\n\n"));
     }
     __name(sendCost, "sendCost");
-    async function recordUsage(modelId, inputTokens, outputTokens) {
+    async function recordUsage(modelId, inputTokens, outputTokens, callCount=1) {
       if (!inputTokens && !outputTokens) return;
       const username = authUser || "anonymous";
       const now = Date.now();
@@ -1108,11 +1108,11 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
         const u = uRaw ? JSON.parse(uRaw) : { input: 0, output: 0, calls: 0 };
         g.input += inputTokens || 0;
         g.output += outputTokens || 0;
-        g.calls += 1;
+        g.calls += callCount;
         g.lastAt = now;
         u.input += inputTokens || 0;
         u.output += outputTokens || 0;
-        u.calls += 1;
+        u.calls += callCount;
         u.lastAt = now;
         await Promise.all([
           env.BIZ_KV.put(globalKey, JSON.stringify(g)),
@@ -1512,8 +1512,8 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
       if(isOpenAIImage(model)){
         const history=nativeImageHistory(body.imageHistory),count=body.n||1;
         const payload=buildImagePayload(model,cleanPrompt,body,allImages,history,await hashText(authUser||'anonymous'));
-        const settings=payload.tools[0],parts=[];let received=0,mainInput=0,mainOutput=0;
-        for(let index=0;index<count;index++){
+        const settings=payload.tools[0],parts=[];let received=0,mainInput=0,mainOutput=0,mainCalls=0,imageInput=0,imageOutput=0,imageCalls=0;
+        try{for(let index=0;index<count;index++){
           if(upstreamAbort.signal.aborted)throw new DOMException('已停止生成','AbortError');
           await sendActivity({kind:'image_generation',label:count>1?'正在生成第 '+(index+1)+' / '+count+' 张':'正在生成图片'});
           // The same isolated official transport as Sol/Astra; never replay a paid image call.
@@ -1524,14 +1524,18 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
             preview:async preview=>writer.write(encoder.encode('data: '+JSON.stringify({imagePreview:{...preview,batchIndex:index}})+'\n\n')),
             details:async details=>{
               await writer.write(encoder.encode('data: '+JSON.stringify({imageDetails:{index:received-1,...details},imageContext:{parts}})+'\n\n'));
-              if(details.usage)await recordUsage(model,details.usage.input_tokens||0,details.usage.output_tokens||0);
+              if(details.usage){imageInput+=details.usage.input_tokens||0;imageOutput+=details.usage.output_tokens||0;imageCalls++;}
             }
           });
           if(result.mainUsage){
             const u=result.mainUsage;mainInput+=u.input_tokens||0;mainOutput+=u.output_tokens||0;
-            await recordUsage(IMAGE_ORCHESTRATOR,u.input_tokens||0,u.output_tokens||0);
+            mainCalls++;
           }
           await writer.write(encoder.encode('data: '+JSON.stringify({imageUsage:{images:received,mainline:{model:IMAGE_ORCHESTRATOR,input:mainInput,output:mainOutput},imageCostAvailable:false}})+'\n\n'));
+        }}finally{
+          // Aggregate analytics once per batch; don't add KV requests between images.
+          if(mainCalls)await recordUsage(IMAGE_ORCHESTRATOR,mainInput,mainOutput,mainCalls);
+          if(imageCalls)await recordUsage(model,imageInput,imageOutput,imageCalls);
         }
         return;
       }
