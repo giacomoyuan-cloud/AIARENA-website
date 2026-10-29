@@ -51,7 +51,11 @@ function upstream(t,calls){
   t.mock.method(globalThis,'fetch',async(url,options)=>{
     assert.ok(['api.anthropic.com','api.x.ai'].includes(new URL(url).hostname));assert.equal(options.redirect,'manual');
     const payload=JSON.parse(options.body);calls.push({url,payload});
-    if(payload.model==='claude-haiku-4-5-20251001')return Response.json({content:[{type:'text',text:'旧摘要：保留预算 73921.50 元和既定约定。'}],usage:{input_tokens:20,output_tokens:10}});
+    if(payload.model==='claude-haiku-5-5'){
+      assert.deepEqual(payload.thinking,{type:'disabled'});assert.deepEqual(payload.output_config,{effort:'low'});assert.equal(payload.service_tier,'standard_only');
+      for(const name of ['temperature','top_p','top_k'])assert.ok(!(name in payload));
+      return Response.json({content:[{type:'text',text:'旧摘要：保留预算 73921.50 元和既定约定。'}],usage:{input_tokens:20,output_tokens:10}});
+    }
     return payload.stream&&new URL(url).hostname==='api.x.ai'?new Response('data: '+JSON.stringify({type:'response.output_text.delta',delta:'Grok 回复'})+'\n\n'):streamText();
   });
 }
@@ -192,6 +196,7 @@ test('large conversation context is summarized and retrieves exact older facts w
   assert.ok(main.system.includes('73921.50'));assert.ok(main.system.includes('2027-03-19'));
   assert.ok(main.messages.length<=9);assert.ok(JSON.stringify(main).length<22000);assert.ok(text.includes('"olderSummary":true'));
   assert.ok(data.has('chats:tester:summary:test-chat-123'));
+  assert.ok(calls.some(c=>c.payload.model==='claude-haiku-5-5'));assert.equal(JSON.parse(data.get('chats:tester:summary:test-chat-123')).kind,'摘要');
   assert.equal(JSON.parse(data.get('chats:tester:test-chat-123')).length,40);
 });
 test('incognito requests do not read or write stored memories, conversations or summaries',async t=>{

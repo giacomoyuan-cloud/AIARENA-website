@@ -147,13 +147,46 @@ test('automatic skill routing records the complete Haiku receipt alongside the s
   const {env,hash}=await authenticatedFixture();env.ANTHROPIC_API_KEY='synthetic-anthropic-key';
   t.mock.method(globalThis,'fetch',(url,options)=>{
     const body=JSON.parse(options.body);
-    if(url.includes('anthropic.com')){assert.equal(body.service_tier,'standard_only');return Response.json({content:[{type:'tool_use',name:'select_skills',input:{ids:[],output:'text'}}],usage:{input_tokens:10,output_tokens:5,service_tier:'standard'}});}
+    if(url.includes('anthropic.com')){assert.equal(body.model,'claude-haiku-5-5');assert.equal(body.service_tier,'standard_only');assert.deepEqual(body.thinking,{type:'disabled'});assert.deepEqual(body.output_config,{effort:'low'});assert.equal(body.tool_choice.name,'select_skills');for(const name of ['temperature','top_p','top_k'])assert.ok(!(name in body));return Response.json({content:[{type:'tool_use',name:'select_skills',input:{ids:[],output:'text'}}],usage:{input_tokens:10,output_tokens:5,service_tier:'standard'}});}
     return completedResponse();
   });
   const response=await worker.fetch(new Request('https://api.pickandcase.com/',{method:'POST',body:JSON.stringify({user:'tester',password:hash,model:'gpt-6.1-sol',chat:scoped('请解释一个概念',{mode:'auto'})})}),env);
   const events=(await response.text()).split('\n').filter(l=>l.startsWith('data: {')).map(l=>JSON.parse(l.slice(6))),value=events.find(e=>e.usage).usage;
-  assert.equal(value.costUsd,'0.012035');assert.equal(value.input,1000);assert.equal(value.auxiliary[0].purpose,'skill-router');
-  const stats=await usageSummary(env,'tester');assert.equal(stats.total.calls,2);assert.equal(stats.models['claude-haiku-4-5-20251001'].input,10);
+  assert.equal(value.costUsd,'0.0120035');assert.equal(value.input,1000);assert.equal(value.auxiliary[0].purpose,'skill-router');
+  const stats=await usageSummary(env,'tester');assert.equal(stats.total.calls,2);assert.equal(stats.models['claude-haiku-5-5'].input,10);
+});
+for(const refused of [false,true])test('Haiku 5.5 memory extraction '+(refused?'preserves previous memory on refusal':'records its real usage and complete text'),async t=>{
+  const {env,hash,data}=await authenticatedFixture();env.ANTHROPIC_API_KEY='synthetic-anthropic-key';data.set('mem:tester','ORIGINAL_MEMORY');
+  t.mock.method(globalThis,'fetch',(url,options)=>{
+    assert.equal(url,'https://api.anthropic.com/v1/messages');const body=JSON.parse(options.body);
+    assert.equal(body.model,'claude-haiku-5-5');assert.equal(body.service_tier,'standard_only');assert.deepEqual(body.thinking,{type:'disabled'});assert.deepEqual(body.output_config,{effort:'low'});
+    for(const name of ['temperature','top_p','top_k'])assert.ok(!(name in body));
+    return Response.json({stop_reason:refused?'refusal':'end_turn',content:[{type:'text',text:'新增事实'},{type:'text',text:'保留偏好'}],usage:{input_tokens:100,output_tokens:100}});
+  });
+  const response=await worker.fetch(new Request('https://api.pickandcase.com/memory',{method:'POST',body:JSON.stringify({user:'tester',password:hash,conversation:'synthetic memory input'})}),env),result=await response.json();
+  assert.equal(response.status,refused?500:200);assert.equal(data.get('mem:tester'),refused?'ORIGINAL_MEMORY':'新增事实\n保留偏好');
+  assert.equal(result.usage.model,'claude-haiku-5-5');assert.equal(result.usage.costUsd,'0.00006');
+  const stats=await usageSummary(env,'tester');assert.equal(stats.total.calls,1);assert.equal(stats.total.knownCostUsd,'0.00006');
+});
+for(const model of ['gemini-nano-banana-2.1','grok-imagine-image-2.0'])test(model+' generation and editing enter the account ledger without invented tokens',async t=>{
+  const {env,hash}=await authenticatedFixture();env.GEMINI_API_KEY='synthetic-google-key';env.GROK_API_KEY='synthetic-xai-key';let calls=0;
+  t.mock.method(globalThis,'fetch',(url,options)=>{
+    calls++;const body=JSON.parse(options.body);
+    if(model.startsWith('gemini')){
+      assert.ok(url.includes('/'+model+':generateContent'));assert.equal(body.generationConfig.imageConfig.imageSize,'1K');
+      return Response.json({candidates:[{content:{parts:[{inlineData:{data:'aGVsbG8=',mimeType:'image/png'}}]}}],usageMetadata:{promptTokenCount:100,candidatesTokenCount:1120,thoughtsTokenCount:0,candidatesTokensDetails:[{modality:'IMAGE',tokenCount:1120}],totalTokenCount:1220}});
+    }
+    assert.ok(url.endsWith(calls===1?'/generations':'/edits'));
+    return Response.json({data:[{b64_json:'aGVsbG8='}],usage:{cost_in_usd_ticks:calls===1?400000000:500000000}});
+  });
+  for(const edit of [false,true]){
+    const body={user:'tester',password:hash,model,prompt:'synthetic image',grounding:'off',imageSize:'1K',...(edit?{imageTask:'edit',images:[{mime:'image/png',data:'aGVsbG8='}]}:{})};
+    const response=await worker.fetch(new Request('https://api.pickandcase.com/',{method:'POST',body:JSON.stringify(body)}),env),events=(await response.text()).split('\n').filter(l=>l.startsWith('data: {')).map(l=>JSON.parse(l.slice(6)));
+    assert.ok(!events.some(event=>event.error),JSON.stringify(events.filter(event=>event.error)));
+    const receipt=events.find(event=>event.usage)?.usage;assert.ok(receipt);assert.equal(receipt.model,model);assert.equal(receipt.ledgerStatus,'recorded');
+    assert.equal(receipt.input,model.startsWith('gemini')?100:null);assert.equal(receipt.costUsd,model.startsWith('gemini')?'0.03375':edit?'0.05':'0.04');
+  }
+  const stats=await usageSummary(env,'tester');assert.equal(calls,2);assert.equal(stats.models[model].calls,2);assert.equal(stats.total.knownCostUsd,model.startsWith('gemini')?'0.0675':'0.09');
 });
 test('all native document continuations emit one canonical group and preserve every raw usage snapshot',async t=>{
   const {env,hash}=await authenticatedFixture();env.ANTHROPIC_API_KEY='synthetic-anthropic-key';let calls=0;
