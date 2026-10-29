@@ -6,6 +6,15 @@ const credentials={user:'synthetic',password:'synthetic-only',runId:'run-001',ch
 const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 const quickTimer=(fn,ms)=>setTimeout(fn,ms===12000?12000:1);
 
+test('a stale backend is rejected before creating any model run',async()=>{
+  const calls=[],client=Runs.create({fetch:async(url,init)=>{calls.push(init.method);return Response.json({debate:'studio-v2'});}});
+  await assert.rejects(client.watch('/fixture',credentials,{input:{},requiredVersion:'studio-v3'}),{status:409});assert.deepEqual(calls,['GET']);
+});
+test('compatible backend preflight precedes the immutable start request',async()=>{
+  const calls=[],client=Runs.create({fetch:async(url,init)=>{calls.push(init.method);return Response.json(init.method==='GET'?{debate:'studio-v3'}:{id:'run-001',revision:1,status:'completed',turns:[]});}});
+  await client.watch('/fixture',credentials,{input:{},requiredVersion:'studio-v3'});assert.deepEqual(calls,['GET','POST']);
+});
+
 test('lost start acknowledgement uses the identical id and payload; polling never starts another generation',async()=>{
   let starts=0,progress=0;const bodies=[],snapshots=[];
   const client=Runs.create({interval:1,setTimeout:quickTimer,fetch:async(url,init)=>{

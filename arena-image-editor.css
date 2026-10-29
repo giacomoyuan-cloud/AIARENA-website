@@ -1,0 +1,67 @@
+/* The image tools inherit the site's surfaces, typography and accent. */
+#ai-arena-app.arena-shell .arena-image-size-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; }
+#ai-arena-app.arena-shell .arena-image-size-grid .arena-image-radio-face { display:flex; flex-direction:column; justify-content:center; gap:5px; min-height:92px; padding:10px 5px; font-size:12px; }
+#ai-arena-app.arena-shell .arena-size-face small { font-size:10px; color:var(--arena-muted); }
+#ai-arena-app.arena-shell .arena-size-preview { display:grid; place-items:center; height:49px; width:100%; }
+#ai-arena-app.arena-shell .arena-size-paper { display:block; width:var(--size-w); height:var(--size-h); box-sizing:border-box; overflow:hidden; border:1.3px solid currentColor; border-radius:3px; color:var(--arena-muted); background:var(--arena-user); }
+#ai-arena-app.arena-shell .arena-size-paper.automatic { border-style:dashed; }
+#ai-arena-app.arena-shell .arena-size-paper svg { display:block; width:100%; height:100%; stroke:none; fill:none; }
+#ai-arena-app.arena-shell .arena-image-radio > input:checked + .arena-size-face { border-color:var(--arena-text); background:var(--arena-selected); }
+#ai-arena-app.arena-shell .arena-image-radio > input:checked + .arena-size-face .arena-size-paper { color:var(--arena-text); }
+#ai-arena-app.arena-shell .arena-image-openai .arena-image-field-help { display:block; }
+#ai-arena-app.arena-shell .arena-image-custom-wrap { display:grid; gap:16px; }
+#ai-arena-app.arena-shell .arena-image-custom-preview { display:flex; align-items:center; gap:16px; min-height:120px; padding:14px; border:1px solid var(--arena-border); border-radius:12px; background:var(--arena-user); }
+#ai-arena-app.arena-shell .arena-image-custom-preview .arena-size-preview.large { flex:0 0 156px; width:156px; height:108px; }
+#ai-arena-app.arena-shell .arena-image-custom-preview > span:last-child { display:grid; gap:7px; font-size:12px; color:var(--arena-muted); }
+#ai-arena-app.arena-shell .arena-image-custom-preview strong { font-size:13px; font-weight:500; color:var(--arena-text); }
+#ai-arena-app.arena-shell .arena-image-custom-preview small { color:var(--arena-accent); font-size:11px; }
+#ai-arena-app.arena-shell .arena-image-custom { display:flex; align-items:center; gap:12px; }
+#ai-arena-app.arena-shell .arena-image-custom label,
+#ai-arena-app.arena-shell .arena-image-number { display:grid; gap:8px; min-width:0; font-size:13px; color:var(--arena-text); }
+#ai-arena-app.arena-shell .arena-image-custom label { flex:1; }
+#ai-arena-app.arena-shell .arena-image-custom input,
+#ai-arena-app.arena-shell .arena-image-number input { min-width:0; width:100%; box-sizing:border-box; border:1px solid var(--arena-border); border-radius:9px; background:var(--arena-bg); color:var(--arena-text); padding:9px 11px; font-size:14px; }
+#ai-arena-app.arena-shell .arena-image-settings-foot a { color:var(--arena-muted); text-underline-offset:3px; }
+#ai-arena-app.arena-shell .arena-image-mask-tools { display:flex; align-items:center; flex-wrap:wrap; gap:8px; padding:0 2px 10px; color:var(--arena-muted); font-size:12px; }
+#ai-arena-app.arena-shell .arena-image-mask-tools button { border:1px solid var(--arena-border); border-radius:8px; padding:7px 10px; background:var(--arena-bg); color:var(--arena-text); font-size:12px; cursor:pointer; }
+#ai-arena-app.arena-shell .arena-image-mask-tools button:hover { background:var(--arena-hover); }
+#ai-arena-app.arena-shell .aa-generated-card.is-transparent .aa-generated-stage,
+#ai-arena-app.arena-shell .arena-image-editor-stage { background-color:var(--arena-surface); background-image:conic-gradient(var(--arena-border) 25%,transparent 0 50%,var(--arena-border) 0 75%,transparent 0); background-size:20px 20px; }
+#ai-arena-app.arena-shell .arena-image-preview p { color:var(--arena-muted); font:12px/1.5 var(--arena-ui-font); margin:10px 0; }
+#ai-arena-app.arena-shell .arena-image-preview .aa-generated-stage { opacity:.86; }
+#ai-arena-app.arena-shell .arena-image-result-details { max-width:100%; width:100%; box-sizing:border-box; padding:8px 0 14px; color:var(--arena-muted); font:12px/1.65 var(--arena-ui-font); }
+#ai-arena-app.arena-shell .arena-image-result-details summary { cursor:pointer; }
+#ai-arena-app.arena-shell .arena-image-result-details summary span { margin-left:8px; color:var(--arena-faint); }
+#ai-arena-app.arena-shell .arena-image-result-details p { white-space:pre-wrap; overflow-wrap:anywhere; margin:8px 0; }
+#ai-arena-app.arena-shell .arena-image-editor { position:fixed; inset:20px; margin:auto; width:min(920px,calc(100vw - 40px)); max-height:calc(100dvh - 40px); box-sizing:border-box; padding:0; border:1px solid var(--arena-border); border-radius:18px; background:var(--arena-bg); color:var(--arena-text); box-shadow:0 24px 80px #0003; font-family:var(--arena-ui-font); overflow:hidden; }
+#ai-arena-app.arena-shell .arena-image-editor[open] { display:flex; flex-direction:column; }
+#ai-arena-app.arena-shell .arena-image-editor::backdrop { background:#0007; }
+#ai-arena-app.arena-shell .arena-image-editor header { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; padding:20px 22px 14px; }
+#ai-arena-app.arena-shell .arena-image-editor h2 { font-size:18px; font-weight:600; letter-spacing:-.02em; margin:0 0 6px; }
+#ai-arena-app.arena-shell .arena-image-editor p { color:var(--arena-muted); font-size:13px; line-height:1.6; margin:0; }
+#ai-arena-app.arena-shell .arena-image-editor button { border:1px solid var(--arena-border); border-radius:9px; padding:8px 12px; background:var(--arena-surface); color:var(--arena-text); font-size:13px; cursor:pointer; min-height:36px; }
+#ai-arena-app.arena-shell .arena-image-editor button:hover { background:var(--arena-hover); }
+#ai-arena-app.arena-shell .arena-image-editor button:disabled { opacity:.4; cursor:default; }
+#ai-arena-app.arena-shell .arena-image-editor [data-close] { border:0; font-size:24px; line-height:1; padding:4px 8px; }
+#ai-arena-app.arena-shell .arena-image-editor-toolbar { display:flex; align-items:center; flex-wrap:wrap; gap:8px; padding:0 22px 14px; }
+#ai-arena-app.arena-shell .arena-image-editor-toolbar label { display:flex; align-items:center; gap:8px; font-size:13px; margin-right:auto; }
+#ai-arena-app.arena-shell .arena-image-editor input[type=range] { width:120px; accent-color:var(--arena-accent); }
+#ai-arena-app.arena-shell .arena-image-editor-scroll { min-height:0; overflow:auto; padding:14px; background:var(--arena-sidebar); overscroll-behavior:contain; }
+#ai-arena-app.arena-shell .arena-image-editor-stage { position:relative; width:fit-content; max-width:100%; margin:auto; }
+#ai-arena-app.arena-shell .arena-image-editor-stage img { display:block; width:auto; height:auto; max-width:100%; max-height:calc(100dvh - 300px); object-fit:contain; }
+#ai-arena-app.arena-shell .arena-image-editor-stage canvas { position:absolute; inset:0; width:100%; height:100%; touch-action:none; cursor:crosshair; }
+#ai-arena-app.arena-shell .arena-image-editor footer { display:flex; justify-content:flex-end; align-items:center; gap:8px; padding:14px 22px; }
+#ai-arena-app.arena-shell .arena-image-editor footer span { font-size:12px; color:var(--arena-muted); margin-right:auto; }
+#ai-arena-app.arena-shell .arena-image-editor [data-apply] { background:var(--arena-text); color:var(--arena-bg); border-color:var(--arena-text); }
+#ai-arena-app.arena-shell .arena-image-editor .arena-image-editor-error { color:var(--arena-accent); padding:12px 22px 0; }
+@media(max-width:600px) {
+  #ai-arena-app.arena-shell .arena-image-size-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  #ai-arena-app.arena-shell .arena-image-editor { inset:10px; width:calc(100vw - 20px); max-height:calc(100dvh - 20px); border-radius:14px; }
+  #ai-arena-app.arena-shell .arena-image-editor header { padding:16px; }
+  #ai-arena-app.arena-shell .arena-image-editor-toolbar { padding:0 16px 12px; }
+  #ai-arena-app.arena-shell .arena-image-editor footer { flex-wrap:wrap; padding:12px 16px; }
+  #ai-arena-app.arena-shell .arena-image-editor footer span { flex-basis:100%; }
+  #ai-arena-app.arena-shell .arena-image-editor-stage img { max-height:calc(100dvh - 360px); }
+  #ai-arena-app.arena-shell .arena-image-custom input,
+  #ai-arena-app.arena-shell .arena-image-number input { font-size:16px; }
+}

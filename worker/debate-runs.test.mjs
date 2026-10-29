@@ -163,6 +163,12 @@ test('same-model seats and summary keep independent effort through a failed-seat
   const final=await f.status();assert.equal(final.status,'completed');assert.deepEqual(final.turns.map(t=>t.reply.effort),['low','high','max']);
   const invalid=structuredClone(input);invalid.config.members[1].effort='invented';assert.equal((await f.call('start',{runId:'invalid-depth-001',input:invalid})).status,400);assert.equal(f.calls.length,4);
 });
+test('current contract never defaults a missing seat or summary depth before a provider call',async t=>{
+  const f=fixture(t),input=structuredClone(f.input);input.config.contractVersion='studio-v3';
+  assert.equal((await f.call('start',{input})).status,400);input.config.members.forEach(m=>m.effort='low');
+  assert.equal((await f.call('start',{input})).status,400);assert.equal(f.calls.length,0);
+  input.config.summaryEffort='low';assert.equal((await f.call('start',{input})).status,202);assert.equal(f.calls.length,0);
+});
 
 test('follow-up derives evidence from owned checkpoints, rejects cross-scope sources and never replays old seats',async t=>{
   const f=fixture(t);await f.call('start',{input:f.input});await f.turn('服务端保存的真实观点');await f.control('stop');await f.control('finish');

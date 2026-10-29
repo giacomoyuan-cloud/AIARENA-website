@@ -82,10 +82,10 @@ for(const model of ['gpt-6-astra','gpt-6.1-sol'])test(model+' stays selected thr
   assert.match(elements.get('aaModelsSubmenu').innerHTML,/gpt-6-astra/);assert.match(elements.get('aaModelsSubmenu').innerHTML,/gpt-6\.1-sol/);
 });
 
-test('old Sol picker choices migrate without relabeling historical messages or enabling image models',()=>{
+test('old Sol picker choices migrate without relabeling historical messages; image models remain separate',()=>{
   const context=browser({'aa-brand-selection':JSON.stringify({openai:'gpt-5.6-sol'}),'aa-active-brands':JSON.stringify({openai:true})});
   context.loadState();assert.deepEqual(Array.from(context.getActiveSubmodels()),['gpt-6.1-sol']);assert.equal(context.SUBS['gpt-5.6-sol'].name,'GPT-5.6 Sol');
-  assert.ok(!context.IMAGE_MODELS.some(item=>item.value.startsWith('gpt-image')));
+  assert.deepEqual(Array.from(context.IMAGE_MODELS.filter(item=>item.value.startsWith('gpt-image')),item=>item.value),ArenaImage.OPENAI_MODELS);assert.ok(context.AVAILABLE_CHAT_MODELS.every(item=>!item.startsWith('gpt-image')));
 });
 
 test('free debate can send multiple models from one provider without changing the chat model',()=>{

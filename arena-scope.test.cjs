@@ -37,7 +37,7 @@ function fixture(){
     chatList:[{id:'general-chat'}],chatGroups:[{id:'general-group'}],chatListPinVersion:1,
     sentImgs:[{name:'general.png'}],sentTexts:[{name:'general.txt',text:'general material'}],
     activeQuote:{author:'reader',text:'general quote',color:'blue'},activeSkill:{id:'general-skill'},
-    imageEditParentUid:null,debate:false,imageMode:false,videoMode:false,debateMode:'free',
+    imageMaskState:{data:'general-mask'},imageEditParentUid:null,debate:false,imageMode:false,videoMode:false,debateMode:'free',
     activeBrands:{xai:true},brandSelection:{xai:'grok-4.7'},aaRunning:false,_saveTimer:null,
     _incognitoMode:false,_cachedMemory:'general memory',_memoryLoaded:true,_skipNextChatSave:false,
     chatPins:{version:()=>1},debateOwnsChat:()=>false,serializeMsgs:()=>plain(c.msgs),getChatTitle:()=> 'synthetic title',
@@ -65,18 +65,22 @@ test('scope round trips restore only that scope draft, messages, attachments, qu
   assert.equal(c.activeProjectId,A.id);assert.equal(get('aaTopic').value,'');
   for(const field of ['msgs','sentImgs','sentTexts','chatList','chatGroups'])assert.equal(c[field].length,0,field);
   assert.equal(c.activeQuote,null);assert.equal(c.activeSkill,null);assert.equal(c._cachedMemory,null);
+  assert.equal(c.imageMaskState,null);
   c.msgs=[{uid:3,text:'project message'}];c.sentTexts=[{name:'project.txt',text:'project material'}];
+  c.imageMaskState={data:'project-mask'};
   get('aaTopic').value='project draft';c.currentChatId='project-chat';c.chatList=[{id:'project-chat'}];
   await c.switchProject(null);
   assert.equal(c.activeProjectId,null);assert.equal(get('aaTopic').value,'general draft');
   assert.equal(c.msgs[0].text,'general message');assert.equal(c.sentTexts[0].name,'general.txt');
   assert.equal(c.sentImgs[0].name,'general.png');assert.equal(c.activeQuote.text,'general quote');
+  assert.equal(c.imageMaskState.data,'general-mask');
   assert.equal(c.activeSkill.id,'general-skill');assert.equal(c.chatList[0].id,'general-chat');
   assert.equal(get('aaProjectBar').hidden,true);assert.equal(get('aaProjectsBtn').classList.contains('active'),false);
   assert.equal(get('aaBarChatBtn').classList.contains('active'),true);
   await c.switchProject(A);
   assert.equal(get('aaTopic').value,'project draft');assert.equal(c.msgs[0].text,'project message');
   assert.equal(c.sentTexts[0].name,'project.txt');assert.equal(c.chatList[0].id,'project-chat');
+  assert.equal(c.imageMaskState.data,'project-mask');
   assert.equal(get('aaBarChatBtn').classList.contains('active'),false);
 });
 
@@ -102,6 +106,7 @@ test('opening a project home keeps its unsent draft while starting an independen
   assert.equal(c.activeProjectId,A.id);assert.equal(c.currentChatId,'new-project-chat');assert.equal(c.msgs.length,0);
   assert.equal(get('aaTopic').value,'general draft');assert.equal(c.sentTexts[0].name,'general.txt');
   assert.equal(c.sentImgs.length,1);assert.equal(c.sentImgs[0].name,'general.png');assert.equal(c.activeQuote.text,'general quote');
+  assert.equal(c.imageMaskState.data,'general-mask');
   c.beginNewChat();assert.equal(get('aaTopic').value,'');assert.equal(c.sentTexts.length,0);
   assert.equal(c.sentImgs.length,0);assert.equal(c.activeQuote,null);
 });
