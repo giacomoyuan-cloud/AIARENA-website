@@ -5404,6 +5404,7 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
     updateGearBtn();
     $('aaLoginBtn').textContent = '进入'; $('aaLoginBtn').disabled = false;
     showMainUI();
+    syncBrandUI();sync2v2UI();
     loadMemory();
     loadChatList();
     if(workspaceController)workspaceController.preload();
