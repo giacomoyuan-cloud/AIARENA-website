@@ -51,7 +51,7 @@ http.createServer(async(req,res)=>{
       res.writeHead(200,{'Content-Type':types['.json']});res.end('{"ok":true,"quick":true,"anthropic":true,"xai":true,"google":true,"skills":[]}');return;
     }
     const file=path.resolve(root,'.'+decodeURIComponent(url.pathname==='/'?'/index.html':url.pathname));if(!file.startsWith(root+path.sep))throw Error('outside fixture');
-    let bytes=await readFile(file);if(file.endsWith('/index.html'))bytes=Buffer.from(bytes.toString().replace("var WORKER = 'https://api.pickandcase.com';","var WORKER = '/__test-api';"));
+    let bytes=await readFile(file);if(file.endsWith('/index.html'))bytes=Buffer.from(bytes.toString().replace("var WORKER = 'https://api.pickandcase.com';","var WORKER = '/__test-api';").replace('</body>','<div role="status" style="position:fixed;bottom:8px;right:12px;z-index:100100;padding:4px 9px;border-radius:5px;background:#141413;color:white;font:11px/1.5 sans-serif;pointer-events:none">本地验收 · 合成资料</div></body>'));
     const headers={'Content-Type':types[path.extname(file)]||'application/octet-stream','Cache-Control':'no-store','Accept-Ranges':'bytes'};
     if(req.headers.range){const m=/^bytes=(\d+)-(\d*)$/.exec(req.headers.range);if(!m)throw Error('invalid range');const start=+m[1],end=m[2]?Math.min(+m[2],bytes.length-1):bytes.length-1;res.writeHead(206,{...headers,'Content-Range':`bytes ${start}-${end}/${bytes.length}`,'Content-Length':end-start+1});res.end(bytes.subarray(start,end+1));return;}
     res.writeHead(200,{...headers,'Content-Length':bytes.length});res.end(bytes);
