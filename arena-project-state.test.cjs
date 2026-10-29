@@ -65,3 +65,22 @@ test('a newer edit on another device replaces an older local deletion overlay',a
   await state.load();await state.change('delete',project());assert.equal(state.projects().length,0);
   restored=true;await state.load();assert.equal(state.projects().length,1);
 });
+test('restored project metadata allows fresh pin changes from another page while ignoring pre-delete rows',async()=>{
+  let timestamp=100,pinned=true;
+  const {state}=setup(async action=>action==='list'?{projects:[project('p1',{updatedAt:timestamp,pinned})]}:{project:project('p1',{updatedAt:action==='delete'?101:102,deletedAt:action==='delete'?101:null})});
+  await state.load();await state.change('delete',project());await state.change('restore',state.projects('deleted')[0]);
+  await state.load();assert.equal(state.projects()[0].pinned,false);
+  timestamp=102;await state.load();assert.equal(state.projects()[0].pinned,true);
+  pinned=false;await state.load();assert.equal(state.projects()[0].pinned,false);
+});
+test('a pin after restore can be confirmed and later observe an unpin from another page',async()=>{
+  let timestamp=100,pinned=false;
+  const {state}=setup(async(action,body)=>{
+    if(action==='list')return {projects:[project('p1',{updatedAt:timestamp,pinned})]};
+    if(action==='pin'){pinned=body.pinned;return {ok:true,pinned};}
+    return {project:project('p1',{updatedAt:action==='delete'?101:102,deletedAt:action==='delete'?101:null})};
+  });
+  await state.load();await state.change('delete',project());await state.change('restore',state.projects('deleted')[0]);timestamp=102;
+  state.togglePin('p1');await tick();await state.load();assert.equal(state.projects()[0].pinned,true);
+  pinned=false;await state.load();assert.equal(state.projects()[0].pinned,false);
+});
