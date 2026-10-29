@@ -14,6 +14,7 @@ function browser(saved = {}) {
   const storage = new Map(Object.entries(saved));
   const context = vm.createContext({
     ArenaImage, ArenaModelControl: require('./arena-model-control.js'),
+    ArenaSkillModels:require('./arena-skill-models.js'),ArenaSkillCatalog:require('./skills/catalog.json'),skillsRuntime:null,aaRunning:false,
     localStorage: { getItem: key => storage.get(key) ?? null },
     document: { querySelectorAll: () => ['xai', 'anthropic', 'openai', 'google'].map(brand => ({ dataset: { brand } })) },
     imageMode: false, videoMode: false, debate: false, debateMode: 'free',
@@ -22,7 +23,7 @@ function browser(saved = {}) {
     brandSelection: { xai: 'grok-4.7', anthropic: 'claude-sonnet-5-5', google: 'gemini-4-argon' }
   });
   vm.runInContext(source.slice(source.indexOf('  var AVAILABLE_CHAT_MODELS'), source.indexOf('  var SYS_DEBATE')), context);
-  for (const name of ['loadState', 'normalizeAvailableModels', 'getActiveSubmodels']) vm.runInContext(browserFunction(name), context);
+  for (const name of ['skillModelRestricted','eligibleChatModels','enforceSkillModel','loadState', 'normalizeAvailableModels', 'getActiveSubmodels']) vm.runInContext(browserFunction(name), context);
   return context;
 }
 
@@ -222,7 +223,7 @@ test('switching chats never carries an automatic image reference into another co
   const next=[{uid:2,isUser:true,text:'new prompt'},{uid:3,submodel:ArenaImage.GOOGLE_MODEL,imgItems:[image],imageTurn:{prompt:'new prompt',parentUid:null,references:[]},imageResponse:[{imageIndex:0,thoughtSignature:'new-signature'}]}];
   async function open(sentImgs,draft=''){
     const c=vm.createContext({
-      ArenaImage, ArenaModelControl: require('./arena-model-control.js'),aaRunning:false,activeProjectId:null,scopeEpoch:1,chatLoadEpoch:0,_saveTimer:null,currentChatId:'old-chat',
+      ArenaImage, ArenaModelControl: require('./arena-model-control.js'),aaRunning:false,scopeSwitchPending:false,activeProjectId:null,scopeEpoch:1,chatLoadEpoch:0,_saveTimer:null,currentChatId:'old-chat',
       imageEditParentUid:1,imageMode:true,imageComposerTask:'edit',imageComposerModel:ArenaImage.GOOGLE_MODEL,
       sentImgs,sentTexts:[],msgs:[],_uidCounter:0,_skipNextChatSave:false,$:()=>({value:draft}),
       chatApiCall:async()=>({messages:next}),getLastAssistantReplyAt:()=>0,rememberChatReplyTime:()=>{},
