@@ -159,7 +159,7 @@ test('completion waits for every parallel model and preserves final text correct
 });
 
 function appFixture() {
-  const timer = clock(), body = { innerHTML: '', dataset: {}, classList: { contains: () => false, add() {} } };
+  const timer = clock(), body = { innerHTML: '', dataset: {}, querySelector: () => null, classList: { contains: () => false, add() {} } };
   const listeners = new Map(), document = { hidden: false, addEventListener(type, listener) { listeners.set(type, listener); } };
   const element = { querySelector: selector => selector === '.aa-msg-body' ? body : null };
   const messages = { querySelector: () => element, scrollTop: 0, scrollHeight: 100 };

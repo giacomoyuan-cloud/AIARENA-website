@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>AI 助手</title>
-<meta name="app-version" content="20261030-typing50-1">
+<meta name="app-version" content="20261030-inlinecursor1">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -3050,6 +3050,16 @@ var TEAM_COLORS = {
     pending.frame=requestAnimationFrame(function(){liveFrames.delete(uid);paintLiveUpdate(uid,pending.text,pending.reasoning);});
     liveFrames.set(uid,pending);
   }
+  function positionStreamCaret(body){
+    var caret=body.querySelector(':scope > .arena-stream-caret');
+    if(!caret)return;
+    var tail=caret.previousElementSibling;
+    // Keep the caret in the final text block, after inline formatting and links.
+    while(tail && /^(DIV|BLOCKQUOTE|UL|OL|LI|PRE|TABLE|THEAD|TBODY|TR)$/.test(tail.tagName) && tail.lastElementChild){
+      tail=tail.lastElementChild;
+    }
+    if(tail && /^(P|H[1-6]|LI|PRE|CODE|TD|TH)$/.test(tail.tagName))tail.appendChild(caret);
+  }
   function paintLiveUpdate(uid, text, reasoning, streaming){
     var c = $('aaMessages');
     var el = c.querySelector('[data-uid="'+uid+'"]');
@@ -3076,6 +3086,7 @@ var TEAM_COLORS = {
         if(_liveText){if(!caption){caption=document.createElement('p');body.insertBefore(caption,body.firstChild);}caption.textContent=_liveText;}
         else if(caption)caption.remove();
       }else body.innerHTML=renderMd(_liveText,message&&message.citations)+(streaming===false?'':'<span class="arena-stream-caret" aria-hidden="true">▍</span>');
+      positionStreamCaret(body);
       body.dataset.streaming=String(streaming!==false);
       body.dataset.streamChunks=String(message&&message._streamChunks||0);
       body.dataset.textUpdates=String(Number(body.dataset.textUpdates||0)+1);
@@ -4493,9 +4504,10 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
       existing.classList.remove('aa-kitten--progress'); existing.classList.add('aa-kitten--reply');
       placeholder.replaceWith(existing);
     });
+    highlightCodeBlocks();
+    c.querySelectorAll('.aa-msg-body[data-streaming="true"]').forEach(positionStreamCaret);
     if(!userScrolledUp) c.scrollTop = c.scrollHeight;
     else c.scrollTop = savedScrollTop;
-    highlightCodeBlocks();
   }
 
   function highlightCodeBlocks(){
