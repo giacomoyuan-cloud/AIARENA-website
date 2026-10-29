@@ -2668,6 +2668,8 @@ var TEAM_COLORS = {
     // 按钮文字固定为“无痕模式”，开关状态由 aria-pressed 的按下样式表示
     $('aaIncognitoBtn').setAttribute('aria-label', _incognitoMode ? '关闭无痕模式' : '开启无痕模式');
     $('aaIncognitoBanner').style.display = _incognitoMode ? 'block' : 'none';
+    clearQuote();
+    syncArenaLayout();
   });
   document.addEventListener('click', function(e){
     if(!e.target.closest('#aaSidebar') && !e.target.closest('#aaGearBtn')){ $('aaSidebar').classList.add('hidden'); $('aaGearBtn').setAttribute('aria-expanded','false'); }
@@ -3051,11 +3053,11 @@ var TEAM_COLORS = {
     }
     if(action==='followup'){
       var previous=view.snapshot;if(!previous||!previous.plan||previous.status==='running')return;
-      var source=view.ref.id;applyDebatePlan(previous.plan);
+      var source=view.ref.id,inlineReference=previous.incognito?ArenaDebate.continuation(previous.plan,previous.turns,4200).slice(0,5800)+'\n[以上为已完成发言的节选]':null;applyDebatePlan(previous.plan);
       previous.turns.forEach(function(t){var spec=previous.plan.turns[t.index];if(spec&&t.reply.effort)debateSeatEfforts[spec.member.id]=t.reply.effort;});
-      rounds=1;debatePriorRunId=source;clearDebateView();debate=true;imageMode=false;videoMode=false;
+      rounds=1;debatePriorRunId=inlineReference?null:source;clearDebateView();clearQuote();if(inlineReference)setQuote('上一场讨论（当前页面）',inlineReference);debate=true;imageMode=false;videoMode=false;
       $('aaTopic').value='';$('aaTopic').style.height='auto';syncBrandUI();sync2v2UI();syncArenaLayout();saveState();$('aaTopic').focus();
-      arenaNotice('已保留本场阵容，请输入要继续追问的问题');return;
+      arenaNotice(inlineReference?'已引用本页的已完成发言，请输入追问。无痕内容不保存。':'已保留本场阵容，请输入要继续追问的问题');return;
     }
     if(action==='reconnect'){watchDurableDebate(view);return;}
     view.busy=true;syncDebateRecovery();
@@ -4297,6 +4299,7 @@ var TEAM_COLORS = {
     if(msgs.length && currentChatId) saveCurrentChat();
     clearDebateView();
     currentChatId = genChatId();
+    debatePriorRunId=null;clearQuote();
     $('aaDebateProgress').hidden=true;
     _bizMode = false;
     var resetImageTask=imageMode&&imageComposerTask==='edit'&&sentImgs.some(function(image){return image.generatedReference;});

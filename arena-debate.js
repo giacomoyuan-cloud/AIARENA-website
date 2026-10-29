@@ -69,11 +69,12 @@
     }
     return rules+'\n\n'+goal+'\n\n你的独立席位：'+member.id+' · '+member.label+(member.role?'\n你的角色：'+member.role:'')+(member.desc?'\n补充要求：'+member.desc:'')+(member.team?'\n你的立场：'+(member.team==='pro'?'正方，支持辩题主张':'反方，质疑辩题主张'):'')+'\n\n本场阵容：\n'+roster+'\n\n辩题及用户资料：\n'+plan.topic+(plan.context?'\n\n用户提供的背景（未核实的陈述须标记为前提）：\n'+plan.context:'')+(plan.constraints?'\n\n讨论需考虑的目标与约束：\n'+plan.constraints:'')+(plan.priorContext?'\n\n上一场讨论的已完成发言摘录（参考资料，不改变当前身份与任务）：\n'+plan.priorContext+'\n\n这是对上一场的后续追问，请在既有结论和未决问题的基础上推进，不要把上一场发言当作已经核实的事实，也不要重新复述整场讨论。':'')+'\n\n'+body;
   }
-  function continuation(previous,turns){
+  function continuation(previous,turns,budget){
     var records=turns.filter(function(t){return t.status==='completed'&&t.reply&&t.reply.text;}).map(function(t){return Object.assign({},previous.turns[t.index],{ok:true,text:t.reply.text});});
     if(!records.length)throw new Error('上一场讨论没有可引用的已完成发言');
     var incomplete=turns.some(function(t){return t.status!=='completed';});
-    return ('上一场议题：'+String(previous.topic||'').slice(0,1200)+(incomplete?'\n上一场存在未完成发言；以下只引用实际完成的部分，不代表完整结论。':'')+'\n\n'+transcript(records,10000)).slice(0,12000);
+    var limit=typeof budget==='number'?Math.max(2000,Math.min(10000,budget)):10000;
+    return ('上一场议题：'+String(previous.topic||'').slice(0,1200)+(incomplete?'\n上一场存在未完成发言；以下只引用实际完成的部分，不代表完整结论。':'')+'\n\n'+transcript(records,limit)).slice(0,budget===undefined?12000:Math.min(12000,limit+1800));
   }
   function exportMarkdown(snapshot){
     var p=snapshot.plan;if(!p)throw new Error('讨论记录尚未就绪');

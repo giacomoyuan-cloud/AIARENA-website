@@ -28,6 +28,7 @@ test('continuation quotes completed evidence, identifies incomplete source and b
   const p=make();const turns=[{index:0,status:'completed',reply:{text:'真实已完成的观点'+ '长'.repeat(20000)}},{index:1,status:'failed',reply:{text:'不可靠的失败片段'}}];
   const context=Core.continuation(p,turns);assert.ok(context.length<=12000);assert.match(context,/真实已完成的观点/);assert.match(context,/存在未完成/);assert.doesNotMatch(context,/不可靠的失败片段/);
   assert.throws(()=>Core.continuation(p,turns.slice(1)),/没有可引用/);
+  assert.ok(Core.continuation(p,turns,4200).length<=6000,'inline incognito reference fits the existing quote limit');
 });
 test('export keeps partial text, actual depth, failure, outdated warning and safe source URLs',()=>{
   const p=make({objective:'decision'}),markdown=Core.exportMarkdown({plan:p,status:'partial',turns:[{index:0,status:'completed',reply:{submodel:model,effort:'low',text:'实际原文',citations:[{title:'来源',url:'https://example.com/evidence'},{url:'javascript:alert(1)'},{url:'https://user:pass@example.com/'}]}},{index:1,status:'failed',outdated:true,error:'执行中断',reply:{text:'已收到片段',effort:'high'}}]});
@@ -44,4 +45,16 @@ test('draft scope changes clear private notes and incognito never overwrites sav
   c.activeProjectId='project-other';c.restoreDebateDraft();assert.equal(c.debateSettings.context,'');assert.equal(elements.aaPersonaRole0.value,'');
   c.activeProjectId=null;c.restoreDebateDraft();assert.equal(c.debateSettings.context,'普通设置');assert.equal(elements.aaPersonaRole0.value,'项目私密角色');
   c._incognitoMode=true;c.restoreDebateDraft();c.debateSettings.context='无痕内容';c.saveDebateDraft();c._incognitoMode=false;c.restoreDebateDraft();assert.equal(c.debateSettings.context,'普通设置');assert.ok(!JSON.stringify([...saved.values()]).includes('无痕内容'));
+});
+
+for(const incognito of [false,true])test('follow-up '+(incognito?'quotes only completed page content without a server record':'retains the owned server run reference'),async()=>{
+  const source=fs.readFileSync(require('node:path').join(__dirname,'index.html'),'utf8'),fn=source.match(/  async function controlDurableDebate\([^]*?\n  }/)[0],p=make({rounds:1});
+  const view={ref:{id:'source-run-001'},snapshot:{plan:p,status:'partial',incognito,turns:[{index:0,status:'completed',reply:{text:'真实已完成的发言',effort:'low'}},{index:1,status:'failed',reply:{text:'不能引用的失败片段',effort:'high'}}]}};
+  let quote=null;const topic={value:'',style:{},focus(){}};
+  const c=vm.createContext({durableDebateView:view,debateCurrent:v=>v===view,ArenaDebate:Core,ArenaDebateRuns:{control(){throw new Error('follow-up setup must not execute a paid request');}},
+    applyDebatePlan(){},debateSeatEfforts:{},debatePriorRunId:null,rounds:2,debate:false,imageMode:false,videoMode:false,$:()=>topic,
+    clearDebateView(){c.durableDebateView=null;},clearQuote(){quote=null;},setQuote(author,text){quote={author,text};},syncBrandUI(){},sync2v2UI(){},syncArenaLayout(){},saveState(){},arenaNotice(){}});
+  vm.runInContext(fn,c);await c.controlDurableDebate('followup');assert.equal(c.rounds,1);assert.equal(c.debateSeatEfforts['seat-1'],'low');
+  if(incognito){assert.equal(c.debatePriorRunId,null);assert.match(quote.text,/真实已完成的发言/);assert.doesNotMatch(quote.text,/不能引用/);assert.ok(quote.text.length<6000);}
+  else{assert.equal(c.debatePriorRunId,'source-run-001');assert.equal(quote,null);}
 });
