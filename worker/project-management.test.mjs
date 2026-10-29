@@ -25,6 +25,12 @@ test('moving between projects never overwrites a same-ID destination and cannot 
   assert.equal((await call('/chats',{action:'list',projectId:b.id})).chats.length,2);
   assert.equal((await call('/chats',{action:'move',projectId:b.id,chatId:moved.chatId,targetProjectId:a.id},'two')).status,404);
 });
+test('a round-trip move chooses a fresh ID rather than reusing a tombstoned source',async()=>{
+  const {call,project,save}=setup(),p=await project('A');await save();
+  const first=await call('/chats',{action:'move',chatId:'chat-123456',targetProjectId:p.id});
+  const back=await call('/chats',{action:'move',projectId:p.id,chatId:first.chatId,targetProjectId:null});assert.equal(back.status,200);assert.notEqual(back.chatId,'chat-123456');
+  assert.equal((await call('/chats',{action:'save',chatId:back.chatId,title:'继续',messages:[{uid:1,isUser:true,text:'可以继续保存'}]})).status,200);
+});
 test('failed destination storage and active executions retain the original chat',async()=>{
   const {env,data,call,project,save}=setup(),p=await project('A');await save();
   const put=env.BIZ_KV.put;env.BIZ_KV.put=async(k,v)=>{if(k.startsWith('project:'))throw Error('storage unavailable');return put(k,v);};

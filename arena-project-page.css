@@ -1,5 +1,5 @@
 #ai-arena-app.arena-shell.arena-workspace-visible .aa-main > .aa-chat { display:none; }
-#ai-arena-app.arena-shell.arena-workspace-visible .aa-bar-btn.active { background:transparent;color:var(--claude-text-2); }
+#ai-arena-app.arena-shell.arena-workspace-visible .arena-navigation .aa-bar-btn.active { background:transparent !important;color:var(--claude-text-2); }
 #ai-arena-app.arena-shell.arena-workspace-visible .aa-bar-btn.active svg { color:var(--arena-muted); }
 #ai-arena-app.arena-shell .arena-project-page { box-sizing:border-box;width:100%;min-width:0;overflow:auto;padding:32px clamp(20px,4vw,64px) 60px;color:var(--arena-text);font:14px/1.6 var(--arena-ui-font);scrollbar-gutter:stable; }
 #ai-arena-app.arena-shell .arena-project-page *,

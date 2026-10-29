@@ -484,6 +484,7 @@ async function handleDebateRunRequest(request, env) {
     if (!['start','status','stop','resume','retry','skip','finish'].includes(body.action) || !validResourceId(body.runId) || !validResourceId(body.chatId)) return projectReply({ error: '讨论信息无效。' }, 400);
     const projectId = body.projectId || null;
     if (projectId) await ownedProject(env, user, projectId);
+    if(body.action==='start'&&!body.input?.incognito&&await env.BIZ_KV.get(chatStoragePrefix(user,projectId)+':moved:'+body.chatId))return projectReply({error:'对话已移动，请从目标项目打开'},409);
     if (!env.CHAT_RUNS) return projectReply({ error: '后台恢复服务尚未部署，请稍后再试。' }, 503);
     if (!['start','status'].includes(body.action) && !validResourceId(body.operationId)) return projectReply({ error: '操作编号无效。' }, 400);
     const internal = { kind: 'debate', action: body.action, runId: body.runId, after: body.after, operationId: body.operationId, turn: body.turn, attempt: body.attempt };
@@ -532,6 +533,7 @@ async function handleChatRunRequest(request, env) {
     if (!['start', 'events', 'status', 'stop'].includes(body.action) || !validResourceId(body.runId) || !validResourceId(body.chatId)) return projectReply({ error: '任务信息无效。' }, 400);
     const projectId = body.projectId || null;
     if (projectId) await ownedProject(env, user, projectId);
+    if(body.action==='start'&&!body.payload?.chat?.incognito&&await env.BIZ_KV.get(chatStoragePrefix(user,projectId)+':moved:'+body.chatId))return projectReply({error:'对话已移动，请从目标项目打开'},409);
     if (!env.CHAT_RUNS) return projectReply({ error: '后台恢复服务尚未部署，请稍后再试。' }, 503);
     const internal = { action: body.action, runId: body.runId, after: body.after };
     if (body.action === 'start') {
@@ -664,7 +666,7 @@ var worker_default = {
         const source=JSON.parse(raw);
         if(source.some(m=>m.run?.status==='running'||m.debateRun?.status==='running'))return projectReply({error:'对话仍在执行，请完成或停止后再移动'},409);
         const targetPrefix=chatStoragePrefix(normalizedUsername,targetProjectId),targetList=JSON.parse(await env.BIZ_KV.get(targetPrefix+':list')||'[]');
-        const targetId=previousMove?.chatId||((targetList.some(c=>c.id===chatId)||await env.BIZ_KV.get(targetPrefix+':'+chatId))?crypto.randomUUID():chatId);
+        const targetId=previousMove?.chatId||((targetList.some(c=>c.id===chatId)||await env.BIZ_KV.get(targetPrefix+':'+chatId)||await env.BIZ_KV.get(targetPrefix+':moved:'+chatId))?crypto.randomUUID():chatId);
         const copied=source.map(m=>{const {run,debateRun,...saved}=m;return saved;});
         const target={...item,id:targetId,groupId:null,updatedAt:Date.now()};delete target.pinned;
         // Copy and verify the destination before removing the source. A receipt blocks stale browser saves.
@@ -678,7 +680,7 @@ var worker_default = {
         await env.BIZ_KV.delete(scopePrefix+':pin:'+chatId);
         await env.BIZ_KV.delete(scopePrefix+':summary:'+chatId);
         return projectReply({ok:true,...receipt});
-        }catch(error){return projectReply({error:error.status?error.message:'对话操作失败，原记录已保留，请重试'},error.status||500);}
+        }catch(error){return projectReply({error:error.status?error.message:'对话操作暂未完成，请重试'},error.status||500);}
       }
       if (action === "list") {
         const [list,pins] = await Promise.all([getList(),pinnedIds(env.BIZ_KV,scopePrefix+":pin:")]);
@@ -966,6 +968,7 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
     if(body.chat){
       if(typeof body.chat!=="object"||typeof body.chat.question!=="string"||body.chat.question.length>50000||!Array.isArray(body.chat.history)||body.chat.history.length>16)return projectReply({error:"聊天内容过长或格式无效，请将长文件保存为项目资料"},400);
       if(body.chat.scope!==(projectId||"general"))return projectReply({error:"聊天范围已变化，请重新发送"},409);
+      if(authOk&&!body.chat.incognito&&validResourceId(body.chat.chatId)&&await env.BIZ_KV.get(chatStoragePrefix(authUser,projectId)+':moved:'+body.chat.chatId))return projectReply({error:'对话已移动，请从目标项目打开'},409);
     }
     const modelConfig = Object.hasOwn(OFFICIAL_MODELS, model) ? OFFICIAL_MODELS[model] : null;
     if (!modelConfig) {

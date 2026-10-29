@@ -14,7 +14,7 @@
     var shortcuts=document.createElement('div');shortcuts.className='arena-project-shortcuts';shortcuts.hidden=true;host.querySelector('.arena-history-label').before(shortcuts);
     var upload=document.createElement('input');upload.type='file';upload.multiple=true;upload.hidden=true;upload.accept='.txt,.md,.pdf,.docx,.xlsx,.xls,.pptx,.csv,.tsv,.json,.log';host.appendChild(upload);
     var folder=document.createElement('input');folder.type='file';folder.multiple=true;folder.hidden=true;folder.setAttribute('webkitdirectory','');host.appendChild(folder);
-    var epoch=0,account='',kind='',current=null,chats=[],tasks=[],catalog=[],archiveCatalog=[],archived=false,taskTab='mine',taskScope,taskSearch='',projectSearch='',sort='updated',uploading=false,formSave=null,creationTarget=null;
+    var epoch=0,account='',kind='',current=null,chats=[],tasks=[],catalog=[],archiveCatalog=[],archived=false,taskTab='mine',taskScope,taskSearch='',taskFilter='all',taskSort='next',projectSearch='',sort='updated',uploading=false,formSave=null,creationTarget=null;
     var menu=document.createElement('div');menu.className='arena-project-menu';menu.setAttribute('popover','auto');menu.setAttribute('role','menu');host.appendChild(menu);
     var menuAction=null,menuAnchor=null;
     var legacy=mountLegacy(Object.assign({},app,{switchScope:async function(p){await app.switchScope(p);if(p)await home(p.id,true);else hide();},refreshProject:function(p){app.refreshProject(p);if(current&&current.id===p.id){current=Object.assign({},current,p);if(kind==='home')renderHome();}loadPins();}}));
@@ -24,7 +24,7 @@
     function notice(text){app.notice(text);}
     function error(text){var el=dialog.open?dialog.querySelector('[data-error]'):page.querySelector('[data-error]');if(el)el.textContent=text;else notice(text);}
     function restoreComposer(){if(composer.parentNode!==marker.parentNode)marker.after(composer);}
-    function hide(){epoch++;restoreComposer();page.hidden=true;host.classList.remove('arena-workspace-visible');delete host.dataset.workspaceView;kind='';closeMenu();if(app.syncLayout)app.syncLayout();}
+    function hide(){epoch++;restoreComposer();page.hidden=true;host.classList.remove('arena-workspace-visible');delete host.dataset.workspaceView;host.querySelector('#aaSchedulesBtn').classList.remove('active');kind='';closeMenu();if(app.syncLayout)app.syncLayout();}
     function show(view,html){restoreComposer();kind=view;page.innerHTML=html;page.hidden=false;host.classList.add('arena-workspace-visible');host.dataset.workspaceView=view;host.querySelector('#aaProjectsBtn').classList.toggle('active',view!=='tasks');host.querySelector('#aaSchedulesBtn').classList.toggle('active',view==='tasks');host.querySelector('#aaConversationTitle').textContent=view==='tasks'?'定时任务':view==='home'&&current?current.name:'项目';app.closeSidebar();closeMenu();}
     function heading(name,actions){return '<header class="arena-project-page-heading"><h1>'+e(name)+'</h1><div>'+actions+'</div></header>';}
     function status(){return '<p data-error class="arena-project-error" role="alert"></p>';}
@@ -63,7 +63,7 @@
     }
     function paintList(items){
       var sorted=items.filter(function(p){return !projectSearch||p.name.toLocaleLowerCase().includes(projectSearch.toLocaleLowerCase());}).sort(function(a,b){return Number(!!b.pinned)-Number(!!a.pinned)||(sort==='name'?a.name.localeCompare(b.name,'zh-CN'):b.updatedAt-a.updatedAt);});
-      show('list',heading(archived?'已归档项目':'项目',button(archived?'返回项目':'已归档','data-archive-toggle')+button('新建项目','data-new-project','arena-workspace-primary'))+
+      show('list',heading(archived?'已归档项目':'项目',button('普通聊天','data-general')+button(archived?'返回项目':'已归档','data-archive-toggle')+button('新建项目','data-new-project','arena-workspace-primary'))+
         '<div class="arena-project-tools"><label class="arena-project-search">'+icon('search')+'<input type="search" data-project-search aria-label="搜索项目" placeholder="搜索项目" value="'+e(projectSearch)+'"></label><select data-project-sort aria-label="项目排序"><option value="updated"'+(sort==='updated'?' selected':'')+'>最近更新</option><option value="name"'+(sort==='name'?' selected':'')+'>名称</option></select></div><div class="arena-project-grid">'+(sorted.length?sorted.map(function(p){return '<article class="arena-project-card">'+button(icon('folder')+'<strong>'+e(p.name)+'</strong><span>'+date(p.updatedAt)+'</span>','data-open-project="'+e(p.id)+'"','arena-project-open')+(archived?button('恢复','data-restore="'+e(p.id)+'"','arena-project-card-more'):button(root.ArenaControls.pinIcon,'data-pin-project="'+e(p.id)+'" aria-label="'+(p.pinned?'取消置顶':'置顶')+'项目：'+e(p.name)+'" aria-pressed="'+!!p.pinned+'"','arena-project-pin'+(p.pinned?' pinned':''))+button(icon('more'),'data-project-menu="'+e(p.id)+'" aria-label="项目菜单：'+e(p.name)+'" aria-haspopup="menu"','arena-project-card-more'))+'</article>';}).join(''):'<div class="arena-project-empty">'+icon('folder')+'<h2>'+(projectSearch?'没有找到项目':archived?'暂无已归档项目':'创建你的第一个项目')+'</h2><p>将相关对话、指令和参考资料放在一起。</p>'+(!projectSearch&&!archived?button('新建项目','data-new-project','arena-workspace-primary'):'')+'</div>')+'</div>'+status());
     }
     function createProject(after){
@@ -80,7 +80,7 @@
       show('home',heading('项目',button('所有项目','data-list'))+'<p role="status">正在加载项目…</p>');
       try{
         var data=await app.api('get',Object.assign({projectId:id},credentials));if(!valid(n))return;current=data.project;
-        if(!app.currentProject()||app.currentProject().id!==id){await app.switchScope(current);if(!valid(n))return;}
+        if(!app.currentProject()||app.currentProject().id!==id){await app.switchScope(current);if(!valid(n))return;}else app.refreshProject(current);
         if(start){await app.flushChat();if(!valid(n))return;app.newChat();}
         var results=await Promise.allSettled([app.chatApi('list',Object.assign({projectId:id},credentials)),app.scheduleApi('list',Object.assign({projectId:id},credentials))]);
         if(!valid(n))return;
@@ -104,8 +104,8 @@
     function chatRows(items){return items.length?items.map(function(c){return '<article class="arena-project-chat-row">'+button(icon('chat')+'<span><strong>'+e(c.title)+'</strong><small>'+date(c.lastReplyAt||c.updatedAt)+'</small></span>','data-open-chat="'+e(c.id)+'"')+button(icon('more'),'data-chat-menu="'+e(c.id)+'" aria-label="对话菜单：'+e(c.title)+'" aria-haspopup="menu"')+'</article>';}).join(''):'<div class="arena-project-empty arena-project-empty-small">'+icon('chat')+'<p>在这个项目中发起对话，共用相同的指令和资料。</p></div>';}
     async function refreshHome(){if(current&&kind==='home')await home(current.id,false);}
     async function togglePin(id){var p=catalog.find(function(x){return x.id===id;}),n=epoch,a=key(),data=await app.api('pin',Object.assign({projectId:id,pinned:!p?.pinned},auth()));if(a!==key())return;if(p)p.pinned=data.pinned;paintPins();if(n===epoch){if(kind==='home')renderHome();else if(kind==='list')await list();}}
-    function projectMenu(p,anchor){if(!p)return;openMenu(anchor,[{id:'pin',label:p.pinned?'取消置顶':'置顶'},{id:'rename',label:'重命名'},{id:'settings',label:'项目设置'},{id:'archive',label:'归档项目',danger:true}],async function(action){
-      if(action==='pin')return togglePin(p.id);
+    function projectMenu(p,anchor){if(!p)return;openMenu(anchor,[{id:'pin',label:p.pinned?'取消置顶':'置顶'},{id:'rename',label:'重命名'},{id:'settings',label:'项目设置'},{id:'general',label:'返回普通聊天'},{id:'archive',label:'归档项目',danger:true}],async function(action){
+      if(action==='pin')return togglePin(p.id);if(action==='general'){hide();await app.switchScope(null);return;}
       if(action==='settings'){if(!app.currentProject()||app.currentProject().id!==p.id)await enter(p.id);return legacy.settings();}
       if(action==='rename')return openForm('重命名项目','<label>项目名称<input name="name" required maxlength="80" value="'+e(p.name)+'"></label>',async function(f){await app.api('update',Object.assign({projectId:p.id,name:f.elements.name.value},auth()));await loadPins();if(kind==='home')await refreshHome();else await list();});
       openForm('归档项目','<p>归档“'+e(p.name)+'”？对话和资料会保留，可在已归档项目中恢复。</p>',async function(){await app.api('archive',Object.assign({projectId:p.id},auth()));if(app.currentProject()?.id===p.id)await app.switchScope(null);await loadPins();await list();});
@@ -171,10 +171,11 @@
       try{var data=await app.scheduleApi('list',Object.assign(scope?{projectId:scope}:{},auth()));if(!valid(n))return;tasks=data.tasks;renderTasks();}catch(err){if(valid(n))page.innerHTML=heading('定时任务',button('新建任务','data-new-task','arena-workspace-primary'))+'<p role="alert">'+e(err.message)+'</p>'+button('重试','data-schedules');}
     }
     function renderTasks(){
-      var items=tasks.filter(function(t){return !taskSearch||t.name.toLocaleLowerCase().includes(taskSearch.toLocaleLowerCase());});
-      show('tasks',heading('定时任务',button('新建任务','data-new-task','arena-workspace-primary'))+'<div class="arena-project-tools"><div class="arena-project-tabs" role="tablist" aria-label="任务视图">'+button('我的','data-task-tab="mine" role="tab" aria-selected="'+(taskTab==='mine')+'"')+button('模板','data-task-tab="templates" role="tab" aria-selected="'+(taskTab==='templates')+'"')+'</div><label class="arena-project-search">'+icon('search')+'<input type="search" data-task-search aria-label="搜索定时任务" value="'+e(taskSearch)+'" placeholder="搜索任务"></label></div>'+(taskScope?button('返回项目','data-home="'+e(taskScope)+'"','arena-project-link'):'')+(taskTab==='templates'?templateCards():items.length?'<div class="arena-task-list">'+items.map(function(t){return '<article class="arena-task-card">'+icon('clock')+'<div><h2>'+e(t.name)+'</h2><p>'+e(scheduleLabel(t.schedule))+'</p><small>'+(t.status==='running'?'正在执行':t.status==='failed'?'上次执行失败':!t.enabled?'已暂停':'下次执行 '+date(t.nextRunAt,t.schedule.timeZone))+'</small></div>'+button('查看','data-task="'+e(t.id)+'"')+'</article>';}).join('')+'</div>':'<div class="arena-project-empty arena-task-empty">'+icon('clock')+'<h2>'+(taskSearch?'没有找到相关任务':'暂无定时任务')+'</h2>'+button('手动设置','data-new-task','arena-workspace-primary')+'</div>'+(!taskSearch?templateCards():''))+status());
+      var items=tasks.filter(function(t){return (!taskSearch||t.name.toLocaleLowerCase().includes(taskSearch.toLocaleLowerCase()))&&(taskFilter==='all'||taskFilter==='enabled'&&t.enabled||taskFilter==='paused'&&!t.enabled||taskFilter==='failed'&&t.status==='failed');}).sort(function(a,b){return taskSort==='name'?a.name.localeCompare(b.name,'zh-CN'):taskSort==='created'?b.createdAt-a.createdAt:(a.enabled&&a.nextRunAt||Infinity)-(b.enabled&&b.nextRunAt||Infinity);});
+      show('tasks',heading('定时任务',button('新建任务','data-new-task','arena-workspace-primary'))+'<div class="arena-project-tools"><div class="arena-project-tabs" role="tablist" aria-label="任务视图">'+button('我的','data-task-tab="mine" role="tab" aria-selected="'+(taskTab==='mine')+'"')+button('模板','data-task-tab="templates" role="tab" aria-selected="'+(taskTab==='templates')+'"')+'</div><label class="arena-project-search">'+icon('search')+'<input type="search" data-task-search aria-label="搜索定时任务" value="'+e(taskSearch)+'" placeholder="搜索任务"></label></div>'+taskTools()+(taskScope?button('返回项目','data-home="'+e(taskScope)+'"','arena-project-link'):'')+(taskTab==='templates'?templateCards():items.length?'<div class="arena-task-list">'+items.map(function(t){return '<article class="arena-task-card">'+icon('clock')+'<div><h2>'+e(t.name)+'</h2><small>'+e(t.projectId?(catalog.find(function(p){return p.id===t.projectId;})?.name||'项目任务'):'普通聊天')+'</small><p>'+e(scheduleLabel(t.schedule))+'</p><small>'+(t.status==='running'?'正在执行':t.status==='failed'?'上次执行失败':!t.enabled?'已暂停':'下次执行 '+date(t.nextRunAt,t.schedule.timeZone))+'</small></div>'+button('查看','data-task="'+e(t.id)+'"')+'</article>';}).join('')+'</div>':'<div class="arena-project-empty arena-task-empty">'+icon('clock')+'<h2>'+(taskSearch||taskFilter!=='all'?'没有找到相关任务':'暂无定时任务')+'</h2>'+button('手动设置','data-new-task','arena-workspace-primary')+'</div>'+(!taskSearch?templateCards():''))+status());
     }
-    function templateCards(){return '<div class="arena-task-templates">'+templates.map(function(t,i){return button(icon('clock')+'<span><strong>'+e(t.name)+'</strong><p>'+e(t.prompt)+'</p><small>'+e(scheduleLabel(Object.assign({timeZone:'Asia/Shanghai'},t)))+'</small></span>','data-template="'+i+'"');}).join('')+'</div>';}
+    function taskTools(){return taskTab==='templates'?'':'<div class="arena-project-tools arena-task-filters"><select data-task-filter aria-label="筛选任务状态">'+[['all','全部任务'],['enabled','已启用'],['paused','已暂停'],['failed','上次失败']].map(function(x){return '<option value="'+x[0]+'"'+(taskFilter===x[0]?' selected':'')+'>'+x[1]+'</option>';}).join('')+'</select><select data-task-sort aria-label="定时任务排序">'+[['next','下次执行'],['created','最近创建'],['name','名称']].map(function(x){return '<option value="'+x[0]+'"'+(taskSort===x[0]?' selected':'')+'>'+x[1]+'</option>';}).join('')+'</select></div>';}
+    function templateCards(){return '<div class="arena-task-templates">'+templates.map(function(t,i){if(taskSearch&&!t.name.toLocaleLowerCase().includes(taskSearch.toLocaleLowerCase()))return '';return button(icon('clock')+'<span><strong>'+e(t.name)+'</strong><p>'+e(t.prompt)+'</p><small>'+e(scheduleLabel(Object.assign({timeZone:'Asia/Shanghai'},t)))+'</small></span>','data-template="'+i+'"');}).join('')+'</div>';}
     async function taskEditor(task,template){
       var credentials=auth(),a=key(),data=await app.api('list',credentials);if(a!==key())return;var p=task||template||{},s=p.schedule||p,zone=s.timeZone||'Asia/Shanghai',id=task?task.id:crypto.randomUUID();
       var selectedModel=p.model||(app.currentModel?app.currentModel():null);
@@ -196,13 +197,14 @@
       if(b.dataset.taskDelete){return openForm('删除定时任务','<p>删除任务后不再执行，已生成的对话会保留。</p>',async function(){await app.scheduleApi('delete',Object.assign({id:id},auth()));if(kind==='home')await refreshHome();else await schedules(taskScope);});}
       b.disabled=true;await app.scheduleApi(b.dataset.taskRun?'run':'toggle',Object.assign({id:id,enabled:!task.enabled},auth()));dialog.close();if(kind==='home')await refreshHome();else await schedules(taskScope);notice(b.dataset.taskRun?'任务已排入执行':'任务状态已保存');
     }catch(err){error(err.message);b.disabled=false;}});
+    page.addEventListener('keydown',function(ev){if(ev.target.hasAttribute('data-task-tab')&&['ArrowLeft','ArrowRight','Home','End'].includes(ev.key)){ev.preventDefault();taskTab=ev.key==='Home'?'mine':ev.key==='End'?'templates':taskTab==='mine'?'templates':'mine';renderTasks();page.querySelector('[data-task-tab="'+taskTab+'"]').focus();}});
     page.addEventListener('input',function(ev){var t=ev.target;if(t.hasAttribute('data-chat-search')){var q=t.value.toLocaleLowerCase();page.querySelector('[data-project-chats]').innerHTML=chatRows(chats.filter(function(c){return c.title.toLocaleLowerCase().includes(q);}));}
       if(t.hasAttribute('data-project-search')){projectSearch=t.value;var position=t.selectionStart;paintList(archived?archiveCatalog:catalog);var search=page.querySelector('[data-project-search]');search.focus();if(search.type!=='search')search.setSelectionRange(position,position);}
       if(t.hasAttribute('data-task-search')){taskSearch=t.value;renderTasks();page.querySelector('[data-task-search]').focus();}
     });
-    page.addEventListener('change',function(ev){if(ev.target.hasAttribute('data-project-sort')){sort=ev.target.value;list();}});
+    page.addEventListener('change',function(ev){if(ev.target.hasAttribute('data-task-filter')){taskFilter=ev.target.value;renderTasks();return;}if(ev.target.hasAttribute('data-task-sort')){taskSort=ev.target.value;renderTasks();return;}if(ev.target.hasAttribute('data-project-sort')){sort=ev.target.value;list();}});
     page.addEventListener('click',async function(ev){var b=ev.target.closest('button');if(!b)return;try{
-      if(b.hasAttribute('data-list'))return list();
+      if(b.hasAttribute('data-list'))return list();if(b.hasAttribute('data-general')){hide();return app.switchScope(null);}
       if(b.hasAttribute('data-archive-toggle')){archived=!archived;return list();}
       if(b.hasAttribute('data-new-project'))return createProject();
       if(b.dataset.openProject)return enter(b.dataset.openProject);
@@ -225,9 +227,7 @@
       if(b.hasAttribute('data-template'))return taskEditor(null,templates[Number(b.dataset.template)]);
       if(b.dataset.taskTab){taskTab=b.dataset.taskTab;return renderTasks();}
     }catch(err){error(err.message);}});
-    // The live composer is restored before its existing send handler runs.
-    host.querySelector('#aaSendBtn').addEventListener('click',function(){if(kind==='home')hide();},true);
-    host.querySelector('#aaTopic').addEventListener('keydown',function(ev){if(kind==='home'&&ev.key==='Enter'&&!ev.shiftKey&&!ev.isComposing)hide();},true);
+    // Sending restores the shared composer through the existing aaStart validation.
     ['aaNewBtn','aaBarChatBtn','aaBarDebateBtn','aaBarImageBtn','aaProjectExit'].forEach(function(id){host.querySelector('#'+id).addEventListener('click',hide,true);});
     return Object.assign({},legacy,{list:list,enter:enter,home:function(){var p=app.currentProject();return p?home(p.id,true):list();},hide:hide,preload:loadPins,schedules:function(){return schedules();},chatMenu:chatMenu,chooseProject:chooseProject,refresh:refreshHome,visible:function(){return !page.hidden;}});
   };

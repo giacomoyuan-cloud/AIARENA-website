@@ -866,13 +866,13 @@
 </style>
 <link rel="stylesheet" href="/arena.css?v=20261030-thinkingstable1">
 <link rel="stylesheet" href="/arena-workspace.css?v=20261029-debateresume1">
-<link rel="stylesheet" href="/arena-project-page.css?v=20261030-projects1">
 <link rel="stylesheet" href="/arena-controls.css?v=20261029-debateresume1">
 <link rel="stylesheet" href="/arena-pet.css?v=20261029-petnoghost1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&family=Noto+Serif+SC:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="/arena-claude.css?v=20261029-claude2">
+<link rel="stylesheet" href="/arena-project-page.css?v=20261030-projects1">
 <link rel="preload" as="image" href="/assets/kitten/motion/knead-14b49069b5fd.png">
 
 <!-- Login overlay -->
@@ -1639,7 +1639,7 @@ var TEAM_COLORS = {
 
   function loadChatList(){
     var scope=activeProjectId,epoch=scopeEpoch,listEpoch=++chatListEpoch,pinReadVersion=chatPins.version();
-    Promise.all([chatApiCall('list'),chatApiCall('groups')]).then(function(results){
+    return Promise.all([chatApiCall('list'),chatApiCall('groups')]).then(function(results){
       var data=results[0];
       if(epoch!==scopeEpoch||listEpoch!==chatListEpoch||scope!==activeProjectId||!data || !data.chats) return;
       chatList = data.chats;chatListPinVersion=pinReadVersion;
@@ -4710,6 +4710,7 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
       catch(error){arenaNotice(error.message);return;}
     }
     if(!act.length){ alert('请至少选择一个模型。'); return; }
+    if(typeof workspaceController!=='undefined'&&workspaceController&&workspaceController.visible())workspaceController.hide();
     if(imageMode){
       setImageError('');
       var refCount = sentImgs.length;
@@ -6381,7 +6382,7 @@ if(imageMode){
     },
     models:function(){return AVAILABLE_CHAT_MODELS.map(function(id){return {id:id,name:SUBS[id].name};});},currentModel:function(){return getActiveSubmodels()[0];},syncLayout:syncArenaLayout,
     flushChat:async function(){if(_saveTimer){clearTimeout(_saveTimer);_saveTimer=null;}if(currentChatId&&msgs.length&&!_incognitoMode&&!debateOwnsChat()){var saved=await chatApiCall('save',{chatId:currentChatId,title:getChatTitle(),messages:serializeMsgs()});if(!saved?.ok)throw Error(saved?.error||'当前对话保存失败，请重试');}},
-    reloadChats:function(){loadChatList();syncArenaLayout();},
+    reloadChats:function(){return loadChatList().then(function(){syncArenaLayout();});},
     afterDelete:function(scope,id){if(activeProjectId===scope&&currentChatId===id){currentChatId=null;msgs=[];_skipNextChatSave=true;render();}},
     afterMove:function(scope,id,target){workspaceViews.delete(scope||'general');workspaceViews.delete(target||'general');if(activeProjectId===scope&&currentChatId===id){if(_saveTimer){clearTimeout(_saveTimer);_saveTimer=null;}currentChatId=null;msgs=[];_skipNextChatSave=true;render();}},
     openChat:async function(scope,id){if((scope||null)!==(activeProjectId||null)){var p=scope?(await projectApi('get',{projectId:scope})).project:null;await switchProject(p);}await loadChat(id);loadChatList();},
@@ -6409,7 +6410,7 @@ if(imageMode){
   updateProjectBar();
   if(activeProjectId){
     var initialProjectId=activeProjectId,initialScopeEpoch=scopeEpoch;
-    projectApi('get',{projectId:initialProjectId}).then(function(data){if(initialScopeEpoch!==scopeEpoch||activeProjectId!==initialProjectId)return;activeProject=data.project;updateProjectBar();}).catch(function(error){if(initialScopeEpoch!==scopeEpoch||activeProjectId!==initialProjectId)return;arenaNotice(error.message);switchProject(null);});
+    projectApi('get',{projectId:initialProjectId}).then(function(data){if(initialScopeEpoch!==scopeEpoch||activeProjectId!==initialProjectId)return;activeProject=data.project;updateProjectBar();if(!workspaceLink.has('chat'))workspaceController.home();}).catch(function(error){if(initialScopeEpoch!==scopeEpoch||activeProjectId!==initialProjectId)return;arenaNotice(error.message);switchProject(null);});
   }
 
 
