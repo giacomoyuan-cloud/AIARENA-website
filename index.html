@@ -2921,7 +2921,7 @@ var TEAM_COLORS = {
       var current=data.turns.find(function(turn){return turn.status==='running';}),failed=data.turns.find(function(turn){return ['failed','interrupted','cancelled'].includes(turn.status);});
       title=(data.status==='running'?'讨论进行中':data.status==='completed'?'讨论已完成':data.status==='partial'?'讨论已结束 · 部分席位未完成':data.status==='stopped'?'讨论已停止':'讨论已暂停')+' · '+data.completed+'/'+data.total;
       if(data.status==='running')note=current?data.plan.turns[current.index].member.label+' · '+data.plan.turns[current.index].stage:'正在准备下一席发言';
-      else if(data.status==='completed')note='所有发言已保存。';
+      else if(data.status==='completed')note=data.incognito?'本场发言已完成。':'所有发言已保存。';
       else note=data.reason||'已保留完成的发言。';
       if(failed&&data.status!=='running')actions=debateButton('retry','重试本席',failed,true)+debateButton('skip','跳过并继续',failed);
       else if(data.status!=='running'&&data.turns.some(function(turn){return turn.status==='pending';}))actions=debateButton('resume','继续剩余席位',null,true);
