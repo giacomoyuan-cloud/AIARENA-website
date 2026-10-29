@@ -145,7 +145,7 @@
 @media(max-width:650px){
  #ai-arena-app.arena-shell .arena-debate-options { width:100%;justify-content:space-between;gap:8px; }
  #ai-arena-app.arena-shell .arena-debate-effort { font-size:12px; }
- #ai-arena-app.arena-shell .arena-debate-effort select { min-height:35px;font-size:14px; }
+ #ai-arena-app.arena-shell .arena-debate-effort select { min-height:35px;font-size:16px; }
  #ai-arena-app.arena-shell .arena-team-member .arena-debate-effort { flex-direction:column;align-items:stretch;gap:2px; }
  #ai-arena-app.arena-shell .arena-team-member .arena-debate-effort>span { white-space:nowrap; }
  #ai-arena-app.arena-shell .arena-team-member .arena-debate-effort select { width:100%;font-size:16px; }

@@ -57,5 +57,14 @@
     dialog.showModal();
     return dialog;
   }
-  return {effort:effort,commonEfforts:commonEfforts,cleanDraft:cleanDraft,mountEffort:mountEffort,settings:settings,effortNames:effortNames};
+  function requestConfig(plan){
+    var summary=plan.turns.find(function(t){return t.summary;});
+    return {contractVersion:'studio-v3',mode:plan.mode,rounds:plan.rounds,members:plan.members,topic:plan.topic,objective:plan.objective,detail:plan.detail,context:plan.context,constraints:plan.constraints,priorRunId:plan.priorRunId,
+      summaryModel:summary?summary.member.model:'none',summaryEffort:summary?summary.member.effort:undefined};
+  }
+  function legacyEfforts(plan){
+    var values={},conflicts={};plan.turns.forEach(function(t){var m=t.member;if(m.effort===undefined)return;if(values[m.model]&&values[m.model]!==m.effort)conflicts[m.model]=true;values[m.model]=m.effort;});
+    Object.keys(conflicts).forEach(function(id){delete values[id];});return values;
+  }
+  return {effort:effort,commonEfforts:commonEfforts,cleanDraft:cleanDraft,mountEffort:mountEffort,settings:settings,effortNames:effortNames,requestConfig:requestConfig,legacyEfforts:legacyEfforts};
 });
