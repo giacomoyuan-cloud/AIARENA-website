@@ -864,16 +864,16 @@
   #ai-arena-app #aaSkillEditPrompt::placeholder { color: #888; opacity: 1; }
 
 </style>
-<link rel="stylesheet" href="/arena.css?v=20261030-skills1">
+<link rel="stylesheet" href="/arena.css?v=20261030-debatecontrols1">
 <link rel="stylesheet" href="/arena-workspace.css?v=20261029-debateresume1">
 <link rel="stylesheet" href="/arena-controls.css?v=20261029-debateresume1">
 <link rel="stylesheet" href="/arena-pet.css?v=20261029-petnoghost1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&family=Noto+Serif+SC:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="/arena-claude.css?v=20261030-skills1">
+<link rel="stylesheet" href="/arena-claude.css?v=20261030-debatecontrols1">
 <link rel="stylesheet" href="/arena-project-page.css?v=20261030-projects1">
-<link rel="stylesheet" href="/arena-debate-ui.css?v=20261030-debatestudio3">
+<link rel="stylesheet" href="/arena-debate-ui.css?v=20261030-debatecontrols1">
 <link rel="preload" as="image" href="/assets/kitten/motion/knead-14b49069b5fd.png">
 
 <!-- Login overlay -->
@@ -1138,7 +1138,7 @@
             <button type="button" class="aa-bar-btn" data-dmode="persona">角色讨论</button>
             <button type="button" class="aa-bar-btn" data-dmode="2v2">2v2</button>
           </div>
-          <div class="arena-debate-options"><button type="button" class="arena-debate-settings-trigger" id="aaDebateSettingsBtn" aria-haspopup="dialog">讨论设置</button><div id="aaJudgeCard" style="display:none;"><button type="button" id="aaJudgeHead" class="arena-debate-judge" aria-haspopup="true" aria-expanded="false" aria-controls="aaJudgeDrop"><span id="aaJudgeLabel">讨论总结</span><span id="aaJudgeSubLabel">不生成总结</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg></button></div></div>
+          <div class="arena-debate-options"><button type="button" class="arena-debate-settings-trigger" id="aaDebateSettingsBtn" aria-haspopup="dialog">讨论设置</button><div id="aaJudgeCard" style="display:none;"><button type="button" id="aaJudgeHead" class="arena-debate-judge" aria-haspopup="true" aria-expanded="false" aria-controls="aaJudgeDrop"><span id="aaJudgeLabel">讨论总结</span><span id="aaJudgeSubLabel">不生成总结</span><span id="aaJudgeEffort" class="arena-model-control-depth" hidden></span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg></button></div></div>
         </div>
         <div class="arena-debate-round-row"><span>轮数</span><div class="arena-round-options" role="group" aria-label="讨论轮数"><button type="button" data-debate-rounds="1">1 轮</button><button type="button" data-debate-rounds="2">2 轮</button><button type="button" data-debate-rounds="3">3 轮</button></div><span id="aaDebateBudget"></span></div>
         <p id="aaDebateProgress" class="arena-debate-progress" role="status" aria-live="polite" hidden></p>
@@ -1260,15 +1260,16 @@
 <script src="/arena-image.js?v=20261030-openai-image1"></script>
 <script src="/arena-image-editor.js?v=20261030-openai-image1"></script>
 <script src="/arena-native.js?v=20261028-smooth2"></script>
-<script src="/arena-effort.js?v=20261028-effortfix1"></script>
+<script src="/arena-effort.js?v=20261030-debatecontrols1"></script>
 <script src="/arena-context.js?v=20261027-account1"></script>
 <script src="/arena-skills-catalog.js?v=20261030-skills1"></script>
 <script src="/arena-skill-models.js?v=20261030-skillmodels1"></script>
 <script src="/arena-skills.js?v=20261030-skillmodels1"></script>
 <script src="/arena-chat-runs.js?v=20261029-typingclock1"></script>
 <script src="/arena-controls.js?v=20261029-debateresume1"></script>
+<script src="/arena-model-control.js?v=20261030-debatecontrols1"></script>
 <script src="/arena-debate.js?v=20261030-debatestudio3"></script>
-<script src="/arena-debate-studio.js?v=20261030-debatestudio3"></script>
+<script src="/arena-debate-studio.js?v=20261030-debatecontrols1"></script>
 <script src="/arena-debate-runs.js?v=20261030-debatestudio3"></script>
 <script src="/arena-workspace.js?v=20261029-debateresume1"></script>
 <script src="/arena-project-page.js?v=20261030-projects1"></script>
@@ -1543,22 +1544,31 @@ var TEAM_COLORS = {
     var brands={anthropic:'Anthropic',xai:'xAI',google:'Google',openai:'OpenAI'};
     return AVAILABLE_CHAT_MODELS.map(function(id){
       var disabled=false;
-      return {value:id,label:SUBS[id].name,detail:disabled?'已加入其他席位':brands[SUBS[id].brand],disabled:disabled};
+      return {value:id,label:SUBS[id].name.replace(/^Claude /,''),detail:disabled?'已加入其他席位':brands[SUBS[id].brand],disabled:disabled};
     });
   }
   function beforeDebateSelect(){
     closeArenaModelMenu(false);closeImagePopovers();$('aaPlusMenu').style.display='none';
   }
+  function debateModelState(id,model){
+    return {value:model||'',levels:EFFORT_LEVELS[model]||[],effort:debateEffort({id:id,model:model}),defaultEffort:defaultEffortFor(model),labels:EFFORT_LABELS,descriptions:EFFORT_DESCRIPTIONS};
+  }
+  function mountDebateModelControl(options,id){
+    return ArenaModelControl.mount(Object.assign({},options,{onEffort:function(level){setDebateEffort(id,level);}}));
+  }
   var judgePicker=null;
   function syncJudgeUI(){
     $('aaJudgeCard').style.display=debate?'block':'none';
     if(!judgePicker){
-      judgePicker=ArenaControls.mountSelect({host:$('ai-arena-app'),trigger:$('aaJudgeHead'),label:'选择总结模型',beforeOpen:beforeDebateSelect,
-        renderLabel:function(value,option){$('aaJudgeSubLabel').textContent=option?option.label:'不生成总结';},
+      judgePicker=mountDebateModelControl({host:$('ai-arena-app'),trigger:$('aaJudgeHead'),label:'总结模型',beforeOpen:beforeDebateSelect,
+        renderLabel:function(value,option,state){
+          $('aaJudgeSubLabel').textContent=option?option.label:'不生成总结';
+          $('aaJudgeEffort').hidden=!state.levels.length;$('aaJudgeEffort').textContent=state.labels&&state.labels[state.effort]||state.effort||'';
+        },
         onChange:function(value){judgeModel=value;syncJudgeUI();syncArenaLayout();saveDebateDraft();}
-      });
+      },'summary');
     }
-    judgePicker.update({value:judgeModel,disabled:aaRunning,options:[{value:'none',label:'不生成总结',detail:'保留各席完整发言'}].concat(debateModelOptions())});
+    judgePicker.update(Object.assign(debateModelState('summary',judgeModel),{disabled:aaRunning,options:[{value:'none',label:'不生成总结'}].concat(debateModelOptions())}));
     if(!debate)judgePicker.close(false);
   }
 
@@ -1869,20 +1879,18 @@ var TEAM_COLORS = {
   function syncDebateStudio(){
     if(!window.ArenaDebateStudio)return;
     $('aaDebateSettingsBtn').disabled=aaRunning;
-    $('aaDebateSettingsBtn').textContent=(ArenaDebate.objectives[debateSettings.objective]||'多角度探索')+' · 设置';
+    $('aaDebateSettingsBtn').textContent='讨论设置';
     $('aaDebateContinuation').hidden=!debate||!debatePriorRunId||aaRunning||!!durableDebateView;
     if(!debate)return;
     currentDebateMembers().forEach(function(member,i){
-      var container;
-      if(debateMode==='free')container=freePickers[i]&&freePickers[i].card;
-      else if(debateMode==='persona')container=$('aaPersonaSlot'+i);
-      else {var team=member.team,index=i%2,trigger=seatPickers[team][index]&&seatPickers[team][index].trigger;if(trigger){container=trigger.closest('.arena-team-member');if(!container){container=document.createElement('div');container.className='arena-team-member';trigger.parentNode.insertBefore(container,trigger);container.appendChild(trigger);}}}
-      if(!container)return;
-      ArenaDebateStudio.mountEffort(container,{id:member.id,label:member.label,model:member.model,levels:EFFORT_LEVELS[member.model]||[],value:debateEffort(member),disabled:aaRunning},setDebateEffort);
+      var picker=debateMode==='free'?freePickers[i]&&freePickers[i].picker:debateMode==='persona'?personaPickers[i]:seatPickers[member.team][i%2];
+      if(picker)picker.update(Object.assign(debateModelState(member.id,member.model),{disabled:aaRunning}));
       if(debateMode==='persona'){
+        var container=$('aaPersonaSlot'+i);
         var note=container.querySelector('.arena-role-detail');if(note&&!note.closest('details')){var details=document.createElement('details');details.className='arena-role-notes';var summary=document.createElement('summary');summary.textContent='补充要求（可选）';details.appendChild(summary);note.parentNode.insertBefore(details,note);details.appendChild(note);}
       }
     });
+    if(judgePicker)judgePicker.update(Object.assign(debateModelState('summary',judgeModel),{disabled:aaRunning}));
   }
   function applyDebatePlan(plan){
     debateMode=plan.mode;rounds=plan.rounds;debateSeatEfforts={};judgeModel='none';
@@ -1895,10 +1903,11 @@ var TEAM_COLORS = {
   }
   function openDebateSettings(){
     if(aaRunning)return;
-    var members=currentDebateMembers().filter(function(m){return m.model;});if(judgeModel!=='none')members=members.concat({id:'summary',model:judgeModel});
-    ArenaDebateStudio.settings($('ai-arena-app'),{state:debateSettings,common:ArenaDebateStudio.commonEfforts(members,EFFORT_LEVELS),summaryLevels:EFFORT_LEVELS[judgeModel]||[],summaryEffort:debateEffort({id:'summary',model:judgeModel}),
+    ArenaModelControl.closeAll();beforeDebateSelect();
+    var members=currentDebateMembers().filter(function(m){return m.model;}),values=members.map(debateEffort);
+    ArenaDebateStudio.settings($('ai-arena-app'),{state:debateSettings,common:ArenaDebateStudio.commonEfforts(members,EFFORT_LEVELS),bulkEffort:values.length&&values.every(function(v){return v===values[0];})?values[0]:'',
       onChange:function(key,value){debateSettings[key]=value;scheduleDebateDraft();},onBulk:function(level){members.forEach(function(m){debateSeatEfforts[m.id]=level;});saveDebateDraft();syncDebateStudio();},
-      onSummaryEffort:function(level){setDebateEffort('summary',level);},onClose:function(){saveDebateDraft();syncArenaLayout();}});
+      onClose:function(){saveDebateDraft();syncArenaLayout();}});
   }
   $('aaDebateSettingsBtn').addEventListener('click',openDebateSettings);
   $('aaDebateContinuationClear').addEventListener('click',function(){debatePriorRunId=null;syncDebateStudio();});
@@ -4228,6 +4237,7 @@ var TEAM_COLORS = {
   $('aaDebateModeBar').addEventListener('click', function(e){
     var btn = e.target.closest('[data-dmode]'); if(!btn) return;
     if(btn.disabled||aaRunning) return;
+    ArenaModelControl.closeAll();
     debateMode = btn.dataset.dmode;
     seedDebateMode();
     document.querySelectorAll('#aaDebateModeBar .aa-bar-btn').forEach(function(b){
@@ -4237,6 +4247,7 @@ var TEAM_COLORS = {
       b.style.color = isActive ? '#e8e8ee' : '#6b6b88';
     });
     sync2v2UI(); syncArenaLayout(); saveState();
+    if(!msgs.length)document.querySelector('#ai-arena-app .aa-input-area').scrollTop=0;
   });
 
   // 2v2 seat state: {pro: ['xai','anthropic'], con: ['openai','google']}
@@ -4263,14 +4274,14 @@ var TEAM_COLORS = {
       (function(index){
         var slot=$('aaPersonaSlot'+index),p=personaState[index],selected=p&&(p.sub||brandSelection[p.brand])||'';
         slot.hidden=index>=personaSlotCount;slot.classList.toggle('filled',!!p);
-        if(!personaPickers[index])personaPickers[index]=ArenaControls.mountSelect({
+        if(!personaPickers[index])personaPickers[index]=mountDebateModelControl({
           host:$('ai-arena-app'),container:slot.querySelector('.aa-persona-model'),label:'角色 '+(index+1)+' 的模型',beforeOpen:beforeDebateSelect,
           onChange:function(id){
             personaState[index]=id?{brand:SUBS[id].brand,sub:id,role:$('aaPersonaRole'+index).value.trim(),desc:$('aaPersonaDesc'+index).value.trim()}:null;
             syncPersonaUI();syncArenaLayout();saveState();
           }
-        });
-        personaPickers[index].update({value:selected,disabled:aaRunning,options:[{value:'',label:'选择模型',detail:'稍后再选'}].concat(debateModelOptions())});
+        },'role-'+(index+1));
+        personaPickers[index].update(Object.assign(debateModelState('role-'+(index+1),selected),{disabled:aaRunning,options:[{value:'',label:'选择模型'}].concat(debateModelOptions())}));
         if(slot.hidden)personaPickers[index].close(false);
         $('aaPersonaRole'+index).disabled=!p||aaRunning;$('aaPersonaDesc'+index).disabled=!p||aaRunning;
         if(!p){$('aaPersonaRole'+index).removeAttribute('aria-invalid');$('aaPersonaError'+index).hidden=true;}
@@ -4293,13 +4304,13 @@ var TEAM_COLORS = {
     if(!seatPickers[team].length)container.replaceChildren();
     seatState[team].forEach(function(selected,index){
       var label=(team==='pro'?'正方':'反方')+'模型 '+(index+1);
-      if(!seatPickers[team][index])seatPickers[team][index]=ArenaControls.mountSelect({
+      if(!seatPickers[team][index])seatPickers[team][index]=mountDebateModelControl({
         host:$('ai-arena-app'),container:container,label:label,beforeOpen:beforeDebateSelect,
         onChange:function(id){
           seatState[team][index]=id||null;sync2v2UI();syncArenaLayout();saveState();
         }
-      });
-      seatPickers[team][index].update({value:selected||'',disabled:aaRunning,options:[{value:'',label:'选择模型',detail:'为这个席位选择 AI'}].concat(debateModelOptions(used,selected))});
+      },team+'-'+(index+1));
+      seatPickers[team][index].update(Object.assign(debateModelState(team+'-'+(index+1),selected),{disabled:aaRunning,options:[{value:'',label:'选择模型'}].concat(debateModelOptions(used,selected))}));
     });
   }
 
@@ -4323,10 +4334,10 @@ var TEAM_COLORS = {
         var card=document.createElement('div');card.className='arena-free-seat';
         card.innerHTML='<span class="arena-seat-number">席位 '+(index+1)+'</span><div class="arena-free-model"></div><button type="button" class="arena-role-remove" data-remove-participant="'+index+'" aria-label="移除席位 '+(index+1)+'"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg></button>';
         $('aaFreeParticipantGrid').appendChild(card);
-        var picker=ArenaControls.mountSelect({host:$('ai-arena-app'),container:card.querySelector('.arena-free-model'),label:'席位 '+(index+1)+' 的模型',beforeOpen:beforeDebateSelect,onChange:function(value){debateModels[index]=value||null;syncArenaLayout();saveState();}});
+        var picker=mountDebateModelControl({host:$('ai-arena-app'),container:card.querySelector('.arena-free-model'),label:'席位 '+(index+1)+' 的模型',beforeOpen:beforeDebateSelect,onChange:function(value){debateModels[index]=value||null;syncArenaLayout();saveState();}},'seat-'+(index+1));
         freePickers[index]={card:card,picker:picker};
       }
-      freePickers[index].picker.update({value:id||'',disabled:aaRunning,options:[{value:'',label:'选择模型'}].concat(debateModelOptions())});
+      freePickers[index].picker.update(Object.assign(debateModelState('seat-'+(index+1),id),{disabled:aaRunning,options:[{value:'',label:'选择模型'}].concat(debateModelOptions())}));
       var remove=freePickers[index].card.querySelector('[data-remove-participant]');remove.hidden=debateModels.length<=2;remove.disabled=aaRunning;
     });
     $('aaAddParticipant').hidden=debateModels.length>=6;$('aaAddParticipant').disabled=aaRunning;
@@ -6010,24 +6021,11 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
     syncKitten();
   }
   function renderArenaModelMenu(){
-    var model = getActiveSubmodels()[0], info = SUBS[model];
-    var arrow = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>';
-    var check = '<svg class="arena-model-check" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>';
-    var levels=EFFORT_LEVELS[model]||[], level=effortFor(model), index=levels.indexOf(level);
-    var h='<div class="arena-effort-heading"><span aria-hidden="true"></span>'
-      +'<output id="aaEffortValue" for="aaEffortSlider" aria-live="polite">'+(EFFORT_LABELS[level]||'选择模型')+'</output>'
-      +'<button type="button" class="arena-effort-reset" id="aaResetEffortBtn" aria-label="恢复默认思考强度" title="恢复默认思考强度"'+(levels.length?'':' hidden')+'><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10a9 9 0 1 1 1.7 7M3 4v6h6"/></svg></button></div>'
-      +'<button type="button" class="arena-effort-model" id="aaModelPickerBtn" aria-haspopup="dialog" aria-controls="aaModelsSubmenu"><span>'+(info?info.name.replace(/^Claude /,''):'选择模型')+'</span>'+arrow+'</button>';
-    if(levels.length){
-      h+='<div class="arena-effort-scale" id="aaEffortScale" style="--effort-progress:'+(index/(levels.length-1)*100)+'%"><div class="arena-effort-track" aria-hidden="true"><div class="arena-effort-fill"></div></div><div class="arena-effort-thumb" aria-hidden="true"><span><i class="arena-effort-halo"></i></span></div><div class="arena-effort-ticks" aria-hidden="true">';
-      levels.forEach(function(value,i){h+='<span'+(i<=index?' class="is-filled"':'')+' style="left:'+(i/(levels.length-1)*100)+'%"></span>';});
-      h+='</div><label class="arena-sr-only" for="aaEffortSlider">思考强度</label><input id="aaEffortSlider" type="range" min="0" max="'+(levels.length-1)+'" step="1" value="'+index+'" data-effort-model="'+model+'" aria-valuetext="'+EFFORT_LABELS[level]+'" aria-describedby="aaEffortDescription"><p class="arena-sr-only" id="aaEffortDescription">'+EFFORT_DESCRIPTIONS[level]+'</p></div>';
-      h+='<div class="arena-effort-ends" aria-hidden="true"><span>'+EFFORT_LABELS[levels[0]]+'</span><span>'+EFFORT_LABELS[levels[levels.length-1]]+'</span></div>';
-    }
-    $('aaChatModelPop').innerHTML=h;
-    if(typeof ArenaEffort!=='undefined') ArenaEffort.mount($('aaEffortScale'));
-    $('aaModelsSubmenu').innerHTML='<div class="arena-model-picker-heading"><span>'+(skillModelRestricted()?'当前 Skill 仅支持 Claude':'选择模型')+'</span><button type="button" data-arena-model-back aria-label="返回思考强度">'+arrow+'</button></div>'
-      +eligibleChatModels().map(function(id){return '<button type="button" class="arena-model-option" data-arena-model="'+id+'" aria-pressed="false"><span>'+SUBS[id].name.replace(/^Claude /,'')+'</span>'+check+'</button>';}).join('');
+    var model=getActiveSubmodels()[0],info=SUBS[model];
+    $('aaChatModelPop').innerHTML=ArenaModelControl.effortHTML({prefix:'aa',model:model,modelLabel:info?info.name.replace(/^Claude /,''):'选择模型',levels:EFFORT_LEVELS[model]||[],value:effortFor(model),labels:EFFORT_LABELS,descriptions:EFFORT_DESCRIPTIONS});
+    if(typeof ArenaEffort!=='undefined')ArenaEffort.mount($('aaEffortScale'));
+    $('aaModelPickerBtn').setAttribute('aria-controls','aaModelsSubmenu');
+    $('aaModelsSubmenu').innerHTML=ArenaModelControl.choicesHTML({label:skillModelRestricted()?'当前 Skill 仅支持 Claude':'选择模型',back:true,items:eligibleChatModels().map(function(id){return {value:id,label:SUBS[id].name.replace(/^Claude /,'')};})});
     syncArenaLayout();
   }
   $('aaChatModelPop').addEventListener('input', function(e){
@@ -6053,6 +6051,7 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
   }
   $('aaChatModelBtn').addEventListener('click', function(e){
     e.stopPropagation();
+    ArenaModelControl.closeAll();
     var popover = $('aaChatModelPop');
     if(!popover.hidden || !$('aaModelsSubmenu').hidden){ closeArenaModelMenu(true); return; }
     document.querySelectorAll('#ai-arena-app .aa-card-dropdown.open').forEach(function(drop){ drop.classList.remove('open'); });

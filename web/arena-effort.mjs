@@ -92,11 +92,17 @@ function mount(root) {
   input.addEventListener('input', sync, options);
   const observer = new ResizeObserver(sync); observer.observe(root);
   root.classList.add('is-enhanced'); sync();
+  let destroyed = false;
   active = { sync, destroy() {
+    if (destroyed) return;
+    destroyed = true;
     abort.abort(); observer.disconnect(); stop();
     if (frame) cancelAnimationFrame(frame);
     gesture.remove(); root.classList.remove('is-enhanced', 'is-dragging');
-    delete input.dataset.effortDragging; active = null;
+    delete input.dataset.effortDragging;
+    if (active === controller) active = null;
   } };
+  const controller = active;
+  return controller;
 }
 window.ArenaEffort = { mount, sync() { active?.sync(); } };
