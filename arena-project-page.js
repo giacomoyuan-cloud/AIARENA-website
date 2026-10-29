@@ -14,7 +14,10 @@
     var shortcuts=document.createElement('div');shortcuts.className='arena-project-shortcuts';shortcuts.hidden=true;host.querySelector('.arena-history-label').before(shortcuts);
     var upload=document.createElement('input');upload.type='file';upload.multiple=true;upload.hidden=true;upload.accept='.txt,.md,.pdf,.docx,.xlsx,.xls,.pptx,.csv,.tsv,.json,.log';host.appendChild(upload);
     var folder=document.createElement('input');folder.type='file';folder.multiple=true;folder.hidden=true;folder.setAttribute('webkitdirectory','');host.appendChild(folder);
-    var epoch=0,account='',kind='',current=null,chats=[],tasks=[],catalog=[],archiveCatalog=[],archived=false,taskTab='mine',taskScope,taskSearch='',taskFilter='all',taskSort='next',projectSearch='',sort='updated',uploading=false,formSave=null,creationTarget=null;
+    var epoch=0,account='',kind='',current=null,chats=[],tasks=[],catalog=[],archiveCatalog=[],deletedCatalog=[],archived=false,deleted=false,taskTab='mine',taskScope,taskSearch='',taskFilter='all',taskSort='next',projectSearch='',sort='updated',uploading=false,formSave=null,creationTarget=null;
+    var projectState=root.ArenaProjectState.create({api:app.api,accountKey:key,credentials:auth,onError:function(err){notice(err.message);},onChange:function(){
+      syncCatalogs();paintPins();if(kind==='home')renderHome();else if(kind==='list')paintList(projectsForView());
+    }});
     var menu=document.createElement('div');menu.className='arena-project-menu';menu.setAttribute('popover','auto');menu.setAttribute('role','menu');host.appendChild(menu);
     var menuAction=null,menuAnchor=null;
     var legacy=mountLegacy(Object.assign({},app,{switchScope:async function(p){if(await app.switchScope(p)===false)return false;if(p)await home(p.id,true);else hide();return true;},refreshProject:function(p){app.refreshProject(p);if(current&&current.id===p.id){current=Object.assign({},current,p);if(kind==='home')renderHome();}loadPins();}}));
@@ -28,8 +31,8 @@
     function show(view,html){restoreComposer();kind=view;page.innerHTML=html;page.hidden=false;host.classList.add('arena-workspace-visible');host.dataset.workspaceView=view;host.querySelector('#aaProjectsBtn').classList.toggle('active',view!=='tasks');host.querySelector('#aaSchedulesBtn').classList.toggle('active',view==='tasks');host.querySelector('#aaConversationTitle').textContent=view==='tasks'?'定时任务':view==='home'&&current?current.name:'项目';app.closeSidebar();closeMenu();}
     function heading(name,actions){return '<header class="arena-project-page-heading"><h1>'+e(name)+'</h1><div>'+actions+'</div></header>';}
     function status(){return '<p data-error class="arena-project-error" role="alert"></p>';}
-    function openForm(name,html,save){
-      formSave=save;dialog.setAttribute('aria-label',name);dialog.innerHTML='<div class="arena-dialog-heading"><h2>'+e(name)+'</h2>'+button(icon('close'),'data-editor-close aria-label="关闭窗口"','arena-icon-btn')+'</div><form><div class="arena-project-form-body">'+html+status()+'</div><footer class="arena-project-form-footer">'+button('取消','data-editor-close')+'<button type="submit" class="arena-workspace-primary">保存</button></footer></form>';
+    function openForm(name,html,save,options){
+      options=options||{};formSave=save;dialog.setAttribute('aria-label',name);dialog.innerHTML='<div class="arena-dialog-heading"><h2>'+e(name)+'</h2>'+button(icon('close'),'data-editor-close aria-label="关闭窗口"','arena-icon-btn')+'</div><form><div class="arena-project-form-body">'+html+status()+'</div><footer class="arena-project-form-footer">'+button('取消','data-editor-close')+'<button type="submit" class="arena-workspace-primary'+(options.danger?' danger':'')+'">'+e(options.submit||'保存')+'</button></footer></form>';
       if(!dialog.open)dialog.showModal();var field=dialog.querySelector('input:not([type=checkbox]),textarea,select');if(field)field.focus();
     }
     dialog.addEventListener('click',function(ev){if(ev.target.closest('[data-editor-close]'))dialog.close();});
@@ -46,10 +49,13 @@
     }
     menu.addEventListener('click',function(ev){var b=ev.target.closest('[data-menu]');if(!b)return;var action=menuAction;closeMenu();Promise.resolve(action(b.dataset.menu)).catch(function(err){notice(err.message);});});
     menu.addEventListener('keydown',function(ev){var buttons=Array.from(menu.querySelectorAll('button')),index=buttons.indexOf(document.activeElement);if(ev.key==='ArrowDown'||ev.key==='ArrowUp'){ev.preventDefault();buttons[(index+(ev.key==='ArrowDown'?1:-1)+buttons.length)%buttons.length].focus();}if(ev.key==='Escape'){closeMenu();if(menuAnchor)menuAnchor.focus();}});
+    function listView(){return deleted?'deleted':archived?'archived':'active';}
+    function syncCatalogs(){catalog=projectState.projects('active');archiveCatalog=projectState.projects('archived');deletedCatalog=projectState.projects('deleted');}
+    function projectsForView(){return deleted?deletedCatalog:archived?archiveCatalog:catalog;}
     async function loadPins(){
       var a=key(),credentials=auth();if(!a){catalog=[];shortcuts.hidden=true;shortcuts.innerHTML='';return;}
       if(account!==a){shortcuts.innerHTML='';shortcuts.hidden=true;}account=a;
-      try{var result=await app.api('list',credentials);if(a!==key())return;catalog=result.projects;paintPins();}catch(err){}
+      try{await projectState.load('active');if(a!==key())return;syncCatalogs();paintPins();if(kind==='home')renderHome();}catch(err){}
     }
     function syncScope(){
       var id=app.currentScope?app.currentScope():app.currentProject()?.id;
@@ -63,12 +69,23 @@
     async function list(){
       if(app.busy()){notice('回答完成后可以切换项目');return;}
       var n=++epoch;account=key();show('list',heading('项目',button('新建项目','data-new-project','arena-workspace-primary'))+'<p role="status">正在加载项目…</p>');
-      try{var data=await app.api('list',Object.assign({includeArchived:archived},auth()));if(!valid(n))return;if(archived)archiveCatalog=data.projects;else catalog=data.projects;paintList(data.projects);if(!archived)paintPins();}catch(err){if(valid(n))page.innerHTML=heading('项目',button('新建项目','data-new-project','arena-workspace-primary'))+'<p role="alert">'+e(err.message)+'</p>'+button('重新加载','data-list');}
+      try{await projectState.load(listView());if(!valid(n))return;syncCatalogs();paintList(projectsForView());paintPins();}catch(err){if(valid(n))page.innerHTML=heading('项目',button('新建项目','data-new-project','arena-workspace-primary'))+'<p role="alert">'+e(err.message)+'</p>'+button('重新加载','data-list');}
     }
     function paintList(items){
+      var inactive=archived||deleted;
       var sorted=items.filter(function(p){return !projectSearch||p.name.toLocaleLowerCase().includes(projectSearch.toLocaleLowerCase());}).sort(function(a,b){return Number(!!b.pinned)-Number(!!a.pinned)||(sort==='name'?a.name.localeCompare(b.name,'zh-CN'):b.updatedAt-a.updatedAt);});
-      show('list',heading(archived?'已归档项目':'项目',button('普通聊天','data-general')+button(archived?'返回项目':'已归档','data-archive-toggle')+button('新建项目','data-new-project','arena-workspace-primary'))+
-        '<div class="arena-project-tools"><label class="arena-project-search">'+icon('search')+'<input type="search" data-project-search aria-label="搜索项目" placeholder="搜索项目" value="'+e(projectSearch)+'"></label><select data-project-sort aria-label="项目排序"><option value="updated"'+(sort==='updated'?' selected':'')+'>最近更新</option><option value="name"'+(sort==='name'?' selected':'')+'>名称</option></select></div><div class="arena-project-grid">'+(sorted.length?sorted.map(function(p){return '<article class="arena-project-card">'+button(icon('folder')+'<strong>'+e(p.name)+'</strong><span>'+date(p.updatedAt)+'</span>','data-open-project="'+e(p.id)+'"','arena-project-open')+(archived?button('恢复','data-restore="'+e(p.id)+'"','arena-project-card-more'):button(root.ArenaControls.pinIcon,'data-pin-project="'+e(p.id)+'" aria-label="'+(p.pinned?'取消置顶':'置顶')+'项目：'+e(p.name)+'" aria-pressed="'+!!p.pinned+'"','arena-project-pin'+(p.pinned?' pinned':''))+button(icon('more'),'data-project-menu="'+e(p.id)+'" aria-label="项目菜单：'+e(p.name)+'" aria-haspopup="menu"','arena-project-card-more'))+'</article>';}).join(''):'<div class="arena-project-empty">'+icon('folder')+'<h2>'+(projectSearch?'没有找到项目':archived?'暂无已归档项目':'创建你的第一个项目')+'</h2><p>将相关对话、指令和参考资料放在一起。</p>'+(!projectSearch&&!archived?button('新建项目','data-new-project','arena-workspace-primary'):'')+'</div>')+'</div>'+status());
+      var actions=button('普通聊天','data-general')+(inactive?button('返回项目','data-list'):'')+(!archived?button('已归档','data-archive-toggle'):'')+(!deleted?button('回收站','data-trash-toggle'):'')+button('新建项目','data-new-project','arena-workspace-primary');
+      var cards=sorted.map(function(p){
+        var content=icon('folder')+'<strong>'+e(p.name)+'</strong><span>'+date(deleted?p.deletedAt:p.updatedAt)+'</span>';
+        var open=inactive?'<div class="arena-project-open">'+content+'</div>':button(content,'data-open-project="'+e(p.id)+'"','arena-project-open');
+        var pin=button(root.ArenaControls.pinIcon,'data-pin-project="'+e(p.id)+'" aria-label="'+(p.pinned?'取消置顶':'置顶')+'项目：'+e(p.name)+'" aria-pressed="'+!!p.pinned+'" aria-busy="'+!!p.pinPending+'"','arena-project-pin'+(p.pinned?' pinned':''));
+        var restore=button('恢复','data-restore="'+e(p.id)+'"','arena-project-card-restore');
+        var more=button(icon('more'),'data-project-menu="'+e(p.id)+'" aria-label="项目菜单：'+e(p.name)+'" aria-haspopup="menu"','arena-project-card-more');
+        return '<article class="arena-project-card">'+open+'<div class="arena-project-card-actions">'+(inactive?restore:pin)+(!deleted?more:'')+'</div></article>';
+      }).join('');
+      var empty='<div class="arena-project-empty">'+icon('folder')+'<h2>'+(projectSearch?'没有找到项目':deleted?'回收站为空':archived?'暂无已归档项目':'创建你的第一个项目')+'</h2><p>'+(deleted?'删除的项目可以在这里恢复。':'将相关对话、指令和参考资料放在一起。')+'</p>'+(!projectSearch&&!inactive?button('新建项目','data-new-project','arena-workspace-primary'):'')+'</div>';
+      show('list',heading(deleted?'回收站':archived?'已归档项目':'项目',actions)+
+        '<div class="arena-project-tools"><label class="arena-project-search">'+icon('search')+'<input type="search" data-project-search aria-label="搜索项目" placeholder="搜索项目" value="'+e(projectSearch)+'"></label><select data-project-sort aria-label="项目排序"><option value="updated"'+(sort==='updated'?' selected':'')+'>最近更新</option><option value="name"'+(sort==='name'?' selected':'')+'>名称</option></select></div><div class="arena-project-grid">'+(cards||empty)+'</div>'+status());
     }
     function createProject(after){
       var credentials=auth();
@@ -95,8 +112,8 @@
     }
     function fileRows(files){return files.map(function(f){return '<div class="arena-project-resource">'+button(icon('file')+'<span>'+e(f.relativePath||f.name)+'</span>','data-preview="'+e(f.id)+'"')+button('×','data-remove-file="'+e(f.id)+'" aria-label="移除资料：'+e(f.name)+'"')+'</div>';}).join('');}
     function renderHome(){
-      if(!current||kind!=='home')return;var p=current,files=p.files||[],folders=Array.from(new Set(files.map(function(f){return f.folder;}).filter(Boolean))),selectedFocus=composer.contains(document.activeElement)?document.activeElement:null;
-      show('home','<div class="arena-project-breadcrumb">'+button('项目','data-list')+'<span>/</span><span>'+e(p.name)+'</span></div>'+heading(p.name,button(root.ArenaControls.pinIcon,'data-pin-project="'+e(p.id)+'" aria-label="'+(catalog.find(function(x){return x.id===p.id;})?.pinned?'取消置顶':'置顶')+'项目" aria-pressed="'+!!catalog.find(function(x){return x.id===p.id;})?.pinned+'"','arena-project-heading-pin')+button(icon('more'),'data-project-menu="'+e(p.id)+'" aria-label="项目菜单" aria-haspopup="menu"'))+
+      if(!current||kind!=='home')return;var p=current,pin=catalog.find(function(x){return x.id===p.id;})||{},files=p.files||[],folders=Array.from(new Set(files.map(function(f){return f.folder;}).filter(Boolean))),selectedFocus=composer.contains(document.activeElement)?document.activeElement:null;
+      show('home','<div class="arena-project-breadcrumb">'+button('项目','data-list')+'<span>/</span><span>'+e(p.name)+'</span></div>'+heading(p.name,button(root.ArenaControls.pinIcon,'data-pin-project="'+e(p.id)+'" aria-label="'+(pin.pinned?'取消置顶':'置顶')+'项目" aria-pressed="'+!!pin.pinned+'" aria-busy="'+!!pin.pinPending+'"','arena-project-heading-pin'+(pin.pinned?' pinned':''))+button(icon('more'),'data-project-menu="'+e(p.id)+'" aria-label="项目菜单" aria-haspopup="menu"'))+
         '<div class="arena-project-home-grid"><div class="arena-project-home-main"><div data-composer-slot></div><div class="arena-project-conversations"><div class="arena-project-section-heading"><h2>项目对话</h2>'+button(icon('plus')+'新建对话','data-new-chat')+'</div><label class="arena-project-search">'+icon('search')+'<input type="search" data-chat-search aria-label="搜索项目对话" placeholder="搜索对话"></label><div data-project-chats>'+chatRows(chats)+'</div></div></div><aside class="arena-project-context" aria-label="项目设置和资料">'+
         '<section><div class="arena-project-section-heading"><h2>指令</h2>'+button(icon('plus'),'data-edit-field="instructions" aria-label="编辑项目指令"')+'</div><p class="arena-project-instructions">'+e(p.instructions||'添加指令，定制这个项目中的回复。')+'</p></section>'+
         '<section><div class="arena-project-section-heading"><h2>记忆</h2><span class="arena-project-private">'+icon('lock')+'仅限本人</span>'+button('查看记忆','data-edit-field="memory"')+'</div><p class="arena-project-memory">'+e(p.memory||'在此项目中积累的记忆会显示在这里。')+'</p></section>'+
@@ -107,13 +124,37 @@
     }
     function chatRows(items){return items.length?items.map(function(c){return '<article class="arena-project-chat-row">'+button(icon('chat')+'<span><strong>'+e(c.title)+'</strong><small>'+date(c.lastReplyAt||c.updatedAt)+'</small></span>','data-open-chat="'+e(c.id)+'"')+button(icon('more'),'data-chat-menu="'+e(c.id)+'" aria-label="对话菜单：'+e(c.title)+'" aria-haspopup="menu"')+'</article>';}).join(''):'<div class="arena-project-empty arena-project-empty-small">'+icon('chat')+'<p>在这个项目中发起对话，共用相同的指令和资料。</p></div>';}
     async function refreshHome(){if(current&&kind==='home')await home(current.id,false);}
-    async function togglePin(id){var p=catalog.find(function(x){return x.id===id;}),n=epoch,a=key(),data=await app.api('pin',Object.assign({projectId:id,pinned:!p?.pinned},auth()));if(a!==key())return;if(p)p.pinned=data.pinned;paintPins();if(n===epoch){if(kind==='home')renderHome();else if(kind==='list')await list();}}
-    function projectMenu(p,anchor){if(!p)return;openMenu(anchor,[{id:'pin',label:p.pinned?'取消置顶':'置顶'},{id:'rename',label:'重命名'},{id:'settings',label:'项目设置'},{id:'general',label:'返回普通聊天'},{id:'archive',label:'归档项目',danger:true}],async function(action){
-      if(action==='pin')return togglePin(p.id);if(action==='general'){hide();await app.switchScope(null);return;}
-      if(action==='settings'){if(!app.currentProject()||app.currentProject().id!==p.id)await enter(p.id);return legacy.settings();}
-      if(action==='rename')return openForm('重命名项目','<label>项目名称<input name="name" required maxlength="80" value="'+e(p.name)+'"></label>',async function(f){await app.api('update',Object.assign({projectId:p.id,name:f.elements.name.value},auth()));await loadPins();if(kind==='home')await refreshHome();else await list();});
-      openForm('归档项目','<p>归档“'+e(p.name)+'”？对话和资料会保留，可在已归档项目中恢复。</p>',async function(){await app.api('archive',Object.assign({projectId:p.id},auth()));if(app.currentProject()?.id===p.id)await app.switchScope(null);await loadPins();await list();});
-    });}
+    function togglePin(id){projectState.togglePin(id);}
+    async function restoreProject(p){
+      var a=key();await projectState.change(p.deletedAt?'restore':'restoreArchive',p);if(a!==key())return;
+      archived=false;deleted=false;projectSearch='';await loadPins();await list();notice('项目已恢复');
+    }
+    function projectMenu(p,anchor){
+      if(!p)return;var a=key(),credentials=auth();
+      var items=p.deletedAt?[{id:'restore',label:'恢复项目'}]:p.archivedAt?[{id:'restore',label:'恢复项目'},{id:'delete',label:'删除项目',danger:true}]:[
+        {id:'pin',label:p.pinned?'取消置顶':'置顶'},{id:'rename',label:'重命名'},{id:'settings',label:'项目设置'},{id:'general',label:'返回普通聊天'},{id:'archive',label:'归档项目'},{id:'delete',label:'删除项目',danger:true}
+      ];
+      openMenu(anchor,items,async function(action){
+        if(a!==key())return;
+        if(action==='pin')return togglePin(p.id);if(action==='restore')return restoreProject(p);
+        if(action==='general'){hide();await app.switchScope(null);return;}
+        if(action==='settings'){if(!app.currentProject()||app.currentProject().id!==p.id)await enter(p.id);return legacy.settings();}
+        if(action==='rename')return openForm('重命名项目','<label>项目名称<input name="name" required maxlength="80" value="'+e(p.name)+'"></label>',async function(f){
+          if(a!==key())throw Error('账号已切换，请重新打开项目菜单');
+          await app.api('update',Object.assign({projectId:p.id,name:f.elements.name.value},credentials));if(a!==key())return;
+          await loadPins();if(kind==='home')await refreshHome();else await list();
+        });
+        if(app.busy()){notice('回答完成后可以操作项目');return;}
+        var deleting=action==='delete';
+        openForm(deleting?'删除项目':'归档项目','<p>'+(deleting?'删除':'归档')+'“'+e(p.name)+'”？</p><p>'+(deleting?'项目将移入回收站，可恢复。对话、记忆和资料会保留在该项目内，不会进入普通聊天。项目删除期间不会启动新的定时生成。':'对话和资料会保留，可在已归档项目中恢复。')+'</p>',async function(){
+          if(a!==key())throw Error('账号已切换，请重新打开项目菜单');
+          if(app.busy())throw Error('回答完成后可以操作项目');
+          await projectState.change(action,p);if(a!==key())return;
+          if(app.currentProject()?.id===p.id){hide();if(await app.switchScope(null)===false)return;}
+          await loadPins();await list();notice(deleting?'项目已移入回收站':'项目已归档');
+        },{submit:deleting?'删除项目':'归档项目',danger:deleting});
+      });
+    }
     function editField(field){var p=current,credentials=auth(),limit=field==='memory'?2400:4000,label=field==='memory'?'项目记忆':'项目指令';openForm(label,'<p>'+(field==='memory'?'仅在本项目的对话之间共享。可以修改或清空。':'保存后用于本项目的下一条消息。')+'</p><label>'+label+'<textarea name="value" rows="9" maxlength="'+limit+'">'+e(p[field]||'')+'</textarea></label>',async function(f){var values={projectId:p.id};values[field]=f.elements.value.value;var data=await app.api('update',Object.assign(values,credentials));current=Object.assign({},p,data.project);current[field]=values[field];app.refreshProject(current);renderHome();notice(label+'已保存');});}
     function addText(){var p=current,credentials=auth();openForm('添加文本资料','<label>标题<input name="name" required maxlength="160" placeholder="例如：项目背景"></label><label>内容<textarea name="text" required rows="10" maxlength="400000"></textarea></label>',async function(f){var name=f.elements.name.value.trim().replace(/\.txt$/i,'')+'.txt',file=new File([f.elements.text.value],name,{type:'text/plain'});await app.api('upload',Object.assign({projectId:p.id,file:await root.ArenaWorkspace.readFile(file)},credentials));await refreshHome();notice('文本资料已保存');});}
     async function uploadFiles(files,isFolder){
@@ -203,19 +244,20 @@
     }catch(err){error(err.message);b.disabled=false;}});
     page.addEventListener('keydown',function(ev){if(ev.target.hasAttribute('data-task-tab')&&['ArrowLeft','ArrowRight','Home','End'].includes(ev.key)){ev.preventDefault();taskTab=ev.key==='Home'?'mine':ev.key==='End'?'templates':taskTab==='mine'?'templates':'mine';renderTasks();page.querySelector('[data-task-tab="'+taskTab+'"]').focus();}});
     page.addEventListener('input',function(ev){var t=ev.target;if(t.hasAttribute('data-chat-search')){var q=t.value.toLocaleLowerCase();page.querySelector('[data-project-chats]').innerHTML=chatRows(chats.filter(function(c){return c.title.toLocaleLowerCase().includes(q);}));}
-      if(t.hasAttribute('data-project-search')){projectSearch=t.value;var position=t.selectionStart;paintList(archived?archiveCatalog:catalog);var search=page.querySelector('[data-project-search]');search.focus();if(search.type!=='search')search.setSelectionRange(position,position);}
+      if(t.hasAttribute('data-project-search')){projectSearch=t.value;var position=t.selectionStart;paintList(projectsForView());var search=page.querySelector('[data-project-search]');search.focus();if(search.type!=='search')search.setSelectionRange(position,position);}
       if(t.hasAttribute('data-task-search')){taskSearch=t.value;renderTasks();page.querySelector('[data-task-search]').focus();}
     });
     page.addEventListener('change',function(ev){if(ev.target.hasAttribute('data-task-filter')){taskFilter=ev.target.value;renderTasks();return;}if(ev.target.hasAttribute('data-task-sort')){taskSort=ev.target.value;renderTasks();return;}if(ev.target.hasAttribute('data-project-sort')){sort=ev.target.value;list();}});
     page.addEventListener('click',async function(ev){var b=ev.target.closest('button');if(!b)return;try{
-      if(b.hasAttribute('data-list'))return list();if(b.hasAttribute('data-general')){hide();return app.switchScope(null);}
-      if(b.hasAttribute('data-archive-toggle')){archived=!archived;return list();}
+      if(b.hasAttribute('data-list')){archived=false;deleted=false;projectSearch='';return list();}if(b.hasAttribute('data-general')){hide();return app.switchScope(null);}
+      if(b.hasAttribute('data-archive-toggle')){archived=!archived;deleted=false;projectSearch='';return list();}
+      if(b.hasAttribute('data-trash-toggle')){deleted=!deleted;archived=false;projectSearch='';return list();}
       if(b.hasAttribute('data-new-project'))return createProject();
       if(b.dataset.openProject)return enter(b.dataset.openProject);
       if(b.dataset.home)return home(b.dataset.home,false);
-      if(b.dataset.restore){await app.api('archive',Object.assign({projectId:b.dataset.restore,archived:false},auth()));await loadPins();return list();}
-      if(b.dataset.pinProject){b.disabled=true;try{await togglePin(b.dataset.pinProject);}finally{b.disabled=false;}return;}
-      if(b.hasAttribute('data-project-menu'))return projectMenu(catalog.find(function(p){return p.id===(b.dataset.projectMenu||current?.id);})||current,b);
+      if(b.dataset.restore){var p=projectsForView().find(function(p){return p.id===b.dataset.restore;});if(!p)return;b.disabled=true;try{return await restoreProject(p);}finally{b.disabled=false;}}
+      if(b.dataset.pinProject)return togglePin(b.dataset.pinProject);
+      if(b.hasAttribute('data-project-menu'))return projectMenu(projectsForView().find(function(p){return p.id===(b.dataset.projectMenu||current?.id);})||current,b);
       if(b.dataset.editField)return editField(b.dataset.editField);
       if(b.hasAttribute('data-context-menu'))return contextMenu(b);
       if(b.hasAttribute('data-folder')){folder.click();return;}
@@ -248,6 +290,6 @@
         }).catch(function(err){notice(err.message||'切换失败，请重试');});
       },true);
     });
-    return Object.assign({},legacy,{list:list,enter:enter,home:function(){var p=app.currentProject();return p?home(p.id,true):list();},hide:hide,preload:loadPins,syncScope:syncScope,schedules:function(){return schedules();},chatMenu:chatMenu,chooseProject:chooseProject,refresh:refreshHome,visible:function(){return !page.hidden;}});
+    return Object.assign({},legacy,{list:function(){archived=false;deleted=false;projectSearch='';return list();},enter:enter,home:function(){var p=app.currentProject();return p?home(p.id,true):list();},hide:hide,preload:loadPins,syncScope:syncScope,schedules:function(){return schedules();},chatMenu:chatMenu,chooseProject:chooseProject,refresh:refreshHome,visible:function(){return !page.hidden;}});
   };
 })(window);

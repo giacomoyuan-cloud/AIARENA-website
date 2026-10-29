@@ -69,3 +69,42 @@ test('the scheduler endpoint checks account ownership and never forwards credent
   assert.equal((await call('/schedules',{action:'list',projectId:p.id},'two')).status,404);
   assert.equal((await call('/schedules',{action:'list',password:'wrong'})).status,401);
 });
+test('deleted projects leave active lists and pins, reject ordinary access, and restore their own data intact',async()=>{
+  const {data,call,project,save}=setup(),a=await project('Recoverable'),b=await project('Unchanged');await save(a.id);await save();
+  await call('/projects',{action:'pin',projectId:a.id,pinned:true});
+  await call('/projects',{action:'update',projectId:a.id,memory:'PRIVATE_PROJECT_MEMORY'});
+  await call('/projects',{action:'upload',projectId:a.id,file:{name:'brief.md',text:'PRIVATE_PROJECT_MATERIAL',size:3,type:'text/plain',data:'YWJj'}});
+  data.set('mem:one','GENERAL_MEMORY');
+  const before=new Map([...data].filter(([key])=>key.startsWith('project:one:'+a.id+':')&&!key.endsWith(':meta')));
+  const deleted=await call('/projects',{action:'delete',projectId:a.id});assert.equal(deleted.status,200);assert.ok(deleted.project.deletedAt);
+  assert.deepEqual((await call('/projects',{action:'list'})).projects.map(p=>p.id),[b.id]);
+  assert.equal((await call('/projects',{action:'list',includeArchived:true})).projects.length,0);
+  assert.deepEqual((await call('/projects',{action:'list',includeDeleted:true})).projects.map(p=>p.id),[a.id]);
+  assert.ok(!data.has('projects:one:pin:'+a.id));
+  for(const action of ['get','update','pin','archive','upload','files','removed_files'])assert.equal((await call('/projects',{action,projectId:a.id,pinned:true})).status,404,action);
+  for(const path of ['/chats','/system-prompt','/schedules'])assert.equal((await call(path,{action:'list',projectId:a.id})).status,404,path);
+  assert.equal((await call('/memory',{action:'get',user:'one',projectId:a.id})).status,404);
+  assert.equal((await call('/projects',{action:'delete',projectId:a.id})).status,200);
+  assert.equal((await call('/projects',{action:'restore',projectId:a.id})).status,200);
+  const restored=(await call('/projects',{action:'get',projectId:a.id})).project;
+  assert.equal(restored.deletedAt,null);assert.equal(restored.instructions,'KEEP_INSTRUCTIONS');assert.equal(restored.memory,'PRIVATE_PROJECT_MEMORY');assert.equal(restored.files.length,1);
+  for(const [key,value]of before)assert.equal(data.get(key),value,key);
+  assert.equal(data.get('mem:one'),'GENERAL_MEMORY');assert.equal((await call('/chats',{action:'list'})).chats.length,1);
+  assert.equal((await call('/chats',{action:'load',projectId:a.id,chatId:'chat-123456'})).messages[0].text,'原始正文');
+});
+test('delete, trash and restore enforce account ownership, including archived projects',async()=>{
+  const {call,project}=setup(),p=await project('Archived');
+  for(const action of ['delete','restore'])assert.equal((await call('/projects',{action,projectId:p.id},'two')).status,404);
+  await call('/projects',{action:'archive',projectId:p.id});assert.equal((await call('/projects',{action:'delete',projectId:p.id})).status,200);
+  assert.equal((await call('/projects',{action:'list',includeDeleted:true},'two')).projects.length,0);
+  assert.equal((await call('/projects',{action:'restore',projectId:p.id},'two')).status,404);
+  const result=await call('/projects',{action:'restore',projectId:p.id});assert.equal(result.status,200);assert.equal(result.project.archivedAt,null);
+  assert.equal((await call('/projects',{action:'get',projectId:p.id})).status,200);
+});
+test('deleted projects release active capacity and restoring cannot exceed the project limit',async()=>{
+  const {call,project}=setup(),p=await project('Restore me');
+  for(let i=0;i<29;i++)await project('Other '+i);
+  await call('/projects',{action:'delete',projectId:p.id});const next=await project('New slot');assert.ok(next.id);
+  assert.equal((await call('/projects',{action:'restore',projectId:p.id})).status,400);
+  await call('/projects',{action:'delete',projectId:next.id});assert.equal((await call('/projects',{action:'restore',projectId:p.id})).status,200);
+});

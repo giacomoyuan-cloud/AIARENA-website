@@ -84,6 +84,10 @@
 #ai-arena-app.arena-shell .arena-project-open strong { font-size:17px;font-weight:500; }
 #ai-arena-app.arena-shell .arena-project-page .arena-project-card-more { padding:6px;min-height:28px;width:28px;border:0; }
 #ai-arena-app.arena-shell .arena-project-page .arena-project-pin { min-height:28px;padding:6px; }
+#ai-arena-app.arena-shell .arena-project-page .arena-project-card-actions { position:absolute;right:9px;top:9px;display:flex;align-items:center;gap:4px; }
+#ai-arena-app.arena-shell .arena-project-page .arena-project-card .arena-project-card-actions > button { position:static;flex:none; }
+#ai-arena-app.arena-shell .arena-project-page .arena-project-card-restore { padding:4px 10px;min-width:52px; }
+#ai-arena-app.arena-shell .arena-project-editor .arena-workspace-primary.danger { background:#b54d43;border-color:#b54d43;color:#fff; }
 #ai-arena-app.arena-shell .arena-project-menu { position:fixed;inset:auto;margin:0;min-width:200px;max-width:calc(100vw - 16px);padding:5px;border:1px solid var(--arena-border);border-radius:12px;background:var(--arena-surface);color:var(--arena-text);box-shadow:var(--claude-menu-shadow);font:13px/1.5 var(--arena-ui-font); }
 #ai-arena-app.arena-shell .arena-project-menu:popover-open { display:flex;flex-direction:column;gap:2px; }
 #ai-arena-app.arena-shell .arena-project-menu button { justify-content:flex-start;width:100%;border:0;text-align:left; }
