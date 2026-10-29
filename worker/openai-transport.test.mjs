@@ -3,6 +3,12 @@ import assert from 'node:assert/strict';
 import {OpenAITransport,openAIBackgroundFetch} from './openai-transport.js';
 const origin='https://openai-dispatch.internal';
 const body=JSON.stringify({model:'gpt-6.1-sol',stream:true,input:'synthetic hello'});
+test('input counting is dispatched to the free counting endpoint rather than Responses generation',async t=>{
+  const f=fixture();let calls=0;
+  t.mock.method(globalThis,'fetch',async(url)=>{calls++;assert.equal(url,'https://api.openai.com/v1/responses/input_tokens');return Response.json({input_tokens:123});});
+  await f.actor.fetch(req('/start',{body,countOnly:true}));await f.actor.alarm();await f.actor.alarm();
+  assert.equal((await(await f.actor.fetch(req('/stream'))).json()).input_tokens,123);assert.equal(calls,1);
+});
 const req=(path,value)=>new Request(origin+path,{method:'POST',body:JSON.stringify(value||{})});
 function fixture(){
   const env={OPENAI_API_KEY:'synthetic-provider-key'},times=[];
