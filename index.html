@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>AI 助手</title>
-<meta name="app-version" content="20261030-rationocheck1">
+<meta name="app-version" content="20261030-summarystatus1">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -873,6 +873,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&family=Noto+Serif+SC:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="/arena-claude.css?v=20261030-skills1">
 <link rel="stylesheet" href="/arena-project-page.css?v=20261030-projects1">
+<link rel="stylesheet" href="/arena-debate-ui.css?v=20261030-quiet1">
 <link rel="preload" as="image" href="/assets/kitten/motion/knead-14b49069b5fd.png">
 
 <!-- Login overlay -->
@@ -976,20 +977,6 @@
     </div>
     <div class="aa-input-area">
       <div id="aaDebateRecovery" class="arena-debate-recovery" hidden><div><strong id="aaDebateRecoveryTitle"></strong><p id="aaDebateRecoveryNote" role="status" aria-live="polite"></p><details id="aaDebateRecoveryDetails" hidden><summary id="aaDebateRecoverySummary">本场设置</summary><div id="aaDebateRecoveryRoster"></div></details></div><div id="aaDebateRecoveryActions" class="arena-debate-recovery-actions"></div></div>
-      <div class="arena-debate-controls" id="aaDebateControls" hidden>
-        <div class="arena-debate-control-row">
-          <div class="aa-ctrl-grp arena-debate-modes" id="aaDebateModeBar" aria-label="辩论方式" style="display:none;">
-            <button type="button" class="aa-bar-btn active" data-dmode="free">自由讨论</button>
-            <button type="button" class="aa-bar-btn" data-dmode="persona">角色讨论</button>
-            <button type="button" class="aa-bar-btn" data-dmode="2v2">2v2</button>
-          </div>
-          <div id="aaJudgeCard" style="display:none;"><button type="button" id="aaJudgeHead" class="arena-debate-judge" aria-haspopup="true" aria-expanded="false" aria-controls="aaJudgeDrop"><span id="aaJudgeLabel">讨论总结</span><span id="aaJudgeSubLabel">不生成总结</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg></button></div>
-        </div>
-        <div class="arena-debate-round-row"><span>轮数</span><div class="arena-round-options" role="group" aria-label="讨论轮数"><button type="button" data-debate-rounds="1">1 轮</button><button type="button" data-debate-rounds="2">2 轮</button><button type="button" data-debate-rounds="3">3 轮</button></div><span id="aaDebateBudget"></span></div>
-        <p id="aaDebateProgress" class="arena-debate-progress" role="status" aria-live="polite" hidden></p>
-        <p class="arena-debate-hint" id="aaDebateStageHelp"></p>
-        <p class="arena-debate-hint" id="aaDebateHint">至少选择两个模型，轮流讨论同一个话题。</p>
-      </div>
       <div id="aaImgPreview" class="aa-img-prev" style="padding:0 0 8px 4px;">
         <div style="position:relative;display:inline-block;">
           <img id="aaImgThumb">
@@ -1006,56 +993,6 @@
         </div>
       </div>
 
-      <div id="aaFreeParticipants" class="arena-free-participants" hidden><div class="arena-persona-heading"><span>讨论席位</span><button type="button" id="aaAddParticipant">添加席位</button></div><div id="aaFreeParticipantGrid" class="arena-free-grid"></div></div>
-<!-- 2v2 seat zones -->
-      <div class="aa-seats-area" id="aaSeatsArea">
-        <div class="aa-seats-row">
-          <div class="aa-seat-zone" data-team="pro" id="aaSeatPro">
-            <div class="aa-seat-title">正方</div>
-            <div class="aa-seat-slots" id="aaSeatSlotsPro">
-            </div>
-          </div>
-          <div class="aa-seat-zone" data-team="con" id="aaSeatCon">
-            <div class="aa-seat-title">反方</div>
-            <div class="aa-seat-slots" id="aaSeatSlotsCon">
-            </div>
-          </div>
-        </div>
-      </div>
-      <!-- Persona seat zones -->
-      <div class="aa-persona-area" id="aaPersonaArea">
-        <div class="arena-persona-heading"><span>设置讨论角色</span><button type="button" id="aaAddPersona">添加角色</button></div>
-        <div class="aa-persona-grid">
-          <div class="aa-persona-slot" data-pidx="0" id="aaPersonaSlot0">
-            <div class="arena-role-heading"><span>角色 1</span><button type="button" class="arena-role-remove" data-remove-persona="0" aria-label="移除角色 1"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg></button></div>
-            <div class="arena-role-field"><span>模型</span><div class="aa-persona-model"></div></div>
-            <label class="arena-role-field" for="aaPersonaRole0"><span>角色身份</span><input type="text" class="aa-persona-input" id="aaPersonaRole0" placeholder="角色身份" maxlength="30" aria-describedby="aaPersonaError0"></label>
-            <label class="arena-role-field arena-role-detail" for="aaPersonaDesc0"><span>补充要求 <small>可选</small></span><input type="text" class="aa-persona-input" id="aaPersonaDesc0" placeholder="补充要求" maxlength="60"></label>
-            <p class="arena-field-error" id="aaPersonaError0" hidden>请填写这个角色的身份</p>
-          </div>
-          <div class="aa-persona-slot" data-pidx="1" id="aaPersonaSlot1">
-            <div class="arena-role-heading"><span>角色 2</span><button type="button" class="arena-role-remove" data-remove-persona="1" aria-label="移除角色 2"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg></button></div>
-            <div class="arena-role-field"><span>模型</span><div class="aa-persona-model"></div></div>
-            <label class="arena-role-field" for="aaPersonaRole1"><span>角色身份</span><input type="text" class="aa-persona-input" id="aaPersonaRole1" placeholder="角色身份" maxlength="30" aria-describedby="aaPersonaError1"></label>
-            <label class="arena-role-field arena-role-detail" for="aaPersonaDesc1"><span>补充要求 <small>可选</small></span><input type="text" class="aa-persona-input" id="aaPersonaDesc1" placeholder="补充要求" maxlength="60"></label>
-            <p class="arena-field-error" id="aaPersonaError1" hidden>请填写这个角色的身份</p>
-          </div>
-          <div class="aa-persona-slot" data-pidx="2" id="aaPersonaSlot2">
-            <div class="arena-role-heading"><span>角色 3</span><button type="button" class="arena-role-remove" data-remove-persona="2" aria-label="移除角色 3"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg></button></div>
-            <div class="arena-role-field"><span>模型</span><div class="aa-persona-model"></div></div>
-            <label class="arena-role-field" for="aaPersonaRole2"><span>角色身份</span><input type="text" class="aa-persona-input" id="aaPersonaRole2" placeholder="角色身份" maxlength="30" aria-describedby="aaPersonaError2"></label>
-            <label class="arena-role-field arena-role-detail" for="aaPersonaDesc2"><span>补充要求 <small>可选</small></span><input type="text" class="aa-persona-input" id="aaPersonaDesc2" placeholder="补充要求" maxlength="60"></label>
-            <p class="arena-field-error" id="aaPersonaError2" hidden>请填写这个角色的身份</p>
-          </div>
-          <div class="aa-persona-slot" data-pidx="3" id="aaPersonaSlot3">
-            <div class="arena-role-heading"><span>角色 4</span><button type="button" class="arena-role-remove" data-remove-persona="3" aria-label="移除角色 4"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg></button></div>
-            <div class="arena-role-field"><span>模型</span><div class="aa-persona-model"></div></div>
-            <label class="arena-role-field" for="aaPersonaRole3"><span>角色身份</span><input type="text" class="aa-persona-input" id="aaPersonaRole3" placeholder="角色身份" maxlength="30" aria-describedby="aaPersonaError3"></label>
-            <label class="arena-role-field arena-role-detail" for="aaPersonaDesc3"><span>补充要求 <small>可选</small></span><input type="text" class="aa-persona-input" id="aaPersonaDesc3" placeholder="补充要求" maxlength="60"></label>
-            <p class="arena-field-error" id="aaPersonaError3" hidden>请填写这个角色的身份</p>
-          </div>
-        </div>
-      </div>
 <!-- Brand cards -->
       <div class="aa-brand-bar" id="aaBrandBar">
         <div class="aa-brand-card" data-brand="xai">
@@ -1192,8 +1129,73 @@
       <div id="aaImageError" class="arena-image-error" role="alert" hidden></div>
       <div class="arena-skill-pill" id="aaSkillPill" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="18" height="14" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18"/></svg><span id="aaSkillPillName"></span><button type="button" id="aaSkillPillClear" aria-label="停用技能"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
       <div class="aa-input-row">
+      <div class="arena-debate-controls" id="aaDebateControls" hidden>
+        <div class="arena-debate-control-row">
+          <div class="aa-ctrl-grp arena-debate-modes" id="aaDebateModeBar" aria-label="辩论方式" style="display:none;">
+            <button type="button" class="aa-bar-btn active" data-dmode="free">自由讨论</button>
+            <button type="button" class="aa-bar-btn" data-dmode="persona">角色讨论</button>
+            <button type="button" class="aa-bar-btn" data-dmode="2v2">2v2</button>
+          </div>
+          <div id="aaJudgeCard" style="display:none;"><button type="button" id="aaJudgeHead" class="arena-debate-judge" aria-haspopup="true" aria-expanded="false" aria-controls="aaJudgeDrop"><span id="aaJudgeLabel">讨论总结</span><span id="aaJudgeSubLabel">不生成总结</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg></button></div>
+        </div>
+        <div class="arena-debate-round-row"><span>轮数</span><div class="arena-round-options" role="group" aria-label="讨论轮数"><button type="button" data-debate-rounds="1">1 轮</button><button type="button" data-debate-rounds="2">2 轮</button><button type="button" data-debate-rounds="3">3 轮</button></div><span id="aaDebateBudget"></span></div>
+        <p id="aaDebateProgress" class="arena-debate-progress" role="status" aria-live="polite" hidden></p>
+        <p class="arena-debate-hint" id="aaDebateStageHelp"></p>
+        <p class="arena-debate-hint" id="aaDebateHint">至少选择两个模型，轮流讨论同一个话题。</p>
+      </div>
+        <label class="arena-debate-topic-label" for="aaTopic">讨论议题</label>
+      <div id="aaFreeParticipants" class="arena-free-participants" hidden><div class="arena-persona-heading"><span>讨论席位</span><button type="button" id="aaAddParticipant">添加席位</button></div><div id="aaFreeParticipantGrid" class="arena-free-grid"></div></div>
+<!-- 2v2 seat zones -->
+      <div class="aa-seats-area" id="aaSeatsArea">
+        <div class="aa-seats-row">
+          <div class="aa-seat-zone" data-team="pro" id="aaSeatPro">
+            <div class="aa-seat-title">正方</div>
+            <div class="aa-seat-slots" id="aaSeatSlotsPro">
+            </div>
+          </div>
+          <div class="aa-seat-zone" data-team="con" id="aaSeatCon">
+            <div class="aa-seat-title">反方</div>
+            <div class="aa-seat-slots" id="aaSeatSlotsCon">
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Persona seat zones -->
+      <div class="aa-persona-area" id="aaPersonaArea">
+        <div class="arena-persona-heading"><span>设置讨论角色</span><button type="button" id="aaAddPersona">添加角色</button></div>
+        <div class="aa-persona-grid">
+          <div class="aa-persona-slot" data-pidx="0" id="aaPersonaSlot0">
+            <div class="arena-role-heading"><span>角色 1</span><button type="button" class="arena-role-remove" data-remove-persona="0" aria-label="移除角色 1"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg></button></div>
+            <div class="arena-role-field"><span>模型</span><div class="aa-persona-model"></div></div>
+            <label class="arena-role-field" for="aaPersonaRole0"><span>角色身份</span><input type="text" class="aa-persona-input" id="aaPersonaRole0" placeholder="角色身份" maxlength="30" aria-describedby="aaPersonaError0"></label>
+            <label class="arena-role-field arena-role-detail" for="aaPersonaDesc0"><span>补充要求 <small>可选</small></span><input type="text" class="aa-persona-input" id="aaPersonaDesc0" placeholder="补充要求" maxlength="60"></label>
+            <p class="arena-field-error" id="aaPersonaError0" hidden>请填写这个角色的身份</p>
+          </div>
+          <div class="aa-persona-slot" data-pidx="1" id="aaPersonaSlot1">
+            <div class="arena-role-heading"><span>角色 2</span><button type="button" class="arena-role-remove" data-remove-persona="1" aria-label="移除角色 2"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg></button></div>
+            <div class="arena-role-field"><span>模型</span><div class="aa-persona-model"></div></div>
+            <label class="arena-role-field" for="aaPersonaRole1"><span>角色身份</span><input type="text" class="aa-persona-input" id="aaPersonaRole1" placeholder="角色身份" maxlength="30" aria-describedby="aaPersonaError1"></label>
+            <label class="arena-role-field arena-role-detail" for="aaPersonaDesc1"><span>补充要求 <small>可选</small></span><input type="text" class="aa-persona-input" id="aaPersonaDesc1" placeholder="补充要求" maxlength="60"></label>
+            <p class="arena-field-error" id="aaPersonaError1" hidden>请填写这个角色的身份</p>
+          </div>
+          <div class="aa-persona-slot" data-pidx="2" id="aaPersonaSlot2">
+            <div class="arena-role-heading"><span>角色 3</span><button type="button" class="arena-role-remove" data-remove-persona="2" aria-label="移除角色 3"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg></button></div>
+            <div class="arena-role-field"><span>模型</span><div class="aa-persona-model"></div></div>
+            <label class="arena-role-field" for="aaPersonaRole2"><span>角色身份</span><input type="text" class="aa-persona-input" id="aaPersonaRole2" placeholder="角色身份" maxlength="30" aria-describedby="aaPersonaError2"></label>
+            <label class="arena-role-field arena-role-detail" for="aaPersonaDesc2"><span>补充要求 <small>可选</small></span><input type="text" class="aa-persona-input" id="aaPersonaDesc2" placeholder="补充要求" maxlength="60"></label>
+            <p class="arena-field-error" id="aaPersonaError2" hidden>请填写这个角色的身份</p>
+          </div>
+          <div class="aa-persona-slot" data-pidx="3" id="aaPersonaSlot3">
+            <div class="arena-role-heading"><span>角色 4</span><button type="button" class="arena-role-remove" data-remove-persona="3" aria-label="移除角色 4"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg></button></div>
+            <div class="arena-role-field"><span>模型</span><div class="aa-persona-model"></div></div>
+            <label class="arena-role-field" for="aaPersonaRole3"><span>角色身份</span><input type="text" class="aa-persona-input" id="aaPersonaRole3" placeholder="角色身份" maxlength="30" aria-describedby="aaPersonaError3"></label>
+            <label class="arena-role-field arena-role-detail" for="aaPersonaDesc3"><span>补充要求 <small>可选</small></span><input type="text" class="aa-persona-input" id="aaPersonaDesc3" placeholder="补充要求" maxlength="60"></label>
+            <p class="arena-field-error" id="aaPersonaError3" hidden>请填写这个角色的身份</p>
+          </div>
+        </div>
+      </div>
         <div class="arena-attachment-wrap" style="position:relative;">
-          <button id="aaPlusBtn" class="aa-plus-btn" type="button" aria-label="添加附件或工具" aria-haspopup="dialog" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+          <button id="aaPlusBtn" class="aa-plus-btn" type="button" aria-label="添加附件或工具" aria-haspopup="dialog" aria-expanded="false"><svg class="arena-default-attach-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><svg class="arena-debate-attach-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 13 6-6a3 3 0 0 1 4 4l-8 8a5 5 0 0 1-7-7l8-8a2 2 0 0 1 3 3l-8 8"/></svg><span class="arena-debate-attach-label">参考资料</span></button>
           <input type="file" id="aaImgInput" accept="image/jpeg,image/png,image/gif,image/webp" multiple style="display:none;">
         <input type="file" id="aaFileInput" accept=".txt,.pdf,.docx,.xlsx,.xls,.pptx,.csv,.tsv,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/plain,text/csv" style="display:none;">
           <div id="aaPlusMenu" class="aa-plus-menu" role="dialog" aria-label="附件与工具" style="display:none;">
@@ -2977,7 +2979,14 @@ var TEAM_COLORS = {
   function renderMessageActivity(msg){
     var entries = (msg.activity || []).filter(function(item){return item && item.kind!=='thinking' && item.kind!=='searching';});
     var reasoning = typeof msg.reasoning==='string' ? msg.reasoning.trim() : '';
-    if(!entries.length && !reasoning) return '';
+    if(!entries.length && !reasoning){
+      var completed=!!msg.completedAt||(msg.run&&msg.run.status==='completed')||msg.debateStatus==='completed';
+      var successful=(!msg.run||msg.run.status==='completed')&&(!msg.debateStatus||msg.debateStatus==='completed');
+      if(completed&&successful&&!msg.isUser&&!msg.isError&&AVAILABLE_CHAT_MODELS.indexOf(msg.submodel)!==-1&&String(msg.text||'').trim()){
+        return '<div class="arena-operation-details"><span class="arena-operation-status" role="note" title="本轮没有收到可展示的思考摘要，不代表思考模式被关闭。">本轮未提供思考摘要</span></div>';
+      }
+      return '';
+    }
     syncActivityDisclosure(msg);
     var searched = entries.some(function(item){return item.kind==='search_results';});
     var imageSearch = entries.some(function(item){return item.kind==='search_results'&&item.searchModes&&item.searchModes.image;});
@@ -3140,7 +3149,7 @@ var TEAM_COLORS = {
     var c = $('aaMessages');
     var el = c.querySelector('[data-uid="'+uid+'"]');
     if(!el) return;
-    if(completedMsg&&(completedMsg.reasoning||(completedMsg.activity&&completedMsg.activity.length)))updateMessageActivity(el,completedMsg,reasoning);
+    if(completedMsg&&(completedMsg.reasoning||(completedMsg.activity&&completedMsg.activity.length)||AVAILABLE_CHAT_MODELS.indexOf(completedMsg.submodel)!==-1))updateMessageActivity(el,completedMsg,reasoning);
     var videoMatch = text && text.match(/\[KLING_VIDEO\]([\s\S]+?)\[\/KLING_VIDEO\]/);
     if(videoMatch){
       var msgObj = msgs.find(function(m){ return m.uid === uid; });
@@ -5724,7 +5733,7 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
     });
     var send = $('aaSendBtn');
     setSendButtonIcon(send,aaRunning);
-    send.setAttribute('aria-label', aaRunning ? '停止生成' : '发送消息');
+    send.setAttribute('aria-label', aaRunning ? '停止生成' : debate ? '开始讨论' : '发送消息');
     if(!imageMode && !videoMode) $('aaTopic').placeholder = defaultTopicPlaceholder();
     syncKitten();
   }

@@ -16,7 +16,7 @@ const evidence=()=>writeFile('/private/tmp/aiarena-debate-events.json',JSON.stri
 async function execute(request){
   const payload=await request.json(),identity=payload.prompt.match(/你的独立席位：([^\n]+)/)?.[1]||'chat',stage=payload.prompt.includes('本轮：独立观点')?'independent':payload.prompt.includes('你是中立的总结者')?'summary':'cross';
   const key=payload.chat?.chatId+'|'+identity+'|'+stage,attempt=(attempts.get(key)||0)+1;attempts.set(key,attempt);
-  const event={kind:'provider',identity,stage,attempt,at:Date.now(),scope:payload.chat?.scope,historyEndUid:payload.chat?.historyEndUid,hasPrevious:payload.prompt.includes('上一轮发言（仅供分析）')};events.push(event);await evidence();
+  const event={kind:'provider',model:payload.model,effort:payload.effort,identity,stage,attempt,at:Date.now(),scope:payload.chat?.scope,historyEndUid:payload.chat?.historyEndUid,hasPrevious:payload.prompt.includes('上一轮发言（仅供分析）')};events.push(event);await evidence();
   if(identity.startsWith('seat-2')&&stage==='independent'&&attempt===1){event.outcome='injected-failure';await evidence();return Response.json({error:'合成测试：第二席暂时不可用，已保留第一席发言。'},{status:503});}
   let timer,closed=false;
   const body=new ReadableStream({start(controller){
@@ -71,4 +71,4 @@ http.createServer(async(req,res)=>{
     if(req.headers.range){const match=/^bytes=(\d+)-(\d*)$/.exec(req.headers.range);if(!match)throw new Error('invalid range');const start=Number(match[1]),end=match[2]?Math.min(Number(match[2]),bytes.length-1):bytes.length-1;res.writeHead(206,{...headers,'Content-Range':`bytes ${start}-${end}/${bytes.length}`,'Content-Length':end-start+1});res.end(bytes.subarray(start,end+1));return;}
     res.writeHead(200,{...headers,'Content-Length':bytes.length});res.end(bytes);
   }catch(error){res.writeHead(500,{'Content-Type':types['.json']});res.end(JSON.stringify({error:error.message}));}
-}).listen(4192,'127.0.0.1',()=>console.log('Debate recovery fixture: http://127.0.0.1:4192/ (qa-reader / offline-fixture)'));
+}).listen(Number(process.env.PORT || 4192),'127.0.0.1',()=>console.log('Debate recovery fixture: http://127.0.0.1:'+Number(process.env.PORT || 4192)+'/ (qa-reader / offline-fixture)'));

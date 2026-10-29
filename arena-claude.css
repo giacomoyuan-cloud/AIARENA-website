@@ -96,7 +96,8 @@
 #ai-arena-app.arena-shell .aa-msg-body.user { background: var(--arena-user); border-radius: 18px; padding: 10px 15px; font-size: 15.5px; line-height: 1.6; }
 #ai-arena-app.arena-shell .aa-msg-name { font-size: 12.5px; }
 #ai-arena-app.arena-shell .arena-message-action { width: 30px; height: 30px; border-radius: 7px; color: var(--arena-muted); }
-#ai-arena-app.arena-shell .arena-operation-details > summary { display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 0 10px; border: .5px solid var(--claude-line-2); border-radius: 8px; color: var(--arena-muted); font-size: 13px; }
+#ai-arena-app.arena-shell .arena-operation-details > summary,
+#ai-arena-app.arena-shell .arena-operation-details > .arena-operation-status { display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 0 10px; border: .5px solid var(--claude-line-2); border-radius: 8px; color: var(--arena-muted); font-size: 13px; }
 #ai-arena-app.arena-shell .arena-operation-card { border: 0; border-radius: 10px; background: var(--arena-surface); box-shadow: var(--claude-shadow); }
 #ai-arena-app.arena-shell .arena-jump-latest { border: 0; border-radius: 999px; background: var(--arena-surface); color: var(--claude-text-2); box-shadow: var(--claude-menu-shadow); }
 

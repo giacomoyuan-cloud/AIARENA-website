@@ -15,7 +15,7 @@ function fixture(){
     document:{querySelector:()=>row,querySelectorAll:()=>[row],createElement(){const body={textContent:'',scrollTop:0,scrollHeight:100,clientHeight:100},toggle={textContent:'思考摘要'};return {open:false,querySelector:selector=>selector==='summary'?toggle:body};}}
   });
   vm.runInContext(source.match(/var AVAILABLE_CHAT_MODELS = \[[^\]]+\];/)[0],context);
-  vm.runInContext(['paintThinkStatus','tickThinkingClock','showThink','updateThinkStatus','appendThinkSummary','chatRunConnectionState','syncActivityDisclosure','renderMessageActivity','rememberActivityToggle','updateMessageActivity','beginStreamedReply','cleanThinkTags'].map(fn).join('\n'),context);
+  vm.runInContext(['paintThinkStatus','tickThinkingClock','showThink','updateThinkStatus','appendThinkSummary','chatRunConnectionState','syncActivityDisclosure','renderMessageActivity','rememberActivityToggle','updateMessageActivity','beginStreamedReply','cleanThinkTags','serializeMsgs','paintFinalMsg'].map(fn).join('\n'),context);
   return {context,row,label,clock,messages,advance:ms=>{now+=ms;},summary:()=>({details,content}),removed:()=>removed};
 }
 
@@ -164,4 +164,44 @@ test('thinking and search completion collapse to the exact requested label witho
   assert.match(f.context.renderMessageActivity(message),/arena-operation-details" open/);
   message.text='正文';const html=f.context.renderMessageActivity(message);
   assert.equal(html.includes('" open'),false);assert.match(html,/<summary>已思考，已搜索网页<\/summary>/);assert.match(html,/查询后的真实摘要/);assert.match(html,/https:\/\/example.com/);
+});
+
+test('a completed reply without a public summary has an honest non-expandable status for each provider',()=>{
+  const f=fixture();
+  for(const submodel of ['claude-sonnet-5-5','gemini-4-argon','grok-4.7','gpt-6.1-sol']){
+    const message={submodel,text:'直接回答',completedAt:1000,activity:[{kind:'thinking',label:'模型思考'}]};
+    const html=f.context.renderMessageActivity(message);
+    assert.match(html,/本轮未提供思考摘要/);assert.doesNotMatch(html,/<details\b|<summary\b|已思考/);
+    message.reasoning='本轮确实收到的摘要';
+    const actual=f.context.renderMessageActivity(message);
+    assert.match(actual,/<summary>已思考<\/summary>/);assert.match(actual,/本轮确实收到的摘要/);assert.doesNotMatch(actual,/未提供思考摘要/);
+  }
+});
+
+test('waiting, failed, cancelled, user and image messages do not claim a missing chat summary',()=>{
+  const f=fixture(),base={submodel:'claude-sonnet-5-5',text:'回答'};
+  for(const extra of [{},{completedAt:1000,isError:true},{completedAt:1000,isUser:true},{completedAt:1000,run:{status:'cancelled'}},{completedAt:1000,submodel:'gemini-nano-banana-2.1'}]){
+    assert.equal(f.context.renderMessageActivity({...base,...extra}),'');
+  }
+});
+
+test('a second turn without a summary preserves the first turn through saving and reloading',()=>{
+  const f=fixture();
+  f.context.msgs=[{uid:1,isUser:true,text:'第一问'},{uid:2,submodel:'claude-sonnet-5-5',text:'第一答',reasoning:'第一轮真实摘要',completedAt:1000},{uid:3,isUser:true,text:'第二问'},{uid:4,submodel:'claude-sonnet-5-5',text:'第二答',reasoning:'',completedAt:2000,activity:[{kind:'thinking'}]}];
+  f.context.msgs[1]._activityOpen=true;
+  const saved=JSON.parse(JSON.stringify(f.context.serializeMsgs()));
+  assert.equal(saved[1].reasoning,'第一轮真实摘要');assert.equal(saved[3].reasoning,'');
+  const first=f.context.renderMessageActivity(saved[1]),second=f.context.renderMessageActivity(saved[3]);
+  assert.match(first,/第一轮真实摘要/);assert.match(first,/<summary>已思考<\/summary>/);
+  assert.match(second,/本轮未提供思考摘要/);assert.doesNotMatch(second,/第一轮真实摘要|<details\b/);
+});
+
+test('a streamed direct answer paints its no-summary status at completion without waiting for a reload',()=>{
+  const f=fixture(),body={dataset:{}},el={querySelector:q=>q==='.aa-msg-body'?body:null};
+  const message={uid:4,submodel:'claude-sonnet-5-5',text:'第二答',reasoning:'',activity:[]};let status='';
+  f.context.msgs=[message];f.context.currentChatId=null;f.messages.querySelector=()=>el;
+  f.context.renderMd=value=>value;f.context.highlightCodeBlocks=()=>{};
+  f.context.updateMessageActivity=(element,msg)=>{assert.equal(element,el);status=f.context.renderMessageActivity(msg);};
+  f.context.paintFinalMsg(4,message.text,false,'');
+  assert.match(status,/本轮未提供思考摘要/);assert.equal(body.innerHTML,'第二答');assert.equal(body.dataset.streaming,'false');
 });
