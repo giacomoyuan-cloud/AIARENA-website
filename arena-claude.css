@@ -178,17 +178,17 @@
 #aaNbEditBanner button,
 #aaPptTemplateBanner button { height: 30px; padding: 0 11px !important; border: .5px solid var(--claude-line-2) !important; border-radius: 8px !important; background: transparent !important; color: var(--claude-text-2) !important; font: 13px var(--arena-ui-font) !important; }
 
-.arena-skills-heading { padding: 10px 12px 4px; font-size: 12px; font-weight: 600; }
-.arena-skills-hint { margin: 2px 12px 8px; color: #73726c; font-size: 12px; line-height: 1.5; }
+#ai-arena-app.arena-shell .arena-skills-heading { padding: 10px 12px 4px; font-size: 12px; font-weight: 600; }
+#ai-arena-app.arena-shell .arena-skills-hint { margin: 2px 12px 8px; color: #73726c; font-size: 12px; line-height: 1.5; }
 #ai-arena-app .arena-skill-option { width: 100%; border: 0; background: transparent; text-align: left; font: inherit; cursor: pointer; white-space: normal; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
 #ai-arena-app .arena-skill-option[aria-pressed="true"] { background: var(--arena-hover); }
 #ai-arena-app .arena-skill-option small { font-size: 11px; color: var(--arena-muted); line-height: 1.5; }
-.arena-skill-files { display: flex; gap: 10px; flex-wrap: wrap; margin: 14px 0; }
-.arena-skill-file { display: grid; grid-template-columns: 1fr auto; gap: 5px 14px; max-width: 100%; min-width: 230px; padding: 12px 14px; border: 1px solid var(--arena-border); border-radius: 12px; background: var(--arena-panel); }
-.arena-skill-file > span { overflow-wrap: anywhere; grid-column: 1 / -1; }
-.arena-skill-file > small { color: var(--arena-muted); grid-column: 1 / -1; }
-.arena-skill-file button { justify-self: start; border: 0; border-radius: 6px; padding: 5px 9px; color: var(--arena-text); background: var(--arena-hover); cursor: pointer; }
-.arena-skill-file .arena-skill-delete { justify-self: end; color: var(--arena-muted); background: transparent; font-size: 11px; }
+#ai-arena-app.arena-shell .arena-skill-files { display: flex; gap: 10px; flex-wrap: wrap; margin: 14px 0; }
+#ai-arena-app.arena-shell .arena-skill-file { display: grid; grid-template-columns: 1fr auto; gap: 5px 14px; max-width: 100%; min-width: min(260px, 100%); font: 14px var(--arena-ui-font); padding: 12px 14px; border: 1px solid var(--arena-border); border-radius: 12px; background: var(--arena-surface); }
+#ai-arena-app.arena-shell .arena-skill-file > span { overflow-wrap: anywhere; grid-column: 1 / -1; }
+#ai-arena-app.arena-shell .arena-skill-file > small { color: var(--arena-muted); grid-column: 1 / -1; }
+#ai-arena-app.arena-shell .arena-skill-file button { justify-self: start; border: 0; border-radius: 6px; padding: 5px 9px; color: var(--arena-text); background: var(--arena-hover); cursor: pointer; }
+#ai-arena-app.arena-shell .arena-skill-file .arena-skill-delete { justify-self: end; color: var(--arena-muted); background: transparent; font-size: 11px; }
 /* ---------- 多 AI 辩论 ---------- */
 #aaDebateHint { display: none !important; }
 #ai-arena-app.arena-shell .arena-debate-modes { padding: 2px; border-radius: 9px; background: var(--arena-hover); }

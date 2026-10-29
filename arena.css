@@ -161,7 +161,7 @@
 #ai-arena-app.arena-shell .aa-msg-body.error { padding: 14px 16px; background: var(--arena-user) !important; border-radius: 10px; color: #c54f3c; font-family: var(--arena-ui-font); font-size: 14px; }
 #ai-arena-app.arena-shell .aa-msg-body.moderation-help { border-radius: 12px; font-family: var(--arena-ui-font); font-size: 14px; }
 #ai-arena-app.arena-shell .aa-msg-body button { color: var(--arena-muted) !important; background: var(--arena-user) !important; border-color: var(--arena-border) !important; font-family: var(--arena-ui-font) !important; }
-#ai-arena-app.arena-shell .aa-msg > div:last-child:not(.aa-msg-body):not(.aa-msg-head) button { color: var(--arena-muted) !important; background: transparent !important; border-color: transparent !important; }
+#ai-arena-app.arena-shell .aa-msg > div:last-child:not(.aa-msg-body):not(.aa-msg-head):not(.arena-skill-files) button { color: var(--arena-muted) !important; background: transparent !important; border-color: transparent !important; }
 #ai-arena-app.arena-shell .aa-msg.user-msg > div:last-child { opacity: .65; }
 #ai-arena-app.arena-shell .aa-msg-body pre { white-space: pre; font-size: 13px; }
 #ai-arena-app.arena-shell .aa-msg-body code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
