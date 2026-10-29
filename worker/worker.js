@@ -497,9 +497,11 @@ async function handleDebateRunRequest(request, env) {
         color: ({anthropic:'#C96442',xai:'#777777',google:'#4285F4',openai:'#10A37F'})[value.provider] || '#777777' }]));
       const members = config.members.map(member => {
         if (!member || !/^[a-zA-Z0-9_-]{1,40}$/.test(member.id) || member.id === 'summary') throw new Error('席位标识无效。');
-        return { id: member.id, model: member.model, label: String(member.label || member.id).slice(0,80), role: String(member.role || '').slice(0,500), desc: String(member.desc || '').slice(0,1500), ...(member.team ? { team: member.team } : {}) };
+        return { id: member.id, model: member.model, label: String(member.label || member.id).slice(0,80), role: String(member.role || '').slice(0,500), desc: String(member.desc || '').slice(0,1500), ...(member.team ? { team: member.team } : {}), ...(member.effort!==undefined?{effort:member.effort}:{}) };
       });
-      const cleanConfig = { id: body.runId, mode: config.mode, rounds: config.rounds, members, summaryModel: config.summaryModel, topic: String(config.topic || ''), models: Object.keys(models) };
+      const cleanConfig = { id: body.runId, mode: config.mode, rounds: config.rounds, members, summaryModel: config.summaryModel, summaryEffort: config.summaryEffort,
+        objective: config.objective, detail: config.detail, context: config.context, constraints: config.constraints, priorRunId: config.priorRunId,
+        topic: String(config.topic || ''), models: Object.keys(models) };
       const plan = DebateCore.plan(cleanConfig), message = data.userMessage;
       if (!Number.isSafeInteger(message?.uid) || typeof message.text !== 'string' || message.text.length > 60000 || !Array.isArray(data.replyUids)
         || data.replyUids.length !== plan.turns.length || data.replyUids.some(uid => !Number.isSafeInteger(uid)) || new Set([message.uid,...data.replyUids]).size !== data.replyUids.length + 1) return projectReply({ error: '讨论消息编号或内容无效。' }, 400);
@@ -509,9 +511,12 @@ async function handleDebateRunRequest(request, env) {
       if (!Array.isArray(images) || images.length > 10 || images.some(i => !validImage(i)) || images.reduce((n,i) => n+i.data.length,0) > 12*1024*1024) return projectReply({ error: '参考图片过多或过大，请压缩后重试。' }, 413);
       const efforts = {};
       for (const turn of plan.turns) {
-        const model = turn.member.model, effort = data.efforts?.[model];
+        const model = turn.member.model, effort = turn.member.effort!==undefined?turn.member.effort:data.efforts?.[model];
         if (effort !== undefined && !MODEL_EFFORT_LEVELS[model]?.includes(effort)) return projectReply({ error: '该模型不支持所选思考档位。' }, 400);
-        if (effort !== undefined) efforts[model] = effort;
+        if (data.efforts?.[model] !== undefined) {
+          if(!MODEL_EFFORT_LEVELS[model]?.includes(data.efforts[model]))return projectReply({ error: '该模型不支持所选思考档位。' }, 400);
+          efforts[model] = data.efforts[model];
+        }
       }
       const userMessage = { uid: message.uid, isUser: true, brand: 'user', color: '#A78BFA', name: String(message.name || '用户').slice(0,60), text: message.text, topicText: String(message.topicText || '').slice(0,16000) };
       if (Array.isArray(message.pastedTexts)) userMessage.pastedTexts = message.pastedTexts.filter(x => typeof x === 'string').slice(0,10).map(x => x.slice(0,16000));
@@ -930,7 +935,7 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
       return new Response(JSON.stringify(result), { headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
     }
     if (request.method === "GET" && url.pathname !== "/memory") {
-      return new Response(JSON.stringify({ mode: "official", skillsVersion:"20261030-skills1", xai: !!env.GROK_API_KEY, openai: !!env.OPENAI_API_KEY, anthropic: !!env.ANTHROPIC_API_KEY, google: !!env.GEMINI_API_KEY, mj: false }), {
+      return new Response(JSON.stringify({ mode: "official", debate:"studio-v2", skillsVersion:"20261030-skills1", xai: !!env.GROK_API_KEY, openai: !!env.OPENAI_API_KEY, anthropic: !!env.ANTHROPIC_API_KEY, google: !!env.GEMINI_API_KEY, mj: false }), {
         status: 200,
         headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
       });

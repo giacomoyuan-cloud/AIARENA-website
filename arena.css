@@ -288,11 +288,9 @@
 #ai-arena-app.arena-shell .arena-ratio-grid { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 6px; }
 #ai-arena-app.arena-shell .arena-image-radio { display: block; position: relative; min-width: 0; cursor: pointer; }
 #ai-arena-app.arena-shell .arena-image-radio > input { position: absolute; opacity: 0; inset: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
-#ai-arena-app.arena-shell .arena-image-radio-face { position: relative; display: flex; align-items: center; gap: 8px; min-height: 43px; padding: 9px 21px 9px 10px; color: var(--arena-muted); background: var(--arena-surface); border: 1px solid var(--arena-border); border-radius: 10px; font-size: 12px; pointer-events: none; }
+#ai-arena-app.arena-shell .arena-image-radio-face { position: relative; display: flex; align-items: center; gap: 8px; min-height: 43px; padding: 9px 10px; color: var(--arena-muted); background: var(--arena-surface); border: 1px solid var(--arena-border); border-radius: 10px; font-size: 12px; pointer-events: none; }
 #ai-arena-app.arena-shell .arena-image-radio-face > svg { width: 16px; height: 16px; flex: 0 0 16px; }
-#ai-arena-app.arena-shell .arena-image-radio-face > svg:last-child { position: absolute; right: 5px; top: 5px; width: 11px; height: 11px; opacity: 0; }
 #ai-arena-app.arena-shell .arena-image-radio > input:checked + .arena-image-radio-face { border-color: var(--arena-text); color: var(--arena-text); background: var(--arena-user); }
-#ai-arena-app.arena-shell .arena-image-radio > input:checked + .arena-image-radio-face > svg:last-child { opacity: .7; }
 #ai-arena-app.arena-shell .arena-image-radio > input:focus-visible + .arena-image-radio-face { outline: 2px solid var(--arena-text); outline-offset: 2px; }
 #ai-arena-app.arena-shell .arena-ratio-grid .arena-image-radio-face { display: grid; grid-template-columns: 1fr; grid-template-rows: 32px 16px 12px; justify-items: center; gap: 3px; min-height: 0; padding: 10px 3px 8px; font-size: 11px; }
 #ai-arena-app.arena-shell .arena-ratio-grid .arena-ratio-preview { grid-row: 1; }
@@ -700,6 +698,9 @@
 #ai-arena-app.arena-shell .arena-operation-content a { display: block; color: var(--arena-text); text-decoration: underline; text-underline-offset: 3px; margin: 4px 0; }
 #ai-arena-app.arena-shell .arena-operation-row[open] > .aa-reasoning-content { display: block; max-height: 320px; overflow-y: auto; border: 0; background: transparent; margin: 0; }
 #ai-arena-app.arena-shell .arena-operation-summary { display: block; max-height: 320px; overflow-y: auto; border: 0; background: transparent; margin: 0; padding: 12px 14px; color: var(--arena-text); font: 14px/1.75 var(--arena-ui-font); }
+#ai-arena-app.arena-shell .arena-operation-details[data-incomplete] .arena-operation-summary { max-height: none; overflow: visible; }
+#ai-arena-app.arena-shell .aa-msg-body[hidden] { display: none; }
+#ai-arena-app.arena-shell .arena-reply-notice { margin: 12px 0 18px; padding: 10px 13px; border-left: 2px solid var(--arena-border); color: var(--arena-muted); font: 13px/1.65 var(--arena-ui-font); overflow-wrap: anywhere; }
 #ai-arena-app.arena-shell .aa-msg-body .arena-source-chip { display: inline; font: 10px/1.5 var(--arena-ui-font); color: var(--arena-muted); background: var(--arena-sidebar); border: 1px solid var(--arena-border); padding: 1px 6px; border-radius: 12px; white-space: nowrap; text-decoration: none; vertical-align: 1px; }
 #ai-arena-app.arena-shell .arena-source-preview { position: fixed; z-index: 100010; width: 310px; max-width: calc(100vw - 28px); padding: 16px; background: var(--arena-surface); color: var(--arena-text); border: 1px solid var(--arena-border); border-radius: 13px; box-shadow: 0 8px 30px #0000001c; pointer-events: none; font-family: var(--arena-ui-font); }
 #ai-arena-app.arena-shell .arena-source-preview[hidden] { display: none; }
