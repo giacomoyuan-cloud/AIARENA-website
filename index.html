@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>AI 助手</title>
-<meta name="app-version" content="20261030-thinking1">
+<meta name="app-version" content="20261030-typing50-1">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1247,7 +1247,7 @@
 <script src="/arena-account.js?v=20261027-account2"></script>
 <script src="/arena-pet-catalog.js?v=20261029-petcycle1"></script>
 <script src="/arena-pet.js?v=20261029-petnoghost1"></script>
-<script src="/arena-stream.js?v=20261029-typingclock1"></script>
+<script src="/arena-stream.js?v=20261030-typing50-1"></script>
 <script>
 (function(){
   (function(){
@@ -2985,7 +2985,7 @@ var TEAM_COLORS = {
   // === Live update & finalize ===
   var liveFrames=new Map();
   var liveReplyReasoning=new Map();
-  var liveReplies=ArenaStream.create({rate:15,onUpdate:function(uid,text,complete){
+  var liveReplies=ArenaStream.create({rate:50,onUpdate:function(uid,text,complete){
     paintLiveUpdate(uid,text,liveReplyReasoning.get(uid),!complete);
     if(complete)liveReplyReasoning.delete(uid);
   }});

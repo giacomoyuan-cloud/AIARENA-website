@@ -29,14 +29,14 @@ function fixture() {
   return { timer, paints, queue };
 }
 
-test('a large network batch starts with one character and reveals about 15 per second after EOF', async () => {
+test('a large network batch starts with one character and reveals about 50 per second after EOF', async () => {
   const { timer, paints, queue } = fixture(), text = '袁啾啾陪你慢慢读。'.repeat(20);
   queue.write(1, text);
   assert.equal(paints[0].text, '袁');
   let finished = false;
   const done = queue.finish(1, text).then(() => { finished = true; });
   timer.tick(1000); await Promise.resolve();
-  assert.ok(queue.text(1, '').length >= 15 && queue.text(1, '').length <= 16);
+  assert.ok(queue.text(1, '').length >= 50 && queue.text(1, '').length <= 51);
   assert.equal(finished, false, 'provider EOF must not finish the visual reply');
   assert.equal(queue.has(1), true);
   timer.tick(20000); await done;
@@ -48,20 +48,20 @@ test('late network batches use elapsed typing time instead of restarting the rep
   const { timer, queue } = fixture();
   queue.write(1, '一'); timer.tick(10); queue.write(1, '一二三');
   assert.equal(queue.text(1, ''), '一');
-  timer.tick(60); assert.equal(queue.text(1, ''), '一二');
+  timer.tick(10); assert.equal(queue.text(1, ''), '一二');
   timer.tick(2000); assert.equal(queue.text(1, ''), '一二三');
   queue.write(1, '一二三四五六'); assert.equal(queue.text(1, ''), '一二三四五六');
   timer.tick(10); queue.write(1, '一二三四五六七'); assert.equal(queue.text(1, ''), '一二三四五六七');
   const done = queue.finish(1, '一二三四五六七'); timer.tick(1000); await done;
 });
 
-test('a throttled timer catches up to 15 characters per second instead of slowing the reply', async () => {
+test('a throttled timer catches up to 50 characters per second instead of slowing the reply', async () => {
   const { timer, queue } = fixture(), text = '字'.repeat(300);
   queue.write(1, text); timer.stall(1000);
-  assert.equal(queue.text(1, '').length, 16);
+  assert.equal(queue.text(1, '').length, 51);
   queue.pause(true); timer.tick(1000); queue.pause(false);
-  assert.equal(queue.text(1, '').length, 31);
-  timer.tick(1000); assert.equal(queue.text(1, '').length, 46);
+  assert.equal(queue.text(1, '').length, 101);
+  timer.tick(1000); assert.equal(queue.text(1, '').length, 151);
   const done = queue.finish(1, text); timer.tick(20000); await done;
 });
 
@@ -81,10 +81,10 @@ test('100 characters are complete immediately on return after a hidden minute', 
 test('returning early catches up only the elapsed portion and then continues at the same rate', async () => {
   const { timer, queue } = fixture(), text = '字'.repeat(300);
   queue.write(1, text); queue.pause(true); timer.tick(2000);
-  queue.pause(false); assert.equal(queue.text(1, '').length, 31);
+  queue.pause(false); assert.equal(queue.text(1, '').length, 101);
   queue.pause(true); timer.tick(500); queue.pause(false);
-  assert.equal(queue.text(1, '').length, 38);
-  timer.tick(500); assert.equal(queue.text(1, '').length, 46);
+  assert.equal(queue.text(1, '').length, 126);
+  timer.tick(500); assert.equal(queue.text(1, '').length, 151);
   const done = queue.finish(1, text); timer.tick(20000); await done;
 });
 
@@ -103,7 +103,7 @@ test('thinking and empty updates do not consume typing time before the first cha
   const { timer, queue } = fixture(), text = '字'.repeat(100);
   queue.write(1, ''); timer.tick(60000); queue.write(1, text);
   assert.equal(queue.text(1, ''), '字');
-  timer.tick(1000); assert.equal(queue.text(1, '').length, 16);
+  timer.tick(1000); assert.equal(queue.text(1, '').length, 51);
   const done = queue.finish(1, text); timer.tick(10000); await done;
 });
 
@@ -197,7 +197,7 @@ test('real app finalization and full renders keep the visible prefix while canon
   const done = context.finalizeMsg(1, message.text, false);
   context.render(); assert.equal(body.innerHTML, '这');
   assert.equal(message.text.length, 100, 'display pacing never truncates stored text');
-  timer.tick(1000); context.render(); assert.ok(body.innerHTML.length <= 16);
+  timer.tick(1000); context.render(); assert.equal(body.innerHTML.length, 51);
   timer.tick(10000); await done;
   assert.equal(body.innerHTML, message.text); assert.equal(body.dataset.streaming, 'false');
 });

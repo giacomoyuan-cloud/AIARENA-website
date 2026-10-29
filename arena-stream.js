@@ -30,7 +30,7 @@
     // Wall time includes time spent in a throttled/frozen background page.
     var now = options.now || Date.now;
     var paint = options.onUpdate || function () {};
-    var interval = 1000 / (options.rate || 15), streams = new Map(), idle = [], paused = false;
+    var interval = 1000 / (options.rate || 50), streams = new Map(), idle = [], paused = false;
     function notifyIdle() {
       if (streams.size) return;
       var callbacks = idle; idle = []; callbacks.forEach(function (resolve) { resolve(); });
