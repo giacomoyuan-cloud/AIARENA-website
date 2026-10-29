@@ -13,7 +13,7 @@ function browserFunction(name) {
 function browser(saved = {}) {
   const storage = new Map(Object.entries(saved));
   const context = vm.createContext({
-    ArenaImage,
+    ArenaImage, ArenaModelControl: require('./arena-model-control.js'),
     localStorage: { getItem: key => storage.get(key) ?? null },
     document: { querySelectorAll: () => ['xai', 'anthropic', 'openai', 'google'].map(brand => ({ dataset: { brand } })) },
     imageMode: false, videoMode: false, debate: false, debateMode: 'free',
@@ -76,7 +76,7 @@ for(const model of ['gpt-6-astra','gpt-6.1-sol'])test(model+' stays selected thr
   assert.equal(context.brandSelection.openai,model);assert.equal(context.effortFor(model),'max');
   assert.deepEqual(Array.from(context.EFFORT_LEVELS[model]),['low','medium','high','xhigh','max']);
   assert.equal(context.defaultEffortFor(model),'medium');
-  const elements=new Map();context.$=id=>{if(!elements.has(id))elements.set(id,{innerHTML:''});return elements.get(id);};context.syncArenaLayout=()=>{};
+  const elements=new Map();context.$=id=>{if(!elements.has(id))elements.set(id,{innerHTML:'',setAttribute(){}});return elements.get(id);};context.syncArenaLayout=()=>{};
   vm.runInContext(browserFunction('renderArenaModelMenu'),context);context.renderArenaModelMenu();
   assert.match(elements.get('aaChatModelPop').innerHTML,/max="4" step="1" value="4"/);
   assert.match(elements.get('aaModelsSubmenu').innerHTML,/gpt-6-astra/);assert.match(elements.get('aaModelsSubmenu').innerHTML,/gpt-6\.1-sol/);
@@ -117,7 +117,7 @@ test('the model card has a discrete effort slider and a flat model picker', () =
   const context = browser();
   const elements = new Map();
   context.$ = id => {
-    if (!elements.has(id)) elements.set(id, { innerHTML: '' });
+    if (!elements.has(id)) elements.set(id, { innerHTML: '', setAttribute(){} });
     return elements.get(id);
   };
   context.syncArenaLayout = () => {};
@@ -222,7 +222,7 @@ test('switching chats never carries an automatic image reference into another co
   const next=[{uid:2,isUser:true,text:'new prompt'},{uid:3,submodel:ArenaImage.GOOGLE_MODEL,imgItems:[image],imageTurn:{prompt:'new prompt',parentUid:null,references:[]},imageResponse:[{imageIndex:0,thoughtSignature:'new-signature'}]}];
   async function open(sentImgs,draft=''){
     const c=vm.createContext({
-      ArenaImage,aaRunning:false,scopeSwitchPending:false,activeProjectId:null,scopeEpoch:1,chatLoadEpoch:0,_saveTimer:null,currentChatId:'old-chat',
+      ArenaImage, ArenaModelControl: require('./arena-model-control.js'),aaRunning:false,scopeSwitchPending:false,activeProjectId:null,scopeEpoch:1,chatLoadEpoch:0,_saveTimer:null,currentChatId:'old-chat',
       imageEditParentUid:1,imageMode:true,imageComposerTask:'edit',imageComposerModel:ArenaImage.GOOGLE_MODEL,
       sentImgs,sentTexts:[],msgs:[],_uidCounter:0,_skipNextChatSave:false,$:()=>({value:draft}),
       chatApiCall:async()=>({messages:next}),getLastAssistantReplyAt:()=>0,rememberChatReplyTime:()=>{},
