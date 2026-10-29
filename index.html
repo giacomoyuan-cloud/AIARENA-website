@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="AI 助手">
-<meta name="theme-color" content="#faf9f7">
+<meta name="theme-color" content="#faf9f5">
 <link rel="manifest" href="/manifest.json?v=20261027-oakley">
 <link rel="apple-touch-icon" href="/icon-192.png">
 </head>
@@ -868,6 +868,10 @@
 <link rel="stylesheet" href="/arena-workspace.css?v=20261029-debateresume1">
 <link rel="stylesheet" href="/arena-controls.css?v=20261029-debateresume1">
 <link rel="stylesheet" href="/arena-pet.css?v=20261029-petnoghost1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&family=Noto+Serif+SC:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="/arena-claude.css?v=20261029-claude1">
 <link rel="preload" as="image" href="/assets/kitten/motion/knead-14b49069b5fd.png">
 
 <!-- Login overlay -->
@@ -1199,7 +1203,7 @@
         <div class="arena-composer-model" id="aaChatModelWrap">
           <button class="arena-model-trigger" id="aaChatModelBtn" aria-haspopup="dialog" aria-expanded="false" aria-controls="aaChatModelPop aaModelsSubmenu"><span id="aaChatModelLabel">Grok 4.7</span><span class="arena-current-effort" id="aaCurrentEffort">High</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg></button>
         </div>
-        <button class="aa-send" id="aaSendBtn" type="button" data-icon="enter" aria-label="发送消息" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 5v7a3 3 0 0 1-3 3H4m5-5-5 5 5 5"/></svg></button>
+        <button class="aa-send" id="aaSendBtn" type="button" data-icon="send" aria-label="发送消息" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
         <div class="aa-image-dock" id="aaImageDock">
           <button class="aa-image-tool task" id="aaImageTaskBtn" type="button" data-short-label="生成"><span id="aaImageTaskLabel">生成图片</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg></button>
           <button class="aa-image-tool settings" id="aaImageSettingsBtn" type="button" aria-label="图像设置"><svg class="arena-settings-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h7m5 0h4M4 18h3m5 0h8M4 12h12m5 0h-1"/><circle cx="13" cy="6" r="2"/><circle cx="9" cy="18" r="2"/><circle cx="18" cy="12" r="2"/></svg><span id="aaImageSettingsSummary">1:1 · 1K</span></button>
@@ -2491,19 +2495,19 @@ var TEAM_COLORS = {
     var app = document.getElementById('ai-arena-app');
     if(_lightMode){
       app.classList.add('light-mode');
-      document.body.style.background = '#ffffff';
-      document.documentElement.style.background = '#ffffff';
+      document.body.style.background = '#faf9f5';
+      document.documentElement.style.background = '#faf9f5';
     } else {
       app.classList.remove('light-mode');
-      document.body.style.background = '#0c1222';
-      document.documentElement.style.background = '#0c1222';
+      document.body.style.background = '#262624';
+      document.documentElement.style.background = '#262624';
     }
     var btn = $('aaLightModeBtn');
     if(!btn) return;
     btn.textContent = _lightMode ? '浅色' : '深色';
     btn.setAttribute('aria-label', _lightMode ? '切换到深色外观' : '切换到浅色外观');
     var themeMeta = document.querySelector('meta[name="theme-color"]');
-    if(themeMeta) themeMeta.content = _lightMode ? '#faf9f7' : '#242422';
+    if(themeMeta) themeMeta.content = _lightMode ? '#faf9f5' : '#262624';
   }
   applyLightMode();
   document.addEventListener('click', function(e){
@@ -4067,7 +4071,7 @@ var TEAM_COLORS = {
 
   
   function setSendButtonIcon(button,running){
-    var icon=running?'stop':'enter';
+    var icon=running?'stop':'send';
     if(button.dataset.icon!==icon){button.innerHTML=ArenaImage.icon(icon);button.dataset.icon=icon;}
   }
   function updateModeBadge(){

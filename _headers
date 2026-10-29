@@ -44,6 +44,8 @@
   Cache-Control: no-cache, max-age=0, must-revalidate
 /arena-pet.css
   Cache-Control: no-cache, max-age=0, must-revalidate
+/arena-claude.css
+  Cache-Control: no-cache, max-age=0, must-revalidate
 /arena-pet-catalog.js
   Cache-Control: no-cache, max-age=0, must-revalidate
 /assets/kitten/motion/*
