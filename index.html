@@ -1263,7 +1263,7 @@
 <script src="/arena-native.js?v=20261028-smooth2"></script>
 <script src="/arena-effort.js?v=20261030-imagesliders1"></script>
 <script src="/arena-context.js?v=20261027-account1"></script>
-<script src="/arena-chat-mode.js?v=20261030-chatmodes1"></script>
+<script src="/arena-chat-mode.js?v=20261030-historymodes2"></script>
 <script src="/arena-skills-catalog.js?v=20261030-skills1"></script>
 <script src="/arena-skill-models.js?v=20261030-skillmodels1"></script>
 <script src="/arena-skills.js?v=20261030-skilldownload1"></script>
@@ -1668,23 +1668,28 @@ var TEAM_COLORS = {
     }, 2000);
   }
 
-  var historyModeCache=new Map();
+  var historyModeCache=ArenaChatMode.createCache(localStorage);
   async function hydrateHistoryModes(scope,epoch,listEpoch){
     var owner=scopeViewKey(scope),pending=chatList.filter(function(chat){
       var cached=historyModeCache.get(owner+':'+chat.id);
-      if(!ArenaChatMode.labels[chat.mode]&&cached&&cached.updatedAt===chat.updatedAt)chat.mode=cached.mode;
-      return !Object.prototype.hasOwnProperty.call(ArenaChatMode.labels,chat.mode);
+      if(!ArenaChatMode.known(chat.mode)&&cached&&cached.updatedAt===chat.updatedAt)chat.mode=cached.mode;
+      if(ArenaChatMode.known(chat.mode))historyModeCache.set(owner+':'+chat.id,{updatedAt:chat.updatedAt,mode:chat.mode});
+      chat.modeUnavailable=false;
+      return !ArenaChatMode.known(chat.mode);
     });
     renderHistoryList();
     for(var i=0;i<pending.length;i+=8){
       if(epoch!==scopeEpoch||listEpoch!==chatListEpoch||scope!==activeProjectId||owner!==scopeViewKey(scope))return;
       var batch=pending.slice(i,i+8),data=await chatApiCall('modes',{projectId:scope,chatIds:batch.map(function(chat){return chat.id;})});
       if(epoch!==scopeEpoch||listEpoch!==chatListEpoch||scope!==activeProjectId||owner!==scopeViewKey(scope))return;
-      if(!data||!Array.isArray(data.modes))return;
+      if(!data||!Array.isArray(data.modes)){
+        pending.slice(i).forEach(function(chat){chat.modeUnavailable=true;});renderHistoryList();return;
+      }
+      batch.forEach(function(chat){chat.modeUnavailable=true;});
       data.modes.forEach(function(item){
         var original=batch.find(function(chat){return chat.id===item.id;}),chat=chatList.find(function(chat){return chat.id===item.id;});
-        if(!original||!chat||chat.updatedAt!==original.updatedAt||!Object.prototype.hasOwnProperty.call(ArenaChatMode.labels,item.mode))return;
-        chat.mode=item.mode;historyModeCache.set(owner+':'+chat.id,{updatedAt:chat.updatedAt,mode:item.mode});
+        if(!original||!chat||chat.updatedAt!==original.updatedAt||!ArenaChatMode.known(item.mode))return;
+        chat.mode=item.mode;chat.modeUnavailable=false;historyModeCache.set(owner+':'+chat.id,{updatedAt:chat.updatedAt,mode:item.mode});
       });
       renderHistoryList();
     }
@@ -1749,7 +1754,7 @@ var TEAM_COLORS = {
       if(switched){imageEditParentUid=null;if(typeof imageMaskState!=='undefined')imageMaskState=null;}
       msgs = data.messages || [];
       restoreChatMode();
-      var listed=chatList.find(function(chat){return chat.id===chatId;});if(listed)listed.mode=ArenaChatMode.infer(msgs).mode;
+      var listed=chatList.find(function(chat){return chat.id===chatId;});if(listed){listed.mode=ArenaChatMode.infer(msgs).mode;listed.modeUnavailable=false;historyModeCache.set(scopeViewKey(loadScope)+':'+chatId,{updatedAt:listed.updatedAt,mode:listed.mode});}
       if(imageEditParentUid!=null&&!msgs.some(function(message){return String(message.uid)===String(imageEditParentUid);}))imageEditParentUid=null;
       var loadedReplyAt = getLastAssistantReplyAt(msgs);
       if(loadedReplyAt) rememberChatReplyTime(chatId, loadedReplyAt);
@@ -1792,7 +1797,7 @@ var TEAM_COLORS = {
     var container = $('aaHistoryList');
     var historyQuery = ($('aaHistorySearch').value || '').trim().toLocaleLowerCase();
     var focusedPin=container.contains(document.activeElement)&&document.activeElement.dataset.pin;
-    var visibleChats = chatList.map(function(chat){return Object.assign({},chat,{pinned:chatPins.read(chatPinKey(activeProjectId,chat.id),chat.pinned,chatListPinVersion)});}).filter(function(chat){ return !historyQuery || String(chat.title || '').toLocaleLowerCase().indexOf(historyQuery) !== -1; }).sort(function(a,b){return Number(!!b.pinned)-Number(!!a.pinned);});
+    var visibleChats = chatList.map(function(chat){return Object.assign({},chat,{pinned:chatPins.read(chatPinKey(activeProjectId,chat.id),chat.pinned,chatListPinVersion)});}).filter(function(chat){ return !historyQuery || ArenaChatMode.matches(chat,historyQuery); }).sort(function(a,b){return Number(!!b.pinned)-Number(!!a.pinned);});
     if(!visibleChats.length){ container.innerHTML = '<div class="aa-history-empty">'+(historyQuery ? '没有找到相关对话' : '你的对话会显示在这里')+'</div>'; return; }
     var replyTimes = getStoredReplyTimes();
     var h = '';
@@ -1805,10 +1810,10 @@ var TEAM_COLORS = {
       var isActive = chat.id === currentChatId;
       var safeId = esc(String(chat.id));
       var displayTime = Number(chat.lastReplyAt) || Number(replyTimes[chat.id]) || Number(chat.updatedAt);
-      var modeLabel=Object.prototype.hasOwnProperty.call(ArenaChatMode.labels,chat.mode)?ArenaChatMode.labels[chat.mode]:'…';
+      var modeBadge=ArenaChatMode.badge(chat),modeLabel=modeBadge.label;
       h += '<div class="aa-history-item'+(isActive?' active':'')+'">'
         +'<button type="button" class="aa-history-item-open" data-cid="'+safeId+'"'+(isActive?' aria-current="true"':'')+'>'
-        +'<span class="arena-history-mode" aria-label="会话类型：'+modeLabel+'">'+modeLabel+'</span>'
+        +'<span class="arena-history-mode" title="'+modeBadge.title+'" aria-label="会话类型：'+modeLabel+'">'+modeLabel+'</span>'
         +'<span class="aa-history-item-text">'
         +'<span class="aa-history-item-title">'+esc(chat.title)+'</span>'
         +'<span class="aa-history-item-time">'+formatTime(displayTime)+'</span>'
@@ -3075,6 +3080,9 @@ var TEAM_COLORS = {
     view.snapshot=Object.assign({},before||{},incoming,{turns:turns});
     if(incoming.userMessage&&incoming.userMessage.debateRun)view.ref.maxUid=incoming.userMessage.debateRun.maxUid;
     var data=view.snapshot,changed=false,ref=Object.assign({},view.ref,{status:data.status});
+    if(restored&&data.plan&&data.plan.members&&data.plan.members.length&&Array.isArray(data.plan.turns)){
+      applyDebatePlan(data.plan);debate=true;imageMode=false;videoMode=false;syncBrandUI();sync2v2UI();syncArenaLayout();
+    }
     if(incoming.userMessage){var user=msgs.find(function(m){return m.uid===incoming.userMessage.uid;});if(user)Object.assign(user,incoming.userMessage);else{msgs.push(incoming.userMessage);changed=true;}}
     msgs.forEach(function(message){if(message.debateRun&&message.debateRun.id===ref.id)message.debateRun=ref;});
     incoming.turns.forEach(function(turn){
@@ -6016,7 +6024,7 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
     document.querySelector('.arena-topbar').inert = mobile && expanded;
     document.querySelector('.aa-main').inert = (mobile && expanded)||!!scopeSwitchPending;
     var general=!activeProjectId&&!$('ai-arena-app').classList.contains('arena-workspace-visible');
-    ['Chat','Debate','Image','Video'].forEach(function(name){var button=$('aaBar'+name+'Btn'),selected=name==='Chat'?!debate&&!imageMode&&!videoMode:name==='Debate'?debate:name==='Image'?imageMode:videoMode;if(button)button.classList.toggle('active',general&&selected);});
+    ['Chat','Debate','Image','Video'].forEach(function(name){var button=$('aaBar'+name+'Btn'),selected=name==='Chat'?!debate&&!imageMode&&!videoMode:name==='Debate'?debate:name==='Image'?imageMode:videoMode;if(button){button.classList.toggle('active',general&&selected);button.setAttribute('aria-current',general&&selected?'page':'false');}});
   }
   function syncArenaEffort(){
     var slider=$('aaEffortSlider');
