@@ -6,6 +6,7 @@ import { OpenAITransport, openAIBackgroundFetch } from './openai-transport.js';
 import { createProjectScheduler } from './project-schedules.js';
 import { isOpenAIImage, validateOpenAIImage, buildImagePayload, readImageStream, IMAGE_ORCHESTRATOR } from './openai-images.js';
 import DebateCore from '../arena-debate.js';
+import SkillModels from '../arena-skill-models.js';
 var __defProp = Object.defineProperty;
 var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
 
@@ -558,6 +559,7 @@ async function handleChatRunRequest(request, env) {
       normalizeSettings(chat.skills);validateSkillFiles(chat.files);
       const config = OFFICIAL_MODELS[payload.model];
       if (!config || config.image) return projectReply({ error: '此模型不支持聊天恢复。' }, 400);
+      SkillModels.validate(payload.model,normalizeSettings(chat.skills),skillCatalog);
       if (!recovery || !Number.isSafeInteger(recovery.replyUid) || !Number.isSafeInteger(recovery.userMessage?.uid) || typeof recovery.userMessage.text !== 'string' || recovery.userMessage.text.length > 60000) return projectReply({ error: '缺少有效的聊天恢复信息。' }, 400);
       const message = recovery.userMessage;
       const userMessage = { uid: message.uid, isUser: true, brand: 'user', name: String(message.name || '用户').slice(0, 60), text: message.text, topicText: String(message.topicText || '').slice(0, 50000), color: '#A78BFA' };
@@ -942,7 +944,7 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
       return new Response(JSON.stringify(result), { headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
     }
     if (request.method === "GET" && url.pathname !== "/memory") {
-      return new Response(JSON.stringify({ mode: "official", debate:DebateCore.version==='studio-v3'&&DebateRun.contractVersion==='studio-v3'?'studio-v3':null, skillsVersion:"20261030-skills1", xai: !!env.GROK_API_KEY, openai: !!env.OPENAI_API_KEY, anthropic: !!env.ANTHROPIC_API_KEY, google: !!env.GEMINI_API_KEY, mj: false }), {
+      return new Response(JSON.stringify({ mode: "official", debate:DebateCore.version==='studio-v3'&&DebateRun.contractVersion==='studio-v3'?'studio-v3':null, skillsVersion:"20261030-skillmodels1", xai: !!env.GROK_API_KEY, openai: !!env.OPENAI_API_KEY, anthropic: !!env.ANTHROPIC_API_KEY, google: !!env.GEMINI_API_KEY, mj: false }), {
         status: 200,
         headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*", "Cache-Control":"no-store" }
       });
@@ -1007,6 +1009,7 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
         : "该模型未启用官方 API，请刷新后选择当前官方模型";
       return new Response(JSON.stringify({ error: reason }), { status: 400, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
     }
+    if(body.chat){try{SkillModels.validate(model,normalizeSettings(body.chat.skills),skillCatalog);}catch(error){return projectReply({error:error.message},400);}}
     if(modelConfig.image){
       try{validateImageRequest(modelConfig,model,body,allImages);}catch(error){return projectReply({error:error.message},400);}
     }
@@ -1442,7 +1445,7 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
             if(raw){const file=JSON.parse(raw);if(file.data)files.push({name:file.name,data:file.data,mime:file.type||'application/octet-stream',size:file.size});}
           }
         }
-        return runOfficialDocuments({env,user:authUser,scope:projectId||'general',incognito:!!body.chat.incognito,selection,system:scoped.system,messages:scoped.messages,files,images:allImages,artifactInputs:body.chat.artifactInputs||[],session:body.chat.skillSession,search:!!search,signal:upstreamAbort.signal,send:sendEvent,recordUsage});
+        return runOfficialDocuments({env,user:authUser,scope:projectId||'general',incognito:!!body.chat.incognito,model,effort:SkillModels.supported(model)?effort:undefined,selection,system:scoped.system,messages:scoped.messages,files,images:allImages,artifactInputs:body.chat.artifactInputs||[],session:body.chat.skillSession,search:!!search,signal:upstreamAbort.signal,send:sendEvent,recordUsage});
       }
       let endpoint;
       let headers;
