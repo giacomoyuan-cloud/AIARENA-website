@@ -49,7 +49,7 @@
     return '<span class="arena-ratio-preview'+(value==='auto'?' automatic':'')+'" aria-hidden="true" style="--ratio-w:'+r.width+'px;--ratio-h:'+r.height+'px"><i></i></span>';
   }
   function radio(key,value,label,current,extra){
-    return '<label class="arena-image-radio"><input type="radio" name="image-'+key+'" data-image-setting="'+key+'" value="'+escape(value)+'"'+(String(current)===String(value)?' checked':'')+'><span class="arena-image-radio-face">'+(extra||'')+'<span>'+escape(label)+'</span>'+icon('check')+'</span></label>';
+    return '<label class="arena-image-radio"><input type="radio" name="image-'+key+'" data-image-setting="'+key+'" value="'+escape(value)+'"'+(String(current)===String(value)?' checked':'')+'><span class="arena-image-radio-face">'+(extra||'')+'<span>'+escape(label)+'</span>'+(key==='ratio'?'':icon('check'))+'</span></label>';
   }
   function ratioMarkup(values,current){
     var r=ratioInfo(current);
