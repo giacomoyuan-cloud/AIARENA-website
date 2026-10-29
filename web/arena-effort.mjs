@@ -1,15 +1,16 @@
 import { clamp, effortGeometry, positionAt, stopAt } from './effort-math.mjs';
 
 let active;
-function mount(root) {
-  active?.destroy();
+function create(root) {
   if (!root || !window.PointerEvent) return;
   const input = root.querySelector('input[type="range"]');
   if (!input) return;
   const thumb = root.querySelector('.arena-effort-thumb');
   const fill = root.querySelector('.arena-effort-fill');
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
-  const max = Number(input.max);
+  const min = Number(input.min || 0), max = Number(input.max), step = Number(input.step) || 1;
+  const span = max - min, stops = Math.round(span / step);
+  const fraction = () => span ? clamp((Number(input.value) - min) / span, 0, 1) : 0;
   const abort = new AbortController();
   const options = { signal: abort.signal };
   // Keep native range keyboard/AT semantics without competing native pointer updates.
@@ -48,7 +49,7 @@ function mount(root) {
     width = nextWidth; thumbSize = nextThumbSize;
     const geometry = effortGeometry(width, thumbSize); travel = geometry.travel;
     root.style.setProperty('--effort-inset', geometry.inset + 'px');
-    drawnIndex = index; stop(); draw(index / max * travel);
+    drawnIndex = index; stop(); draw(fraction() * travel);
   }
   function paint() {
     frame = 0;
@@ -56,8 +57,8 @@ function mount(root) {
     if (input.disabled) { pendingX = undefined; return; }
     const next = positionAt(pendingX, rect.left, width, grabOffset, thumbSize);
     pendingX = undefined; draw(next.x);
-    const index = stopAt(next.fraction, max); drawnIndex = index;
-    if (index !== Number(input.value)) {
+    const index = min + stopAt(next.fraction, stops) * step; drawnIndex = index;
+    if (index !== Number(input.value) || root.dataset.sliderAuto === 'true') {
       input.value = String(index);
       input.dispatchEvent(new Event('input', { bubbles: true }));
       window.ArenaNative?.haptic();
@@ -76,7 +77,7 @@ function mount(root) {
     if (gesture.hasPointerCapture(event.pointerId)) gesture.releasePointerCapture(event.pointerId);
     delete input.dataset.effortDragging;
     root.classList.remove('is-dragging');
-    draw(Number(input.value) / max * travel, true);
+    draw(fraction() * travel, true);
     input.dispatchEvent(new Event('change', { bubbles: true }));
   }
   gesture.addEventListener('pointerdown', event => {
@@ -86,7 +87,7 @@ function mount(root) {
     rect = root.getBoundingClientRect(); width = rect.width; thumbSize = thumb.offsetWidth;
     const geometry = effortGeometry(width, thumbSize); travel = geometry.travel;
     root.style.setProperty('--effort-inset', geometry.inset + 'px');
-    grabOffset = Math.abs(event.clientX - center) <= thumbSize / 2 + 6 ? event.clientX - center : 0;
+    grabOffset = root.dataset.sliderAuto !== 'true' && Math.abs(event.clientX - center) <= thumbSize / 2 + 6 ? event.clientX - center : 0;
     pointer = event.pointerId; gesture.setPointerCapture(pointer);
     input.dataset.effortDragging = 'true';
     input.focus({ preventScroll: true }); root.classList.add('is-dragging');
@@ -98,7 +99,7 @@ function mount(root) {
   const observer = new ResizeObserver(sync); observer.observe(root);
   root.classList.add('is-enhanced'); sync();
   let destroyed = false;
-  active = { sync, destroy() {
+  const controller = { sync, destroy() {
     if (destroyed) return;
     destroyed = true;
     abort.abort(); observer.disconnect(); stop();
@@ -107,7 +108,12 @@ function mount(root) {
     delete input.dataset.effortDragging;
     if (active === controller) active = null;
   } };
-  const controller = active;
   return controller;
 }
-window.ArenaEffort = { mount, sync() { active?.sync(); } };
+function mount(root) { active?.destroy(); active = create(root); return active; }
+function mountGroup(host) {
+  active?.destroy(); active = null;
+  const controls = Array.from(host.querySelectorAll('.arena-effort-scale'), create).filter(Boolean);
+  return { sync() { controls.forEach(control => control.sync()); }, destroy() { controls.forEach(control => control.destroy()); } };
+}
+window.ArenaEffort = { mount, mountGroup, sync() { active?.sync(); } };

@@ -864,14 +864,14 @@
   #ai-arena-app #aaSkillEditPrompt::placeholder { color: #888; opacity: 1; }
 
 </style>
-<link rel="stylesheet" href="/arena.css?v=20261030-chatmodes1">
+<link rel="stylesheet" href="/arena.css?v=20261030-image-unified1">
 <link rel="stylesheet" href="/arena-workspace.css?v=20261029-debateresume1">
 <link rel="stylesheet" href="/arena-controls.css?v=20261029-debateresume1">
 <link rel="stylesheet" href="/arena-pet.css?v=20261029-petnoghost1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&family=Noto+Serif+SC:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="/arena-claude.css?v=20261030-sliderends1">
+<link rel="stylesheet" href="/arena-claude.css?v=20261030-imagesliders1">
 <link rel="stylesheet" href="/arena-project-page.css?v=20261030-projectactions1">
 <link rel="stylesheet" href="/arena-debate-ui.css?v=20261030-sliderends1">
 <link rel="preload" as="image" href="/assets/kitten/motion/knead-14b49069b5fd.png">
@@ -1256,11 +1256,12 @@
 </div>
 
 <script src="/arena-markdown.js?v=20261027-account1"></script>
-<link rel="stylesheet" href="/arena-image-editor.css?v=20261030-openai-image1">
-<script src="/arena-image.js?v=20261030-sliderends1"></script>
+<link rel="stylesheet" href="/arena-image-editor.css?v=20261030-imagesliders1">
+<script src="/arena-slider.js?v=20261030-imagesliders1"></script>
+<script src="/arena-image.js?v=20261030-imagesliders1"></script>
 <script src="/arena-image-editor.js?v=20261030-openai-image1"></script>
 <script src="/arena-native.js?v=20261028-smooth2"></script>
-<script src="/arena-effort.js?v=20261030-sliderends1"></script>
+<script src="/arena-effort.js?v=20261030-imagesliders1"></script>
 <script src="/arena-context.js?v=20261027-account1"></script>
 <script src="/arena-chat-mode.js?v=20261030-chatmodes1"></script>
 <script src="/arena-skills-catalog.js?v=20261030-skills1"></script>
@@ -1268,7 +1269,7 @@
 <script src="/arena-skills.js?v=20261030-skillmodels1"></script>
 <script src="/arena-chat-runs.js?v=20261029-typingclock1"></script>
 <script src="/arena-controls.js?v=20261029-debateresume1"></script>
-<script src="/arena-model-control.js?v=20261030-debatecontrols1"></script>
+<script src="/arena-model-control.js?v=20261030-imagesliders1"></script>
 <script src="/arena-debate.js?v=20261030-debatestudio3"></script>
 <script src="/arena-debate-studio.js?v=20261030-debatecontrols1"></script>
 <script src="/arena-debate-runs.js?v=20261030-debatestudio3"></script>
@@ -3935,7 +3936,9 @@ var TEAM_COLORS = {
     return match || opts[0];
   }
 
+  var imageSettingSliders=null;
   function closeImagePopovers(){
+    if(imageSettingSliders){imageSettingSliders.destroy();imageSettingSliders=null;}
     ['aaImageTaskPop','aaImageSettingsPop','aaImageModelPop'].forEach(function(id){
       var el = $(id); if(el) el.classList.remove('open');
     });
@@ -3964,6 +3967,7 @@ var TEAM_COLORS = {
     pop.classList.add('open'); trigger.classList.add('open');
     trigger.setAttribute('aria-expanded','true');
     positionImagePopover(trigger, pop, alignRight);
+    if(popId==='aaImageSettingsPop')imageSettingSliders=ArenaEffort.mountGroup(pop);
     var control=pop.querySelector('select,input,button');if(control)control.focus();
   }
 
@@ -4007,13 +4011,17 @@ var TEAM_COLORS = {
     else{grokImageResolution=state.size;grokAspectRatio=state.ratio;grokImageQuality=state.quality;grokImageCount=state.count;}
   }
   function buildImageSettingsPop(){
+    if(imageSettingSliders){imageSettingSliders.destroy();imageSettingSliders=null;}
     normalizeImageSettings();
     $('aaImageSettingsPop').innerHTML=ArenaImage.settingsMarkup(imageComposerModel,imageComposerTask,imageSettingsState(),_nbStyleOptions);
+    ArenaImage.syncSliders($('aaImageSettingsPop'),ArenaImage.normalize(imageComposerModel,imageSettingsState()));
+    if($('aaImageSettingsPop').classList.contains('open'))imageSettingSliders=ArenaEffort.mountGroup($('aaImageSettingsPop'));
   }
   function updateOpenAIImageSizePreview(){
     if(!ArenaImage.isOpenAI(imageComposerModel))return;
     var state=ArenaImage.normalize(imageComposerModel,imageSettingsState()),card=$('aaImageSettingsPop').querySelector('[data-custom-size-card]');
-    if(card){card.querySelector('[data-size-preview]').innerHTML=ArenaImage.sizePreview('custom',state);var info=ArenaImage.sizeInfo('custom',state);card.querySelector('[data-size-ratio]').textContent=info.ratio+' '+info.orientation;}
+    if(card){card.querySelector('[data-size-preview]').outerHTML=ArenaImage.sizePreview('custom',state);var info=ArenaImage.sizeInfo('custom',state);card.querySelector('[data-size-ratio]').textContent=info.ratio+' '+info.orientation;}
+    var summary=$('aaImageSettingsPop').querySelector('[data-image-size-summary]');if(summary)summary.innerHTML=ArenaImage.sizeSummary(state);
     var preview=$('aaImageSettingsPop').querySelector('[data-custom-size-preview]');if(preview)preview.innerHTML=ArenaImage.customSizePreview(state);
   }
 
@@ -4100,10 +4108,13 @@ var TEAM_COLORS = {
   });
   $('aaImageSettingsPop').addEventListener('click', function(e){
     e.stopPropagation();
+    var automatic=e.target.closest('[data-image-auto]');if(automatic)automatic.dispatchEvent(new Event('change',{bubbles:true}));
     if(e.target.closest('[data-image-close]')){closeImagePopovers();$('aaImageSettingsBtn').focus();}
   });
   $('aaImageSettingsPop').addEventListener('input',function(e){
-    var control=e.target.closest('[data-image-setting]');if(!control||!ArenaImage.isOpenAI(imageComposerModel)||!/^(customWidth|customHeight|count|compression)$/.test(control.dataset.imageSetting))return;
+    var control=e.target.closest('[data-image-setting]');if(!control)return;
+    if(control.dataset.imageSlider!==undefined){control.dispatchEvent(new Event('change',{bubbles:true}));return;}
+    if(!ArenaImage.isOpenAI(imageComposerModel)||!/^(customWidth|customHeight|count|compression)$/.test(control.dataset.imageSetting))return;
     var key=control.dataset.imageSetting,number=Number(control.value);
     if((key==='count'||key==='compression')&&(!control.value||!Number.isInteger(number)||number<Number(control.min)||number>Number(control.max)))return;
     var state=Object.assign({},ArenaImage.normalize(imageComposerModel,imageSettingsState()));state[key]=number;
@@ -4112,7 +4123,7 @@ var TEAM_COLORS = {
   });
   $('aaImageSettingsPop').addEventListener('change', function(e){
     var control=e.target.closest('[data-image-setting]');if(!control)return;
-    var key=control.dataset.imageSetting,value=control.value,google=imageComposerModel===ArenaImage.GOOGLE_MODEL;
+    var key=control.dataset.imageSetting,value=control.dataset.imageSlider!==undefined?ArenaImage.sliderValue(control):control.value,google=imageComposerModel===ArenaImage.GOOGLE_MODEL;
     if(ArenaImage.isOpenAI(imageComposerModel)){
       var previous=ArenaImage.normalize(imageComposerModel,imageSettingsState()),next=Object.assign({},previous);
       if(['customWidth','customHeight'].indexOf(key)!==-1)value=Number(value);
@@ -4123,7 +4134,7 @@ var TEAM_COLORS = {
       next[key]=value;next=ArenaImage.normalize(imageComposerModel,next);openAIImageSettings[imageComposerModel]=next;
       localStorage.setItem('aa-openai-image-settings',JSON.stringify(openAIImageSettings));setImageError('');
       var custom=$('aaImageSettingsPop').querySelector('.arena-image-custom-wrap');if(custom)custom.hidden=next.size!=='custom';updateOpenAIImageSizePreview();
-      var compression=$('aaImageSettingsPop').querySelector('[data-image-setting="compression"]');if(compression)compression.closest('label').hidden=next.format==='png';
+      var compression=$('aaImageSettingsPop').querySelector('[data-image-setting="compression"]');if(compression)compression.closest('[data-image-slider-field]').hidden=next.format==='png';
       $('aaImageSettingsPop').querySelectorAll('[data-image-setting="format"]').forEach(function(input){input.checked=input.value===next.format;});
     }else if(google){
       if(key==='ratio')nbAspectRatio=value;if(key==='size')nbImageSize=value;
@@ -4147,6 +4158,8 @@ var TEAM_COLORS = {
       var style=_nbStyleOptions.find(function(o){return o.value===value;}),summary=$('aaImageSettingsPop').querySelector('[data-image-style-summary]');
       if(summary)summary.textContent=style?style.label:'无预设';
     }
+    ArenaImage.syncSliders($('aaImageSettingsPop'),ArenaImage.normalize(imageComposerModel,imageSettingsState()));
+    if(imageSettingSliders)imageSettingSliders.sync();
   });
   document.addEventListener('keydown',function(e){
     if(e.key==='Escape'&&$('aaImageSettingsPop').classList.contains('open')){closeImagePopovers();$('aaImageSettingsBtn').focus();e.stopImmediatePropagation();}
