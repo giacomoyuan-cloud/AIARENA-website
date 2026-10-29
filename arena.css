@@ -625,9 +625,9 @@
 #ai-arena-app.arena-shell .arena-effort-model svg { width: 13px; height: 13px; flex: 0 0 13px; }
 #ai-arena-app.arena-shell .arena-effort-popover svg,
 #ai-arena-app.arena-shell .arena-model-picker svg { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
-#ai-arena-app.arena-shell .arena-effort-scale { position: relative; height: 44px; margin-top: 10px; }
-#ai-arena-app.arena-shell .arena-effort-track { position: absolute; inset: 8px 0; border-radius: 100px; background: linear-gradient(to right,var(--effort-accent) 0%,var(--effort-accent) var(--effort-progress),var(--arena-user) var(--effort-progress),var(--arena-user) 100%); box-shadow: inset 0 0 0 1px #17150f0a; }
-#ai-arena-app.arena-shell .arena-effort-ticks { position: absolute; top: 50%; left: 16px; right: 16px; pointer-events: none; }
+#ai-arena-app.arena-shell .arena-effort-scale { --effort-inset:16px; position: relative; height: 44px; margin-top: 10px; }
+#ai-arena-app.arena-shell .arena-effort-track { position: absolute; top:calc(50% - 2px); left:var(--effort-inset); right:var(--effort-inset); height:4px; border-radius: 100px; background: linear-gradient(to right,var(--effort-accent) 0%,var(--effort-accent) var(--effort-progress),var(--arena-user) var(--effort-progress),var(--arena-user) 100%); box-shadow: inset 0 0 0 1px #17150f0a; }
+#ai-arena-app.arena-shell .arena-effort-ticks { position: absolute; top: 50%; left:var(--effort-inset); right:var(--effort-inset); pointer-events: none; }
 #ai-arena-app.arena-shell .arena-effort-ticks > span { position: absolute; width: 4px; height: 4px; border-radius: 50%; background: var(--arena-faint); transform: translate(-50%,-50%); }
 #ai-arena-app.arena-shell .arena-effort-ticks > span.is-filled { background: #fff8; }
 #ai-arena-app.arena-shell .arena-effort-input { position: relative; display: block; width: 100%; height: 44px; margin: 0; padding: 0; appearance: none; -webkit-appearance: none; background: transparent; border: 0; border-radius: 30px; cursor: pointer; touch-action: pan-y; }
@@ -641,7 +641,7 @@
 #ai-arena-app.arena-shell .arena-effort-thumb { display: none; }
 #ai-arena-app.arena-shell .arena-effort-scale.is-enhanced .arena-effort-track { background: var(--arena-user); overflow: hidden; }
 #ai-arena-app.arena-shell .is-enhanced .arena-effort-fill { position: absolute; inset: 0; border-radius: inherit; background: var(--effort-accent); transform-origin: left center; }
-#ai-arena-app.arena-shell .is-enhanced .arena-effort-thumb { display: block; position: absolute; left: 0; top: 6px; width: 32px; height: 32px; pointer-events: none; z-index: 2; }
+#ai-arena-app.arena-shell .is-enhanced .arena-effort-thumb { display: block; position: absolute; left: 0; top:calc(50% - 16px); width: 32px; height: 32px; pointer-events: none; z-index: 2; }
 #ai-arena-app.arena-shell .arena-effort-thumb > span { display: block; position: relative; width: 32px; height: 32px; border-radius: 50%; background: #fff; box-shadow: 0 2px 7px #0002, 0 0 0 1px #00000008; transition: transform 160ms var(--ease-out); }
 #ai-arena-app.arena-shell .is-dragging .arena-effort-thumb > span { transform: translateY(-3px) scale(1.08); }
 #ai-arena-app.arena-shell .arena-effort-halo { position: absolute; inset: -7px; border-radius: 50%; box-shadow: 0 0 0 6px #397df51a, 0 5px 18px #397df52b; opacity: 0; transition: opacity 160ms var(--ease-out), transform 160ms var(--ease-out); }
@@ -814,8 +814,6 @@ html, body { overscroll-behavior: none; }
   #ai-arena-app.arena-shell input:not([type="range"]):not([type="checkbox"]), #ai-arena-app.arena-shell textarea, #ai-arena-app.arena-shell select { font-size: 16px !important; }
   #ai-arena-app.arena-shell .aa-topic { max-height: 160px; }
   #ai-arena-app.arena-shell .arena-effort-scale, #ai-arena-app.arena-shell .arena-effort-input { height: 52px; }
-  #ai-arena-app.arena-shell .arena-effort-scale .arena-effort-track { top: 12px; bottom: 12px; }
-  #ai-arena-app.arena-shell .arena-effort-scale .arena-effort-thumb { top: 10px; }
   #ai-arena-app.arena-shell .arena-effort-reset { width: 40px; height: 40px; margin: -6px; }
   #ai-arena-app.arena-shell .arena-effort-model { min-height: 42px; }
   #ai-arena-app.arena-shell .arena-account-heading .arena-icon-btn { width: 44px; height: 44px; }
