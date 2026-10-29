@@ -15,7 +15,7 @@ function fixture(){
     document:{querySelector:()=>row,querySelectorAll:()=>[row],createElement(){const body={textContent:'',scrollTop:0,scrollHeight:100,clientHeight:100},toggle={textContent:'思考摘要'};return {open:false,querySelector:selector=>selector==='summary'?toggle:body};}}
   });
   vm.runInContext(source.match(/var AVAILABLE_CHAT_MODELS = \[[^\]]+\];/)[0],context);
-  vm.runInContext(['paintThinkStatus','tickThinkingClock','showThink','updateThinkStatus','appendThinkSummary','chatRunConnectionState','syncActivityDisclosure','renderMessageActivity','rememberActivityToggle','updateMessageActivity','beginStreamedReply','cleanThinkTags','serializeMsgs','paintFinalMsg'].map(fn).join('\n'),context);
+  vm.runInContext(['paintThinkStatus','tickThinkingClock','showThink','updateThinkStatus','appendThinkSummary','chatRunConnectionState','chatReplyView','renderReplyNotice','syncActivityDisclosure','renderMessageActivity','rememberActivityToggle','updateMessageActivity','beginStreamedReply','cleanThinkTags','serializeMsgs','paintFinalMsg','plainMessageText'].map(fn).join('\n'),context);
   return {context,row,label,clock,messages,advance:ms=>{now+=ms;},summary:()=>({details,content}),removed:()=>removed};
 }
 
@@ -164,6 +164,59 @@ test('thinking and search completion collapse to the exact requested label witho
   assert.match(f.context.renderMessageActivity(message),/arena-operation-details" open/);
   message.text='正文';const html=f.context.renderMessageActivity(message);
   assert.equal(html.includes('" open'),false);assert.match(html,/<summary>已思考，已搜索网页<\/summary>/);assert.match(html,/查询后的真实摘要/);assert.match(html,/https:\/\/example.com/);
+});
+
+test('the screenshot timeout record opens the actual summary and removes the notice from the answer view',()=>{
+  const f=fixture(),message={submodel:'claude-opus-5-5',text:'本次生成超过 14 分钟，已保存收到的内容。',isError:true,reasoning:'这是服务商实际返回的公开摘要。'};
+  const original=JSON.stringify(message),view=f.context.chatReplyView(message);
+  assert.equal(view.text,'');assert.equal(view.error,message.text);assert.equal(JSON.stringify(message),original);
+  const html=f.context.renderMessageActivity(message);
+  assert.match(html,/data-incomplete="true" open/);assert.match(html,/<summary>已收到的思考摘要<\/summary>/);assert.match(html,/这是服务商实际返回的公开摘要/);
+  assert.match(f.context.renderReplyNotice(message),/模型未返回正文，已展开收到的思考摘要/);
+  assert.doesNotMatch(f.context.renderReplyNotice(message),/已保存收到/);
+  assert.equal(f.context.plainMessageText(message),'思考摘要（未生成正文）\n'+message.reasoning);
+});
+
+test('failed saved replies retain Markdown, citations and the entire answer independently of the failure',()=>{
+  const f=fixture(),answer='## 已收到的正文\n\n**第一条** [[aa-citation:1]]\n\n```js\nconst a=1;\n```',error='本次生成超过 14 分钟，已保存收到的内容。';
+  for(const suffix of ['\n[错误: '+error+']','\n\n['+error+']']){
+    const message={submodel:'claude-opus-5-5',text:answer+suffix,isError:true,reasoning:'思考摘要',run:{status:'failed'},citations:[{title:'来源',url:'https://example.com/'}]};
+    assert.equal(f.context.chatReplyView(message).text,answer);
+    assert.match(f.context.renderReplyNotice(message),/已显示收到的正文/);
+    assert.doesNotMatch(f.context.renderMessageActivity(message),/ open/);
+    assert.match(f.context.plainMessageText(message),/\[来源\]\(https:\/\/example.com\/\)/);
+    assert.equal(message.text,answer+suffix);
+  }
+});
+
+test('an empty failed reply describes missing content without inventing a response or a thinking summary',()=>{
+  const f=fixture(),message={submodel:'claude-opus-5-5',text:'',isError:true,generationError:'本次生成超过 14 分钟，已保存收到的内容。',reasoning:''};
+  assert.equal(f.context.renderMessageActivity(message),'');
+  assert.match(f.context.renderReplyNotice(message),/模型未返回正文或可展示的思考摘要/);
+  assert.equal(f.context.chatReplyView(message).text,'');
+  const user={...message,isUser:true,text:'本次生成超过 14 分钟，已保存收到的内容。'};
+  assert.equal(f.context.chatReplyView(user).text,user.text);assert.equal(f.context.renderReplyNotice(user),'');
+});
+
+test('failure details are escaped and a collapsed incomplete summary keeps the user choice',()=>{
+  const f=fixture(),message={uid:12,submodel:'claude-opus-5-5',text:'',isError:true,generationError:'<img src=x onerror=alert(1)>',reasoning:'公开摘要'};
+  assert.match(f.context.renderReplyNotice(message),/&lt;img/);assert.doesNotMatch(f.context.renderReplyNotice(message),/<img/);
+  assert.match(f.context.renderMessageActivity(message),/ open/);
+  f.context.msgs=[message];const summary={parentElement:{open:true},closest:()=>({dataset:{uid:'12'}})};
+  f.context.rememberActivityToggle({target:{closest:()=>summary}});
+  assert.doesNotMatch(f.context.renderMessageActivity(message),/ open/);
+});
+
+test('a live failure reveals a paced backlog immediately and persists the real content separately',()=>{
+  const f=fixture(),stream=require('./arena-stream.js').create({onUpdate(){}}),answer='收到的完整正文。'.repeat(100);
+  stream.pause(true);stream.write(77,answer);assert.equal(stream.text(77,''),'');
+  const message={uid:77,submodel:'claude-opus-5-5',text:answer,reasoning:'公开摘要'};let renders=0;
+  Object.assign(f.context,{liveReplies:stream,msgs:[message],render(){renders++;},finalizeMsg(uid,text){stream.finish(uid,text);}});
+  vm.runInContext(fn('failChatReply'),f.context);
+  f.context.failChatReply('claude-opus-5-5',message,'本次生成超过 14 分钟，已保存收到的内容。');
+  assert.equal(stream.has(77),false);assert.equal(stream.text(77,message.text),answer);assert.equal(message.text,answer);
+  assert.equal(message.reasoning,'公开摘要');assert.equal(message.isError,true);assert.ok(message.completedAt);assert.equal(renders,1);
+  f.context.msgs=[message];assert.equal(f.context.serializeMsgs()[0].generationError,message.generationError);
 });
 
 test('a completed reply without a public summary has an honest non-expandable status for each provider',()=>{

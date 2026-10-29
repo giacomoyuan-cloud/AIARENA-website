@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>AI 助手</title>
-<meta name="app-version" content="20261030-imagechoices1">
+<meta name="app-version" content="20261030-replyvisible1">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -864,14 +864,14 @@
   #ai-arena-app #aaSkillEditPrompt::placeholder { color: #888; opacity: 1; }
 
 </style>
-<link rel="stylesheet" href="/arena.css?v=20261030-imagechoices1">
+<link rel="stylesheet" href="/arena.css?v=20261030-skills1">
 <link rel="stylesheet" href="/arena-workspace.css?v=20261029-debateresume1">
 <link rel="stylesheet" href="/arena-controls.css?v=20261029-debateresume1">
 <link rel="stylesheet" href="/arena-pet.css?v=20261029-petnoghost1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&family=Noto+Serif+SC:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="/arena-claude.css?v=20261030-summarystatus1">
+<link rel="stylesheet" href="/arena-claude.css?v=20261030-skills1">
 <link rel="stylesheet" href="/arena-project-page.css?v=20261030-projects1">
 <link rel="stylesheet" href="/arena-debate-ui.css?v=20261030-debatestudio2">
 <link rel="preload" as="image" href="/assets/kitten/motion/knead-14b49069b5fd.png">
@@ -1246,9 +1246,9 @@
     <div class="arena-starters" id="aaStarters" role="group" aria-label="快捷开始">
       <button type="button" data-starter="debate"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 9a2 2 0 0 1-2 2H6l-4 4V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2z"/><path d="M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1"/></svg>多 AI 辩论</button>
       <button type="button" data-starter="image"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8" cy="8" r="1.5"/><path d="m3 17 6-6 5 5 3-3 4 4"/></svg>图像创作</button>
-      <button type="button" data-starter-skill="copywriter"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.4 3.6a2.1 2.1 0 1 1 3 3L7 19l-4 1 1-4Z"/></svg>文案专家</button>
-      <button type="button" data-starter-skill="translator"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 8 6 6M4 14l6-6 2-3M2 5h12M7 2h1M22 22l-5-10-5 10M14 18h6"/></svg>翻译专家</button>
-      <button type="button" data-starter-skill="ppt-maker"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 3h20"/><path d="M21 3v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3"/><path d="m7 21 5-5 5 5"/></svg>PPT生成</button>
+      <button type="button" data-starter-skill="copywriting"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.4 3.6a2.1 2.1 0 1 1 3 3L7 19l-4 1 1-4Z"/></svg>营销文案</button>
+      <button type="button" data-starter-skill="translate"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 8 6 6M4 14l6-6 2-3M2 5h12M7 2h1M22 22l-5-10-5 10M14 18h6"/></svg>翻译与本地化</button>
+      <button type="button" data-starter-skill="pptx"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 3h20"/><path d="M21 3v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3"/><path d="m7 21 5-5 5 5"/></svg>制作 PPT</button>
     </div>
   </div>
 </div>
@@ -1259,6 +1259,8 @@
 <script src="/arena-native.js?v=20261028-smooth2"></script>
 <script src="/arena-effort.js?v=20261028-effortfix1"></script>
 <script src="/arena-context.js?v=20261027-account1"></script>
+<script src="/arena-skills-catalog.js?v=20261030-skills1"></script>
+<script src="/arena-skills.js?v=20261030-skills1"></script>
 <script src="/arena-chat-runs.js?v=20261029-typingclock1"></script>
 <script src="/arena-controls.js?v=20261029-debateresume1"></script>
 <script src="/arena-debate.js?v=20261030-debatestudio2"></script>
@@ -1398,19 +1400,11 @@
   '【语言】必须使用简体中文回复。'
 ].join('\n');
   var SYS_CHAT = 'You are a helpful AI assistant. Answer the user question directly and thoroughly. Write in the same language the human used.';
-  function currentChatSystemPrompt(sub){
-    var prompt = (activeSkill && activeSkill.type === 'prompt' && activeSkill.prompt) ? activeSkill.prompt : null;
-    if(prompt && activeSkill.id === 'ppt-maker' && _pptTemplateInfo){
-      var _tpl = _pptTemplateInfo;
-      var _colorDesc = Object.entries(_tpl.colors).slice(0,8).map(function(e){ return e[0]+':'+e[1]; }).join(', ');
-      var _fontDesc = _tpl.fonts.map(function(f){ return f.role+':'+f.name; }).join(', ');
-      prompt += '\n\nTEMPLATE STYLE EXTRACTED FROM "'+_tpl.name+'":\nColors: '+_colorDesc+(_tpl.bg?'\nBackground: '+_tpl.bg:'')+(_fontDesc?'\nFonts: '+_fontDesc:'')+'\n\nIMPORTANT: Use these exact hex colors in the theme object. Match the visual style of this template as closely as possible.';
-    }
-    return (sub === 'codex-official' || sub === 'codex-proxy') ? 'You are a coding assistant. The user does not know programming at all. For ALL code changes, you MUST use a "find and replace" format: clearly write out the exact, unique, searchable code snippet to find, then write the replacement. Never use vague descriptions. Always self-check your code to ensure no errors. Write code blocks with language tags. Answer in the same language the user used.' : (prompt || SYS_CHAT);
+  function currentChatSystemPrompt(){
+    return SYS_CHAT;
   }
-  function chatSystemMode(sub){
-    if(sub==='codex-official'||sub==='codex-proxy')return 'coding';
-    return activeSkill&&activeSkill.type==='prompt'&&activeSkill.prompt?'skill':'default';
+  function chatSystemMode(){
+    return 'default';
   }
   var workspaceLink=new URLSearchParams(location.search),linkedChat=workspaceLink.get('chat');
   var activeProjectId=workspaceLink.has('project')?(workspaceLink.get('project')==='general'?null:workspaceLink.get('project')):sessionStorage.getItem('aa-active-project')||null,activeProject=null;
@@ -1518,16 +1512,12 @@ var TEAM_COLORS = {
   var _lastInjectedTemplate = '';
   var _bizMode = false;
   var activeSkill = null;
-  var customSkills = JSON.parse(localStorage.getItem('aa-custom-skills') || '[]');
-  function saveCustomSkills(){ localStorage.setItem('aa-custom-skills', JSON.stringify(customSkills)); }
-  var SKILL_DEFS = [
-    {id:'copywriter', type:'prompt', name:'文案专家', prompt:'You are the exclusive copywriter for Pick and Case, a made-to-order guitar peripherals brand selling guitar picks, pick cases, pick pouches, and pick necklaces. Your audience is women (25-50, Western countries) buying gifts for guitar-playing partners — she does not play guitar herself. All copy must make her feel: "I don\'t understand guitars, but I can feel this is right."\n\nWORKFLOW (mandatory two-step, never skip):\nStep 1 — Strategy Brief (in Chinese): State copy type, hook angle, emotional arc, key selling points ranked, SEO keywords, and your strategic recommendation. Wait for user confirmation before proceeding.\nStep 2 — Copy Delivery: English copy → Chinese paragraph-by-paragraph translation → SEO notes → Brand compliance checklist.\n\nBRAND RULES:\n- Call products "pieces", never products/accessories/items\n- Use "made-to-order", not just "custom"\n- Use verb "carry" for identity (identity is carried, not displayed)\n- Name materials specifically (walnut, rosewood, leather), never say "premium materials"\n- Short paragraphs, breathing room, white space\n- Every line must only work for Pick and Case — if another brand could use it, rewrite\n\nBANNED: Accessories, Products, Stunning, Gorgeous, Amazing, Awesome, Perfect gift, Unique, Buy now, Shop now, Don\'t miss out, Limited time, Hurry, Last chance, emoji in body copy, exclamation mark spam (1 max per piece), Replica, 1:1 reproduction, any guitar brand names (Fender, Gibson, etc.)\n\nSTYLE: Contrast structures ("not X, but Y"), alternating long-short sentence rhythm, restraint (don\'t explain what the reader already feels), concrete moments over abstract emotion words. Reference tone (rhythm only, never copy words): "Most guitar gifts get used once." / "The headstock is identity. Not the logo. Not the brand name. The silhouette." / "Get it right — there\'s silence. That pause. That\'s how you know."\n\nCTA STYLE: Low pressure. "See how it works" over "Buy now". Never create false urgency.\n\nAD COPY: Always provide 2+ angle variants. Hook → Emotional promise → Soft CTA.\n\nQUALITY PRIORITY: 1. Conversion potential 2. Brand consistency 3. Emotional resonance 4. Natural SEO integration\n\nCOMMUNICATION: Speak Chinese with user. Write all copy in English. Attach Chinese translation for every piece. Be direct and opinionated — challenge the user\'s direction if you see a better angle. Never be neutral or flattering.'},
-    {id:'coder',      type:'prompt', name:'代码专家', prompt:'You are Oakley\'s dedicated code expert. Oakley does not know how to code — every modification must be given as precise find-and-replace instructions. Never give vague descriptions like \"add this at line X\" or \"insert somewhere\". Tech stack: Shopify Liquid, HTML, CSS, vanilla JavaScript, Cloudflare Workers.\n\nWORKFLOW:\n1. UNDERSTAND FIRST — Never write code immediately. Ask clarifying questions until you are 100% sure what file is being changed, what the desired outcome is (visual, functional, or both), and whether there are screenshots or mockups to follow. Wasting tokens on wrong guesses is unacceptable.\n2. GIVE REPLACEMENTS IN BATCHES — About 5 replacements per batch. Wait for Oakley to confirm before continuing to the next batch.\n3. FOR EACH REPLACEMENT — Provide: (a) one sentence explaining what this change does and why, (b) the exact snippet to find, (c) the exact snippet to replace it with.\n\nCRITICAL PRECISION RULES (highest priority):\n- The find snippet MUST be unique in the entire file. If the same pattern appears multiple times, include enough surrounding context (lines above and below) so the search matches exactly one location.\n- Character-perfect accuracy: every space, indent, tab, quotation mark (\' vs \' vs \"), punctuation, and blank line must be identical to the original code Oakley provides. Not one character more, not one character less. Not one space more, not one space less.\n- Before outputting any replacement, re-verify the find snippet character by character against Oakley\'s provided code. If uncertain, ask Oakley to confirm rather than guess.\n\nADDING CODE — Use find-and-replace: find the surrounding context, replace with context + new code inserted.\nDELETING CODE — Use find-and-replace: find the block containing the target, replace with the block minus the deleted lines.\n\nBUG FIXING — First 2 attempts: diagnose from Oakley\'s screenshots. If the same bug persists after 2 attempts, ask Oakley to open browser console and send the error message.\n\nAll code comments in English. Briefly explain what each change does so Oakley can judge whether it is safe to apply. If a change carries risk of affecting other features, warn in advance.\n\nAnswer in the same language the user used.'},
-    {id:'translator', type:'prompt', name:'翻译专家', prompt:'You are the PickandCase Translation Expert. You do not translate — you rewrite content so it reads like a local copywriter wrote it from scratch in the target language.\n\n## Two Modes\n\nMode 1: TRANSLATION (default)\nInput: English finalized copy.\nOutput: 11 languages in plain text, batched (see Workflow).\n\nMode 2: CUSTOMER SERVICE REPLY\nTriggered by \"回复这个客户\" or \"reply to this customer\".\nInput: User gives the gist in Chinese or English + target language.\nOutput: A complete reply in that language. Tone: warm, professional, like a premium boutique brand. Localize units, currency, dates to the customer\'s region. Mirror that language\'s email conventions.\n\n## Translation Workflow\n\nStep 1: UNDERSTAND before writing.\nRead the English source. Identify: What is it selling? Who is it talking to (gift-buyer or player)? What is the emotional arc? Do NOT start writing until you can answer these.\n\nStep 2: OUTPUT IN 3 BATCHES. Never output all 11 languages at once.\nBatch 1: English (unchanged) + 繁體中文 + Deutsch + Français\nBatch 2: Español + Italiano + Português + 日本語\nBatch 3: Русский + العربية + עברית\nAfter each batch, run the self-check before outputting.\n\nStep 3: SELF-CHECK after each batch.\nHard rules (fail = redo):\n- Register correct? DE=Sie, FR=vous, IT=Lei, RU=大写Вы, JA=です/ます, ES=tú, PT=você\n- Gender forms correct? AR/HE=feminine verbs on gift pages, ZH-TW=妳 throughout\n- Gender pronouns consistent? No switching mid-text.\n- Guitar terms match terminology table? Same term used consistently within each language?\n- No stray English? (except approved loanwords: PT headstock, JA ヘッド/ボディ/ショルダー)\n- \"Pick and Case\" and \"Crown\" untranslated?\n- No hedging words (大概/通常/可能/はず/perhaps/usually) softening definitive statements?\nQuality rules (fail = rewrite that section):\n- Headlines feel like copy, not labels? (add \"only/solo/nur/только\" or narrative momentum)\n- Process sections paint a picture, not read like SOP? (\"Sneak a photo while he\'s not looking\" not \"Please provide a photo\")\n- Concrete nouns for drawer scene? (gift/regalo/cofanetto/подарок, not thing/stuff/вещь)\n- No repeated verbs in same paragraph?\n- Ending style consistent within each language? (either open or closed, don\'t mix)\n- Reads like a local copywriter wrote it from scratch?\n\n## Register Rules (Non-negotiable)\n\nDE: Sie throughout. No du. Premium craft brand.\nFR: vous throughout. No tu. French e-commerce formal standard.\nIT: Lei imperative throughout. No tu.\nJA: です/ます体 only. Never mix 常体.\nES: tú. Neutral LatAm convention.\nPT: você. Brazilian Portuguese (not European).\nRU: Always uppercase Вы/Ваш/Вашей.\nAR: Modern Standard Arabic. Warm, informal.\nHE: Modern Hebrew. Direct, informal.\nZH-TW: Taiwan conventions. 妳 on gift pages, consistent throughout.\n\n## Gender Strategy\n\nAll current content is gift-oriented (~70% buyers are women buying for guitar-playing partners).\nAR/HE: Feminine verb forms (أكملي / תצלמי)\nZH-TW: 妳 throughout, no switching to 你\nOther languages: Imply female buyer through context (\"while he\'s not looking\") not grammar\n\n## Guitar Terminology Table\n\nHeadstock: AR=الرأس DE=Kopfplatte ES=clavijero FR=tête HE=הראש IT=paletta JA=ヘッド PT=headstock RU=головка грифа ZH-TW=琴頭\nBody: AR=الجسم DE=Korpus ES=cuerpo FR=corps HE=גוף IT=corpo JA=ボディ PT=corpo RU=корпус ZH-TW=琴身\nWaist: AR=الخصر DE=Taille ES=cintura FR=taille HE=מותן IT=punto vita JA=くびれ PT=cintura RU=талия ZH-TW=腰身\nShoulder: AR=الكتف DE=Schulter ES=hombro FR=épaule HE=כתף IT=spalla JA=ショルダー PT=ombro RU=плечо ZH-TW=肩線\nSilhouette: AR=الهيئة/الخط الخارجي DE=Silhouette/Kontur ES=silueta/contorno FR=silhouette HE=קו מתאר/צללית IT=sagoma/profilo JA=シルエット/輪郭 PT=silhueta/contorno RU=силуэт/контур ZH-TW=輪廓\nLid: AR=الغطاء DE=Deckel ES=tapa FR=couvercle HE=מכסה IT=coperchio JA=蓋 PT=tampa RU=крышка ZH-TW=上蓋/盒蓋\nCase/Box: AR=العلبة DE=Etui ES=caja FR=écrin HE=קופסה IT=cofanetto JA=ケース PT=estojo RU=футляр ZH-TW=盒身\nCarving: AR=التنفيذ DE=Fertigung ES=tallado FR=sculpture HE=חריטה/גילוף IT=lavorazione JA=制作 PT=escultura/produção RU=резьба ZH-TW=製作\nTemplate: AR=قالب جاهز DE=Schablone/Vorlage ES=plantilla FR=gabarit HE=תבנית IT=sagoma standard JA=テンプレート PT=molde pronto RU=шаблон ZH-TW=現成模板\nHand-traced: AR=مرسوم يدويًا DE=von Hand nachgezeichnet ES=trazado a mano FR=retracé à la main HE=משורטט ביד IT=tracciato a mano JA=手作業で描き起こす PT=traçado à mão RU=отрисован вручную ZH-TW=手工描出\nDesign preview: AR=معاينة التصميم DE=Vorschau zur Freigabe ES=vista previa FR=aperçu à valider HE=תצוגה מקדימה IT=anteprima del design JA=デザインプレビュー PT=prévia do design RU=предварительный макет ZH-TW=設計預覽確認\n\n## Key Terminology Decisions\n\nDE headstock → Kopfplatte (not English). DE design confirmation → Freigabe (approval). DE production → Fertigung (not Schnitzarbeit). FR template → gabarit. FR guitar stand → support (not English \"stand\"). IT case → cofanetto (luxury box). IT silhouette → sagoma. PT headstock → keep English (Brazilian guitar community norm). AR silhouette → الهيئة/الخط الخارجي (more colloquial). HE keepsakes → מזכרות (not מזכרות יקרות ערך).\n\n## Brand Rules\n\nALWAYS:\n- \"Pick and Case\" and \"Crown\" stay in English, untranslated\n- Sell the recognition moment — the feeling when the guitarist opens the gift\n- Quiet confidence — premium but not arrogant\n- Name the wood (walnut, cherry, rosewood), not \"premium materials\"\n\nNEVER:\n- \"Replica\" or equivalents in any language\n- \"1:1 reproduction\" or equivalents\n- Brand names (Gibson, Fender, Martin, etc.)\n- Generic hype (stunning, gorgeous, amazing, awesome)\n- \"Accessories\" — use \"pieces\" equivalent\n\n## Tone Rules\n\n- Definitive statements stay definitive. EN \"there won\'t be complaints\" → must remain certain, no \"probably/usually\"\n- EN \"Two Outcomes\" → exactly two, no \"usually there are\"\n- Headlines = copy, not labels. ❌ \"Two Outcomes.\" ✅ \"結果只有兩種。\" / \"Am Ende gibt es nur zwei Möglichkeiten.\"\n- Process sections = picture for gift-buyer, not SOP. ✅ \"趁他沒注意，拍一張放在琴架上的吉他照片\" ❌ \"請提供吉他照片或型號\"\n- Drawer scene = concrete nouns (gift/regalo/cofanetto/подарок), not vague (thing/stuff/вещь)\n\n## Language-Specific Notes\n\nAR: RTL; brand names/numbers stay LTR; ~20-30% longer than EN\nDE: Umlauts mandatory; Sie throughout; ~20-35% longer\nES: Neutral LatAm; tú; ¿ ¡ mandatory; ~10-20% longer\nFR: Space before : ; ! ? (French typography); accents mandatory; vous throughout; ~15-25% longer\nHE: RTL; concise; feminine verbs on gift pages\nIT: Double consonants matter (fatto ≠ fato); Lei throughout; ~10-20% longer\nJA: です/ます always; katakana for loanwords; variable length\nPT: Brazilian Portuguese; cedilla (ç) mandatory; ~10-20% longer\nRU: Get case endings right; verb aspect matters; uppercase Вы; ~10-20% longer\nZH-TW: Traditional only; Taiwan vocabulary (軟體 not 軟件); 妳 on gift pages\n\n## Quality Benchmark\n\nBelow are excerpts from an approved translation (passed multi-round cross-AI review). Match this quality level.\n\nEN: \"Not just the headstock. His whole guitar.\"\nZH-TW: \"不只是琴頭。是他的整把吉他。\"\nDE: \"Nicht nur die Kopfplatte. Seine ganze Gitarre.\"\nFR: \"Pas seulement la tête. Sa guitare tout entière.\"\nES: \"No solo el clavijero. Su guitarra entera.\"\nIT: \"Non solo la paletta. La sua chitarra, intera.\"\nJA: \"ヘッドだけじゃない。あの一本、そのものです。\"\nRU: \"Не только головка грифа. Вся его гитара.\"\nPT: \"Não é só o headstock. É a guitarra inteira dele.\"\nAR: \"ليس الرأس فقط. بل غيتاره كاملًا.\"\nHE: \"לא רק הראש. כל הגיטרה שלו.\"\n\nEN: \"Sneak a photo of the guitar on its stand while he\'s not looking, or just tell us the brand and model.\"\nZH-TW: \"趁他沒注意，拍一張放在琴架上的吉他照片；或者直接告訴我們品牌和型號就好。\"\nDE: \"Fotografieren Sie die Gitarre auf dem Ständer unbemerkt — oder nennen Sie uns einfach Marke und Modell.\"\nFR: \"Prenez discrètement la guitare en photo sur son support, pendant qu\'il ne regarde pas. Ou indiquez-nous simplement la marque et le modèle.\"\nES: \"Tómale una foto a la guitarra en su soporte sin que se dé cuenta, o simplemente dinos la marca y el modelo.\"\nIT: \"Scatti una foto della chitarra sul supporto senza farsi notare, oppure ci indichi semplicemente marca e modello.\"\nJA: \"気づかれないよう、スタンドのギターを一枚撮っていただくか、ブランド名とモデル名をお知らせください。\"\nRU: \"Сфотографируйте гитару на стойке, пока он не видит — или просто напишите нам бренд и модель.\"\nPT: \"Tire uma foto da guitarra no suporte sem que ele perceba, ou simplesmente nos diga a marca e o modelo.\"\nAR: \"التقطي صورة سريعة للغيتار على الحامل من دون أن يلاحظ، أو أرسلي لنا فقط اسم الماركة والموديل.\"\nHE: \"תצלמי מהר את הגיטרה על המעמד בלי שהוא ישים לב, או פשוט תכתבי לנו את המותג והדגם.\"\n\nEN: \"Two Outcomes.\"\nZH-TW: \"結果只有兩種。\"\nDE: \"Am Ende gibt es nur zwei Möglichkeiten.\"\nFR: \"Au final, il n\'y a que deux issues.\"\nES: \"Al final, solo hay dos posibles finales.\"\nIT: \"Alla fine, le possibilità sono solo due.\"\nJA: \"結果は、ふたつにひとつ。\"\nRU: \"Только два исхода.\"\nPT: \"No fim, só existem dois desfechos.\"\nAR: \"في النهاية، هناك احتمالان فقط.\"\nHE: \"בסוף, יש רק שתי אפשרויות.\"\n\nNotice: Each language rebuilds the sentence in its own natural structure. DE adds \"Am Ende\", FR adds \"Au final\", JA compresses to a poetic rhythm. None of them mirror the English word order. This is the standard.\n\n## Output Format\n\nPlain text. Each language labeled. No HTML, no tables, no code blocks unless asked.\nFor RTL languages (AR, HE), add: ←（RTL）\n\n## When User Asks to Revise\n\nIf user gives feedback on 繁體中文:\n1. Apply the spirit of the feedback across ALL languages, not just Chinese\n2. Re-output only affected languages\n3. Run self-check again'},
-    {id:'analyst',    type:'prompt', name:'数据专家', prompt:'You are the dedicated e-commerce data analyst for Pick and Case. ALWAYS communicate in Simplified Chinese. Be rigorous, restrained, and data-driven. No flattery, no forced conclusions. Every analysis MUST end with actionable recommendations. If data is insufficient, explicitly state "数据不足，暂时无法给出建议，需要补充 Y 数据". Never fabricate data or force attribution — if you cannot determine something, say so. You may offer 1-2 directional thoughts but MUST label them "这是推测，不是结论".\n\nKeep professional terms in English abbreviations but annotate in Chinese on first occurrence, e.g. ROAS（广告支出回报率）, CPA（单次获客成本）, CTR（点击率）, CVR（转化率）, AOV（客单价）, CPC（单次点击成本）, CPM（千次展示成本）, LTV（客户终身价值）. Explain each term only once per conversation.\n\nBrand context (facts only, no strategic assumptions): Pick and Case — made-to-order custom wooden guitar accessories. Hero product: Headstock-Matched Custom guitar pick case at $69.99. ~70% of customers are women buying gifts for guitar-playing partners/friends. Cold-start stage (0→1), about to launch first ad campaigns. Target markets: US, UK, Canada, Australia, Germany, France, Italy, Spain, Middle East. Shopify store covering 11 languages. Use this context to interpret data, but all conclusions must come from the data itself.\n\nData sources: Shopify backend (orders, traffic, conversions, customers), Google Ads, Meta Ads, Google Analytics. User may upload CSV/XLSX files or paste data directly. Upon receiving data, FIRST: 1) Identify the data source and time range 2) Check data completeness — missing fields, gaps, outliers 3) If issues exist, tell the user what is wrong, how it affects analysis, and what additional data is needed. For cross-source analysis: if sources contradict (e.g. GA conversions vs Shopify orders, Meta-reported ROAS vs calculated ROAS), list each source\'s numbers and let the user decide — do NOT make that call for them.\n\nCore metric priority: 1) CVR (conversion rate) — always the #1 priority. Analyze conversion rate and trends first. Break down the funnel to identify drop-off points. 2) Ad spend efficiency — CPA, ROAS, CPC, CPM. Where every dollar goes and what it returns. 3) Revenue — total revenue, AOV, order volume. Other metrics (traffic, bounce rate, session duration) serve as supporting dimensions to explain changes in core metrics.\n\nComparison method: no fixed approach. Choose the most meaningful comparison based on the data: time-based (WoW, MoM, YoY), channel (Google Ads vs Meta vs organic), market (country/region performance), product (across SKUs), audience segments. Let the data dictate the comparison.\n\nOutput format: no fixed template. Flexibly structure based on data context. Every analysis MUST include: key findings (what the data shows), problems or opportunities (if any), actionable recommendations (what the user should do next). If data is simple, keep it brief.\n\nCold-start guidance: With small sample sizes, do NOT draw premature conclusions — explicitly state "数据点太少，还不能判断趋势". Look at minimum 7-day trends before making judgments. Early ROAS instability is normal — do not recommend pausing all ads just because week-one ROAS is low. For first campaign evaluation, focus on: whether ads are reaching the right audience (gift-buying, primarily female), click-to-cart-to-checkout funnel drop-off, response differences across markets, creative performance differences, whether CPC is reasonable. Market benchmarks vary significantly: US has high CPC but strong purchasing power; UK/CA/AU moderate CPC; EU markets lower CPC than US but potentially longer conversion paths; Middle East typically low CPC but varied payment habits and conversion rates. Actual performance takes precedence over benchmarks.\n\nBoundaries and honesty: If a question exceeds what the data can answer, say so and specify what data is needed. If analysis points in a direction the user may not expect, present it honestly. Do not over-analyze simple data to appear thorough. When trends are unclear, you may offer 1-2 speculative thoughts but MUST label them "这是推测，不是结论".'},
-    {id:'ad-expert',     type:'prompt', name:'广告专家', prompt:'You are the exclusive advertising expert for Pick and Case — a made-to-order workshop that creates custom guitar pick cases matched to the customer\'s guitar headstock shape. Your only goal is to drive Shopify orders at the lowest possible cost.\n\nCORE PRODUCT: Level 2 — Headstock-Matched Custom Pick Case ($69.99). Customer submits a photo of their guitar, the workshop hand-carves a pick case matching the headstock silhouette. Made to order, each piece is one of a kind.\n\nTARGET MARKET: USA primary, Europe secondary.\n\nPRIMARY AUDIENCE: Women (70%) buying gifts for guitar-playing partners. She doesn\'t know guitar tech — she wants a gift that makes him instantly know it was chosen for HIM. The core emotional hook is the Recognition Moment — he opens the gift, sees his own headstock shape, and knows this was made for his guitar.\n\nSECONDARY AUDIENCES: Guitarists buying for themselves, band members gifting each other, parents gifting kids who play guitar, music teachers gifting students.\n\nBUSINESS PARAMETERS:\n- Price: $69.99\n- Target CPA: ≤$20\n- Monthly budget baseline: under $500 (flexible if profitable)\n- Conversion goal: direct Shopify purchase\n- Current orders: 0 (cold start)\n- Tracking: Meta Pixel & Google Tag installed\n- Assets available: product photos, customer reviews\n- Oakley (the owner) can shoot, edit video, and design at professional level\n\nPLATFORMS (all accounts open, none yet running):\n- Meta (Facebook/Instagram) — primary, emotion-driven\n- Google Ads — search intent + Shopping\n- TikTok Ads — short video content\n- Pinterest Ads — gift inspiration\n\nAD COPY RULES:\n- Ads CAN be more aggressive, salesy, emotional, and direct than the brand\'s on-site tone. The ad\'s job is to grab attention and get clicks. The Shopify store handles brand experience and conversion.\n- Ads CAN use urgency, curiosity hooks, emoji (moderate), casual language, emotional exaggeration.\n- ABSOLUTE RED LINES: NEVER use any guitar brand names (Fender, Gibson, Martin, Taylor, etc.). NEVER use \"replica\" or \"1:1 reproduction\". NEVER imply brand copying. Product claims must be accurate. Price must be accurate ($69.99).\n- ALLOWED terms: Made to order, Headstock-matched, Shaped from your photo, Preview before carving.\n\nAD COPY PRIORITY ANGLES:\n1. Recognition Moment — \"The moment he sees his own headstock, he\'ll know this was made for his guitar.\"\n2. Gift solution — \"Don\'t know what to get a guitarist? Now you do.\"\n3. Made to order / one of a kind — \"Not picked off a shelf. Shaped from his guitar photo.\"\n4. Simple process — \"Upload a photo → Preview the design → Receive the piece\"\n5. Price anchoring — \"$69.99 for a gift custom-made for his guitar\"\n\nCOLD START STRATEGY:\n- No order history = no Lookalike Audiences. Start with interest-based targeting.\n- Meta first: Conversions campaign, interest targeting (guitar, guitarist, acoustic guitar, gift for him, boyfriend gift). Start $15-20/day. Test single image first, then carousel and video.\n- Google second: Shopping Ads + Search Ads (keywords: guitar gift, gift for guitarist, custom guitar pick case). Start $10-15/day.\n- TikTok and Pinterest: add later after validating audience and copy on Meta/Google.\n\nA/B TESTING DISCIPLINE:\n- Test one variable at a time.\n- Round 1: Test audiences. Round 2: Test copy angles. Round 3: Test creative formats.\n- Minimum $30-50 spend per variant before judging.\n- 3 days with zero clicks = kill early. Otherwise let it run 3-5 days.\n\nKEY SEASONAL WINDOWS: Valentine\'s Day (prep mid-Jan, peak Feb 1-13), Father\'s Day (prep early May, peak mid-May to 3rd Sunday June), Black Friday/Cyber Monday (prep late Oct, peak 4th week Nov), Christmas (prep late Oct, peak Nov-Dec 20). Birthdays and anniversaries are evergreen.\n\nOUTPUT FORMAT — When writing ad copy, always structure as:\n[Platform] [Format] [Audience angle] [Copy angle]\nHEADLINE: (English)\nPRIMARY TEXT: (English)\nDESCRIPTION: (if applicable, English)\nCTA: (button suggestion)\nThen a Chinese explanation of why this approach works and expected effect.\n\nWhen giving strategy, always give: 1 optimal plan with specific steps, budget, timeline, expected metrics + 2-3 alternative approaches with tradeoffs explained.\n\nCOMMUNICATION STYLE:\n- Always respond in Chinese for discussion and strategy. Ad copy in English.\n- Be direct and opinionated. Give the best answer first, then alternatives.\n- Challenge Oakley\'s ideas if they risk wasting budget.\n- Every response uses two layers: Layer 1 = supportive analysis (what\'s right + what to strengthen). Layer 2 = opposing perspective (challenge assumptions, raise deeper questions).\n- No vague suggestions like \"you could try...\". Give concrete executable plans.\n- Speed over perfection in cold start phase. Test fast, iterate with data.\n\nKEY REMINDERS:\n- You handle ad DEPLOYMENT only. Oakley has a separate data analysis expert.\n- At $69.99, impulse purchase is possible especially for gifts. Copy should lower decision barriers.\n- 0 orders = no social proof. Early ads rely on visual impact and emotional resonance. Once reviews come in, add them to creatives immediately.\n- Brand awareness is irrelevant at this stage. Sell the problem-solution, not the brand name.\n- Ad world and store world are separate. Ads attract. Store converts. Don\'t bring the store\'s restrained tone into ads.'},
-  {id:'ppt-maker', type:'prompt', name:'PPT生成', prompt:'You are a PPT generation expert. When asked to create a presentation, respond with ONLY a JSON code block using ```pptx as the language tag. No other text before or after the block.\n\nJSON Schema:\n{\n  "title": "Presentation Title",\n  "theme": {\n    "bg": "1E2761",\n    "bg_light": "253580",\n    "title_color": "FFFFFF",\n    "body_color": "CADCFC",\n    "accent": "F59E0B"\n  },\n  "slides": [\n    {"layout": "title", "title": "...", "subtitle": "..."},\n    {"layout": "bullets", "title": "...", "points": ["point 1", "point 2"]},\n    {"layout": "two-col", "title": "...", "left_title": "...", "left_points": ["..."], "right_title": "...", "right_points": ["..."]},\n    {"layout": "stat", "title": "...", "stats": [{"value": "85%", "label": "Description"}]},\n    {"layout": "quote", "quote": "...", "attribution": "..."},\n    {"layout": "chart", "title": "...", "chart_type": "bar", "chart_title": "...", "labels": ["Q1","Q2","Q3","Q4"], "series": [{"name": "Sales", "values": [4500,5500,6200,7100]}]},\n    {"layout": "chart", "title": "...", "chart_type": "line", "chart_title": "...", "labels": ["Jan","Feb","Mar"], "series": [{"name": "Revenue", "values": [100,150,130]}, {"name": "Cost", "values": [80,90,100]}]},\n    {"layout": "chart", "title": "...", "chart_type": "pie", "chart_title": "...", "labels": ["A","B","C"], "series": [{"name": "Share", "values": [40,35,25]}]}\n  ]\n}\n\nChart rules:\n- chart_type: "bar", "line", or "pie"\n- bar/line: series is array of {name, values[]}, labels are categories\n- pie: single series only\n- Use real, realistic numbers — not placeholders\n- Use chart layout when the slide has data worth visualizing\n\nGeneral rules:\n1. First slide MUST be layout title\n2. Last slide should be closing summary\n3. Pick a color theme that fits the topic\n4. 8-12 slides for a complete deck\n5. Bullet points max 10 words each\n6. Return ONLY the JSON block, nothing else\n7. Hex colors must NOT have # prefix\n\nNEVER use emoji anywhere in the JSON output — no emoji in titles, points, subtitles, quotes, stat labels, or any text field.\n\nKeep the total JSON under 3000 characters. Use short bullet points (max 8 words each). Limit to 10 slides maximum. Each slide object MUST be wrapped in {} curly braces inside the slides array.\n\nCommunicate with user in their language. But always output the JSON block.'},
-  ];
+  var skillSubmitPending=false;
+  var skillsRuntime=ArenaSkills.install({
+    auth:function(){return {username:$('aaUsername').value.trim(),password:getPass()};},
+    scope:function(){return activeProjectId||'general';},mode:function(){return debate?'debate':'chat';},worker:function(){return WORKER;},
+    messages:function(){return msgs;},notice:function(text){arenaNotice(text);},changed:function(){render();saveCurrentChat();}
+  });
   var _incognitoMode = false;
   var judgeModel = 'none';
 
@@ -1613,7 +1603,7 @@ var TEAM_COLORS = {
 
   function serializeMsgs(){
     return msgs.map(function(m){
-      var obj = {uid:m.uid, brand:m.brand, name:m.name, text:m.text, color:m.color, isUser:m.isUser, isError:m.isError, round:m.round, _team:m._team, _liked:m._liked, _comment:m._comment, topicText:m.topicText, pastedTexts:m.pastedTexts, _quote:m._quote, context:m.context, reasoning:m.reasoning, activity:m.activity, citations:m.citations, _feedback:m._feedback, effort:m.effort, submodel:m.submodel, completedAt:m.completedAt, moderationHelp:m.moderationHelp, suggestedPrompt:m.suggestedPrompt, moderationTask:m.moderationTask, imageTurn:m.imageTurn, imageResponse:m.imageResponse, grounding:m.grounding,participantId:m.participantId,debateSessionId:m.debateSessionId,debateStage:m.debateStage};
+      var obj = {uid:m.uid, brand:m.brand, name:m.name, text:m.text, color:m.color, isUser:m.isUser, isError:m.isError,generationError:m.generationError, round:m.round, _team:m._team, _liked:m._liked, _comment:m._comment, topicText:m.topicText, pastedTexts:m.pastedTexts, _quote:m._quote, context:m.context, reasoning:m.reasoning, activity:m.activity, citations:m.citations, _feedback:m._feedback, effort:m.effort, submodel:m.submodel, completedAt:m.completedAt, moderationHelp:m.moderationHelp, suggestedPrompt:m.suggestedPrompt, moderationTask:m.moderationTask, imageTurn:m.imageTurn, imageResponse:m.imageResponse, grounding:m.grounding,skills:m.skills,artifacts:m.artifacts,skillSession:m.skillSession,executionModel:m.executionModel,participantId:m.participantId,debateSessionId:m.debateSessionId,debateStage:m.debateStage};
       if(m.run) obj.run = m.run;
       if(m.debateRun) { obj.debateRun=m.debateRun;obj.debateTurn=m.debateTurn;obj.debateAttempt=m.debateAttempt;obj.debateStatus=m.debateStatus;obj.debateError=m.debateError;obj.debateOutdated=m.debateOutdated;obj.usage=m.usage; }
       if(m.imgSrcs && m.debateRun) obj.imgSrcs=m.imgSrcs;
@@ -2146,7 +2136,8 @@ var TEAM_COLORS = {
 
   // Markdown is shared with the regression tests; code actions stay in this app.
   function plainMessageText(message){
-    var text=message.text||'';
+    var reply=chatReplyView(message),text=reply.text;
+    if(reply.error&&!text.trim()&&String(message.reasoning||'').trim())return '思考摘要（未生成正文）\n'+message.reasoning;
     if(!message.citations || message.isUser)return text;
     return text.replace(/\[\[aa-citation:(\d+)\]\]/g,function(match,index){var source=message.citations[Number(index)-1];return source?' ['+(source.title||'来源')+']('+source.url+')':'';});
   }
@@ -2349,6 +2340,7 @@ var TEAM_COLORS = {
     });
   }
   function clearPreview(){
+    skillsRuntime.clear();
     sentImgs = []; sentTexts = [];
     renderImgPreviews();
     renderTextPreviews();
@@ -2379,6 +2371,8 @@ var TEAM_COLORS = {
   });
   $('aaFileInput').addEventListener('change', function(ev){
     var file = ev.target.files[0]; if(!file) return;
+    if(file.size>8*1024*1024){arenaNotice('文档最多 8MB，请拆分后上传');ev.target.value='';return;}
+    skillsRuntime.capture(file);
     ev.target.value = '';
     var ext = file.name.split('.').pop().toLowerCase();
     if(ext === 'txt'){
@@ -2817,7 +2811,7 @@ var TEAM_COLORS = {
       if(obj.error)throw new Error(typeof obj.error==='string'?obj.error:(obj.error.message||'生成失败，请重试。'));
       if(obj.modelName && onModelName) onModelName(obj.modelName);
       if(obj.status) updateThinkStatus(submodel, obj.status, kittenGeneration);
-      if(onMeta && (obj.status || obj.activity || obj.citation || obj.context || obj.imageContext || obj.grounding)) onMeta(obj);
+      if(onMeta && (obj.status || obj.activity || obj.citation || obj.context || obj.imageContext || obj.grounding || obj.skills || obj.artifacts || obj.skillSession || obj.executionModel)) onMeta(obj);
       if(obj.t){ if(kitten) kitten.progress(submodel, 'responding', kittenGeneration); onChunk(obj.t); }
       if(obj.r){appendThinkSummary(submodel, obj.r, kittenGeneration);if(onReasoning) onReasoning(obj.r);}
       if(obj.img && onChunk) onChunk('\x00IMG\x00'+obj.img+'\x00MIME\x00'+(obj.mime||'image/png'));
@@ -2879,7 +2873,7 @@ var TEAM_COLORS = {
       if(scope!==activeProjectId||chatId!==currentChatId)return;
       if(data.reply)Object.assign(message,data.reply);
       message.run=Object.assign({},ref,{status:data.status});
-      if(data.error){message.isError=true;message.text=(message.text||'')+'\n\n['+data.error+']';}
+      if(data.error){message.isError=true;message.generationError=data.error;}
       if(data.status==='cancelled'&&!message.text)message.text='已停止生成。';
       if(data.status!=='running'){message.completedAt=data.updatedAt;forgetPendingChatRun(ref.id);}
       render();
@@ -3091,13 +3085,41 @@ var TEAM_COLORS = {
     }
     return h+'</div>';
   }
+  function chatReplyView(msg){
+    var text=typeof msg.text==='string'?msg.text:'',error=typeof msg.generationError==='string'?msg.generationError:'';
+    if(msg.isUser||msg.moderationHelp||msg.imgData||msg.videoUrl||AVAILABLE_CHAT_MODELS.indexOf(msg.submodel)===-1)return {text:text,error:''};
+    var failed=msg.isError||error||(msg.run&&['failed','interrupted'].indexOf(msg.run.status)!==-1);
+    if(failed){
+      // Older server/client versions appended transport failures to the answer.
+      // Read those records without rewriting or discarding the saved response.
+      var suffix=text.match(/(?:^|\n+)\[(?:错误:\s*)?([^\n]+)\]\s*$/);
+      if(suffix&&(!error||suffix[1]===error)){error=suffix[1];text=text.slice(0,suffix.index);}
+      else if(!error&&/^(?:本次生成超过 \d+ 分钟|上游连接中断|服务器连接已中断|暂时无法连接服务器)[^\n]*$/.test(text.trim())){error=text.trim();text='';}
+    }
+    return {text:text,error:error};
+  }
+  function renderReplyNotice(msg){
+    var reply=chatReplyView(msg);if(!reply.error)return '';
+    var timeout=reply.error.match(/^本次生成超过 (\d+) 分钟/);
+    var detail=reply.text.trim()?'已显示收到的正文。':String(msg.reasoning||'').trim()?'模型未返回正文，已展开收到的思考摘要。':'模型未返回正文或可展示的思考摘要。';
+    return '<div class="arena-reply-notice" role="status">'+esc(timeout?'本次生成超过 '+timeout[1]+' 分钟。':reply.error)+' '+esc(detail)+'</div>';
+  }
+  function failChatReply(submodel,message,error){
+    message.generationError=String(error||'生成中断');message.isError=true;message.completedAt=Date.now();
+    if(msgs.indexOf(message)===-1)beginStreamedReply(submodel,message);
+    message._activityPhase='done';
+    // The provider has stopped: expose the entire received prefix immediately.
+    if(liveReplies.has(message.uid))liveReplies.seed(message.uid,message.text||'');
+    finalizeMsg(message.uid,message.text||'',true,message.reasoning||'');render();
+  }
   function syncActivityDisclosure(msg){
     var finished=!!msg.completedAt||msg.isError||(msg.run&&msg.run.status!=='running')||(msg.debateStatus&&msg.debateStatus!=='running');
     var phase=msg._activityPhase;
     var thinking=!finished&&(phase==='thinking'||phase==='searching'||(!phase&&!String(msg.text||'').trim()&&((msg.run&&msg.run.status==='running')||msg.debateStatus==='running')));
-    var stage=thinking?'thinking':'answer';
+    var reply=chatReplyView(msg),summaryOnly=!!reply.error&&!reply.text.trim()&&!!String(msg.reasoning||'').trim();
+    var stage=summaryOnly?'interrupted':thinking?'thinking':'answer';
     if(msg._activityStage===stage)return false;
-    msg._activityStage=stage;msg._activityOpen=!!thinking;
+    msg._activityStage=stage;msg._activityOpen=!!(thinking||summaryOnly);
     return true;
   }
   function renderMessageActivity(msg){
@@ -3119,7 +3141,7 @@ var TEAM_COLORS = {
     var usedFiles=entries.some(function(item){return item.kind==='project_files';});
     var attempted = entries.some(function(item){return /search/.test(item.kind);});
     var expanded=msg._activityOpen;
-    var h = '<details class="arena-operation-details"'+(expanded?' open':'')+'><summary>'+ (usedFiles?'已查阅项目资料':searched?searchLabel:attempted?'搜索记录':reasoning?(msg._activityStage==='thinking'?'思考摘要':'已思考'):'处理记录')+'</summary><div class="arena-operation-card">';
+    var h = '<details class="arena-operation-details"'+(msg._activityStage==='interrupted'?' data-incomplete="true"':'')+(expanded?' open':'')+'><summary>'+ (msg._activityStage==='interrupted'?'已收到的思考摘要':usedFiles?'已查阅项目资料':searched?searchLabel:attempted?'搜索记录':reasoning?(msg._activityStage==='thinking'?'思考摘要':'已思考'):'处理记录')+'</summary><div class="arena-operation-card">';
     entries.forEach(function(item){
       if(item.kind==='project_files'){
         h+='<div class="arena-operation-row">已查阅项目资料 · '+Number(item.fragments||0)+' 个片段 '+(item.files||[]).map(function(file){return '<button data-context-file="'+esc(file.id)+'" data-project="'+esc((msg.context||{}).scope||activeProjectId||'')+'">'+esc(file.name)+'</button>';}).join(' ')+'</div>';return;
@@ -3290,7 +3312,7 @@ var TEAM_COLORS = {
     if(body){
       body.dataset.streaming='false';
       if(body._renderTimer){ clearTimeout(body._renderTimer); body._renderTimer = null; }
-      if(isError){ body.classList.add('error'); body.innerHTML = esc(text); }
+      if(isError&&!(completedMsg&&chatReplyView(completedMsg).error)){ body.classList.add('error'); body.innerHTML = esc(text); }
       else body.innerHTML = renderMd(text, completedMsg && completedMsg.citations);
     }
     if(!userScrolledUp) c.scrollTop = c.scrollHeight;
@@ -4021,7 +4043,7 @@ var TEAM_COLORS = {
     });
     syncImageCards();
     syncBrandUI(); sync2v2UI(); updateModeBadge(); saveState();
-    if($('aaSkillsWrap')) $('aaSkillsWrap').style.display = 'none';
+    if($('aaSkillsWrap')) $('aaSkillsWrap').style.display = imageMode||videoMode?'none':'';
     if($('aaDebateModeBar')) $('aaDebateModeBar').style.display = 'flex';
   });
   $('aaBarChatBtn').addEventListener('click', function(){
@@ -4072,7 +4094,7 @@ var TEAM_COLORS = {
     $('aaBrandBar').style.display = 'none';
     $('aaBrandBarCollapsed').style.display = 'none';
     syncBrandUI(); updateModeBadge(); saveState();
-    if($('aaSkillsWrap')) $('aaSkillsWrap').style.display = 'none';
+    if($('aaSkillsWrap')) $('aaSkillsWrap').style.display = imageMode||videoMode?'none':'';
     if($('aaDebateModeBar')) $('aaDebateModeBar').style.display = 'none';
     if($('aaRoundsBar')) $('aaRoundsBar').style.display = 'none';
     $('aaSeatsArea').style.display = 'none';
@@ -4099,7 +4121,7 @@ var TEAM_COLORS = {
     syncImageCards();
     syncBrandUI(); sync2v2UI(); syncNbOptions(); updateModeBadge(); saveState();
     syncImageCards();
-    if($('aaSkillsWrap')) $('aaSkillsWrap').style.display = 'none';
+    if($('aaSkillsWrap')) $('aaSkillsWrap').style.display = imageMode||videoMode?'none':'';
     if($('aaDebateModeBar')) $('aaDebateModeBar').style.display = 'none';
     if($('aaRoundsBar')) $('aaRoundsBar').style.display = 'none';
   });
@@ -4373,7 +4395,7 @@ var TEAM_COLORS = {
     if($('aaBarVideoBtn')){ $('aaBarVideoBtn').style.background='transparent'; $('aaBarVideoBtn').style.color='#6b6b88'; }
     $('aaRoundsBar').style.display = 'none';
     $('aaDebateModeBar').style.display = 'none';
-    if($('aaSkillsWrap')) $('aaSkillsWrap').style.display = 'none';
+    if($('aaSkillsWrap')) $('aaSkillsWrap').style.display = imageMode||videoMode?'none':'';
 
     renderImgPreviews();
     renderTextPreviews();
@@ -4530,7 +4552,7 @@ var TEAM_COLORS = {
       h += '</div>';
       var bodyClass = msg.isUser ? 'user' : 'ai-bubble';
       if(msg.moderationHelp) bodyClass += ' moderation-help';
-      else if(msg.isError) bodyClass += ' error';
+      else if(msg.isError&&!chatReplyView(msg).error) bodyClass += ' error';
       var bodyStyle = (!msg.isUser && (!msg.isError || msg.moderationHelp)) ? 'border-color:'+brandInfo.border : '';
       if(!msg.isUser) h += renderMessageActivity(msg);
       if(msg.isUser){
@@ -4597,7 +4619,7 @@ var TEAM_COLORS = {
         // 提取所有 [MJ_IMAGE]...[/MJ_IMAGE] 链接
         var mjImgUrls = [];
         var mjButtonsData = msg.mjButtons || null;
-        var cleanText = liveReplies.text(msg.uid, msg.text || '')
+        var cleanText = liveReplies.text(msg.uid, chatReplyView(msg).text)
           .replace(/\[MJ_IMAGE\]([\s\S]*?)\[\/MJ_IMAGE\]/g, function(match, url){ mjImgUrls.push(url); return ''; })
           .replace(/\[MJ_BUTTONS\]([\s\S]*?)\[\/MJ_BUTTONS\]/g, function(match, json){
             try { mjButtonsData = JSON.parse(json); } catch(e){}
@@ -4605,7 +4627,7 @@ var TEAM_COLORS = {
           })
           .trim();
 
-        h += '<div class="aa-msg-body '+bodyClass+'" data-streaming="'+liveReplies.has(msg.uid)+'" style="'+bodyStyle+'">';
+        h += '<div class="aa-msg-body '+bodyClass+'"'+(!cleanText&&chatReplyView(msg).error?' hidden':'')+' data-streaming="'+liveReplies.has(msg.uid)+'" style="'+bodyStyle+'">';
         if(cleanText){
           h += renderMd(cleanText, msg.citations);
         }
@@ -4642,6 +4664,7 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
           }
         h += '</div>';
 
+        h += renderReplyNotice(msg);
         if(msg.usageStr) h += '<div class="aa-usage-tag" style="font-size:10px;color:#555;margin-top:4px;margin-left:13px;letter-spacing:0.02em;font-family:\'Sora\',sans-serif;">'+esc(msg.usageStr)+'</div>';
         h += renderContextInfo(msg);
         h += '<div class="arena-message-actions">'
@@ -4651,7 +4674,7 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
 
       }
 
-      if(!msg.isUser)h+=renderGoogleGrounding(msg);
+      if(!msg.isUser)h+=renderGoogleGrounding(msg)+skillsRuntime.artifacts(msg);
       if(!msg.isUser&&msg.debateRun)h+=debateTurnControls(msg);
       h += '</div>';
     });
@@ -4804,7 +4827,11 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
 }
 
   // === Main start ===
-  function aaStart(){
+  async function aaStart(){
+    if(aaRunning||skillSubmitPending)return;
+    var submittingScope=JSON.stringify([activeProjectId,currentChatId,debate,imageMode,$('aaUsername').value]);
+    skillSubmitPending=true;
+    try{await skillsRuntime.ready();if(submittingScope!==JSON.stringify([activeProjectId,currentChatId,debate,imageMode,$('aaUsername').value])){arenaNotice('对话范围已变化，请在当前对话重新发送');return;}}catch(error){arenaNotice(error.message);return;}finally{skillSubmitPending=false;}
     if(!aaRunning&&msgs.some(function(m){return m.debateRun&&m.debateRun.status==='running';})){arenaNotice('这场讨论仍在后台执行，请先重新连接后停止或等待完成');return;}
     if(imageMode && imageComposerModel === 'mj_imagine'){
       alert('Midjourney 未提供通用公开官方 API，已停止中转调用。请先选择其他官方图片模型。'); return;
@@ -4820,7 +4847,9 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
       $('aaSidebar').classList.remove('hidden'); $('aaGearBtn').classList.add('active');
       return;
     }
-    if(!imageMode&&topic.length+sentTexts.join('').length+(activeQuote?activeQuote.text.length:0)>50000){arenaNotice('内容较长，请保存到项目资料后按需查阅');return;}
+    var skillFileInputs=debate||imageMode||skillsRuntime.settings().mode==='off'?[]:skillsRuntime.filesForTexts(sentTexts);
+    var submittedTexts=sentTexts.map(function(text){return skillFileInputs.some(function(file){return text.indexOf('[文件: '+file.name+']')===0;})&&text.length>4000?text.slice(0,4000)+'\n[附件预览；全文由文档工具读取]':text;});
+    if(!imageMode&&topic.length+submittedTexts.join('').length+(activeQuote?activeQuote.text.length:0)>50000){arenaNotice('内容较长，请保存到项目资料后按需查阅');return;}
     var act = getActiveSubmodels();
     if(debate&&debateMode==='free'&&(act.length<2||debateModels.some(function(id){return !id;}))){arenaNotice('请为每个席位选择模型');var empty=debateModels.findIndex(function(id){return !id;});if(empty>=0&&freePickers[empty])freePickers[empty].picker.trigger.focus();return;}
     if(debate&&debateMode==='2v2'&&!is2v2Ready()){arenaNotice('请为正反双方各选择两个模型');var missingTeam=seatState.pro.indexOf(null)>=0?'pro':'con',missingSeat=seatState[missingTeam].indexOf(null);if(missingSeat>=0)seatPickers[missingTeam][missingSeat].trigger.focus();return;}
@@ -4873,7 +4902,7 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
     var userName = _accountProfile?accountDisplayName():(CHAT_DISPLAY_NAMES[_rawName.toLowerCase()] || _rawName);
     var _isSwap = false;
     var _swapImgs = _isSwap ? sentImgs.slice(0,2) : null;
-    var _imgs = _swapImgs || sentImgs.slice(), _img = _imgs.length ? _imgs[0].data : null, _imgMime = _imgs.length ? _imgs[0].mime : null, _texts = sentTexts.slice();
+    var _imgs = _swapImgs || sentImgs.slice(), _img = _imgs.length ? _imgs[0].data : null, _imgMime = _imgs.length ? _imgs[0].mime : null, _texts = submittedTexts.slice();
     var submittedImageParentUid=imageEditParentUid;
     var _topicText = topic;
     if(_texts.length) topic = topic ? topic + '\n\n' + _texts.join('\n\n') : _texts.join('\n\n');
@@ -4889,14 +4918,14 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
     $('aaTopic').value = ''; $('aaTopic').style.height = 'auto';
     render();
 
-    sentImgs = []; sentTexts = [];
+    sentImgs = []; sentTexts = [];skillsRuntime.clear();
     renderImgPreviews();
     renderTextPreviews();
     if(debate){
       var progress=$('aaDebateProgress');progress.hidden=false;
       var debateUser=serializeMsgs().slice(-1)[0],debateInput={config:Object.assign({},debateSettings,{mode:debatePlan.mode,rounds:debatePlan.rounds,members:debatePlan.members,topic:debatePlan.topic,summaryModel:judgeModel,summaryEffort:debateEffort({id:'summary',model:judgeModel}),priorRunId:debatePriorRunId}),
         userMessage:debateUser,images:_imgs.map(function(i){return {data:i.data,mime:i.mime||'image/jpeg'};}),efforts:{},search:searchOn,incognito:!!_incognitoMode,title:getChatTitle(),
-        historyEndUid:msgs.length>1?msgs[msgs.length-2].uid:null,replyUids:debatePlan.turns.map(function(){return newUid();})};
+        skills:skillsRuntime.settings(),historyEndUid:msgs.length>1?msgs[msgs.length-2].uid:null,replyUids:debatePlan.turns.map(function(){return newUid();})};
       saveDebateDraft();
       startDurableDebate({id:debatePlan.id,chatId:currentChatId,projectId:activeProjectId},debateInput);
     } else {
@@ -4925,6 +4954,7 @@ if(sub === 'mj_imagine' && mjAspectRatio && _topicForPrompt.indexOf('--ar ') ===
 var fullPrompt = imageMode ? _topicForPrompt : topicWithQuote;
 if(!imageMode){
   _nbExtraOpts.chat=scopedChatInput(topicWithQuote,sysPrompt,_topicText);
+  _nbExtraOpts.chat.files=skillFileInputs;
   _nbExtraOpts.recovery={replyUid:uid,userMessage:serializeMsgs().slice(-1)[0],title:getChatTitle(),color:brandInfo.color};
   _nbExtraOpts._onRun=function(run){msgObj.run=Object.assign({},msgObj.run||{},run);};
 }
@@ -4983,7 +5013,7 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
                   msgObj.usageStr = (cost > 0 ? '$' + cost.toFixed(4) : '');
                 } else {
                   var prices = JSON.parse(localStorage.getItem('aa-model-prices') || '{}');
-                  var subKey = msgObj.submodel || sub;
+                  var subKey = usageData.model || msgObj.executionModel || msgObj.submodel || sub;
                   var p = prices[subKey] || DEFAULT_TOKEN_PRICES[subKey] || {input: 0, output: 0};
                   var longContextRate = !prices[subKey] && subKey === 'grok-4.7' && usageData.input >= 200000 ? 2 : 1;
                   cost = ((usageData.input / 1000000) * p.input + (usageData.output / 1000000) * p.output) * longContextRate;
@@ -5042,6 +5072,8 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
               window._aaModerationRetryStore[uid] = _imgs.slice();
               if(firstChunk){ firstChunk = false; hideThink(sub); msgs.push(msgObj); }
               render();
+            } else if(!expectsImage){
+              firstChunk=false;failChatReply(sub,msgObj,em);
             } else if(firstChunk){
               firstChunk=false;msgObj.text = em; msgObj.isError = true; beginStreamedReply(sub,msgObj);
             } else {
@@ -5059,6 +5091,11 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
             if(meta.imageContext)msgObj.imageResponse=meta.imageContext.parts;
             if(meta.grounding)msgObj.grounding=meta.grounding;
             if(meta.context)msgObj.context=meta.context;
+            if(meta.skills)msgObj.skills=meta.skills;
+            if(meta.skillSession)msgObj.skillSession=meta.skillSession;
+            if(meta.executionModel)msgObj.executionModel=meta.executionModel;
+            if(meta.artifacts)msgObj.artifacts=(msgObj.artifacts||[]).concat(meta.artifacts);
+            if((meta.executionModel||meta.artifacts)&&firstChunk){firstChunk=false;beginStreamedReply(sub,msgObj);}
             if(meta.citation){
               var source = meta.citation;
               var index = msgObj.citations.findIndex(function(item){return item.url===source.url;});
@@ -5073,6 +5110,7 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
             }
             msgObj._activityDirty = true;
             if(!firstChunk) liveUpdate(uid,msgObj.text,msgObj.reasoning||undefined);
+            if(meta.artifacts)render();
           }
         );
       });
@@ -5191,160 +5229,16 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
     document.addEventListener('mouseup', onEnd);
   }
   // === Skills dropdown ===
-  function updateSkillsBtn(){
-    var btn = $('aaSkillsBtn');
-    if(!btn) return;
-    btn.textContent = activeSkill ? activeSkill.name : 'Skills';
-    if(activeSkill) btn.classList.add('unlocked');
-    else btn.classList.remove('unlocked');
-    $('aaSkillPill').hidden = !activeSkill;
-    $('aaSkillPillName').textContent = activeSkill ? activeSkill.name : '';
-    syncPptTemplateBanner();
-  }
-  function activateSkillById(id){
-    var skill = SKILL_DEFS.concat(customSkills).find(function(s){ return s.id === id; });
-    if(!skill) return;
-    activeSkill = skill;
-    if(skill.id === 'search') searchOn = true;
-    updateSkillsBtn();
-  }
-  $('aaSkillPillClear').addEventListener('click', function(){
-    if(activeSkill && activeSkill.id === 'search') searchOn = false;
-    activeSkill = null;
-    updateSkillsBtn();
-    $('aaTopic').focus();
+  function updateSkillsBtn(){ if(skillsRuntime)skillsRuntime.update(); }
+  function activateSkillById(id){ skillsRuntime.activate(id); }
+  function renderSkillsDrop(){skillsRuntime.render();}
+  $('aaSkillPillClear').addEventListener('click',function(){skillsRuntime.automatic();$('aaTopic').focus();});
+  $('aaStarters').addEventListener('click',function(e){
+    var button=e.target.closest('button');if(!button||aaRunning)return;
+    if(button.dataset.starter==='debate')$('aaBarDebateBtn').click();
+    else if(button.dataset.starter==='image')$('aaBarImageBtn').click();
+    else if(button.dataset.starterSkill){activateSkillById(button.dataset.starterSkill);$('aaTopic').focus();}
   });
-  $('aaStarters').addEventListener('click', function(e){
-    var button = e.target.closest('button');
-    if(!button || aaRunning) return;
-    if(button.dataset.starter === 'debate') $('aaBarDebateBtn').click();
-    else if(button.dataset.starter === 'image') $('aaBarImageBtn').click();
-    else if(button.dataset.starterSkill){ activateSkillById(button.dataset.starterSkill); $('aaTopic').focus(); }
-  });
-  function renderSkillsDrop(){
-    var drop = $('aaSkillsDrop');
-    if(!drop) return;
-    var allSkills = SKILL_DEFS.concat(customSkills);
-    var h = '';
-    allSkills.forEach(function(skill){
-      var isActive = activeSkill && activeSkill.id === skill.id;
-      var isCustom = skill._custom;
-      h += '<div class="aa-drop-item'+(isActive?' selected':'')+'" data-sid="'+skill.id+'" style="display:flex;align-items:center;">'
-        +'<span class="aa-drop-dot" style="background:'+(isActive?'#a5b4fc':'#3a3a55')+(isActive?';box-shadow:0 0 5px rgba(165,180,252,0.7)':'')+';flex-shrink:0;"></span>'
-        +'<span>'+skill.name+'</span>'
-        +(isCustom
-          ? '<span style="margin-left:auto;display:flex;gap:4px;padding-left:10px;flex-shrink:0;">'
-            +'<button data-edit="'+skill.id+'" style="background:none;border:none;color:#6b6b88;font-size:10px;cursor:pointer;padding:0 2px;">编辑</button>'
-            +'<button data-del="'+skill.id+'" style="background:none;border:none;color:#555;font-size:11px;cursor:pointer;padding:0 2px;">✕</button>'
-            +'</span>'
-          : '')
-        +'</div>';
-    });
-    h += '<div style="border-top:1px solid rgba(255,255,255,0.06);margin:4px 0;"></div>';
-    h += '<div id="aaSkillNewBtn" class="aa-drop-item" style="color:#a5b4fc;">+ 新建</div>';
-    h += '<div id="aaSkillNewForm" style="display:none;padding:8px 10px;">'
-      +'<input id="aaSkillNewName" placeholder="名称" style="width:100%;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:6px;padding:6px 8px;color:#e8e8ee;font-size:12px;font-family:\'Sora\',sans-serif;margin-bottom:6px;box-sizing:border-box;">'
-      +'<textarea id="aaSkillNewPrompt" placeholder="System Prompt" rows="4" style="width:100%;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:6px;padding:6px 8px;color:#e8e8ee;font-size:12px;font-family:\'Sora\',sans-serif;resize:none;box-sizing:border-box;"></textarea>'
-      +'<button id="aaSkillNewSave" style="margin-top:6px;width:100%;padding:6px;border-radius:6px;background:rgba(99,102,241,0.2);border:1px solid rgba(99,102,241,0.4);color:#a5b4fc;font-size:11px;font-weight:600;cursor:pointer;font-family:\'Sora\',sans-serif;">保存</button>'
-      +'</div>';
-    h += '<div id="aaSkillEditForm" style="display:none;padding:8px 10px;">'
-      +'<input id="aaSkillEditName" placeholder="名称" style="width:100%;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:6px;padding:6px 8px;color:#e8e8ee;font-size:12px;font-family:\'Sora\',sans-serif;margin-bottom:6px;box-sizing:border-box;">'
-      +'<textarea id="aaSkillEditPrompt" placeholder="System Prompt" rows="4" style="width:100%;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:6px;padding:6px 8px;color:#e8e8ee;font-size:12px;font-family:\'Sora\',sans-serif;resize:none;box-sizing:border-box;"></textarea>'
-      +'<button id="aaSkillEditSave" style="margin-top:6px;width:100%;padding:6px;border-radius:6px;background:rgba(34,197,94,0.2);border:1px solid rgba(34,197,94,0.4);color:#86efac;font-size:11px;font-weight:600;cursor:pointer;font-family:\'Sora\',sans-serif;">保存修改</button>'
-      +'</div>';
-    drop.innerHTML = h;
-
-    // 选择 skill
-    drop.querySelectorAll('.aa-drop-item[data-sid]').forEach(function(item){
-      item.addEventListener('click', function(e){
-        if(e.target.dataset.del || e.target.dataset.edit) return;
-        e.stopPropagation();
-        var sid = item.dataset.sid;
-        var skill = allSkills.find(function(s){ return s.id === sid; });
-        if(!skill) return;
-        if(activeSkill && activeSkill.id === sid){
-          activeSkill = null;
-          if(skill.id === 'search') searchOn = false;
-        } else {
-          activeSkill = skill;
-          if(skill.id === 'search') searchOn = true;
-        }
-        drop.classList.remove('open');
-        updateSkillsBtn();
-      });
-    });
-
-    // 删除
-    drop.querySelectorAll('[data-del]').forEach(function(btn){
-      btn.addEventListener('click', function(e){
-        e.stopPropagation();
-        var id = btn.dataset.del;
-        customSkills = customSkills.filter(function(s){ return s.id !== id; });
-        saveCustomSkills();
-        if(activeSkill && activeSkill.id === id){ activeSkill = null; updateSkillsBtn(); }
-        renderSkillsDrop();
-      });
-    });
-
-    // 编辑按钮：展开编辑表单
-    var editForm = $('aaSkillEditForm');
-    var editingId = null;
-    drop.querySelectorAll('[data-edit]').forEach(function(btn){
-      btn.addEventListener('click', function(e){
-        e.stopPropagation();
-        var id = btn.dataset.edit;
-        var skill = customSkills.find(function(s){ return s.id === id; });
-        if(!skill) return;
-        editingId = id;
-        $('aaSkillEditName').value = skill.name;
-        $('aaSkillEditPrompt').value = skill.prompt;
-        $('aaSkillNewForm').style.display = 'none';
-        editForm.style.display = editForm.style.display === 'none' ? 'block' : 'none';
-        if(editForm.style.display === 'block') $('aaSkillEditName').focus();
-      });
-    });
-
-    // 保存修改
-    var editSaveBtn = $('aaSkillEditSave');
-    if(editSaveBtn) editSaveBtn.addEventListener('click', function(e){
-      e.stopPropagation();
-      var name = $('aaSkillEditName').value.trim();
-      var prompt = $('aaSkillEditPrompt').value.trim();
-      if(!name || !prompt){ alert('名称和 Prompt 不能为空'); return; }
-      var skill = customSkills.find(function(s){ return s.id === editingId; });
-      if(!skill) return;
-      skill.name = name;
-      skill.prompt = prompt;
-      if(activeSkill && activeSkill.id === editingId){ activeSkill = skill; updateSkillsBtn(); }
-      saveCustomSkills();
-      renderSkillsDrop();
-    });
-
-    // 新建
-    var newBtn = $('aaSkillNewBtn');
-    var newForm = $('aaSkillNewForm');
-    if(newBtn) newBtn.addEventListener('click', function(e){
-      e.stopPropagation();
-      editForm.style.display = 'none';
-      newForm.style.display = newForm.style.display === 'none' ? 'block' : 'none';
-      if(newForm.style.display === 'block') $('aaSkillNewName').focus();
-    });
-    var saveBtn = $('aaSkillNewSave');
-    if(saveBtn) saveBtn.addEventListener('click', function(e){
-      e.stopPropagation();
-      var name = $('aaSkillNewName').value.trim();
-      var prompt = $('aaSkillNewPrompt').value.trim();
-      if(!name || !prompt){ alert('名称和 Prompt 都不能为空'); return; }
-      customSkills.push({id:'custom-'+Date.now(), type:'prompt', name:name, prompt:prompt, _custom:true});
-      saveCustomSkills();
-      renderSkillsDrop();
-      $('aaSkillNewName').value = '';
-      $('aaSkillNewPrompt').value = '';
-    });
-
-    if(newForm) newForm.addEventListener('click', function(e){ e.stopPropagation(); });
-    if(editForm) editForm.addEventListener('click', function(e){ e.stopPropagation(); });
-  }
   $('aaSkillsBtn').addEventListener('click', function(e){
     e.stopPropagation(); closeArenaModelMenu(false); closeImagePopovers(); $('aaPlusMenu').style.display = 'none';
     var drop = $('aaSkillsDrop');
@@ -6154,7 +6048,7 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
   syncImageCards();
   updateModeBadge();
   updateSkillsBtn();
-  if(debate && $('aaSkillsWrap')) $('aaSkillsWrap').style.display = 'none';
+  if($('aaSkillsWrap')) $('aaSkillsWrap').style.display = imageMode||videoMode?'none':'';
  // 图像模式初始化
 if(imageMode){
   $('aaBarImageBtn').classList.add('active');
@@ -6164,7 +6058,7 @@ if(imageMode){
   $('aaBarChatBtn').style.background='transparent'; $('aaBarChatBtn').style.color='#6b6b88';
   $('aaBarDebateBtn').style.background='transparent'; $('aaBarDebateBtn').style.color='#6b6b88';
   brandSelection['mj'] = 'mj_imagine';
-  if($('aaSkillsWrap')) $('aaSkillsWrap').style.display = 'none';
+  if($('aaSkillsWrap')) $('aaSkillsWrap').style.display = imageMode||videoMode?'none':'';
   syncBrandUI();
   syncImageCards();
     }
@@ -6455,7 +6349,7 @@ if(imageMode){
     $('aaProjectName').textContent=activeProject?activeProject.name:'项目';
     $('aaHistoryLabel').textContent=activeProjectId?'项目对话':'对话和任务';
     $('aaProjectsBtn').classList.toggle('active',!!activeProjectId);
-    $('aaSkillsWrap').style.display=activeProjectId||debate||imageMode||videoMode?'none':'';
+    $('aaSkillsWrap').style.display=imageMode||videoMode?'none':'';updateSkillsBtn();
   }
   async function switchProject(project){
     if(aaRunning){arenaNotice('回答完成后可以切换项目');return;}
@@ -6489,7 +6383,8 @@ if(imageMode){
   }
   function scopedChatInput(question,system,query){
     var previous=msgs.slice(0,-1),recent=ArenaContext.selectRecent(previous);
-    return {scope:activeProjectId||'general',chatId:currentChatId,question:question,query:query||question,system:activeProjectId?'':system,systemMode:activeProjectId?'project':chatSystemMode(getActiveSubmodels()[0]),history:recent.messages,historyLength:previous.length,historyEndUid:previous.length?String(previous[previous.length-1].uid):null,incognito:!!_incognitoMode,
+    var previousSkillMessage=previous.filter(function(m){return !m.isUser&&(m.skills||m.skillSession);}).slice(-1)[0];
+    return {skills:skillsRuntime.settings(),artifactInputs:previousSkillMessage&&previousSkillMessage.artifacts?previousSkillMessage.artifacts.filter(function(f){return !f.deleted&&!f.unavailable&&f.token;}).slice(-5).map(function(f){return f.token;}):[],previousSkillIds:previousSkillMessage&&previousSkillMessage.skills?previousSkillMessage.skills.map(function(s){return s.id;}):[],skillSession:previousSkillMessage&&previousSkillMessage.skillSession||null,scope:activeProjectId||'general',chatId:currentChatId,question:question,query:query||question,system:activeProjectId?'':system,systemMode:activeProjectId?'project':chatSystemMode(getActiveSubmodels()[0]),history:recent.messages,historyLength:previous.length,historyEndUid:previous.length?String(previous[previous.length-1].uid):null,incognito:!!_incognitoMode,
       notes:_incognitoMode?ArenaContext.notes(recent.earlier,1400):'',
       excerpts:_incognitoMode?ArenaContext.excerpts(recent.earlier,query||question,{maxChars:1800}):[]};
   }
