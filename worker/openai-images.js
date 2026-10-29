@@ -55,7 +55,7 @@ export function buildImagePayload(model,prompt,body,images,history,safetyIdentif
   }
   content.push({type:'input_text',text:(history.length?'本次要求：\n':'')+prompt});
   const payload={model:IMAGE_ORCHESTRATOR,input:[{role:'user',content}],tools:[tool],tool_choice:{type:'image_generation'},
-    parallel_tool_calls:false,max_tool_calls:1,reasoning:{effort:'low'},stream:true,store:false,safety_identifier:safetyIdentifier};
+    parallel_tool_calls:false,max_tool_calls:1,reasoning:{effort:'low'},service_tier:'default',stream:true,store:false,safety_identifier:safetyIdentifier};
   if(JSON.stringify(payload).length>16*1024*1024)throw new Error('参考图和编辑上下文合计过大，请减少参考图或重新选择成图开始编辑。');
   return payload;
 }
@@ -65,7 +65,9 @@ export async function readImageStream(response,options){
   const reader=response.body?.getReader();if(!reader)throw new Error('OpenAI 未返回图像响应流。');
   const decoder=new TextDecoder(),seen=new Set();let pending='',complete=false,images=0,mainUsage=null;
   const result=async item=>{
-    if(item?.type!=='image_generation_call'||!item.result||seen.has(item.id||item.result))return;
+    if(item?.type!=='image_generation_call')return;
+    await options.meter?.(item.usage||null);
+    if(!item.result||seen.has(item.id||item.result))return;
     seen.add(item.id||item.result);images++;
     const format=item.output_format||options.format||'png';
     await options.image(item.result,FORMATS[format]||FORMATS.png);
@@ -77,15 +79,20 @@ export async function readImageStream(response,options){
     const raw=line.slice(5).trim();if(!raw||raw==='[DONE]')return;
     let event;try{event=JSON.parse(raw);}catch{throw new Error('OpenAI 图片响应格式不完整，请检查已收到的图片后再重试。');}
     if(event.type==='error'||event.error)throw new Error((event.error?.message||event.message||'OpenAI 图片生成失败。')+(event.error?.code||event.code?' ('+(event.error?.code||event.code)+')':''));
-    if(event.type==='response.failed'||event.type==='response.incomplete')throw new Error((event.response?.error?.message||'OpenAI 图片生成未完成，请检查额度或调整描述。')+(event.response?.error?.code?' ('+event.response.error.code+')':''));
+    if(event.type==='response.failed'||event.type==='response.incomplete'){
+      mainUsage=event.response?.usage||null;await options.usage?.(mainUsage,{serviceTier:event.response?.service_tier||'default'});
+      for(const item of event.response?.output||[])await result(item);
+      throw new Error((event.response?.error?.message||'OpenAI 图片生成未完成，请检查额度或调整描述。')+(event.response?.error?.code?' ('+event.response.error.code+')':''));
+    }
     if(event.type==='response.image_generation_call.partial_image'&&event.partial_image_b64){
       await options.preview({data:event.partial_image_b64,mime:FORMATS[event.output_format||options.format]||FORMATS.png,index:event.partial_image_index});
     }
     if(event.type==='response.output_item.done')await result(event.item);
     if(event.type==='response.completed'){
+      mainUsage=event.response?.usage||null;await options.usage?.(mainUsage,{serviceTier:event.response?.service_tier||'default'});
       for(const item of event.response?.output||[])await result(item);
       if(event.response?.status&&event.response.status!=='completed')throw new Error('OpenAI 图片处理未完整结束。');
-      mainUsage=event.response?.usage||null;complete=true;
+      complete=true;
     }
   };
   try{

@@ -12,6 +12,7 @@
 <meta name="theme-color" content="#faf9f5">
 <link rel="manifest" href="/manifest.json?v=20261027-oakley">
 <link rel="apple-touch-icon" href="/icon-192.png">
+<link rel="stylesheet" href="/arena-billing.css?v=20261030-billing1">
 </head>
 <body>
 
@@ -958,6 +959,7 @@
     <div class="arena-appearance"><span>外观</span><button id="aaLightModeBtn" type="button">浅色</button></div>
     <div class="arena-account-actions">
       <button id="aaAccountSettingsBtn" class="arena-account-action" type="button">账号设置<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
+      <button id="aaUsageSettingsBtn" class="arena-account-action" type="button">用量与费用<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
       <button id="aaPromptInfoBtn" class="arena-account-action" type="button">提示词与记忆<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
     </div>
     <div hidden><input type="text" id="aaUsername" autocomplete="off"><input type="password" id="aaPassword" autocomplete="off"></div>
@@ -1279,6 +1281,8 @@
 <script src="/arena-pet-catalog.js?v=20261029-petcycle1"></script>
 <script src="/arena-pet.js?v=20261029-petnoghost1"></script>
 <script src="/arena-stream.js?v=20261030-typing50-1"></script>
+<script src="/arena-billing.js?v=20261030-billing1"></script>
+<script src="/arena-billing-ui.js?v=20261030-billing1"></script>
 <script>
 (function(){
   (function(){
@@ -1534,14 +1538,61 @@ var TEAM_COLORS = {
   var _incognitoMode = false;
   var judgeModel = 'none';
 
-  var DEFAULT_TOKEN_PRICES = {
-    'gpt-6-astra': {input:10,output:50},
-    'gpt-6.1-sol': {input:2,output:10},
-    'grok-4.7': {input:2,output:6},
-    'claude-fable-5-1': {input:10,output:50},
-    'claude-sonnet-5-5': {input:2,output:10},
-    'claude-opus-5-5': {input:4,output:20}
-  };
+  var billingDialog=null,billingDialogEpoch=0,billingLookups=new Map();
+  function applyMessageUsage(message,value){
+    if(!value)return;
+    if(value.schemaVersion===2){
+      if(value.purpose&&value.purpose!=='reply'&&message.usage&&message.usage.schemaVersion===2)message.usage=ArenaBilling.combine(message.usage,[value]);
+      else if(message.usage&&message.usage.schemaVersion===2&&message.usage.id===value.id)message.usage=ArenaBilling.combine(value,message.usage.auxiliary||[]);
+      else message.usage=value;
+    }else message.usage=Object.assign({},message.usage||{},value);
+    message.usageStr=ArenaBilling.label(message.usage);
+    message.usageCost=message.usage.billingComplete?message.usage.cost:null;
+    refreshMessageUsage(message);
+  }
+  function refreshMessageUsage(message){
+    var el=$('aaMessages').querySelector('[data-uid="'+message.uid+'"]');if(!el)return;
+    var previous=el.querySelector('.aa-usage-tag'),opened=previous&&previous.querySelector('details')&&previous.querySelector('details').open;
+    var wrapper=document.createElement('div');wrapper.innerHTML=ArenaBillingUI.render(message.usage,message.usageStr);
+    var next=wrapper.firstElementChild;if(!next)return;
+    if(previous)previous.replaceWith(next);else el.appendChild(next);
+    if(opened){next.querySelector('details').dataset.billingFetched='1';next.querySelector('details').open=true;}
+  }
+  async function requestBilling(action,id){
+    var user=$('aaUsername').value.trim().toLowerCase(),password=getPass();
+    if(!user||!password)throw new Error('登录后可查看累计用量。');
+    var response=await fetch(WORKER+'/usage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user:user,password:password,action:action,id:id})});
+    var data=await response.json();
+    if(user!==$('aaUsername').value.trim().toLowerCase()||password!==getPass())throw new Error('登录状态已变化，请重新打开。');
+    if(!response.ok)throw new Error(data.error||'用量统计暂时不可用。');return data;
+  }
+  async function openBillingDialog(){
+    var focus=document.activeElement,epoch=++billingDialogEpoch;
+    if(!billingDialog){
+      billingDialog=document.createElement('dialog');billingDialog.className='arena-workspace-dialog arena-billing-dialog';billingDialog.setAttribute('aria-label','用量与费用');
+      billingDialog.innerHTML='<div class="arena-dialog-heading"><h2>用量与费用</h2><button type="button" aria-label="关闭用量与费用"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div><div class="arena-billing-content"><div data-billing-totals role="status" aria-live="polite"></div><div data-billing-prices></div></div>';
+      $('ai-arena-app').appendChild(billingDialog);
+      billingDialog.querySelector('button').addEventListener('click',function(){billingDialog.close();});
+    }
+    billingDialog.onclose=function(){billingDialogEpoch++;if(focus&&focus.isConnected)focus.focus();else $('aaGearBtn').focus();};
+    $('aaSidebar').classList.add('hidden');$('aaGearBtn').setAttribute('aria-expanded','false');
+    billingDialog.querySelector('[data-billing-totals]').textContent='正在读取累计用量…';
+    billingDialog.querySelector('[data-billing-prices]').innerHTML=ArenaBillingUI.catalog(AVAILABLE_CHAT_MODELS.concat(['claude-haiku-4-5-20251001']));
+    if(!billingDialog.open)billingDialog.showModal();
+    try{var data=await requestBilling('summary');if(billingDialog.open&&epoch===billingDialogEpoch)billingDialog.querySelector('[data-billing-totals]').innerHTML=ArenaBillingUI.summary(data);}
+    catch(error){if(billingDialog.open&&epoch===billingDialogEpoch)billingDialog.querySelector('[data-billing-totals]').textContent=error.message;}
+  }
+  $('aaUsageSettingsBtn').addEventListener('click',openBillingDialog);
+  $('aaMessages').addEventListener('click',function(event){if(event.target.closest('[data-billing-summary]'))openBillingDialog();});
+  $('aaMessages').addEventListener('toggle',async function(event){
+    var details=event.target;if(!details.matches||!details.matches('.arena-usage-details'))return;if(!details.open){delete details.dataset.billingFetched;return;}if(details.dataset.billingFetched||!details.dataset.billingId||billingLookups.has(details.dataset.billingId))return;
+    var row=details.closest('[data-uid]'),message=row&&msgs.find(function(m){return String(m.uid)===row.dataset.uid;});if(!message)return;
+    billingLookups.set(details.dataset.billingId,true);
+    try{var data=await requestBilling('receipt',details.dataset.billingId);if(msgs.indexOf(message)!==-1&&data.receipt){applyMessageUsage(message,data.receipt);saveCurrentChat();}}
+    catch{}
+    finally{billingLookups.delete(details.dataset.billingId);}
+  },true);
+
   function debateModelOptions(used,selected){
     var brands={anthropic:'Anthropic',xai:'xAI',google:'Google',openai:'OpenAI'};
     return AVAILABLE_CHAT_MODELS.map(function(id){
@@ -2405,7 +2456,7 @@ var TEAM_COLORS = {
   function renderOpenAIImageDetails(details,usage){
     var quality={auto:'自动画质',low:'草稿',medium:'标准',high:'精细',xhigh:'超精细',max:'最高'}[details.quality]||details.quality||'';
     var summary=[details.size==='auto'?'自动尺寸':details.size,quality,String(details.format||'png').toUpperCase(),details.background==='transparent'?'透明背景':''].filter(Boolean).join(' · ');
-    return '<details class="arena-image-result-details"><summary>生成详情 <span>'+esc(summary)+'</span></summary>'+(details.revisedPrompt?'<p class="arena-image-field-help">本次使用的描述</p><p>'+esc(details.revisedPrompt)+'</p>':'')+(details.usage?'<p>图像 token：输入 '+esc(details.usage.input_tokens??'—')+' · 输出 '+esc(details.usage.output_tokens??'—')+'</p>':'<p>图像用量与最终金额以 OpenAI 账单为准；对话式改图还会产生文字模型的用量。</p>')+(usage&&usage.mainline?'<p>本次任务描述理解与编辑上下文：GPT-6.1 Sol · 输入 '+esc(usage.mainline.input)+' · 输出 '+esc(usage.mainline.output)+' token。</p>':'')+'</details>';
+    return '<details class="arena-image-result-details"><summary>生成详情 <span>'+esc(summary)+'</span></summary>'+(details.revisedPrompt?'<p class="arena-image-field-help">本次使用的描述</p><p>'+esc(details.revisedPrompt)+'</p>':'')+(details.usage?'<p>图像 token：输入 '+esc(details.usage.input_tokens??'—')+' · 输出 '+esc(details.usage.output_tokens??'—')+'</p>':'<p>图像用量与最终金额以 OpenAI 账单为准；对话式改图还会产生文字模型的用量。</p>')+(usage&&usage.mainline?'<p>本次任务描述理解与编辑上下文：GPT-6.1 Sol · 输入 '+esc(usage.mainline.input??'官方未提供')+' · 输出 '+esc(usage.mainline.output??'官方未提供')+' token。</p>':'')+'</details>';
   }
   function showPreview(dataUrl){ if(!dataUrl) return; if(sentImgs.length < imageReferenceLimit()){ sentImgs.push({data: dataUrl.split(',').length > 1 ? dataUrl.split(',')[1] : dataUrl, mime: 'image/jpeg', preview: dataUrl}); setImageError('');renderImgPreviews(); } }
   function renderTextPreviews(){
@@ -2813,16 +2864,17 @@ var TEAM_COLORS = {
   async function updateMemory(conversationText){
     var user = $('aaUsername').value.trim().toLowerCase();
     var pass = getPass();
-    var memoryScope=activeProjectId;
+    var memoryScope=activeProjectId,memoryChat=currentChatId,memoryTarget=msgs.slice().reverse().find(function(m){return !m.isUser&&m.usage&&m.usage.schemaVersion===2;});
     if(!user || !pass || !conversationText) return;
     try {
       var res = await fetch(WORKER + '/memory', {
         method: 'POST',
         headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({password: pass, user: user, projectId:memoryScope, conversation: conversationText})
+        body: JSON.stringify({password: pass, user: user, projectId:memoryScope, conversation: conversationText, billingParentId:memoryTarget&&memoryTarget.usage.id})
       });
       var data = await res.json();
       if(memoryScope===activeProjectId&&data.memory){ _cachedMemory = data.memory; _memoryLoaded = true; }
+      if(data.usage&&memoryTarget&&memoryScope===activeProjectId&&memoryChat===currentChatId&&msgs.indexOf(memoryTarget)!==-1){applyMessageUsage(memoryTarget,data.usage);saveCurrentChat();}
     } catch(e){}
   }
 
@@ -3085,7 +3137,7 @@ var TEAM_COLORS = {
       var oldText=message.text,oldReasoning=message.reasoning;
       Object.assign(message,turn.reply,{debateRun:ref,debateTurn:turn.index,debateStatus:turn.status,debateAttempt:turn.attempt,debateError:turn.error||'',debateOutdated:!!turn.outdated,
         isError:['failed','interrupted','cancelled','skipped'].includes(turn.status),completedAt:turn.status==='running'?undefined:turn.updatedAt});
-      if(message.usage&&typeof message.usage.cost==='number')message.usageStr='$'+message.usage.cost.toFixed(4);
+      if(message.usage)message.usageStr=ArenaBilling.label(message.usage);
       message._activityDirty=true;_uidCounter=Math.max(_uidCounter,message.uid);
       if(restored&&turn.status==='running')liveReplies.seed(message.uid,message.text);
       else if(!restored&&(fresh||oldText!==message.text||oldReasoning!==message.reasoning||previousAttempt!==turn.attempt))liveUpdate(message.uid,message.text,message.reasoning);
@@ -3485,10 +3537,8 @@ var TEAM_COLORS = {
           msgObj._imageRevealHandled = true; msgObj._autoReveal = true;
           window._aaImgStore[uid] = {data: msgObj.imgData, mime: msgObj.imgMime};
           window._aaPromptStore[uid] = {prompt: entry.prompt};
-          var _nbSavedP2 = JSON.parse(localStorage.getItem('aa-model-prices') || '{}');
           var _nbSizeKey2 = 'nb2-' + size;
-          var _nbCost2 = (_nbSavedP2[_nbSizeKey2] && _nbSavedP2[_nbSizeKey2].input) ? _nbSavedP2[_nbSizeKey2].input : 0;
-          msgObj.usageStr = size + (_nbCost2 > 0 ? ' · $' + _nbCost2.toFixed(4) : '');
+          msgObj.usageStr = size;
           if(firstChunk){ firstChunk=false; hideThink('nanbanana2-official'); msgs.push(msgObj); }
           render(); return;
         }
@@ -4849,7 +4899,7 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
         h += '</div>';
 
         h += renderReplyNotice(msg);
-        if(msg.usageStr) h += '<div class="aa-usage-tag" style="font-size:10px;color:#555;margin-top:4px;margin-left:13px;letter-spacing:0.02em;font-family:\'Sora\',sans-serif;">'+esc(msg.usageStr)+'</div>';
+        if(msg.usage||msg.usageStr)h+=ArenaBillingUI.render(msg.usage,msg.usageStr);
         h += renderContextInfo(msg);
         h += '<div class="arena-message-actions">'
           +'<button type="button" class="arena-message-action" data-copy-message="'+msg.uid+'" data-copy-label="复制回复" data-hint="复制" aria-label="复制回复" title="复制回复"><svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V4H4v12h4"/></svg></button>'
@@ -5184,14 +5234,7 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
               if(!msgObj._imageRevealHandled){ msgObj._imageRevealHandled = true; msgObj._autoReveal = true; }
               window._aaPromptStore[uid] = {prompt: topic};
               if(sub === 'kling25-i2v'){
-                var _klingSavedPrices = JSON.parse(localStorage.getItem('aa-model-prices') || '{}');
-                var _klingCost = (_klingSavedPrices['kling25-i2v'] && _klingSavedPrices['kling25-i2v'].input) ? _klingSavedPrices['kling25-i2v'].input : 0;
-                msgObj.usageStr = 'Kling V2.5' + (_klingCost > 0 ? ' · $' + _klingCost.toFixed(4) : '');
-              }
-              var _imageSavedPrices = JSON.parse(localStorage.getItem('aa-model-prices') || '{}');
-              if(['grok-imagine-image-2.0','gpt-image-2.5-sunburst','gpt-image-2.5-flare','gemini-nano-banana-2.1','mj_imagine'].indexOf(sub) !== -1){
-                var _imageCost = (_imageSavedPrices[sub] && _imageSavedPrices[sub].input) ? _imageSavedPrices[sub].input : 0;
-                if(_imageCost > 0&&!ArenaImage.isOpenAI(sub)) msgObj.usageStr += ' · $' + _imageCost.toFixed(4);
+                msgObj.usageStr = 'Kling V2.5';
               }
               if(firstChunk){ firstChunk=false; hideThink(sub); msgs.push(msgObj); }
               render(); return;
@@ -5199,31 +5242,7 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
             if(chunk.indexOf('%%USAGE%%') === 0){
               try {
                 var usageData = JSON.parse(chunk.slice(9));
-                msgObj.usage = usageData;
-                var cost;
-                if(usageData.cost !== undefined){
-                  cost = usageData.cost;
-                  msgObj.usageCost = cost;
-                  msgObj.usageStr = (cost > 0 ? '$' + cost.toFixed(4) : '');
-                } else {
-                  var prices = JSON.parse(localStorage.getItem('aa-model-prices') || '{}');
-                  var subKey = usageData.model || msgObj.executionModel || msgObj.submodel || sub;
-                  var p = prices[subKey] || DEFAULT_TOKEN_PRICES[subKey] || {input: 0, output: 0};
-                  var longContextRate = !prices[subKey] && subKey === 'grok-4.7' && usageData.input >= 200000 ? 2 : 1;
-                  cost = ((usageData.input / 1000000) * p.input + (usageData.output / 1000000) * p.output) * longContextRate;
-                  msgObj.usageCost = cost;
-                  msgObj.usageStr = 'in:' + usageData.input + ' out:' + usageData.output + (cost > 0 ? ' · 估算 $' + cost.toFixed(4) : '');
-                }
-                var el = document.querySelector('[data-uid="'+uid+'"]');
-                if(el){
-                  var existing = el.querySelector('.aa-usage-tag');
-                  if(existing) existing.remove();
-                  var tag = document.createElement('div');
-                  tag.className = 'aa-usage-tag';
-                  tag.style.cssText = 'font-size:10px;color:#555;margin-top:4px;margin-left:13px;letter-spacing:0.02em;font-family:\'Sora\',sans-serif;';
-                  tag.textContent = msgObj.usageStr;
-                  el.appendChild(tag);
-                }
+                applyMessageUsage(msgObj,usageData);
               } catch(e){}
               return;
             }
@@ -5872,10 +5891,8 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
         var _mjAP = chunk.split('\x00');
         msgObj.imgData = _mjAP[2]; msgObj.imgMime = _mjAP[4] || 'image/png';
         msgObj._imageRevealHandled = true; msgObj._autoReveal = true;
-        var _mjActSavedPrices = JSON.parse(localStorage.getItem('aa-model-prices') || '{}');
         var _mjActSub = brandSelection['mj'] || 'mj-imagine';
-        var _mjActCost = (_mjActSavedPrices[_mjActSub] && _mjActSavedPrices[_mjActSub].input) ? _mjActSavedPrices[_mjActSub].input : 0;
-        msgObj.usageStr = (SUBS[_mjActSub] ? SUBS[_mjActSub].name : _mjActSub) + (_mjActCost > 0 ? ' · $' + _mjActCost.toFixed(4) : '');
+        msgObj.usageStr = SUBS[_mjActSub] ? SUBS[_mjActSub].name : _mjActSub;
         if(firstChunk){ firstChunk=false; hideThink('mj-imagine'); msgs.push(msgObj); }
         render(); return;
       }

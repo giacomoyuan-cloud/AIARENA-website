@@ -233,7 +233,7 @@ test('thinking can cross 14 minutes and finish, retaining timestamps, usage and 
   assert.equal(actor.meta.reply.diagnostics.stopReason,'end_turn');
   assert.equal(actor.meta.reply.diagnostics.providerCompleted,true);
   assert.equal(actor.meta.reply.diagnostics.firstTextAt-first,16*60*1000);
-  assert.deepEqual(actor.meta.reply.usage,{input:17,output:88});
+  assert.equal(actor.meta.reply.usage.input,17);assert.equal(actor.meta.reply.usage.output,88);assert.equal(actor.meta.reply.usage.schemaVersion,2);assert.equal(actor.meta.reply.usage.costUsd,'0.001828');
   assert.ok(actor.sql.exec('SELECT received_at FROM run_events').toArray().every(row=>Number.isSafeInteger(row.received_at)));
 });
 
@@ -245,7 +245,7 @@ test('retry preserves the failed run; old status, replay, stop and duplicate sta
   await f.waitFor(()=>actor.meta.reply.reasoning==='已收到的摘要');
   f.upstreams[0].fail();await Promise.all(f.pending);
   const failed=await(await f.call('status')).json();
-  assert.equal(failed.status,'failed');assert.deepEqual(failed.reply.usage,{input:19,output:1,partial:true});
+  assert.equal(failed.status,'failed');assert.equal(failed.reply.usage.input,19);assert.equal(failed.reply.usage.output,1);assert.equal(failed.reply.usage.usageComplete,false);assert.equal(failed.reply.usage.costUsd,null);
   const payload={...f.payload,chat:{...f.payload.chat,historyEndUid:2},recovery:{...f.payload.recovery,replyUid:4,userMessage:{...f.payload.recovery.userMessage,uid:3}}};
   await f.call('start',{runId:'run-retry-002',payload});await f.waitFor(()=>f.upstreams.length===2);
   assert.deepEqual(await(await f.call('status')).json(),failed);

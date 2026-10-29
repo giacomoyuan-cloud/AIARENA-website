@@ -43,12 +43,14 @@ export async function selectSkills({settings,question,history=[],files=[],previo
   const tools=[{name:'select_skills',description:'Submit the workflows for this task without performing it.',input_schema:{type:'object',properties:{ids:{type:'array',items:{type:'string',enum:available.map(s=>s.id)},maxItems:3},output:{type:'string',enum:['text','file']}},required:['ids','output'],additionalProperties:false}}];
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),18000);
   const abort=()=>controller.abort();signal?.addEventListener('abort',abort,{once:true});
+  let recorded=false;
   try{
-    const response=await fetcher('https://api.anthropic.com/v1/messages',{method:'POST',redirect:'manual',headers:{'Content-Type':'application/json','x-api-key':env.ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01'},signal:controller.signal,body:JSON.stringify({model:ROUTER_MODEL,max_tokens:240,system:instructions,tools,tool_choice:{type:'tool',name:'select_skills',disable_parallel_tool_use:true},messages:[{role:'user',content:JSON.stringify({question:String(question).slice(0,10000),files:files.map(f=>({name:f.name,size:f.size})),previousIds,history:history.slice(-3).map(m=>({role:m.role,text:String(m.content||m.text||'').slice(0,1200)}))})}]})});
+    const response=await fetcher('https://api.anthropic.com/v1/messages',{method:'POST',redirect:'manual',headers:{'Content-Type':'application/json','x-api-key':env.ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01'},signal:controller.signal,body:JSON.stringify({model:ROUTER_MODEL,service_tier:'standard_only',max_tokens:240,system:instructions,tools,tool_choice:{type:'tool',name:'select_skills',disable_parallel_tool_use:true},messages:[{role:'user',content:JSON.stringify({question:String(question).slice(0,10000),files:files.map(f=>({name:f.name,size:f.size})),previousIds,history:history.slice(-3).map(m=>({role:m.role,text:String(m.content||m.text||'').slice(0,1200)}))})}]})});
+    const data=await response.json();await onUsage(ROUTER_MODEL,data?.usage||null);recorded=true;
     if(!response.ok)throw Error('自动技能选择暂不可用（'+response.status+'）');
-    const data=await response.json();if(data.usage)await onUsage(ROUTER_MODEL,data.usage);
     const selected=(data.content||[]).find(x=>x.type==='tool_use'&&x.name==='select_skills')?.input;
     if(!selected||typeof selected!=='object'||Array.isArray(selected)||!Array.isArray(selected.ids)||!['text','file'].includes(selected.output))throw Error('自动技能选择未返回有效的结构化结果');
     return sanitizeSelection(includeFileSkill(selected,files,{documents,debate}),available);
-  }finally{clearTimeout(timer);signal?.removeEventListener('abort',abort);}
+  }catch(error){if(!recorded)await onUsage(ROUTER_MODEL,null);throw error;}
+  finally{clearTimeout(timer);signal?.removeEventListener('abort',abort);}
 }
