@@ -153,3 +153,28 @@ test('stop before a lost start acknowledgement leaves a tombstone and never star
   const start=await(await f.call('start',{input:f.input})).json();assert.equal(start.status,'stopped');assert.equal(start.total,0);
   assert.equal((await f.status()).status,'stopped');await f.actor().alarm();assert.equal(f.calls.length,0);
 });
+
+test('same-model seats and summary keep independent effort through a failed-seat retry',async t=>{
+  const f=fixture(t),input=structuredClone(f.input);input.config.rounds=1;input.replyUids=[2,3,4];
+  input.config.members[0].effort='low';input.config.members[1].effort='high';input.config.summaryEffort='max';
+  assert.equal((await f.call('start',{input})).status,202);await f.turn();f.fail();await f.turn();
+  await f.control('retry',1,1);await f.turn();await f.turn();await f.actor().alarm();
+  assert.deepEqual(f.calls.map(c=>c.payload.output_config.effort),['low','high','high','max']);
+  const final=await f.status();assert.equal(final.status,'completed');assert.deepEqual(final.turns.map(t=>t.reply.effort),['low','high','max']);
+  const invalid=structuredClone(input);invalid.config.members[1].effort='invented';assert.equal((await f.call('start',{runId:'invalid-depth-001',input:invalid})).status,400);assert.equal(f.calls.length,4);
+});
+
+test('follow-up derives evidence from owned checkpoints, rejects cross-scope sources and never replays old seats',async t=>{
+  const f=fixture(t);await f.call('start',{input:f.input});await f.turn('服务端保存的真实观点');await f.control('stop');await f.control('finish');
+  const input=structuredClone(f.input);Object.assign(input.config,{rounds:1,summaryModel:'none',priorRunId:f.fields.runId,priorContext:'客户端伪造的结论'});
+  input.userMessage.uid=20;input.replyUids=[21,22];input.historyEndUid=6;
+  for(const scope of [{user:'other'},{chatId:'other-chat-001'},{projectId:'owned-project-001'}]){
+    f.data.set('project:tester:owned-project-001:meta',JSON.stringify({id:'owned-project-001',owner:'tester'}));
+    const denied=await f.call('start',{...scope,runId:'followup-run-001',input});assert.equal(denied.status,410);
+  }
+  const started=await(await f.call('start',{runId:'followup-run-001',input})).json();
+  assert.match(started.plan.priorContext,/服务端保存的真实观点/);assert.doesNotMatch(started.plan.priorContext,/客户端伪造/);assert.equal(f.calls.length,1);
+  await f.turn('继续追问的一席');await f.turn('继续追问的二席');await f.actor().alarm();
+  assert.equal(f.calls.length,3);assert.match(JSON.stringify(f.calls[1].payload),/服务端保存的真实观点/);
+  const original=await f.status();assert.equal(original.turns[0].reply.text,'服务端保存的真实观点');assert.equal(original.turns[0].attempt,1);
+});
