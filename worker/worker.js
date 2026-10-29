@@ -493,6 +493,7 @@ async function handleDebateRunRequest(request, env) {
     if (body.action === 'start') {
       const data = body.input, config = data?.config;
       if (!data || !config || !Array.isArray(config.members)) return projectReply({ error: '缺少讨论设置。' }, 400);
+      if(config.contractVersion!==undefined&&config.contractVersion!=='studio-v3')return projectReply({error:'讨论设置版本已变化，请刷新后重试。'},400);
       const models = Object.fromEntries(Object.entries(OFFICIAL_MODELS).filter(([, value]) => !value.image).map(([id, value]) => [id, { name: value.name, brand: value.provider,
         color: ({anthropic:'#C96442',xai:'#777777',google:'#4285F4',openai:'#10A37F'})[value.provider] || '#777777' }]));
       const members = config.members.map(member => {
@@ -512,6 +513,7 @@ async function handleDebateRunRequest(request, env) {
       const efforts = {};
       for (const turn of plan.turns) {
         const model = turn.member.model, effort = turn.member.effort!==undefined?turn.member.effort:data.efforts?.[model];
+        if(config.contractVersion==='studio-v3'&&MODEL_EFFORT_LEVELS[model]?.length&&turn.member.effort===undefined)return projectReply({error:'请明确设置每个席位及总结的思考深度。'},400);
         if (effort !== undefined && !MODEL_EFFORT_LEVELS[model]?.includes(effort)) return projectReply({ error: '该模型不支持所选思考档位。' }, 400);
         if (data.efforts?.[model] !== undefined) {
           if(!MODEL_EFFORT_LEVELS[model]?.includes(data.efforts[model]))return projectReply({ error: '该模型不支持所选思考档位。' }, 400);
@@ -935,9 +937,9 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
       return new Response(JSON.stringify(result), { headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
     }
     if (request.method === "GET" && url.pathname !== "/memory") {
-      return new Response(JSON.stringify({ mode: "official", debate:"studio-v2", skillsVersion:"20261030-skills1", xai: !!env.GROK_API_KEY, openai: !!env.OPENAI_API_KEY, anthropic: !!env.ANTHROPIC_API_KEY, google: !!env.GEMINI_API_KEY, mj: false }), {
+      return new Response(JSON.stringify({ mode: "official", debate:DebateCore.version==='studio-v3'&&DebateRun.contractVersion==='studio-v3'?'studio-v3':null, skillsVersion:"20261030-skills1", xai: !!env.GROK_API_KEY, openai: !!env.OPENAI_API_KEY, anthropic: !!env.ANTHROPIC_API_KEY, google: !!env.GEMINI_API_KEY, mj: false }), {
         status: 200,
-        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
+        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*", "Cache-Control":"no-store" }
       });
     }
     if (request.method !== "POST") {
