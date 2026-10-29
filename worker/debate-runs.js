@@ -97,6 +97,7 @@ export function createDebateRunClass(execute, authorize, core) {
         let chat = list.find(item => item.id === job.chatId);
         if (!chat) { chat = { id: job.chatId }; list.push(chat); }
         chat.title = input.title || chat.title || '新讨论'; chat.updatedAt = Date.now();
+        chat.mode = 'debate';
         const lastReply = job.turns.filter(turn => turn.status === 'completed').at(-1);
         if (lastReply) chat.lastReplyAt = lastReply.updatedAt;
         list.sort((a, b) => b.updatedAt - a.updatedAt);
