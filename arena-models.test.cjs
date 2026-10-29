@@ -222,7 +222,7 @@ test('switching chats never carries an automatic image reference into another co
   const next=[{uid:2,isUser:true,text:'new prompt'},{uid:3,submodel:ArenaImage.GOOGLE_MODEL,imgItems:[image],imageTurn:{prompt:'new prompt',parentUid:null,references:[]},imageResponse:[{imageIndex:0,thoughtSignature:'new-signature'}]}];
   async function open(sentImgs,draft=''){
     const c=vm.createContext({
-      ArenaImage, ArenaModelControl: require('./arena-model-control.js'),aaRunning:false,activeProjectId:null,scopeEpoch:1,chatLoadEpoch:0,_saveTimer:null,currentChatId:'old-chat',
+      ArenaImage, ArenaModelControl: require('./arena-model-control.js'),aaRunning:false,scopeSwitchPending:false,activeProjectId:null,scopeEpoch:1,chatLoadEpoch:0,_saveTimer:null,currentChatId:'old-chat',
       imageEditParentUid:1,imageMode:true,imageComposerTask:'edit',imageComposerModel:ArenaImage.GOOGLE_MODEL,
       sentImgs,sentTexts:[],msgs:[],_uidCounter:0,_skipNextChatSave:false,$:()=>({value:draft}),
       chatApiCall:async()=>({messages:next}),getLastAssistantReplyAt:()=>0,rememberChatReplyTime:()=>{},
