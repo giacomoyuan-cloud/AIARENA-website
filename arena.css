@@ -796,7 +796,7 @@
   #ai-arena-app.arena-shell .arena-image-form { padding: 16px; gap: 18px; }
   #ai-arena-app.arena-shell .arena-image-settings-foot { padding: 12px 16px; }
 }
-@media (max-width: 380px) {
+@media (max-width: 420px) {
   #ai-arena-app.arena-shell .arena-ratio-grid { grid-template-columns: repeat(4,minmax(0,1fr)); }
 }
 
