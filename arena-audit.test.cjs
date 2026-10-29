@@ -96,7 +96,7 @@ test('a stale visible model or effort prevents a paid request and retains the dr
     $('aaTopic').value='do not lose this draft';$('aaUsername').value='tester';
     $('aaChatModelBtn').dataset={selectedModel:'gpt-6.1-sol',selectedEffort:'low'};
     const c=vm.createContext({$,scopeSwitchPending:false,chatNavigationPending:false,privacySwitchPending:false,aaRunning:false,skillSubmitPending:false,
-      debate:false,imageMode:false,videoMode:false,activeProjectId:null,currentChatId:'chat-1',msgs:[],sentImgs:[],sentTexts:[],activeQuote:null,
+      debate:false,imageMode:false,videoMode:false,fileImporting:0,activeProjectId:null,currentChatId:'chat-1',msgs:[],sentImgs:[],sentTexts:[],activeQuote:null,
       skillsRuntime:{settings:()=>({mode:'off',ids:[]}),ready:async()=>{}},flushScopeChat:async()=>({ok:true}),getPass:()=> 'synthetic',getActiveSubmodels:()=>[actual],effortFor:()=>effort,
       syncBrandUI(){},updateSkillsBtn(){},arenaNotice:message=>notices.push(message),fetch(){throw Error('must not call provider');}});
     const start=html.indexOf('  async function aaStart(){'),end=html.indexOf("    if(debate&&debateMode==='free'",start);
@@ -123,6 +123,12 @@ test('another tab cannot silently replace the current composer Skill choice thro
   assert.equal(f.runtime.settings().mode,'off');f.data.set(key,JSON.stringify({mode:'manual',ids:['pptx']}));
   assert.equal(f.runtime.settings().mode,'off');
   f.runtime.migrateAccount('alias','stable');f.user('stable');assert.equal(f.runtime.settings().mode,'off');
+});
+test('image and video composers hide the text-only Skill pill and ordinary chat can restore it',()=>{
+  const pill={hidden:false},c=vm.createContext({$:()=>pill,skillsRuntime:{update(){pill.hidden=false;}},imageMode:true,videoMode:false});
+  vm.runInContext(fn('updateSkillsBtn'),c);c.updateSkillsBtn();assert.equal(pill.hidden,true);
+  c.imageMode=false;c.videoMode=true;c.updateSkillsBtn();assert.equal(pill.hidden,true);
+  c.videoMode=false;c.updateSkillsBtn();assert.equal(pill.hidden,false);
 });
 test('an attachment still being read during account canonicalization remains available and can still be cleared',async()=>{
   for(const clear of [false,true]){

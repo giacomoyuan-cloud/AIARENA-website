@@ -12,6 +12,7 @@
 <meta name="theme-color" content="#faf9f5">
 <link rel="manifest" href="/manifest.json?v=20261027-oakley">
 <link rel="apple-touch-icon" href="/icon-192.png">
+<link rel="stylesheet" href="/arena-billing.css?v=20261030-billing2">
 </head>
 <body>
 
@@ -864,15 +865,15 @@
   #ai-arena-app #aaSkillEditPrompt::placeholder { color: #888; opacity: 1; }
 
 </style>
-<link rel="stylesheet" href="/arena.css?v=20261030-image-unified1">
+<link rel="stylesheet" href="/arena.css?v=20261030-filezip1">
 <link rel="stylesheet" href="/arena-workspace.css?v=20261029-debateresume1">
 <link rel="stylesheet" href="/arena-controls.css?v=20261029-debateresume1">
 <link rel="stylesheet" href="/arena-pet.css?v=20261029-petnoghost1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&family=Noto+Serif+SC:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="/arena-claude.css?v=20261030-sliderends1">
-<link rel="stylesheet" href="/arena-project-page.css?v=20261030-projects1">
+<link rel="stylesheet" href="/arena-claude.css?v=20261030-skilldownload1">
+<link rel="stylesheet" href="/arena-project-page.css?v=20261030-projectactions1">
 <link rel="stylesheet" href="/arena-debate-ui.css?v=20261030-sliderends1">
 <link rel="preload" as="image" href="/assets/kitten/motion/knead-14b49069b5fd.png">
 
@@ -958,6 +959,7 @@
     <div class="arena-appearance"><span>外观</span><button id="aaLightModeBtn" type="button">浅色</button></div>
     <div class="arena-account-actions">
       <button id="aaAccountSettingsBtn" class="arena-account-action" type="button">账号设置<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
+      <button id="aaUsageSettingsBtn" class="arena-account-action" type="button">用量与费用<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
       <button id="aaPromptInfoBtn" class="arena-account-action" type="button">提示词与记忆<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
     </div>
     <div hidden><input type="text" id="aaUsername" autocomplete="off"><input type="password" id="aaPassword" autocomplete="off"></div>
@@ -983,7 +985,8 @@
           <button id="aaImgRemove" class="aa-img-rm">✕</button>
         </div>
       </div>
-      <div id="aaTextPreview" style="display:none;padding:0 0 8px 0;">
+      <div id="aaFileImportStatus" class="arena-file-import-status" role="status" aria-live="polite" hidden></div>
+        <div id="aaTextPreview" style="display:none;padding:0 0 8px 0;">
         <div style="position:relative;display:inline-flex;align-items:flex-start;gap:8px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:10px;padding:10px 12px;max-width:260px;">
           <div style="flex:1;min-width:0;">
             <div id="aaTextPreviewContent" style="font-size:11px;color:#9090b0;line-height:1.5;word-break:break-all;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;"></div>
@@ -1213,7 +1216,7 @@
         <div class="arena-attachment-wrap" style="position:relative;">
           <button id="aaPlusBtn" class="aa-plus-btn" type="button" aria-label="添加附件或工具" aria-haspopup="dialog" aria-expanded="false"><svg class="arena-default-attach-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><svg class="arena-debate-attach-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 13 6-6a3 3 0 0 1 4 4l-8 8a5 5 0 0 1-7-7l8-8a2 2 0 0 1 3 3l-8 8"/></svg><span class="arena-debate-attach-label">参考资料</span></button>
           <input type="file" id="aaImgInput" accept="image/jpeg,image/png,image/gif,image/webp" multiple style="display:none;">
-        <input type="file" id="aaFileInput" accept=".txt,.pdf,.docx,.xlsx,.xls,.pptx,.csv,.tsv,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/plain,text/csv" style="display:none;">
+        <input type="file" id="aaFileInput" multiple aria-label="上传文件" style="display:none;">
           <div id="aaPlusMenu" class="aa-plus-menu" role="dialog" aria-label="附件与工具" style="display:none;">
             <button id="aaPlusPhoto" class="aa-plus-item" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="m3 17 5-5 4 4 3-3 6 6"/><circle cx="8" cy="8" r="1.5"/></svg><span id="aaPlusPhotoLabel">上传照片</span></button>
             <button id="aaPlusFile" class="aa-plus-item" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9l-6-6Zm0 0v6h6M8 13h8M8 17h5"/></svg><span>上传文件</span></button>
@@ -1256,28 +1259,33 @@
 </div>
 
 <script src="/arena-markdown.js?v=20261027-account1"></script>
-<link rel="stylesheet" href="/arena-image-editor.css?v=20261030-image-unified1">
-<script src="/arena-image.js?v=20261030-image-unified1"></script>
+<link rel="stylesheet" href="/arena-image-editor.css?v=20261030-imagesliders1">
+<script src="/arena-slider.js?v=20261030-imagesliders1"></script>
+<script src="/arena-image.js?v=20261030-imagesliders1"></script>
 <script src="/arena-image-editor.js?v=20261030-openai-image1"></script>
 <script src="/arena-native.js?v=20261028-smooth2"></script>
-<script src="/arena-effort.js?v=20261030-sliderends1"></script>
+<script src="/arena-effort.js?v=20261030-imagesliders1"></script>
 <script src="/arena-context.js?v=20261027-account1"></script>
-<script src="/arena-chat-mode.js?v=20261030-chatmodes1"></script>
+<script src="/arena-chat-mode.js?v=20261030-historymodes2"></script>
 <script src="/arena-skills-catalog.js?v=20261030-skills1"></script>
 <script src="/arena-skill-models.js?v=20261030-skillmodels1"></script>
+<script src="/arena-files.js?v=20261030-filezip1"></script>
 <script src="/arena-skills.js?v=20261030-deepaudit1"></script>
 <script src="/arena-chat-runs.js?v=20261029-typingclock1"></script>
 <script src="/arena-controls.js?v=20261029-debateresume1"></script>
-<script src="/arena-model-control.js?v=20261030-debatecontrols1"></script>
+<script src="/arena-model-control.js?v=20261030-imagesliders1"></script>
 <script src="/arena-debate.js?v=20261030-debatestudio3"></script>
 <script src="/arena-debate-studio.js?v=20261030-debatecontrols1"></script>
 <script src="/arena-debate-runs.js?v=20261030-debatestudio3"></script>
-<script src="/arena-workspace.js?v=20261029-debateresume1"></script>
+<script src="/arena-workspace.js?v=20261030-filezip1"></script>
+<script src="/arena-project-state.js?v=20261030-projectactions2"></script>
 <script src="/arena-project-page.js?v=20261030-deepaudit1"></script>
 <script src="/arena-account.js?v=20261027-account2"></script>
 <script src="/arena-pet-catalog.js?v=20261029-petcycle1"></script>
 <script src="/arena-pet.js?v=20261029-petnoghost1"></script>
 <script src="/arena-stream.js?v=20261030-typing50-1"></script>
+<script src="/arena-billing.js?v=20261030-billing1"></script>
+<script src="/arena-billing-ui.js?v=20261030-billing1"></script>
 <script>
 (function(){
   (function(){
@@ -1533,14 +1541,67 @@ var TEAM_COLORS = {
   var _incognitoMode = false, privacySwitchPending = false;
   var judgeModel = 'none';
 
-  var DEFAULT_TOKEN_PRICES = {
-    'gpt-6-astra': {input:10,output:50},
-    'gpt-6.1-sol': {input:2,output:10},
-    'grok-4.7': {input:2,output:6},
-    'claude-fable-5-1': {input:10,output:50},
-    'claude-sonnet-5-5': {input:2,output:10},
-    'claude-opus-5-5': {input:4,output:20}
-  };
+  var billingDialog=null,billingDialogEpoch=0,billingLookups=new Map();
+  function applyMessageUsage(message,value){
+    if(!value)return;
+    if(value.schemaVersion===2){
+      if(value.purpose&&value.purpose!=='reply'&&message.usage&&message.usage.schemaVersion===2)message.usage=ArenaBilling.combine(message.usage,[value]);
+      else if(message.usage&&message.usage.schemaVersion===2&&message.usage.id===value.id)message.usage=ArenaBilling.combine(value,message.usage.auxiliary||[]);
+      else message.usage=value;
+    }else message.usage=Object.assign({},message.usage||{},value);
+    message.usageStr=ArenaBilling.label(message.usage);
+    message.usageCost=message.usage.billingComplete?message.usage.cost:null;
+    refreshMessageUsage(message);
+  }
+  function refreshMessageUsage(message){
+    var el=$('aaMessages').querySelector('[data-uid="'+message.uid+'"]');if(!el)return;
+    var previous=el.querySelector('.aa-usage-tag'),opened=previous&&previous.querySelector('details')&&previous.querySelector('details').open;
+    var wrapper=document.createElement('div');wrapper.innerHTML=ArenaBillingUI.render(message.usage,message.usageStr);
+    var next=wrapper.firstElementChild;if(!next)return;
+    if(previous)previous.replaceWith(next);else el.appendChild(next);
+    if(opened){next.querySelector('details').dataset.billingFetched='1';next.querySelector('details').open=true;}
+  }
+  async function requestBilling(action,id){
+    var user=$('aaUsername').value.trim().toLowerCase(),password=getPass();
+    if(!user||!password)throw new Error('登录后可查看累计用量。');
+    var response=await fetch(WORKER+'/usage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user:user,password:password,action:action,id:id})});
+    var data=await response.json();
+    if(user!==$('aaUsername').value.trim().toLowerCase()||password!==getPass())throw new Error('登录状态已变化，请重新打开。');
+    if(!response.ok)throw new Error(data.error||'用量统计暂时不可用。');return data;
+  }
+  async function openBillingDialog(){
+    var focus=document.activeElement,epoch=++billingDialogEpoch;
+    if(!billingDialog){
+      billingDialog=document.createElement('dialog');billingDialog.className='arena-workspace-dialog arena-billing-dialog';billingDialog.setAttribute('aria-label','用量与费用');
+      billingDialog.innerHTML='<div class="arena-dialog-heading"><h2>用量与费用</h2><button type="button" aria-label="关闭用量与费用"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div><div class="arena-billing-content"><div data-billing-totals role="status" aria-live="polite"></div><div data-billing-prices></div></div>';
+      $('ai-arena-app').appendChild(billingDialog);
+      billingDialog.querySelector('button').addEventListener('click',function(){billingDialog.close();});
+    }
+    billingDialog.onclose=function(){billingDialogEpoch++;if(focus&&focus.isConnected)focus.focus();else $('aaGearBtn').focus();};
+    $('aaSidebar').classList.add('hidden');$('aaGearBtn').setAttribute('aria-expanded','false');
+    billingDialog.querySelector('[data-billing-totals]').textContent='正在读取累计用量…';
+    billingDialog.querySelector('[data-billing-prices]').innerHTML=ArenaBillingUI.catalog(AVAILABLE_CHAT_MODELS.concat(['claude-haiku-4-5-20251001']));
+    if(!billingDialog.open)billingDialog.showModal();
+    try{var data=await requestBilling('summary');if(billingDialog.open&&epoch===billingDialogEpoch)billingDialog.querySelector('[data-billing-totals]').innerHTML=ArenaBillingUI.summary(data);}
+    catch(error){if(billingDialog.open&&epoch===billingDialogEpoch){
+      var status=billingDialog.querySelector('[data-billing-totals]');status.textContent=error.message;
+      if(!$('aaUsername').value.trim()||!getPass()){
+        var loginButton=document.createElement('button');loginButton.type='button';loginButton.className='arena-billing-login';loginButton.dataset.billingLogin='';loginButton.textContent='登录账号';
+        loginButton.addEventListener('click',function(){billingDialog.close();showLoginOverlay();});status.appendChild(loginButton);
+      }
+    }}
+  }
+  $('aaUsageSettingsBtn').addEventListener('click',openBillingDialog);
+  $('aaMessages').addEventListener('click',function(event){if(event.target.closest('[data-billing-summary]'))openBillingDialog();});
+  $('aaMessages').addEventListener('toggle',async function(event){
+    var details=event.target;if(!details.matches||!details.matches('.arena-usage-details'))return;if(!details.open){delete details.dataset.billingFetched;return;}if(details.dataset.billingFetched||!details.dataset.billingId||billingLookups.has(details.dataset.billingId))return;
+    var row=details.closest('[data-uid]'),message=row&&msgs.find(function(m){return String(m.uid)===row.dataset.uid;});if(!message)return;
+    billingLookups.set(details.dataset.billingId,true);
+    try{var data=await requestBilling('receipt',details.dataset.billingId);if(msgs.indexOf(message)!==-1&&data.receipt){applyMessageUsage(message,data.receipt);saveCurrentChat();}}
+    catch{}
+    finally{billingLookups.delete(details.dataset.billingId);}
+  },true);
+
   function debateModelOptions(used,selected){
     var brands={anthropic:'Anthropic',xai:'xAI',google:'Google',openai:'OpenAI'};
     return AVAILABLE_CHAT_MODELS.map(function(id){
@@ -1673,23 +1734,28 @@ var TEAM_COLORS = {
     }, 2000);
   }
 
-  var historyModeCache=new Map();
+  var historyModeCache=ArenaChatMode.createCache(localStorage);
   async function hydrateHistoryModes(scope,epoch,listEpoch){
     var owner=scopeViewKey(scope),pending=chatList.filter(function(chat){
       var cached=historyModeCache.get(owner+':'+chat.id);
-      if(!ArenaChatMode.labels[chat.mode]&&cached&&cached.updatedAt===chat.updatedAt)chat.mode=cached.mode;
-      return !Object.prototype.hasOwnProperty.call(ArenaChatMode.labels,chat.mode);
+      if(!ArenaChatMode.known(chat.mode)&&cached&&cached.updatedAt===chat.updatedAt)chat.mode=cached.mode;
+      if(ArenaChatMode.known(chat.mode))historyModeCache.set(owner+':'+chat.id,{updatedAt:chat.updatedAt,mode:chat.mode});
+      chat.modeUnavailable=false;
+      return !ArenaChatMode.known(chat.mode);
     });
     renderHistoryList();
     for(var i=0;i<pending.length;i+=8){
       if(epoch!==scopeEpoch||listEpoch!==chatListEpoch||scope!==activeProjectId||owner!==scopeViewKey(scope))return;
       var batch=pending.slice(i,i+8),data=await chatApiCall('modes',{projectId:scope,chatIds:batch.map(function(chat){return chat.id;})});
       if(epoch!==scopeEpoch||listEpoch!==chatListEpoch||scope!==activeProjectId||owner!==scopeViewKey(scope))return;
-      if(!data||!Array.isArray(data.modes))return;
+      if(!data||!Array.isArray(data.modes)){
+        pending.slice(i).forEach(function(chat){chat.modeUnavailable=true;});renderHistoryList();return;
+      }
+      batch.forEach(function(chat){chat.modeUnavailable=true;});
       data.modes.forEach(function(item){
         var original=batch.find(function(chat){return chat.id===item.id;}),chat=chatList.find(function(chat){return chat.id===item.id;});
-        if(!original||!chat||chat.updatedAt!==original.updatedAt||!Object.prototype.hasOwnProperty.call(ArenaChatMode.labels,item.mode))return;
-        chat.mode=item.mode;historyModeCache.set(owner+':'+chat.id,{updatedAt:chat.updatedAt,mode:item.mode});
+        if(!original||!chat||chat.updatedAt!==original.updatedAt||!ArenaChatMode.known(item.mode))return;
+        chat.mode=item.mode;chat.modeUnavailable=false;historyModeCache.set(owner+':'+chat.id,{updatedAt:chat.updatedAt,mode:item.mode});
       });
       renderHistoryList();
     }
@@ -1745,35 +1811,35 @@ var TEAM_COLORS = {
       if(epoch!==scopeEpoch||loadEpoch!==chatLoadEpoch||loadScope!==activeProjectId||aaRunning)return false;
       if(!saved?.ok){arenaNotice('当前对话保存失败，已保留原对话，请重试');return false;}
       return chatApiCall('load', { chatId: chatId }).then(function(data){
-      if(epoch!==scopeEpoch||loadEpoch!==chatLoadEpoch||loadScope!==activeProjectId||!data||data.error) return false;
-      var switched=String(currentChatId)!==String(chatId),wasImageMode=imageMode;
-      var hadAutomaticReference=switched&&sentImgs.some(function(image){return image.autoFollowup||image.generatedReference;});
-      if(hadAutomaticReference){
-        sentImgs=sentImgs.filter(function(image){return !image.autoFollowup&&!image.generatedReference;});
-        if(!sentImgs.length&&imageComposerTask==='edit')imageComposerTask='generation';
-      }
-      currentChatId = chatId;
-      if(switched){imageEditParentUid=null;if(typeof imageMaskState!=='undefined')imageMaskState=null;}
-      msgs = data.messages || [];
-      restoreChatMode();
-      var listed=chatList.find(function(chat){return chat.id===chatId;});if(listed)listed.mode=ArenaChatMode.infer(msgs).mode;
-      if(imageEditParentUid!=null&&!msgs.some(function(message){return String(message.uid)===String(imageEditParentUid);}))imageEditParentUid=null;
-      var loadedReplyAt = getLastAssistantReplyAt(msgs);
-      if(loadedReplyAt) rememberChatReplyTime(chatId, loadedReplyAt);
-      if(msgs.length){
-        _uidCounter = Math.max.apply(null, msgs.map(function(m){ return Math.max(m.uid||0,m.debateRun&&m.debateRun.maxUid||0); })) + 1;
-      }
-      if((switched||!wasImageMode)&&imageMode&&!sentImgs.length&&!sentTexts.length&&!$('aaTopic').value.trim()){
-        var latestAnswer=msgs.slice().reverse().find(function(message){return !message.isUser;});
-        if(latestAnswer&&!latestAnswer.isError&&latestAnswer.imgItems&&latestAnswer.imgItems.length===1&&ArenaImage.canonical(latestAnswer.submodel)===ArenaImage.canonical(imageComposerModel))setGeneratedImageReference(latestAnswer.imgItems[0],latestAnswer,true,0);
-      }
-      _skipNextChatSave = true;
-      if(typeof clearDebateView==='function')clearDebateView();
-      render();renderImgPreviews();if(imageMode)syncImageComposer();setImageError('');
-      closeHistory();
-      msgs.forEach(function(message){if(message.run&&message.run.status!=='running')forgetPendingChatRun(message.run.id);});
-      if(!(typeof resumeLoadedDebateRun==='function'&&resumeLoadedDebateRun())&&typeof resumeLoadedChatRun==='function')resumeLoadedChatRun();
-      return true;
+        if(epoch!==scopeEpoch||loadEpoch!==chatLoadEpoch||loadScope!==activeProjectId||!data||data.error) return false;
+        var switched=String(currentChatId)!==String(chatId),wasImageMode=imageMode;
+        var hadAutomaticReference=switched&&sentImgs.some(function(image){return image.autoFollowup||image.generatedReference;});
+        if(hadAutomaticReference){
+          sentImgs=sentImgs.filter(function(image){return !image.autoFollowup&&!image.generatedReference;});
+          if(!sentImgs.length&&imageComposerTask==='edit')imageComposerTask='generation';
+        }
+        currentChatId = chatId;
+        if(switched){imageEditParentUid=null;if(typeof imageMaskState!=='undefined')imageMaskState=null;}
+        msgs = data.messages || [];
+        restoreChatMode();
+        var listed=chatList.find(function(chat){return chat.id===chatId;});if(listed){listed.mode=ArenaChatMode.infer(msgs).mode;listed.modeUnavailable=false;historyModeCache.set(scopeViewKey(loadScope)+':'+chatId,{updatedAt:listed.updatedAt,mode:listed.mode});}
+        if(imageEditParentUid!=null&&!msgs.some(function(message){return String(message.uid)===String(imageEditParentUid);}))imageEditParentUid=null;
+        var loadedReplyAt = getLastAssistantReplyAt(msgs);
+        if(loadedReplyAt) rememberChatReplyTime(chatId, loadedReplyAt);
+        if(msgs.length){
+          _uidCounter = Math.max.apply(null, msgs.map(function(m){ return Math.max(m.uid||0,m.debateRun&&m.debateRun.maxUid||0); })) + 1;
+        }
+        if((switched||!wasImageMode)&&imageMode&&!sentImgs.length&&!sentTexts.length&&!$('aaTopic').value.trim()){
+          var latestAnswer=msgs.slice().reverse().find(function(message){return !message.isUser;});
+          if(latestAnswer&&!latestAnswer.isError&&latestAnswer.imgItems&&latestAnswer.imgItems.length===1&&ArenaImage.canonical(latestAnswer.submodel)===ArenaImage.canonical(imageComposerModel))setGeneratedImageReference(latestAnswer.imgItems[0],latestAnswer,true,0);
+        }
+        _skipNextChatSave = true;
+        if(typeof clearDebateView==='function')clearDebateView();
+        render();renderImgPreviews();if(imageMode)syncImageComposer();setImageError('');
+        closeHistory();
+        msgs.forEach(function(message){if(message.run&&message.run.status!=='running')forgetPendingChatRun(message.run.id);});
+        if(!(typeof resumeLoadedDebateRun==='function'&&resumeLoadedDebateRun())&&typeof resumeLoadedChatRun==='function')resumeLoadedChatRun();
+        return true;
       });
     });
   }
@@ -1800,7 +1866,7 @@ var TEAM_COLORS = {
     var container = $('aaHistoryList');
     var historyQuery = ($('aaHistorySearch').value || '').trim().toLocaleLowerCase();
     var focusedPin=container.contains(document.activeElement)&&document.activeElement.dataset.pin;
-    var visibleChats = chatList.map(function(chat){return Object.assign({},chat,{pinned:chatPins.read(chatPinKey(activeProjectId,chat.id),chat.pinned,chatListPinVersion)});}).filter(function(chat){ return !historyQuery || String(chat.title || '').toLocaleLowerCase().indexOf(historyQuery) !== -1; }).sort(function(a,b){return Number(!!b.pinned)-Number(!!a.pinned);});
+    var visibleChats = chatList.map(function(chat){return Object.assign({},chat,{pinned:chatPins.read(chatPinKey(activeProjectId,chat.id),chat.pinned,chatListPinVersion)});}).filter(function(chat){ return !historyQuery || ArenaChatMode.matches(chat,historyQuery); }).sort(function(a,b){return Number(!!b.pinned)-Number(!!a.pinned);});
     if(!visibleChats.length){ container.innerHTML = '<div class="aa-history-empty">'+(historyQuery ? '没有找到相关对话' : '你的对话会显示在这里')+'</div>'; return; }
     var replyTimes = getStoredReplyTimes();
     var h = '';
@@ -1813,10 +1879,10 @@ var TEAM_COLORS = {
       var isActive = chat.id === currentChatId;
       var safeId = esc(String(chat.id));
       var displayTime = Number(chat.lastReplyAt) || Number(replyTimes[chat.id]) || Number(chat.updatedAt);
-      var modeLabel=Object.prototype.hasOwnProperty.call(ArenaChatMode.labels,chat.mode)?ArenaChatMode.labels[chat.mode]:'…';
+      var modeBadge=ArenaChatMode.badge(chat),modeLabel=modeBadge.label;
       h += '<div class="aa-history-item'+(isActive?' active':'')+'">'
         +'<button type="button" class="aa-history-item-open" data-cid="'+safeId+'"'+(isActive?' aria-current="true"':'')+'>'
-        +'<span class="arena-history-mode" aria-label="会话类型：'+modeLabel+'">'+modeLabel+'</span>'
+        +'<span class="arena-history-mode" title="'+modeBadge.title+'" aria-label="会话类型：'+modeLabel+'">'+modeLabel+'</span>'
         +'<span class="aa-history-item-text">'
         +'<span class="aa-history-item-title">'+esc(chat.title)+'</span>'
         +'<span class="aa-history-item-time">'+formatTime(displayTime)+'</span>'
@@ -2413,7 +2479,7 @@ var TEAM_COLORS = {
   function renderOpenAIImageDetails(details,usage){
     var quality={auto:'自动画质',low:'草稿',medium:'标准',high:'精细',xhigh:'超精细',max:'最高'}[details.quality]||details.quality||'';
     var summary=[details.size==='auto'?'自动尺寸':details.size,quality,String(details.format||'png').toUpperCase(),details.background==='transparent'?'透明背景':''].filter(Boolean).join(' · ');
-    return '<details class="arena-image-result-details"><summary>生成详情 <span>'+esc(summary)+'</span></summary>'+(details.revisedPrompt?'<p class="arena-image-field-help">本次使用的描述</p><p>'+esc(details.revisedPrompt)+'</p>':'')+(details.usage?'<p>图像 token：输入 '+esc(details.usage.input_tokens??'—')+' · 输出 '+esc(details.usage.output_tokens??'—')+'</p>':'<p>图像用量与最终金额以 OpenAI 账单为准；对话式改图还会产生文字模型的用量。</p>')+(usage&&usage.mainline?'<p>本次任务描述理解与编辑上下文：GPT-6.1 Sol · 输入 '+esc(usage.mainline.input)+' · 输出 '+esc(usage.mainline.output)+' token。</p>':'')+'</details>';
+    return '<details class="arena-image-result-details"><summary>生成详情 <span>'+esc(summary)+'</span></summary>'+(details.revisedPrompt?'<p class="arena-image-field-help">本次使用的描述</p><p>'+esc(details.revisedPrompt)+'</p>':'')+(details.usage?'<p>图像 token：输入 '+esc(details.usage.input_tokens??'—')+' · 输出 '+esc(details.usage.output_tokens??'—')+'</p>':'<p>图像用量与最终金额以 OpenAI 账单为准；对话式改图还会产生文字模型的用量。</p>')+(usage&&usage.mainline?'<p>本次任务描述理解与编辑上下文：GPT-6.1 Sol · 输入 '+esc(usage.mainline.input??'官方未提供')+' · 输出 '+esc(usage.mainline.output??'官方未提供')+' token。</p>':'')+'</details>';
   }
   function showPreview(dataUrl){ if(!dataUrl) return; if(sentImgs.length < imageReferenceLimit()){ sentImgs.push({data: dataUrl.split(',').length > 1 ? dataUrl.split(',')[1] : dataUrl, mime: 'image/jpeg', preview: dataUrl}); setImageError('');renderImgPreviews(); } }
   function renderTextPreviews(){
@@ -2467,6 +2533,7 @@ var TEAM_COLORS = {
   function clearPreview(options){
     if(!(options&&options.preserveSkillFiles))skillsRuntime.clear();
     sentImgs = []; sentTexts = [];
+    $('aaFileImportStatus').hidden=true;
     renderImgPreviews();
     renderTextPreviews();
     $('aaSendBtn').disabled = !$('aaTopic').value.trim();
@@ -2494,187 +2561,98 @@ var TEAM_COLORS = {
     $('aaFileInput').click();
     $('aaPlusMenu').style.display = 'none'; $('aaPlusBtn').setAttribute('aria-expanded','false');
   });
-  $('aaFileInput').addEventListener('change', function(ev){
-    var file = ev.target.files[0]; if(!file) return;
-    if(file.size>8*1024*1024){arenaNotice('文档最多 8MB，请拆分后上传');ev.target.value='';return;}
-    skillsRuntime.capture(file);
-    ev.target.value = '';
-    var ext = file.name.split('.').pop().toLowerCase();
-    if(ext === 'txt'){
-      var reader = new FileReader();
-      reader.onload = function(e){
-        var text = e.target.result;
-        if(!text.trim()){ alert('文件内容为空'); return; }
-        sentTexts.push('[文件: '+file.name+']\n' + text);
-        renderTextPreviews();
-        $('aaSendBtn').disabled = false;
-      };
-      reader.readAsText(file, 'UTF-8');
-    } else if(ext === 'pdf'){
-      if(!window.pdfjsLib){
-        var s = document.createElement('script');
-        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-        s.onload = function(){
-          window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-          extractPdf(file);
-        };
-        document.head.appendChild(s);
-      } else {
-        extractPdf(file);
-      }
-    } else if(ext === 'docx'){
-      if(!window.mammoth){
-        var s2 = document.createElement('script');
-        s2.src = 'https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js';
-        s2.onload = function(){ extractDocx(file); };
-        document.head.appendChild(s2);
-      } else {
-        extractDocx(file);
-      }
-     } else if(ext === 'xlsx' || ext === 'xls'){
-      extractXlsx(file);
-    } else if(ext === 'pptx'){
-      extractPptxFile(file);
-    } else if(ext === 'csv' || ext === 'tsv'){
-      var reader = new FileReader();
-      reader.onload = function(e){
-        var text = e.target.result;
-        if(!text.trim()){ alert('文件内容为空'); return; }
-        sentTexts.push('[文件: '+file.name+']\n' + text);
-        renderTextPreviews();
-        $('aaSendBtn').disabled = aaRunning;
-      };
-      reader.readAsText(file, 'UTF-8');
-    } else {
-      alert('不支持的文件格式，请上传 TXT、PDF、Word、Excel、PPT 或 CSV 文件');
+  var fileImporting = false;
+  function fileImportContext(){return scopeViewKey(activeProjectId)+':'+currentChatId+':'+_accountLoginEpoch+':'+(_incognitoMode?'private':'saved');}
+  function showFileImport(message,skipped){
+    var status=$('aaFileImportStatus');status.hidden=false;status.replaceChildren();
+    var summary=document.createElement('div');summary.textContent=message;status.appendChild(summary);
+    if(skipped&&skipped.length){
+      var details=document.createElement('details'),label=document.createElement('summary');label.textContent='查看 '+skipped.length+' 项未导入的文件';details.appendChild(label);
+      skipped.forEach(function(item){var line=document.createElement('div');line.textContent=item.name+'：'+item.reason;details.appendChild(line);});status.appendChild(details);
     }
-  });
-  function extractPdf(file){
-    var reader = new FileReader();
-    reader.onload = function(e){
-      var typedArray = new Uint8Array(e.target.result);
-      window.pdfjsLib.getDocument(typedArray).promise.then(function(pdf){
-        var pages = [], total = pdf.numPages;
-        var promises = [];
-        for(var i = 1; i <= total; i++){
-          promises.push(pdf.getPage(i).then(function(page){
-            return page.getTextContent().then(function(tc){
-              return tc.items.map(function(item){ return item.str; }).join(' ');
-            });
-          }));
+  }
+  async function importComposerFiles(files){
+    if(!files.length)return;
+    if(aaRunning){arenaNotice('回答完成后可以添加文件');return;}
+    if(fileImporting){arenaNotice('文件仍在解析，请稍候');return;}
+    var context=fileImportContext(),skipped=[],count=0;
+    fileImporting=true;$('aaFileInput').disabled=true;$('aaSendBtn').disabled=true;
+    $('aaPlusFile').setAttribute('aria-busy','true');
+    try{
+      await skillsRuntime.ready();
+      for(var i=0;i<files.length;i++){
+        if(context!==fileImportContext())break;
+        var source=files[i],originals=skillsRuntime.filesForTexts(sentTexts);
+        if(!ArenaFiles.isImage(source.name)&&(originals.length>=5||originals.reduce(function(n,f){return n+f.size;},0)+source.size>16*1024*1024)){
+          skipped.push({name:source.name,reason:'每轮最多 5 个文件或 ZIP，原文件合计不超过 16MB'});continue;
         }
-        Promise.all(promises).then(function(results){
-          var text = results.join('\n');
-          if(!text.trim()){ alert('PDF 无法提取文字（可能是扫描件）'); return; }
-          sentTexts.push('[文件: '+file.name+']\n' + text);
-          renderTextPreviews();
-          $('aaSendBtn').disabled = aaRunning;
-        });
-      }).catch(function(err){ alert('PDF 解析失败：' + err.message); });
-    };
-    reader.readAsArrayBuffer(file);
-  }
-  function extractDocx(file){
-    var reader = new FileReader();
-    reader.onload = function(e){
-      window.mammoth.extractRawText({ arrayBuffer: e.target.result }).then(function(result){
-        var text = result.value;
-        if(!text.trim()){ alert('Word 文件内容为空'); return; }
-        sentTexts.push('[文件: '+file.name+']\n' + text);
-        renderTextPreviews();
-        $('aaSendBtn').disabled = aaRunning;
-      }).catch(function(err){ alert('Word 解析失败：' + err.message); });
-    };
-    reader.readAsArrayBuffer(file);
-  }
-  function extractXlsx(file){
-    if(!window.XLSX){
-      var s = document.createElement('script');
-      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
-      s.onload = function(){ _doExtractXlsx(file); };
-      s.onerror = function(){ alert('Excel 解析库加载失败'); };
-      document.head.appendChild(s);
-    } else { _doExtractXlsx(file); }
-  }
-  function _doExtractXlsx(file){
-    var reader = new FileReader();
-    reader.onload = function(e){
-      try {
-        var wb = window.XLSX.read(e.target.result, {type:'array'});
-        var allText = [];
-        wb.SheetNames.forEach(function(name){
-          var ws = wb.Sheets[name];
-          var csv = window.XLSX.utils.sheet_to_csv(ws);
-          if(csv.trim()) allText.push('[Sheet: '+name+']\n'+csv);
-        });
-        var text = allText.join('\n\n');
-        if(!text.trim()){ alert('Excel 文件内容为空'); return; }
-        sentTexts.push('[文件: '+file.name+']\n' + text);
-        renderTextPreviews();
-        $('aaSendBtn').disabled = aaRunning;
-      } catch(err){ alert('Excel 解析失败：'+err.message); }
-    };
-    reader.readAsArrayBuffer(file);
-  }
-  function extractPptxFile(file){
-    if(!window.JSZip){
-      var s = document.createElement('script');
-      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
-      s.onload = function(){ _doExtractPptx(file); };
-      s.onerror = function(){ alert('PPT 解析库加载失败'); };
-      document.head.appendChild(s);
-    } else { _doExtractPptx(file); }
-  }
-  async function _doExtractPptx(file){
-    try {
-      var arrayBuf = await file.arrayBuffer();
-      var zip = await window.JSZip.loadAsync(arrayBuf);
-      var slideFiles = Object.keys(zip.files).filter(function(f){ return /^ppt\/slides\/slide\d+\.xml$/.test(f); }).sort(function(a,b){
-        var na = parseInt(a.match(/slide(\d+)/)[1]);
-        var nb = parseInt(b.match(/slide(\d+)/)[1]);
-        return na - nb;
-      });
-      var allText = [];
-      for(var i = 0; i < slideFiles.length; i++){
-        var xml = await zip.file(slideFiles[i]).async('string');
-        var texts = [];
-        var matches = xml.match(/<a:t>([^<]*)<\/a:t>/g);
-        if(matches) matches.forEach(function(m){ var t = m.replace(/<\/?a:t>/g,'').trim(); if(t) texts.push(t); });
-        if(texts.length) allText.push('[Slide '+(i+1)+']\n'+texts.join(' '));
+        if(originals.some(function(f){return f.name===source.name;})){skipped.push({name:source.name,reason:'已添加同名附件，请先移除旧附件'});continue;}
+        try{
+          var result=await ArenaFiles.prepareChatFile(source,{progress:function(message){if(context===fileImportContext())showFileImport(message);}});
+          if(context!==fileImportContext())break;
+          skipped=skipped.concat(result.skipped);
+          if(result.text){
+            if(!imageMode&&sentImgs.length>5){skipped.push({name:source.name,reason:'文档任务最多同时使用 5 张参考图，请先移除多余图片'});continue;}
+            if(sentTexts.join('').length+result.text.length>ArenaFiles.LIMITS.chatCharacters){skipped.push({name:source.name,reason:'本轮附件文字合计超过 4 万字符，请分批上传或添加到项目资料'});continue;}
+            skillsRuntime.capture(source);await skillsRuntime.ready();
+            if(context!==fileImportContext())break;
+            sentTexts.push(result.text);renderTextPreviews();count++;
+          }
+          for(var j=0;j<result.images.length;j++){
+            var added=await handleImageFile(result.images[j],context);
+            if(!added)skipped.push({name:result.images[j].name,reason:'图片解码失败或超出当前模型图片数量限制'});
+            else if(!result.text)count++;
+          }
+        }catch(error){skipped.push({name:source.name,reason:error.message||'文件读取失败'});}
       }
-      var text = allText.join('\n\n');
-      if(!text.trim()){ alert('PPT 文件内容为空'); return; }
-      sentTexts.push('[文件: '+file.name+']\n' + text);
-      renderTextPreviews();
-      $('aaSendBtn').disabled = aaRunning;
-    } catch(err){ alert('PPT 解析失败：'+err.message); }
+      if(context===fileImportContext())showFileImport(count?'已添加 '+count+' 个附件'+(skipped.length?'，部分文件未导入':''):'没有添加附件',skipped);
+    }catch(error){if(context===fileImportContext())showFileImport('文件导入失败：'+error.message);}
+    finally{
+      fileImporting=false;$('aaFileInput').disabled=false;$('aaPlusFile').removeAttribute('aria-busy');
+      if(!aaRunning)$('aaSendBtn').disabled=!$('aaTopic').value.trim()&&!sentImgs.length&&!sentTexts.length;
+    }
   }
+  $('aaFileInput').accept=ArenaFiles.CHAT_ACCEPT;
+  $('aaFileInput').addEventListener('change',function(ev){var files=Array.from(ev.target.files||[]);ev.target.value='';importComposerFiles(files);});
   document.addEventListener('click', function(e){
     if(!e.target.closest('#aaPlusBtn') && !e.target.closest('#aaPlusMenu')) $('aaPlusMenu').style.display = 'none';
   });
-  function imageReferenceLimit(){return imageMode&&ArenaImage.cap(imageComposerModel)?ArenaImage.cap(imageComposerModel).references:10;}
-  function handleImageFile(f){
-    if(f.size > 10*1024*1024){ alert('图片不能超过 10MB'); return; }
-    var reader = new FileReader();
-    reader.onload = function(e){
-      var img = new Image();
-      img.onload = function(){
-        if(imageMode&&ArenaImage.isOpenAI(imageComposerModel)&&['image/png','image/jpeg','image/webp'].indexOf(f.type)!==-1){
-          if(sentImgs.length>=imageReferenceLimit()){setImageError('此模型最多上传 '+imageReferenceLimit()+' 张参考图');return;}
-          sentImgs.push({data:e.target.result.split(',')[1],mime:f.type,preview:e.target.result});setImageError('');renderImgPreviews();return;
-        }
-        var maxW = 1024, maxH = 1024, w = img.width, h = img.height;
-        if(w > maxW || h > maxH){ var ratio = Math.min(maxW/w, maxH/h); w = Math.round(w*ratio); h = Math.round(h*ratio); }
-        var canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h;
-        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-        var compressed = canvas.toDataURL('image/jpeg', 0.8);
-        if(sentImgs.length >= imageReferenceLimit()){ alert('此模型最多上传 '+imageReferenceLimit()+' 张参考图'); return; }
-        sentImgs.push({data: compressed.split(',')[1], mime: 'image/jpeg', preview: compressed});setImageError('');
-        if(!aaRunning) $('aaSendBtn').disabled = false; renderImgPreviews();
+  function imageReferenceLimit(){
+    if(imageMode&&ArenaImage.cap(imageComposerModel))return ArenaImage.cap(imageComposerModel).references;
+    return skillsRuntime.filesForTexts(sentTexts).length?5:10;
+  }
+  function handleImageFile(f,context){
+    return new Promise(function(resolve){
+      function current(){return context===undefined||context===fileImportContext();}
+      if(f.size>10*1024*1024){arenaNotice('图片不能超过 10MB');resolve(false);return;}
+      if(sentImgs.length>=imageReferenceLimit()){setImageError('本轮最多添加 '+imageReferenceLimit()+' 张参考图');resolve(false);return;}
+      var reader=new FileReader();
+      reader.onerror=function(){if(current())arenaNotice('图片读取失败：'+f.name);resolve(false);};
+      reader.onload=function(e){
+        if(!current()){resolve(false);return;}
+        var img=new Image();
+        img.onerror=function(){if(current())arenaNotice('图片无法解码：'+f.name);resolve(false);};
+        img.onload=function(){
+          if(!current()){resolve(false);return;}
+          if(sentImgs.length>=imageReferenceLimit()){setImageError('本轮最多添加 '+imageReferenceLimit()+' 张参考图');resolve(false);return;}
+          if(imageMode&&ArenaImage.isOpenAI(imageComposerModel)&&['image/png','image/jpeg','image/webp'].indexOf(f.type)!==-1){
+            sentImgs.push({data:e.target.result.split(',')[1],mime:f.type,preview:e.target.result});
+          }else{
+            var maxW=1024,maxH=1024,w=img.width,h=img.height;
+            if(w>maxW||h>maxH){var ratio=Math.min(maxW/w,maxH/h);w=Math.round(w*ratio);h=Math.round(h*ratio);}
+            var canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;
+            canvas.getContext('2d').drawImage(img,0,0,w,h);
+            var compressed=canvas.toDataURL('image/jpeg',0.8);
+            sentImgs.push({data:compressed.split(',')[1],mime:'image/jpeg',preview:compressed});
+          }
+          setImageError('');renderImgPreviews();
+          if(!aaRunning&&!fileImporting)$('aaSendBtn').disabled=false;
+          resolve(true);
+        };
+        img.src=e.target.result;
       };
-      img.src = e.target.result;
-    };
-    reader.readAsDataURL(f);
+      reader.readAsDataURL(f);
+    });
   }
   $('aaImgInput').addEventListener('change', function(ev){ var files = Array.from(ev.target.files); files.slice(0, imageReferenceLimit() - sentImgs.length).forEach(function(f){ handleImageFile(f); }); ev.target.value = ''; });
    $('aaImgRemove').addEventListener('click', clearPreview);
@@ -2838,16 +2816,17 @@ var TEAM_COLORS = {
   async function updateMemory(conversationText){
     var user = $('aaUsername').value.trim().toLowerCase();
     var pass = getPass();
-    var memoryScope=activeProjectId;
+    var memoryScope=activeProjectId,memoryChat=currentChatId,memoryTarget=msgs.slice().reverse().find(function(m){return !m.isUser&&m.usage&&m.usage.schemaVersion===2;});
     if(!user || !pass || !conversationText) return;
     try {
       var res = await fetch(WORKER + '/memory', {
         method: 'POST',
         headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({password: pass, user: user, projectId:memoryScope, conversation: conversationText})
+        body: JSON.stringify({password: pass, user: user, projectId:memoryScope, conversation: conversationText, billingParentId:memoryTarget&&memoryTarget.usage.id})
       });
       var data = await res.json();
       if(memoryScope===activeProjectId&&data.memory){ _cachedMemory = data.memory; _memoryLoaded = true; }
+      if(data.usage&&memoryTarget&&memoryScope===activeProjectId&&memoryChat===currentChatId&&msgs.indexOf(memoryTarget)!==-1){applyMessageUsage(memoryTarget,data.usage);saveCurrentChat();}
     } catch(e){}
   }
 
@@ -3100,6 +3079,9 @@ var TEAM_COLORS = {
     view.snapshot=Object.assign({},before||{},incoming,{turns:turns});
     if(incoming.userMessage&&incoming.userMessage.debateRun)view.ref.maxUid=incoming.userMessage.debateRun.maxUid;
     var data=view.snapshot,changed=false,ref=Object.assign({},view.ref,{status:data.status});
+    if(restored&&data.plan&&data.plan.members&&data.plan.members.length&&Array.isArray(data.plan.turns)){
+      applyDebatePlan(data.plan);debate=true;imageMode=false;videoMode=false;syncBrandUI();sync2v2UI();syncArenaLayout();
+    }
     if(incoming.userMessage){var user=msgs.find(function(m){return m.uid===incoming.userMessage.uid;});if(user)Object.assign(user,incoming.userMessage);else{msgs.push(incoming.userMessage);changed=true;}}
     msgs.forEach(function(message){if(message.debateRun&&message.debateRun.id===ref.id)message.debateRun=ref;});
     incoming.turns.forEach(function(turn){
@@ -3110,7 +3092,7 @@ var TEAM_COLORS = {
       var oldText=message.text,oldReasoning=message.reasoning;
       Object.assign(message,turn.reply,{debateRun:ref,debateTurn:turn.index,debateStatus:turn.status,debateAttempt:turn.attempt,debateError:turn.error||'',debateOutdated:!!turn.outdated,
         isError:['failed','interrupted','cancelled','skipped'].includes(turn.status),completedAt:turn.status==='running'?undefined:turn.updatedAt});
-      if(message.usage&&typeof message.usage.cost==='number')message.usageStr='$'+message.usage.cost.toFixed(4);
+      if(message.usage)message.usageStr=ArenaBilling.label(message.usage);
       message._activityDirty=true;_uidCounter=Math.max(_uidCounter,message.uid);
       if(restored&&turn.status==='running')liveReplies.seed(message.uid,message.text);
       else if(!restored&&(fresh||oldText!==message.text||oldReasoning!==message.reasoning||previousAttempt!==turn.attempt))liveUpdate(message.uid,message.text,message.reasoning);
@@ -3510,10 +3492,8 @@ var TEAM_COLORS = {
           msgObj._imageRevealHandled = true; msgObj._autoReveal = true;
           window._aaImgStore[uid] = {data: msgObj.imgData, mime: msgObj.imgMime};
           window._aaPromptStore[uid] = {prompt: entry.prompt};
-          var _nbSavedP2 = JSON.parse(localStorage.getItem('aa-model-prices') || '{}');
           var _nbSizeKey2 = 'nb2-' + size;
-          var _nbCost2 = (_nbSavedP2[_nbSizeKey2] && _nbSavedP2[_nbSizeKey2].input) ? _nbSavedP2[_nbSizeKey2].input : 0;
-          msgObj.usageStr = size + (_nbCost2 > 0 ? ' · $' + _nbCost2.toFixed(4) : '');
+          msgObj.usageStr = size;
           if(firstChunk){ firstChunk=false; hideThink('nanbanana2-official'); msgs.push(msgObj); }
           render(); return;
         }
@@ -3957,7 +3937,9 @@ var TEAM_COLORS = {
     return match || opts[0];
   }
 
+  var imageSettingSliders=null;
   function closeImagePopovers(){
+    if(imageSettingSliders){imageSettingSliders.destroy();imageSettingSliders=null;}
     ['aaImageTaskPop','aaImageSettingsPop','aaImageModelPop'].forEach(function(id){
       var el = $(id); if(el) el.classList.remove('open');
     });
@@ -3986,6 +3968,7 @@ var TEAM_COLORS = {
     pop.classList.add('open'); trigger.classList.add('open');
     trigger.setAttribute('aria-expanded','true');
     positionImagePopover(trigger, pop, alignRight);
+    if(popId==='aaImageSettingsPop')imageSettingSliders=ArenaEffort.mountGroup(pop);
     var control=pop.querySelector('select,input,button');if(control)control.focus();
   }
 
@@ -4029,8 +4012,11 @@ var TEAM_COLORS = {
     else{grokImageResolution=state.size;grokAspectRatio=state.ratio;grokImageQuality=state.quality;grokImageCount=state.count;}
   }
   function buildImageSettingsPop(){
+    if(imageSettingSliders){imageSettingSliders.destroy();imageSettingSliders=null;}
     normalizeImageSettings();
     $('aaImageSettingsPop').innerHTML=ArenaImage.settingsMarkup(imageComposerModel,imageComposerTask,imageSettingsState(),_nbStyleOptions);
+    ArenaImage.syncSliders($('aaImageSettingsPop'),ArenaImage.normalize(imageComposerModel,imageSettingsState()));
+    if($('aaImageSettingsPop').classList.contains('open'))imageSettingSliders=ArenaEffort.mountGroup($('aaImageSettingsPop'));
   }
   function updateOpenAIImageSizePreview(){
     if(!ArenaImage.isOpenAI(imageComposerModel))return;
@@ -4123,10 +4109,13 @@ var TEAM_COLORS = {
   });
   $('aaImageSettingsPop').addEventListener('click', function(e){
     e.stopPropagation();
+    var automatic=e.target.closest('[data-image-auto]');if(automatic)automatic.dispatchEvent(new Event('change',{bubbles:true}));
     if(e.target.closest('[data-image-close]')){closeImagePopovers();$('aaImageSettingsBtn').focus();}
   });
   $('aaImageSettingsPop').addEventListener('input',function(e){
-    var control=e.target.closest('[data-image-setting]');if(!control||!ArenaImage.isOpenAI(imageComposerModel)||!/^(customWidth|customHeight|count|compression)$/.test(control.dataset.imageSetting))return;
+    var control=e.target.closest('[data-image-setting]');if(!control)return;
+    if(control.dataset.imageSlider!==undefined){control.dispatchEvent(new Event('change',{bubbles:true}));return;}
+    if(!ArenaImage.isOpenAI(imageComposerModel)||!/^(customWidth|customHeight|count|compression)$/.test(control.dataset.imageSetting))return;
     var key=control.dataset.imageSetting,number=Number(control.value);
     if((key==='count'||key==='compression')&&(!control.value||!Number.isInteger(number)||number<Number(control.min)||number>Number(control.max)))return;
     var state=Object.assign({},ArenaImage.normalize(imageComposerModel,imageSettingsState()));state[key]=number;
@@ -4135,7 +4124,7 @@ var TEAM_COLORS = {
   });
   $('aaImageSettingsPop').addEventListener('change', function(e){
     var control=e.target.closest('[data-image-setting]');if(!control)return;
-    var key=control.dataset.imageSetting,value=control.value,google=imageComposerModel===ArenaImage.GOOGLE_MODEL;
+    var key=control.dataset.imageSetting,value=control.dataset.imageSlider!==undefined?ArenaImage.sliderValue(control):control.value,google=imageComposerModel===ArenaImage.GOOGLE_MODEL;
     if(ArenaImage.isOpenAI(imageComposerModel)){
       var previous=ArenaImage.normalize(imageComposerModel,imageSettingsState()),next=Object.assign({},previous);
       if(['customWidth','customHeight'].indexOf(key)!==-1)value=Number(value);
@@ -4146,7 +4135,7 @@ var TEAM_COLORS = {
       next[key]=value;next=ArenaImage.normalize(imageComposerModel,next);openAIImageSettings[imageComposerModel]=next;
       localStorage.setItem('aa-openai-image-settings',JSON.stringify(openAIImageSettings));setImageError('');
       var custom=$('aaImageSettingsPop').querySelector('.arena-image-custom-wrap');if(custom)custom.hidden=next.size!=='custom';updateOpenAIImageSizePreview();
-      var compression=$('aaImageSettingsPop').querySelector('[data-image-setting="compression"]');if(compression)compression.closest('label').hidden=next.format==='png';
+      var compression=$('aaImageSettingsPop').querySelector('[data-image-setting="compression"]');if(compression)compression.closest('[data-image-slider-field]').hidden=next.format==='png';
       $('aaImageSettingsPop').querySelectorAll('[data-image-setting="format"]').forEach(function(input){input.checked=input.value===next.format;});
     }else if(google){
       if(key==='ratio')nbAspectRatio=value;if(key==='size')nbImageSize=value;
@@ -4170,6 +4159,8 @@ var TEAM_COLORS = {
       var style=_nbStyleOptions.find(function(o){return o.value===value;}),summary=$('aaImageSettingsPop').querySelector('[data-image-style-summary]');
       if(summary)summary.textContent=style?style.label:'无预设';
     }
+    ArenaImage.syncSliders($('aaImageSettingsPop'),ArenaImage.normalize(imageComposerModel,imageSettingsState()));
+    if(imageSettingSliders)imageSettingSliders.sync();
   });
   document.addEventListener('keydown',function(e){
     if(e.key==='Escape'&&$('aaImageSettingsPop').classList.contains('open')){closeImagePopovers();$('aaImageSettingsBtn').focus();e.stopImmediatePropagation();}
@@ -4507,26 +4498,26 @@ var TEAM_COLORS = {
     var navigationEpoch=++chatLoadEpoch,saveScope=scopeEpoch;
     chatNavigationPending=true;syncArenaNavigation();
     try{
-    var saved=await flushScopeChat(false);
-    if(navigationEpoch!==chatLoadEpoch||saveScope!==scopeEpoch||aaRunning)return false;
-    if(!saved?.ok){arenaNotice('当前对话保存失败，已保留原对话，请重试');return false;}
-    var draft=options&&options.preserveDraft?{text:$('aaTopic').value,images:sentImgs.filter(function(image){return !image.autoFollowup;}),texts:sentTexts,quote:activeQuote,mask:imageMaskState}:null;
-    ++chatLoadEpoch;
-    try{sessionStorage.removeItem(debateRunKey());}catch(ignore){}
-    clearDebateView();
-    currentChatId = genChatId();
-    debatePriorRunId=null;clearQuote();
-    $('aaDebateProgress').hidden=true;
-    _bizMode = false;
-    var resetImageTask=imageMode&&imageComposerTask==='edit'&&sentImgs.some(function(image){return image.generatedReference;})&&!(draft&&draft.images.length);
-    imageEditParentUid=null;imageMaskState=null;msgs = []; render(); hideThink(); $('aaTopic').value = ''; $('aaTopic').style.height = ''; clearPreview({preserveSkillFiles:!!draft});setImageError('');
-    if(draft){$('aaTopic').value=draft.text;sentImgs=draft.images;sentTexts=draft.texts;imageMaskState=draft.images.length?draft.mask:null;if(draft.quote)setQuote(draft.quote.author,draft.quote.text,draft.quote.color);renderImgPreviews();renderTextPreviews();$('aaSendBtn').disabled=!draft.text.trim()&&!sentImgs.length&&!sentTexts.length;}
-    if(resetImageTask){imageComposerTask='generation';syncImageComposer();}
-    closeHistory(); $('aaTopic').focus();
-    syncKitten();
-    _memoryLoaded = false; loadMemory();
-    $('aaBizBanner').style.display = 'none'; //
-    return true;
+      var saved=await flushScopeChat(false);
+      if(navigationEpoch!==chatLoadEpoch||saveScope!==scopeEpoch||aaRunning)return false;
+      if(!saved?.ok){arenaNotice('当前对话保存失败，已保留原对话，请重试');return false;}
+      var draft=options&&options.preserveDraft?{text:$('aaTopic').value,images:sentImgs.filter(function(image){return !image.autoFollowup;}),texts:sentTexts,quote:activeQuote,mask:imageMaskState}:null;
+      ++chatLoadEpoch;
+      try{sessionStorage.removeItem(debateRunKey());}catch(ignore){}
+      clearDebateView();
+      currentChatId = genChatId();
+      debatePriorRunId=null;clearQuote();
+      $('aaDebateProgress').hidden=true;
+      _bizMode = false;
+      var resetImageTask=imageMode&&imageComposerTask==='edit'&&sentImgs.some(function(image){return image.generatedReference;})&&!(draft&&draft.images.length);
+      imageEditParentUid=null;imageMaskState=null;msgs = []; render(); hideThink(); $('aaTopic').value = ''; $('aaTopic').style.height = ''; clearPreview({preserveSkillFiles:!!draft});setImageError('');
+      if(draft){$('aaTopic').value=draft.text;sentImgs=draft.images;sentTexts=draft.texts;imageMaskState=draft.images.length?draft.mask:null;if(draft.quote)setQuote(draft.quote.author,draft.quote.text,draft.quote.color);renderImgPreviews();renderTextPreviews();$('aaSendBtn').disabled=!draft.text.trim()&&!sentImgs.length&&!sentTexts.length;}
+      if(resetImageTask){imageComposerTask='generation';syncImageComposer();}
+      closeHistory(); $('aaTopic').focus();
+      syncKitten();
+      _memoryLoaded = false; loadMemory();
+      $('aaBizBanner').style.display = 'none'; //
+      return true;
     }finally{chatNavigationPending=false;syncArenaNavigation();}
   }
   $('aaNewBtn').addEventListener('click',beginNewChat);
@@ -4867,7 +4858,7 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
         h += '</div>';
 
         h += renderReplyNotice(msg);
-        if(msg.usageStr) h += '<div class="aa-usage-tag" style="font-size:10px;color:#555;margin-top:4px;margin-left:13px;letter-spacing:0.02em;font-family:\'Sora\',sans-serif;">'+esc(msg.usageStr)+'</div>';
+        if(msg.usage||msg.usageStr)h+=ArenaBillingUI.render(msg.usage,msg.usageStr);
         h += renderContextInfo(msg);
         h += '<div class="arena-message-actions">'
           +'<button type="button" class="arena-message-action" data-copy-message="'+msg.uid+'" data-copy-label="复制回复" data-hint="复制" aria-label="复制回复" title="复制回复"><svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V4H4v12h4"/></svg></button>'
@@ -5030,6 +5021,7 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
 
   // === Main start ===
   async function aaStart(){
+    if(fileImporting){arenaNotice('文件仍在解析，请稍候再发送');return;}
     if(scopeSwitchPending||chatNavigationPending||privacySwitchPending){arenaNotice('正在切换对话，请稍候');return;}
     if(aaRunning||skillSubmitPending)return;
     if(debate){var previousScope=debateDraftScope;restoreDebateDraft();if(previousScope!==debateDraftScope){syncArenaLayout();arenaNotice('讨论范围已变化，请确认席位和思考深度后再发送。');return;}}
@@ -5212,14 +5204,7 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
               if(!msgObj._imageRevealHandled){ msgObj._imageRevealHandled = true; msgObj._autoReveal = true; }
               window._aaPromptStore[uid] = {prompt: topic};
               if(sub === 'kling25-i2v'){
-                var _klingSavedPrices = JSON.parse(localStorage.getItem('aa-model-prices') || '{}');
-                var _klingCost = (_klingSavedPrices['kling25-i2v'] && _klingSavedPrices['kling25-i2v'].input) ? _klingSavedPrices['kling25-i2v'].input : 0;
-                msgObj.usageStr = 'Kling V2.5' + (_klingCost > 0 ? ' · $' + _klingCost.toFixed(4) : '');
-              }
-              var _imageSavedPrices = JSON.parse(localStorage.getItem('aa-model-prices') || '{}');
-              if(['grok-imagine-image-2.0','gpt-image-2.5-sunburst','gpt-image-2.5-flare','gemini-nano-banana-2.1','mj_imagine'].indexOf(sub) !== -1){
-                var _imageCost = (_imageSavedPrices[sub] && _imageSavedPrices[sub].input) ? _imageSavedPrices[sub].input : 0;
-                if(_imageCost > 0&&!ArenaImage.isOpenAI(sub)) msgObj.usageStr += ' · $' + _imageCost.toFixed(4);
+                msgObj.usageStr = 'Kling V2.5';
               }
               if(firstChunk){ firstChunk=false; hideThink(sub); msgs.push(msgObj); }
               render(); return;
@@ -5227,31 +5212,7 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
             if(chunk.indexOf('%%USAGE%%') === 0){
               try {
                 var usageData = JSON.parse(chunk.slice(9));
-                msgObj.usage = usageData;
-                var cost;
-                if(usageData.cost !== undefined){
-                  cost = usageData.cost;
-                  msgObj.usageCost = cost;
-                  msgObj.usageStr = (cost > 0 ? '$' + cost.toFixed(4) : '');
-                } else {
-                  var prices = JSON.parse(localStorage.getItem('aa-model-prices') || '{}');
-                  var subKey = usageData.model || msgObj.executionModel || msgObj.submodel || sub;
-                  var p = prices[subKey] || DEFAULT_TOKEN_PRICES[subKey] || {input: 0, output: 0};
-                  var longContextRate = !prices[subKey] && subKey === 'grok-4.7' && usageData.input >= 200000 ? 2 : 1;
-                  cost = ((usageData.input / 1000000) * p.input + (usageData.output / 1000000) * p.output) * longContextRate;
-                  msgObj.usageCost = cost;
-                  msgObj.usageStr = 'in:' + usageData.input + ' out:' + usageData.output + (cost > 0 ? ' · 估算 $' + cost.toFixed(4) : '');
-                }
-                var el = document.querySelector('[data-uid="'+uid+'"]');
-                if(el){
-                  var existing = el.querySelector('.aa-usage-tag');
-                  if(existing) existing.remove();
-                  var tag = document.createElement('div');
-                  tag.className = 'aa-usage-tag';
-                  tag.style.cssText = 'font-size:10px;color:#555;margin-top:4px;margin-left:13px;letter-spacing:0.02em;font-family:\'Sora\',sans-serif;';
-                  tag.textContent = msgObj.usageStr;
-                  el.appendChild(tag);
-                }
+                applyMessageUsage(msgObj,usageData);
               } catch(e){}
               return;
             }
@@ -5455,7 +5416,9 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
     document.addEventListener('mouseup', onEnd);
   }
   // === Skills dropdown ===
-  function updateSkillsBtn(){ if(skillsRuntime)skillsRuntime.update(); }
+  function updateSkillsBtn(){
+    if(skillsRuntime){skillsRuntime.update();if(imageMode||videoMode)$('aaSkillPill').hidden=true;}
+  }
   function activateSkillById(id){ skillsRuntime.activate(id); }
   function renderSkillsDrop(){skillsRuntime.render();}
   $('aaSkillPillClear').addEventListener('click',function(){skillsRuntime.automatic();$('aaTopic').focus();});
@@ -5902,10 +5865,8 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
         var _mjAP = chunk.split('\x00');
         msgObj.imgData = _mjAP[2]; msgObj.imgMime = _mjAP[4] || 'image/png';
         msgObj._imageRevealHandled = true; msgObj._autoReveal = true;
-        var _mjActSavedPrices = JSON.parse(localStorage.getItem('aa-model-prices') || '{}');
         var _mjActSub = brandSelection['mj'] || 'mj-imagine';
-        var _mjActCost = (_mjActSavedPrices[_mjActSub] && _mjActSavedPrices[_mjActSub].input) ? _mjActSavedPrices[_mjActSub].input : 0;
-        msgObj.usageStr = (SUBS[_mjActSub] ? SUBS[_mjActSub].name : _mjActSub) + (_mjActCost > 0 ? ' · $' + _mjActCost.toFixed(4) : '');
+        msgObj.usageStr = SUBS[_mjActSub] ? SUBS[_mjActSub].name : _mjActSub;
         if(firstChunk){ firstChunk=false; hideThink('mj-imagine'); msgs.push(msgObj); }
         render(); return;
       }
@@ -6048,7 +6009,7 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
     document.querySelector('.aa-main').inert = loginOpen||(mobile && expanded)||!!scopeSwitchPending||!!chatNavigationPending||!!privacySwitchPending;
     $('aaIncognitoBtn').disabled=aaRunning||skillSubmitPending||scopeSwitchPending||chatNavigationPending||privacySwitchPending;
     var general=!activeProjectId&&!$('ai-arena-app').classList.contains('arena-workspace-visible');
-    ['Chat','Debate','Image','Video'].forEach(function(name){var button=$('aaBar'+name+'Btn'),selected=name==='Chat'?!debate&&!imageMode&&!videoMode:name==='Debate'?debate:name==='Image'?imageMode:videoMode;if(button)button.classList.toggle('active',general&&selected);});
+    ['Chat','Debate','Image','Video'].forEach(function(name){var button=$('aaBar'+name+'Btn'),selected=general&&(name==='Chat'?!debate&&!imageMode&&!videoMode:name==='Debate'?debate:name==='Image'?imageMode:videoMode);if(button){button.classList.toggle('active',selected);button.setAttribute('aria-current',selected?'page':'false');button.setAttribute('aria-pressed',selected?'true':'false');}});
   }
   function syncArenaEffort(){
     var slider=$('aaEffortSlider');
@@ -6077,6 +6038,7 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
   function syncArenaLayout(){
     var app = $('ai-arena-app');
     restoreDebateDraft();
+    updateSkillsBtn();
     syncKitten();
     if(!$('aaConversationTitle')) return;
     syncArenaNavigation();
