@@ -13,6 +13,7 @@
     cache_write_lifetime_missing:'缓存写入的保留时长未返回，写入费用待核实。',
     usage_missing:'官方接口未提供用量，无法计算本次费用。',
     token_totals_missing:'官方未提供完整输入、输出 token 数。',
+    openai_image_cache_unreported:'OpenAI 不在 Responses 响应中披露图片缓存命中量，图片输入费用待官方账单核实。',
     code_execution_time_unknown:'官方文档代码执行按时长及组织共享免费额度结算，响应未提供可核实的执行费，单独待结算。',
     final_usage_missing:'请求中断或失败，尚未收到最终计费用量。',
     reported_total_mismatch:'官方返回的 token 计数不一致，费用需要核实。',
@@ -29,8 +30,8 @@
       h+='<p>这条历史记录缺少官方原始计费明细，无法可靠复算。原记录仍然保留。</p>';
       if(legacy)h+='<p class="arena-billing-muted">原显示：'+e(legacy)+'</p>';
     }else{
-      var counters=value.execution||value,d=counters.details||{};
-      if(value.execution&&value.execution.calls>1)h+='<p>'+e(value.execution.calls)+' 次文档调用 · 已合计 token 与费用</p>';
+      var counters=value.execution||value,d=counters.details||{},generationName=value.purpose==='image-generation'?'图片':'文档';
+      if(value.execution&&value.execution.calls>1)h+='<p>'+e(value.execution.calls)+' 次'+generationName+'调用 · 已合计 token 与费用</p>';
       h+='<dl>'+row('输入 token（含缓存）',counters.input===null?'官方未提供':counters.input)+row('输出 token（含思考）',counters.output===null?'官方未提供':counters.output);
       if(d.cachedInput)h+=row('其中缓存命中',d.cachedInput);
       if(d.cacheWriteShort)h+=row(value.provider==='anthropic'?'缓存写入 · 5 分钟':'缓存写入 · 30 分钟',d.cacheWriteShort);
@@ -42,7 +43,7 @@
       else h+=row('已核算部分 · USD',value.knownCostUsd);
       h+='</dl>';
       if((value.items||[]).length){
-        if(value.execution&&value.execution.calls>1)h+='<strong>首次文档调用的计费项目</strong>';
+        if(value.execution&&value.execution.calls>1)h+='<strong>首次'+generationName+'调用的计费项目</strong>';
         h+='<div class="arena-billing-items">';
         value.items.filter(function(item){return item.count===null||item.count>0||item.amountUsd&&Number(item.amountUsd)>0;}).forEach(function(item){
           var title=names[item.kind]||item.kind;
@@ -56,7 +57,7 @@
       if(value.ledgerStatus&&value.ledgerStatus!=='recorded')h+='<p class="arena-billing-note">累计统计'+(value.ledgerStatus==='pending'?'正在同步；本条费用明细已保留。':'暂未同步成功；请稍后查看累计用量。')+'</p>';
       if(value.auxiliary&&value.auxiliary.length){
         h+='<div class="arena-billing-aux"><strong>本条其他调用</strong>';
-        value.auxiliary.forEach(function(a){var purpose={context:'上下文摘要','context-summary':'上下文摘要',memory:'记忆整理',retry:'重试前一次调用','skill-router':'技能识别','file-generation':'文档继续处理'}[a.purpose]||'其他调用';h+='<p>'+e(purpose)+' · '+e((B.MODELS[a.model]||{}).name||a.model)+'：'+e(B.label(a))+'</p>';});h+='</div>';
+        value.auxiliary.forEach(function(a){var purpose={context:'上下文摘要','context-summary':'上下文摘要',memory:'记忆整理',retry:'重试前一次调用','skill-router':'技能识别','file-generation':'文档继续处理','image-generation':'本批后续图片','image-orchestrator':'描述理解与编辑上下文'}[a.purpose]||'其他调用';h+='<p>'+e(purpose)+' · '+e((B.MODELS[a.model]||{}).name||a.model)+'：'+e(B.label(a))+'</p>';});h+='</div>';
       }
       var card=B.MODELS[value.model];
       if(card)h+='<p class="arena-billing-muted">'+e(value.rateCard&&value.rateCard.checkedAt||B.CHECKED)+' 核对 · '+(value.costBasis==='provider'?'金额来自官方响应。':'按公开 API 单价核算，不含账号折扣、税费或汇率调整。')+' <a href="'+e(value.costBasis==='provider'?B.SOURCES.xaiCost:card.source)+'" target="_blank" rel="noopener noreferrer">官方说明</a></p>';
@@ -73,13 +74,14 @@
     h+='<div class="arena-billing-rate-note"><strong>Grok Image 2.0</strong><p>参考图 $'+e(grok.inputImage)+' / 张。1K：Low $'+e(grok.outputImages['1k-low'])+'、Medium $'+e(grok.outputImages['1k-medium'])+'；2K：Low $'+e(grok.outputImages['2k-low'])+'、Medium $'+e(grok.outputImages['2k-medium'])+' / 张。每次优先显示官方响应金额。</p><a href="'+B.SOURCES.xai+'" target="_blank" rel="noopener noreferrer">xAI 官方价格</a></div>';
     h+='<p class="arena-billing-muted">Google 搜索：共享每月 5,000 次免费额度，之后 $14 / 千次；免费额度和最终搜索费以 Google 结算为准。Gemini 4 在 '+e(g4.effectiveUntil)+' 起调整为输入 $'+e(g4.next.input)+'、缓存命中 $'+e(g4.next.cached)+'、输出 $'+e(g4.next.output)+' / 百万 token。</p>';
     h+='<p class="arena-billing-muted">Claude 官方文档代码执行：每组织共享每月 1,550 免费小时，之后 $0.05 / 小时 / 容器，最低 5 分钟；执行时长和额度无法从本条响应核实，执行费单独待结算。</p>';
+    h+='<div class="arena-billing-rate-note"><strong>GPT Image 2.5 Sunburst / Flare</strong><p>文字输入 $5、图片输入 $8、图片输出 $30 / 百万 token；Responses 图片输入缓存价分别 $1.25 / $2，但官方响应未披露命中量，图片输入费待核实。描述理解和编辑上下文的 GPT-6.1 Sol 用量另外按其官方价核算。</p><a href="https://developers.openai.com/api/docs/guides/image-generation#cached-input-pricing" target="_blank" rel="noopener noreferrer">OpenAI 官方缓存与计费说明</a></div>';
     return h;
   }
   function summary(data){
     if(!data||!data.total)return '<p class="arena-billing-note">累计用量暂时不可用。</p>';
     var t=data.total,h='<h3>新版累计用量</h3><p class="arena-billing-muted">'+(t.firstAt?'从 '+e(new Date(t.firstAt).toLocaleString('zh-CN'))+' 起':'新版暂无计费记录')+' · 旧记录保留，未并入本表。</p>';
     h+='<p class="arena-billing-muted">累计以已入账收据为准；待同步请求会在账本恢复后补入。</p>';
-    h+='<div class="arena-billing-totals"><div><span>已返回输入 token</span><strong>'+e(t.input)+'</strong></div><div><span>已返回输出 token</span><strong>'+e(t.output)+'</strong></div><div><span>已核算费用</span><strong>'+e(B.money(t.knownCostUsd))+'</strong></div></div>';
+    h+='<div class="arena-billing-totals"><div><span>已返回输入 token</span><strong>'+e(t.input)+'</strong></div><div><span>已返回输出 token</span><strong>'+e(t.output)+'</strong></div><div><span>已核算费用</span><strong>'+e(B.money(t.knownCostUsd))+(t.unsettled?' + 待结算':'')+'</strong></div></div>';
     if(t.unsettled||t.missingInput||t.missingOutput)h+='<p class="arena-billing-note">'+e(t.unsettled)+' 次请求含待结算项目；'+e(t.missingInput)+' 次未提供输入用量，'+e(t.missingOutput)+' 次未提供输出用量。未知部分未计成 0。</p>';
     var models=Object.entries(data.models||{}).sort(function(a,b){return b[1].calls-a[1].calls;});
     if(models.length){h+='<div class="arena-billing-table-wrap"><table><thead><tr><th>模型</th><th>次数</th><th>输入</th><th>输出</th><th>已核算费用</th></tr></thead><tbody>';

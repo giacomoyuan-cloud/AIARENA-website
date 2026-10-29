@@ -156,3 +156,18 @@ test('the charged token tier multiplier is visible without multiplying tool fees
   assert.equal(r.costUsd,'0.044');assert.match(UI.render(r),/服务档位 ×2/);
   assert.equal(r.items.find(x=>x.kind==='webSearch').rateMultiplier,'1');
 });
+
+test('Responses image cache discounts that the API cannot verify are never guessed',()=>{
+  for(const model of ['gpt-image-2.5-sunburst','gpt-image-2.5-flare']){
+    const r=B.receipt(model,{input_tokens:100,output_tokens:1000,input_tokens_details:{text_tokens:40,image_tokens:60}},{...options,responsesImage:true});
+    assert.equal(r.input,100);assert.equal(r.output,1000);assert.equal(r.knownCostUsd,'0.03');assert.equal(r.costUsd,null);
+    assert.ok(r.notes.includes('openai_image_cache_unreported'));
+  }
+});
+
+test('missing optional image usage is retained as unknown and cannot interrupt generation',()=>{
+  for(const model of ['gpt-image-2.5-sunburst','gpt-image-2.5-flare']){
+    const r=B.receipt(model,null,{...options,responsesImage:true,incompleteUsage:true});
+    assert.equal(r.input,null);assert.equal(r.output,null);assert.equal(r.costUsd,null);assert.equal(r.billingComplete,false);
+  }
+});

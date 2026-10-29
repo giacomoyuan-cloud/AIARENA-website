@@ -20,7 +20,9 @@ test('custom image controls expose only each model’s supported parameter value
     assert.doesNotMatch(html,/<select\b/,'image settings do not open native OS select menus');
     const values={};
     for(const [,key,value] of html.matchAll(/data-image-setting="([^"]+)" value="([^"]+)"/g))(values[key]||=[]).push(value);
-    assert.deepEqual(values.ratio,c.ratios);assert.deepEqual(values.size,c.sizes);
+    assert.deepEqual(values.size,c.sizes);
+    if(c.openai){assert.equal(values.ratio,undefined);assert.deepEqual(values.quality,c.quality);assert.deepEqual(values.format,['png','jpeg','webp']);assert.deepEqual(values.background,['auto','opaque','transparent']);assert.deepEqual(values.partial,['0','1','2','3']);assert.deepEqual(values.moderation,['auto','low']);assert.match(html,/min=\"1\" max=\"10\"/);continue;}
+    assert.deepEqual(values.ratio,c.ratios);
     if(c.thinking){
       assert.deepEqual(values.thinking,c.thinking);assert.deepEqual(values.grounding,['off','web','image','web-image']);
       assert.deepEqual(values.imageOnly,['true','false']);assert.match(html,/画面内的文字/);

@@ -49,6 +49,10 @@ Grok Image 2.0 (`grok-imagine-image-2.0`): reference input $0.01/image. Generate
 
 Sources: [Google image pricing](https://ai.google.dev/gemini-api/docs/pricing), [Google usage schema](https://ai.google.dev/api/generate-content#UsageMetadata), [xAI prices](https://docs.x.ai/developers/pricing), [xAI returned costs](https://docs.x.ai/developers/cost-tracking).
 
+GPT Image 2.5 Sunburst and Flare: text input $5, image input $8, image output $30 per million tokens. Their Responses-tool cached input rates are $1.25 text / $2 image; direct Images API calls do not receive these discounts. OpenAI explicitly states that these cached quantities are **not exposed in the Responses output**, so even a returned image usage object cannot establish the precise image-input fee. The ledger keeps reported image counters, prices a reported image-output component, and leaves image-input expense pending.
+
+The current image workflow also invokes GPT-6.1 Sol as an orchestrator. Each image request keeps both model meters separately; a batch sums all image-generation meters without relabeling Sol tokens as image tokens. Partial previews are not additional generations. Both successful and failed requests retain available usage. [OpenAI image cache accounting](https://developers.openai.com/api/docs/guides/image-generation#cached-input-pricing).
+
 ## Compatibility models still accepted by the backend
 
 | Model ID | Input | Cache read | Output |

@@ -32,7 +32,8 @@
     'gemini-3.1-pro-preview':card('Gemini 3.1 Pro','google','2','12','0.2',{longAbove:200000,long:{input:'4',output:'18',cached:'0.4'},legacy:true}),
     'gemini-nano-banana-2.1':card('Nano Banana 2.1','google','1.5','7.5',null,{image:true,imageOutput:'30',imageTokens:{'1K':1120,'2K':1680,'4K':3780}}),
     'gemini-3.1-flash-image':card('Gemini 3.1 Flash Image','google','0.5','3',null,{image:true,imageOutput:'60',legacy:true}),
-    'gpt-image-2.5-sunburst':card('GPT Image 2.5 Sunburst','openai','5','30',null,{image:true,imageInput:'8',legacy:true}),
+    'gpt-image-2.5-sunburst':card('GPT Image 2.5 Sunburst','openai','5','30',null,{image:true,imageInput:'8',cachedText:'1.25',cachedImage:'2'}),
+    'gpt-image-2.5-flare':card('GPT Image 2.5 Flare','openai','5','30',null,{image:true,imageInput:'8',cachedText:'1.25',cachedImage:'2'}),
     'grok-imagine-image-2.0':{name:'Grok Image 2.0',provider:'xai',image:true,source:SOURCES.xai,inputImage:'0.01',
       outputImages:{'1k-low':'0.04','2k-low':'0.06','1k-medium':'0.06','2k-medium':'0.08'},providerAmount:true}
   };
@@ -101,8 +102,9 @@
       // Responses output_tokens already includes reasoning. Do not add it twice.
       if(ownCard(model)&&ownCard(model).image){
         d.outputImage=output;d.outputText=0;
-        d.inputText=cache?field(cache,'text_tokens'):null;d.inputImage=cache?field(cache,'image_tokens'):null;
+        d.inputText=input===0?0:cache?field(cache,'text_tokens'):null;d.inputImage=input===0?0:cache?field(cache,'image_tokens'):null;
         if(sum([d.inputText,d.inputImage])!==input)issues.push('image_input_usage_missing');
+        if(options.responsesImage&&input!==0){d.inputText=d.inputImage=d.cachedInput=null;issues.push('openai_image_cache_unreported');}
       }else d.outputText=output;
       if(!cache&&input>0&&!(ownCard(model)&&ownCard(model).image)){d.uncachedInput=null;d.cachedInput=null;issues.push('cache_details_missing');}
       if(cache&&input>0&&!(ownCard(model)&&ownCard(model).image)){
@@ -129,6 +131,7 @@
     else if(provider==='google'&&tier!=='STANDARD'&&tier!=='SERVICE_TIER_UNSPECIFIED'&&tier!=='DEFAULT')multiplier=rates&&rates.tiers&&rates.tiers[tier];
     if(!multiplier)issues.push('service_tier_unpriced');
     function add(kind,n,rate,scale){
+      n=count(n);
       var unit=rate===null||rate===undefined?null:units(rate,scale===undefined?6:scale),factor=scale===9?1000000n:multiplier?units(multiplier,6):null,amount=null;
       if(n!==null&&unit!==null&&factor!==null){amount=BigInt(n)*unit*factor/1000000n;known+=amount;}
       else if(n!==0)issues.push('unpriced:'+kind);
@@ -173,8 +176,8 @@
     var own=Object.assign({},primary),children=[],seen=new Set(),all=(primary.auxiliary||[]).concat(extra||[]);
     delete own.auxiliary;
     all.forEach(function(child){if(!child||child.schemaVersion!==2||child.id&&(child.id===own.id||seen.has(child.id)))return;if(child.id)seen.add(child.id);children.push(child);});
-    if(own.purpose==='file-generation'){
-      var generation=[own].concat(children.filter(function(child){return child.purpose==='file-generation'&&child.model===own.model;})),detailTotals={};
+    if(own.purpose==='file-generation'||own.purpose==='image-generation'){
+      var generation=[own].concat(children.filter(function(child){return child.purpose===own.purpose&&child.model===own.model;})),detailTotals={};
       Object.keys(own.details||{}).forEach(function(key){detailTotals[key]=sum(generation.map(function(r){return r.details&&r.details[key]!==undefined?r.details[key]:null;}));});
       own.execution={calls:generation.length,input:sum(generation.map(function(r){return r.input;})),output:sum(generation.map(function(r){return r.output;})),usageComplete:generation.every(function(r){return r.usageComplete;}),details:detailTotals};
     }

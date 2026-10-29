@@ -147,7 +147,7 @@ test('automatic skill routing records the complete Haiku receipt alongside the s
   const {env,hash}=await authenticatedFixture();env.ANTHROPIC_API_KEY='synthetic-anthropic-key';
   t.mock.method(globalThis,'fetch',(url,options)=>{
     const body=JSON.parse(options.body);
-    if(url.includes('anthropic.com')){assert.equal(body.service_tier,'standard_only');return Response.json({content:[{type:'text',text:'{"ids":[],"output":"text"}'}],usage:{input_tokens:10,output_tokens:5,service_tier:'standard'}});}
+    if(url.includes('anthropic.com')){assert.equal(body.service_tier,'standard_only');return Response.json({content:[{type:'tool_use',name:'select_skills',input:{ids:[],output:'text'}}],usage:{input_tokens:10,output_tokens:5,service_tier:'standard'}});}
     return completedResponse();
   });
   const response=await worker.fetch(new Request('https://api.pickandcase.com/',{method:'POST',body:JSON.stringify({user:'tester',password:hash,model:'gpt-6.1-sol',chat:scoped('请解释一个概念',{mode:'auto'})})}),env);
@@ -168,4 +168,20 @@ test('all native document continuations emit one canonical group and preserve ev
   assert.equal(value.schemaVersion,2);assert.equal(value.model,'claude-sonnet-5-5');assert.equal(value.execution.input,300);assert.equal(value.execution.output,30);assert.equal(value.knownCostUsd,'0.000687');assert.equal(value.costUsd,null);
   const stats=await usageSummary(env,'tester');assert.equal(stats.total.calls,2);assert.equal(stats.total.input,300);assert.equal(stats.total.output,30);assert.equal(stats.total.knownCostUsd,'0.000687');
   const restored=await usageReceipt(env,'tester',value.id);assert.equal(restored.receipt.execution.input,300);assert.equal(restored.receipt.knownCostUsd,value.knownCostUsd);
+});
+
+test('OpenAI image batches keep image and orchestrator meters separate and never double-count repeated result events',async t=>{
+  const {env,hash}=await authenticatedFixture();let calls=0;
+  t.mock.method(globalThis,'fetch',(url,options)=>{
+    calls++;const payload=JSON.parse(options.body);assert.equal(payload.model,'gpt-6.1-sol');assert.equal(payload.service_tier,'default');
+    const item={id:'synthetic-image-'+calls,type:'image_generation_call',result:'aGVsbG8=',usage:{input_tokens:100,output_tokens:1000,input_tokens_details:{text_tokens:40,image_tokens:60}}};
+    return new Response([{type:'response.output_item.done',item},{type:'response.completed',response:{status:'completed',service_tier:'default',usage:raw(),output:[item]}}].map(e=>'data: '+JSON.stringify(e)).join('\n\n'));
+  });
+  const response=await worker.fetch(new Request('https://api.pickandcase.com/',{method:'POST',body:JSON.stringify({user:'tester',password:hash,model:'gpt-image-2.5-flare',prompt:'synthetic image',n:2})}),env);
+  const events=(await response.text()).split('\n').filter(l=>l.startsWith('data: {')).map(l=>JSON.parse(l.slice(6)));
+  assert.ok(!events.some(e=>e.error));assert.equal(calls,2);const values=events.filter(e=>e.usage);assert.equal(values.length,1);
+  const value=values[0].usage;assert.equal(value.execution.input,200);assert.equal(value.execution.output,2000);assert.equal(value.execution.calls,2);
+  assert.equal(value.knownCostUsd,'0.084');assert.equal(value.costUsd,null);assert.equal(value.auxiliary.filter(v=>v.purpose==='image-orchestrator').length,2);
+  const stats=await usageSummary(env,'tester');assert.equal(stats.total.calls,4);assert.equal(stats.models['gpt-image-2.5-flare'].calls,2);assert.equal(stats.models['gpt-6.1-sol'].calls,2);assert.equal(stats.total.knownCostUsd,'0.084');
+  const saved=await usageReceipt(env,'tester',value.id);assert.equal(saved.receipt.execution.input,200);assert.equal(saved.receipt.knownCostUsd,value.knownCostUsd);
 });

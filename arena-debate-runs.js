@@ -32,6 +32,11 @@
     }
     async function watch(base,credentials,settings){
       settings=settings||{};var revision=0,first=true;
+      if(settings.input&&settings.requiredVersion){
+        var compatible=false;
+        try{var capability=await request(base,{method:'GET',cache:'no-store',signal:settings.signal});compatible=capability.ok&&(await capability.json()).debate===settings.requiredVersion;}catch(error){if(settings.signal&&settings.signal.aborted)throw aborted();}
+        if(!compatible)throw Object.assign(new Error('辩论服务正在更新，当前设置已保留，请稍后重新发送。'),{status:409});
+      }
       var snapshot=settings.snapshot||(settings.input?await call(base,credentials,'start',{input:settings.input},settings):null);
       while(true){
         if(!snapshot)snapshot=await call(base,credentials,'status',{after:revision},settings);
