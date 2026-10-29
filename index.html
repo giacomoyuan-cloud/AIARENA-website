@@ -866,6 +866,7 @@
 </style>
 <link rel="stylesheet" href="/arena.css?v=20261030-thinkingstable1">
 <link rel="stylesheet" href="/arena-workspace.css?v=20261029-debateresume1">
+<link rel="stylesheet" href="/arena-project-page.css?v=20261030-projects1">
 <link rel="stylesheet" href="/arena-controls.css?v=20261029-debateresume1">
 <link rel="stylesheet" href="/arena-pet.css?v=20261029-petnoghost1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -908,6 +909,7 @@
   <nav class="arena-navigation" aria-label="功能">
     <button class="arena-nav-item" id="aaNewBtn"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span>新建对话</span></button>
     <button class="arena-nav-item" id="aaProjectsBtn"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v10H3Z"/></svg><span>项目</span></button>
+    <button class="arena-nav-item" id="aaSchedulesBtn"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>定时任务</span></button>
     <div class="arena-nav-modes" id="aaModeToggle">
       <button class="arena-nav-item aa-bar-btn active" id="aaBarChatBtn"><svg viewBox="0 0 24 24"><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5H4l-1 1v-9.5A8.5 8.5 0 0 1 11.5 3h1A8.5 8.5 0 0 1 21 11.5Z"/><path d="M8 10h8M8 14h5"/></svg><span>对话</span></button>
       <button class="arena-nav-item aa-bar-btn" id="aaBarDebateBtn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 9a2 2 0 0 1-2 2H6l-4 4V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2z"/><path d="M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1"/></svg><span>多 AI 辩论</span></button>
@@ -1197,6 +1199,7 @@
           <div id="aaPlusMenu" class="aa-plus-menu" role="dialog" aria-label="附件与工具" style="display:none;">
             <button id="aaPlusPhoto" class="aa-plus-item" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="m3 17 5-5 4 4 3-3 6 6"/><circle cx="8" cy="8" r="1.5"/></svg><span id="aaPlusPhotoLabel">上传照片</span></button>
             <button id="aaPlusFile" class="aa-plus-item" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9l-6-6Zm0 0v6h6M8 13h8M8 17h5"/></svg><span>上传文件</span></button>
+            <button id="aaPlusProject" class="aa-plus-item" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v10H3Z"/></svg><span>添加到项目</span></button>
             <button id="aaPlusSearch" class="aa-plus-item" type="button" role="switch" aria-checked="true"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><span>联网搜索</span><span id="aaSearchCheck" class="arena-search-switch" aria-hidden="true"><i></i></span></button>
           </div>
         </div>
@@ -1244,6 +1247,7 @@
 <script src="/arena-debate.js?v=20261029-debateresume1"></script>
 <script src="/arena-debate-runs.js?v=20261029-debateresume1"></script>
 <script src="/arena-workspace.js?v=20261029-debateresume1"></script>
+<script src="/arena-project-page.js?v=20261030-projects1"></script>
 <script src="/arena-account.js?v=20261027-account2"></script>
 <script src="/arena-pet-catalog.js?v=20261029-petcycle1"></script>
 <script src="/arena-pet.js?v=20261029-petnoghost1"></script>
@@ -1390,7 +1394,9 @@
     if(sub==='codex-official'||sub==='codex-proxy')return 'coding';
     return activeSkill&&activeSkill.type==='prompt'&&activeSkill.prompt?'skill':'default';
   }
-  var activeProjectId=sessionStorage.getItem('aa-active-project')||null,activeProject=null;
+  var workspaceLink=new URLSearchParams(location.search),linkedChat=workspaceLink.get('chat');
+  var activeProjectId=workspaceLink.has('project')?(workspaceLink.get('project')==='general'?null:workspaceLink.get('project')):sessionStorage.getItem('aa-active-project')||null,activeProject=null;
+  var chatGroups=[];
   var activeStreamControllers=new Set();
   var rounds = 2, msgs = [], debate = false, aaRunning = false, abortF = false, searchOn = true;
   var stopActiveGeneration = null,activeDebateRunId=null;
@@ -1579,6 +1585,7 @@ var TEAM_COLORS = {
   function genChatId(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
 
   function getChatTitle(){
+    var named=chatList&&chatList.find(function(c){return c.id===currentChatId&&c.customTitle;});if(named)return named.title;
     var first = msgs.find(function(m){ return m.isUser && (m.topicText || m.text); });
     if(!first) return '新会话';
     var t = (first.topicText || first.text).replace(' [img]','').replace(/\s+/g,' ').trim();
@@ -1632,9 +1639,11 @@ var TEAM_COLORS = {
 
   function loadChatList(){
     var scope=activeProjectId,epoch=scopeEpoch,listEpoch=++chatListEpoch,pinReadVersion=chatPins.version();
-    chatApiCall('list').then(function(data){
+    Promise.all([chatApiCall('list'),chatApiCall('groups')]).then(function(results){
+      var data=results[0];
       if(epoch!==scopeEpoch||listEpoch!==chatListEpoch||scope!==activeProjectId||!data || !data.chats) return;
       chatList = data.chats;chatListPinVersion=pinReadVersion;
+      chatGroups=results[1]&&results[1].groups||[];
       var knownTimes = getStoredReplyTimes();
       var changed = false;
       chatList.forEach(function(chat){
@@ -1650,6 +1659,7 @@ var TEAM_COLORS = {
       });
       if(changed){ try { localStorage.setItem(CHAT_REPLY_TIMES_KEY, JSON.stringify(knownTimes)); } catch(e){} }
       renderHistoryList();
+      if(linkedChat&&chatList.some(function(c){return c.id===linkedChat;})){var target=linkedChat;linkedChat=null;loadChat(target);return;}
       if(typeof restorePendingDebateRun==='function'&&restorePendingDebateRun())return;
       if(typeof restorePendingChatRun==='function')restorePendingChatRun();
     });
@@ -1657,6 +1667,7 @@ var TEAM_COLORS = {
 
   function loadChat(chatId){
     if(aaRunning){arenaNotice('回答完成后可以切换对话');return Promise.resolve(false);}
+    if(typeof workspaceController!=='undefined'&&workspaceController)workspaceController.hide();
     var loadScope=activeProjectId,epoch=scopeEpoch,loadEpoch=++chatLoadEpoch;
     if(_saveTimer){ clearTimeout(_saveTimer); _saveTimer = null; }
     return chatApiCall('load', { chatId: chatId }).then(function(data){
@@ -1716,7 +1727,12 @@ var TEAM_COLORS = {
     if(!visibleChats.length){ container.innerHTML = '<div class="aa-history-empty">'+(historyQuery ? '没有找到相关对话' : '你的对话会显示在这里')+'</div>'; return; }
     var replyTimes = getStoredReplyTimes();
     var h = '';
-    visibleChats.forEach(function(chat){
+    var historySections=[];
+    if(visibleChats.some(function(c){return c.pinned;}))historySections.push({name:'已置顶',items:visibleChats.filter(function(c){return c.pinned;})});
+    (chatGroups||[]).forEach(function(group){var items=visibleChats.filter(function(c){return !c.pinned&&c.groupId===group.id;});if(items.length)historySections.push({name:group.name,items:items});});
+    var ungrouped=visibleChats.filter(function(c){return !c.pinned&&(!c.groupId||!chatGroups.some(function(g){return g.id===c.groupId;}));});
+    if(ungrouped.length)historySections.push({name:historySections.length?'未分组':'',items:ungrouped});
+    historySections.forEach(function(section){if(section.name)h+='<div class="arena-chat-group-label">'+esc(section.name)+'</div>';section.items.forEach(function(chat){
       var isActive = chat.id === currentChatId;
       var safeId = esc(String(chat.id));
       var displayTime = Number(chat.lastReplyAt) || Number(replyTimes[chat.id]) || Number(chat.updatedAt);
@@ -1728,12 +1744,14 @@ var TEAM_COLORS = {
         +'</span>'
         +'</button>'
         +'<button type="button" class="aa-history-item-pin'+(chat.pinned?' pinned':'')+'" data-pin="'+safeId+'" aria-label="'+(chat.pinned?'取消置顶会话':'置顶会话')+'" aria-pressed="'+!!chat.pinned+'" aria-busy="'+chatPins.pending(chatPinKey(activeProjectId,chat.id))+'" title="'+(chat.pinned?'取消置顶':'置顶会话')+'">'+ArenaControls.pinIcon+'</button>'
-        +'<button type="button" class="aa-history-item-del" data-del="'+safeId+'" aria-label="删除会话" title="删除会话"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4l16 16M20 4 4 20"/></svg></button>'
+        +'<button type="button" class="aa-history-item-more" data-more="'+safeId+'" aria-label="对话菜单：'+esc(chat.title)+'" aria-haspopup="menu"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg></button>'
         +'</div>';
-    });
+    });});
     container.innerHTML = h;
     if(focusedPin){var restored=Array.from(container.querySelectorAll('[data-pin]')).find(function(b){return b.dataset.pin===focusedPin;});if(restored)restored.focus({preventScroll:true});}
     container.onclick = function(e){
+      var moreBtn=e.target.closest('[data-more]');
+      if(moreBtn){e.preventDefault();workspaceController.chatMenu(chatList.find(function(c){return c.id===moreBtn.dataset.more;}),activeProjectId,moreBtn);return;}
       var pinBtn = e.target.closest('.aa-history-item-pin');
       if(pinBtn && container.contains(pinBtn)){
         e.preventDefault();e.stopPropagation();
@@ -4148,7 +4166,7 @@ var TEAM_COLORS = {
   $('aaHistoryBtn').addEventListener('click', openHistory);
   $('aaHistoryClose').addEventListener('click', function(){ closeHistory(); if(window.matchMedia('(min-width: 901px)').matches) $('ai-arena-app').classList.add('arena-sidebar-collapsed'); syncArenaNavigation(); $('aaHistoryBtn').focus(); });
   $('aaHistoryOverlay').addEventListener('click', closeHistory);
-  $('aaNewBtn').addEventListener('click', function(){
+  function beginNewChat(){
     if(aaRunning){arenaNotice('回答完成后可以新建对话');return;}
     ++chatLoadEpoch;
     if(msgs.length && currentChatId) saveCurrentChat();
@@ -4163,7 +4181,8 @@ var TEAM_COLORS = {
     syncKitten();
     _memoryLoaded = false; loadMemory();
     $('aaBizBanner').style.display = 'none'; //
-  });
+  }
+  $('aaNewBtn').addEventListener('click',beginNewChat);
 
   function fitGeneratedMedia(){
     var box = $('aaMessages');
@@ -6355,9 +6374,29 @@ if(imageMode){
     accountKey:function(){return getPass()?loginName($('aaUsername').value).toLowerCase():'';},
     pinContext:function(){return {username:loginName($('aaUsername').value),password:getPass()};},
     switchScope:switchProject,refreshProject:function(project){activeProject=project;_memoryLoaded=false;_cachedMemory=null;updateProjectBar();},
+    closeSidebar:closeHistory,newChat:beginNewChat,chatApi:chatApiCall,
+    scheduleApi:async function(action,extra){
+      var payload=Object.assign({action:action,username:loginName($('aaUsername').value),password:getPass()},extra||{});
+      var response=await fetch(WORKER+'/schedules',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}),data=await response.json();if(!response.ok)throw Error(data.error||'任务请求失败');return data;
+    },
+    models:function(){return AVAILABLE_CHAT_MODELS.map(function(id){return {id:id,name:SUBS[id].name};});},currentModel:function(){return getActiveSubmodels()[0];},syncLayout:syncArenaLayout,
+    flushChat:async function(){if(_saveTimer){clearTimeout(_saveTimer);_saveTimer=null;}if(currentChatId&&msgs.length&&!_incognitoMode&&!debateOwnsChat()){var saved=await chatApiCall('save',{chatId:currentChatId,title:getChatTitle(),messages:serializeMsgs()});if(!saved?.ok)throw Error(saved?.error||'当前对话保存失败，请重试');}},
+    reloadChats:function(){loadChatList();syncArenaLayout();},
+    afterDelete:function(scope,id){if(activeProjectId===scope&&currentChatId===id){currentChatId=null;msgs=[];_skipNextChatSave=true;render();}},
+    afterMove:function(scope,id,target){workspaceViews.delete(scope||'general');workspaceViews.delete(target||'general');if(activeProjectId===scope&&currentChatId===id){if(_saveTimer){clearTimeout(_saveTimer);_saveTimer=null;}currentChatId=null;msgs=[];_skipNextChatSave=true;render();}},
+    openChat:async function(scope,id){if((scope||null)!==(activeProjectId||null)){var p=scope?(await projectApi('get',{projectId:scope})).project:null;await switchProject(p);}await loadChat(id);loadChatList();},
   });
   if(getPass())workspaceController.preload();
   $('aaProjectsBtn').addEventListener('click',workspaceController.list);
+  $('aaSchedulesBtn').addEventListener('click',workspaceController.schedules);
+  $('aaProjectName').setAttribute('role','button');$('aaProjectName').tabIndex=0;
+  $('aaProjectName').addEventListener('click',workspaceController.home);
+  $('aaProjectName').addEventListener('keydown',function(ev){if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();workspaceController.home();}});
+  $('aaPlusProject').addEventListener('click',async function(){
+    $('aaPlusMenu').style.display='none';$('aaPlusBtn').setAttribute('aria-expanded','false');
+    if(!currentChatId||!msgs.length){arenaNotice('发送消息后可以将对话加入项目');return;}
+    workspaceController.chooseProject({id:currentChatId,title:getChatTitle()},activeProjectId);
+  });
   $('aaProjectMaterials').addEventListener('click',workspaceController.materials);
   $('aaProjectSettings').addEventListener('click',workspaceController.settings);
   $('aaProjectExit').addEventListener('click',function(){switchProject(null);});
