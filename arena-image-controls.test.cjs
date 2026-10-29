@@ -20,6 +20,11 @@ test('custom image controls expose only each model’s supported parameter value
     assert.doesNotMatch(html,/<select\b/,'image settings do not open native OS select menus');
     const values={};
     for(const [,key,value] of html.matchAll(/data-image-setting="([^"]+)" value="([^"]+)"/g))(values[key]||=[]).push(value);
+    for(const [tag] of html.matchAll(/<input\b[^>]*type="range"[^>]*>/g)){
+      const key=/data-image-setting="([^"]+)"/.exec(tag)[1],stops=/data-image-slider="([^"]*)"/.exec(tag)[1];
+      const options=stops?stops.split('|'):Array.from({length:Number(/max="([^"]+)"/.exec(tag)[1])-Number(/min="([^"]+)"/.exec(tag)[1])+1},(_,i)=>String(i+Number(/min="([^"]+)"/.exec(tag)[1])));
+      (values[key]||=[]).push(...options);
+    }
     assert.deepEqual(values.size,c.sizes);
     if(c.openai){assert.equal(values.ratio,undefined);assert.deepEqual(values.quality,c.quality);assert.deepEqual(values.format,['png','jpeg','webp']);assert.deepEqual(values.background,['auto','opaque','transparent']);assert.deepEqual(values.partial,['0','1','2','3']);assert.deepEqual(values.moderation,['auto','low']);assert.match(html,/min=\"1\" max=\"10\"/);continue;}
     assert.deepEqual(values.ratio,c.ratios);
