@@ -3000,14 +3000,15 @@ var TEAM_COLORS = {
     }
     var holder=document.createElement('div');holder.innerHTML=renderMessageActivity(message);
     if(holder.firstElementChild){
+      var previousScroll=previousSummary&&previousSummary.scrollTop;
+      var followSummary=previousSummary&&previousSummary.scrollHeight-previousScroll-previousSummary.clientHeight<32;
       if(existing&&(!reasoning||previousSummary))holder.firstElementChild.open=existing.open;
       var nextSummary=holder.querySelector('.aa-reasoning-content');
-      if(previousSummary&&nextSummary){
-        if(previousSummary.scrollHeight-previousSummary.scrollTop-previousSummary.clientHeight<32)nextSummary.scrollTop=nextSummary.scrollHeight;
-        else nextSummary.scrollTop=previousSummary.scrollTop;
-      }
       if(existing)existing.replaceWith(holder.firstElementChild);
       else el.insertBefore(holder.firstElementChild,el.querySelector('.aa-msg-body'));
+      if(previousSummary&&nextSummary){
+        nextSummary.scrollTop=followSummary?nextSummary.scrollHeight:previousScroll;
+      }
     }else if(existing)existing.remove();
   }
   function beginStreamedReply(submodel,message){

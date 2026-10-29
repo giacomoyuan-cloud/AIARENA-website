@@ -100,6 +100,17 @@ test('a stale empty status panel is removed instead of left visible',()=>{
   assert.equal(removed,1);
 });
 
+test('structural activity updates restore the summary scroll only after mounting its new node',()=>{
+  const f=fixture();let mounted=false,scroll=0;
+  const previous={scrollTop:70,scrollHeight:600,clientHeight:100};
+  const next={scrollHeight:700,get scrollTop(){return scroll;},set scrollTop(value){assert.equal(mounted,true);scroll=value;}};
+  const replacement={open:true};
+  const existing={open:true,querySelector:()=>previous,replaceWith(node){assert.equal(node,replacement);mounted=true;previous.scrollTop=0;previous.scrollHeight=0;previous.clientHeight=0;}};
+  f.context.document.createElement=()=>({firstElementChild:replacement,querySelector:()=>next});
+  f.context.updateMessageActivity({querySelector:()=>existing},{reasoning:'新摘要',_activityDirty:true},'新摘要');
+  assert.equal(scroll,70);
+});
+
 test('official chat finalization preserves both provider summaries and the exact answer text',()=>{
   const f=fixture(),answer='<think>literal example</think>\n正文。\n🎉'.repeat(25)+"\nLet's go. flow is ready. This is quoted text.";
   for(const submodel of f.context.AVAILABLE_CHAT_MODELS){
