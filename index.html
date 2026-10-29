@@ -12,7 +12,7 @@
 <meta name="theme-color" content="#faf9f5">
 <link rel="manifest" href="/manifest.json?v=20261027-oakley">
 <link rel="apple-touch-icon" href="/icon-192.png">
-<link rel="stylesheet" href="/arena-billing.css?v=20261030-billing1">
+<link rel="stylesheet" href="/arena-billing.css?v=20261030-billing2">
 </head>
 <body>
 
@@ -1581,7 +1581,13 @@ var TEAM_COLORS = {
     billingDialog.querySelector('[data-billing-prices]').innerHTML=ArenaBillingUI.catalog(AVAILABLE_CHAT_MODELS.concat(['claude-haiku-4-5-20251001']));
     if(!billingDialog.open)billingDialog.showModal();
     try{var data=await requestBilling('summary');if(billingDialog.open&&epoch===billingDialogEpoch)billingDialog.querySelector('[data-billing-totals]').innerHTML=ArenaBillingUI.summary(data);}
-    catch(error){if(billingDialog.open&&epoch===billingDialogEpoch)billingDialog.querySelector('[data-billing-totals]').textContent=error.message;}
+    catch(error){if(billingDialog.open&&epoch===billingDialogEpoch){
+      var status=billingDialog.querySelector('[data-billing-totals]');status.textContent=error.message;
+      if(!$('aaUsername').value.trim()||!getPass()){
+        var loginButton=document.createElement('button');loginButton.type='button';loginButton.className='arena-billing-login';loginButton.dataset.billingLogin='';loginButton.textContent='登录账号';
+        loginButton.addEventListener('click',function(){billingDialog.close();showLoginOverlay();});status.appendChild(loginButton);
+      }
+    }}
   }
   $('aaUsageSettingsBtn').addEventListener('click',openBillingDialog);
   $('aaMessages').addEventListener('click',function(event){if(event.target.closest('[data-billing-summary]'))openBillingDialog();});
