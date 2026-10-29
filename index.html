@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>AI 助手</title>
-<meta name="app-version" content="20261030-billing1">
+<meta name="app-version" content="20261030-skillmodels1">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -12,6 +12,7 @@
 <meta name="theme-color" content="#faf9f5">
 <link rel="manifest" href="/manifest.json?v=20261027-oakley">
 <link rel="apple-touch-icon" href="/icon-192.png">
+<link rel="stylesheet" href="/arena-billing.css?v=20261030-billing1">
 </head>
 <body>
 
@@ -864,8 +865,7 @@
   #ai-arena-app #aaSkillEditPrompt::placeholder { color: #888; opacity: 1; }
 
 </style>
-<link rel="stylesheet" href="/arena.css?v=20261030-chatmodes1">
-<link rel="stylesheet" href="/arena-billing.css?v=20261030-billing1">
+<link rel="stylesheet" href="/arena.css?v=20261030-image-unified1">
 <link rel="stylesheet" href="/arena-workspace.css?v=20261029-debateresume1">
 <link rel="stylesheet" href="/arena-controls.css?v=20261029-debateresume1">
 <link rel="stylesheet" href="/arena-pet.css?v=20261029-petnoghost1">
@@ -1258,8 +1258,8 @@
 </div>
 
 <script src="/arena-markdown.js?v=20261027-account1"></script>
-<link rel="stylesheet" href="/arena-image-editor.css?v=20261030-openai-image1">
-<script src="/arena-image.js?v=20261030-sliderends1"></script>
+<link rel="stylesheet" href="/arena-image-editor.css?v=20261030-image-unified1">
+<script src="/arena-image.js?v=20261030-image-unified1"></script>
 <script src="/arena-image-editor.js?v=20261030-openai-image1"></script>
 <script src="/arena-native.js?v=20261028-smooth2"></script>
 <script src="/arena-effort.js?v=20261030-sliderends1"></script>
@@ -4062,7 +4062,8 @@ var TEAM_COLORS = {
   function updateOpenAIImageSizePreview(){
     if(!ArenaImage.isOpenAI(imageComposerModel))return;
     var state=ArenaImage.normalize(imageComposerModel,imageSettingsState()),card=$('aaImageSettingsPop').querySelector('[data-custom-size-card]');
-    if(card){card.querySelector('[data-size-preview]').innerHTML=ArenaImage.sizePreview('custom',state);var info=ArenaImage.sizeInfo('custom',state);card.querySelector('[data-size-ratio]').textContent=info.ratio+' '+info.orientation;}
+    if(card){card.querySelector('[data-size-preview]').outerHTML=ArenaImage.sizePreview('custom',state);var info=ArenaImage.sizeInfo('custom',state);card.querySelector('[data-size-ratio]').textContent=info.ratio+' '+info.orientation;}
+    var summary=$('aaImageSettingsPop').querySelector('[data-image-size-summary]');if(summary)summary.innerHTML=ArenaImage.sizeSummary(state);
     var preview=$('aaImageSettingsPop').querySelector('[data-custom-size-preview]');if(preview)preview.innerHTML=ArenaImage.customSizePreview(state);
   }
 
