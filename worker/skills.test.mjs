@@ -1,3 +1,4 @@
+import Billing from '../arena-billing.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
@@ -34,7 +35,10 @@ for(const model of ['claude-fable-5-1','claude-opus-5-5','claude-sonnet-5-5'])te
   await runOfficialDocuments(documentArgs({model,effort:'xhigh',env:{...providerEnv,SKILLS_DOCUMENT_MODEL:'claude-sonnet-5-5'},send:async item=>events.push(item),recordUsage:async(...args)=>usage.push(args),fetcher:async(url,options)=>{payload=JSON.parse(options.body);return Response.json(executionResult());}}));
   assert.equal(payload.model,model);assert.equal(payload.output_config.effort,'xhigh');assert.equal(payload.thinking.type,'adaptive');
   assert.equal(events.find(item=>item.modelName).executionModel,model);assert(events.find(item=>item.modelName).modelName.includes(model.includes('fable')?'Fable':model.includes('opus')?'Opus':'Sonnet'));
-  assert.equal(usage[0][0],model);assert.equal(events.find(item=>item.usage).usage.model,model);
+  assert.equal(usage[0][0],model);assert.equal(payload.service_tier,'standard_only');assert.deepEqual(usage[0][1],{input_tokens:20,output_tokens:10});
+  const receipt=Billing.receipt(usage[0][0],usage[0][1],usage[0][2]);
+  assert.equal(receipt.knownCostUsd,{'claude-fable-5-1':'0.0007','claude-opus-5-5':'0.00028','claude-sonnet-5-5':'0.00014'}[model]);
+  assert.equal(events.filter(item=>item.usage).length,0);
 });
 test('automatic document routing from another provider chooses only a compatible Claude default',async()=>{
   let payload;

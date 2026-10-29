@@ -23,6 +23,6 @@ An optional OpenAI transport can use an authenticated Cloudflare AI Gateway with
 - Offline tests cover provider routing, authentication headers, streaming and usage parsing, image payloads, redirect rejection, error redaction, isolated historical usage and the optional gateway transport.
 - Operational diagnostics and account-specific acceptance records are kept privately. This document contains no account balances, secret values or live account-status claims.
 
-Existing login, chat history, memory, storage bindings and price settings are retained. New official usage uses the `official~` prefix, so historical usage is not relabeled or overwritten. Website budget estimates are separate from provider billing records.
+Existing login, chat history, memory and storage bindings are retained. Canonical receipts now use provider-returned counters and the dated official rate card; xAI's returned USD ticks take precedence over calculated charges. Receipts and totals are committed atomically in the existing SQLite Durable Object binding, with immutable KV backups during an outage. Historical `official~` aggregates and manual-price data are left untouched and are excluded from the new totals. Missing counters or unresolved charges remain explicit. See [PRICING.md](PRICING.md) for the rates, sources and calculation rules.
 
 See [deployment and interface references](README.md) for deployment order, configuration and official documentation.

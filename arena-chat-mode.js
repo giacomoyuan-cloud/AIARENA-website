@@ -20,5 +20,23 @@
     }
     return {mode:'chat',model:null};
   }
-  return {infer:infer,labels:labels};
+  function known(mode){return Object.prototype.hasOwnProperty.call(labels,mode);}
+  function badge(chat){
+    if(known(chat.mode))return {label:labels[chat.mode],title:'会话类型：'+labels[chat.mode]};
+    return chat.modeUnavailable?{label:'待识别',title:'暂时无法读取类型，打开会话后会自动识别'}:{label:'识别中',title:'正在读取会话类型'};
+  }
+  function matches(chat,query){return (String(chat.title||'')+' '+(known(chat.mode)?labels[chat.mode]:'')).toLocaleLowerCase().indexOf(query)!==-1;}
+  function createCache(storage){
+    var entries=new Map(),key='aa-history-modes-v1';
+    function valid(id,value){return typeof id==='string'&&id.length<=512&&value&&known(value.mode)&&Number.isFinite(value.updatedAt);}
+    try{var saved=JSON.parse(storage.getItem(key)||'[]');if(Array.isArray(saved))saved.slice(-600).forEach(function(item){if(Array.isArray(item)&&valid(item[0],item[1]))entries.set(item[0],{mode:item[1].mode,updatedAt:item[1].updatedAt});});}catch(ignore){}
+    return {get:function(id){return entries.get(id);},set:function(id,value){
+      if(!valid(id,value))return;
+      var previous=entries.get(id);if(previous&&previous.mode===value.mode&&previous.updatedAt===value.updatedAt)return;
+      entries.delete(id);entries.set(id,{mode:value.mode,updatedAt:value.updatedAt});
+      while(entries.size>600)entries.delete(entries.keys().next().value);
+      try{storage.setItem(key,JSON.stringify(Array.from(entries)));}catch(ignore){}
+    }};
+  }
+  return {infer:infer,labels:labels,known:known,badge:badge,matches:matches,createCache:createCache};
 });
