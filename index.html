@@ -864,7 +864,7 @@
   #ai-arena-app #aaSkillEditPrompt::placeholder { color: #888; opacity: 1; }
 
 </style>
-<link rel="stylesheet" href="/arena.css?v=20261030-debatecontrols1">
+<link rel="stylesheet" href="/arena.css?v=20261030-sliderends1">
 <link rel="stylesheet" href="/arena-billing.css?v=20261030-billing1">
 <link rel="stylesheet" href="/arena-workspace.css?v=20261029-debateresume1">
 <link rel="stylesheet" href="/arena-controls.css?v=20261029-debateresume1">
@@ -872,9 +872,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&family=Noto+Serif+SC:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="/arena-claude.css?v=20261030-projectscope1">
+<link rel="stylesheet" href="/arena-claude.css?v=20261030-sliderends1">
 <link rel="stylesheet" href="/arena-project-page.css?v=20261030-projects1">
-<link rel="stylesheet" href="/arena-debate-ui.css?v=20261030-debatecontrols1">
+<link rel="stylesheet" href="/arena-debate-ui.css?v=20261030-sliderends1">
 <link rel="preload" as="image" href="/assets/kitten/motion/knead-14b49069b5fd.png">
 
 <!-- Login overlay -->
@@ -1259,13 +1259,14 @@
 
 <script src="/arena-markdown.js?v=20261027-account1"></script>
 <link rel="stylesheet" href="/arena-image-editor.css?v=20261030-openai-image1">
-<script src="/arena-image.js?v=20261030-openai-image1"></script>
+<script src="/arena-image.js?v=20261030-sliderends1"></script>
 <script src="/arena-image-editor.js?v=20261030-openai-image1"></script>
 <script src="/arena-native.js?v=20261028-smooth2"></script>
-<script src="/arena-effort.js?v=20261030-debatecontrols1"></script>
+<script src="/arena-effort.js?v=20261030-sliderends1"></script>
 <script src="/arena-context.js?v=20261027-account1"></script>
 <script src="/arena-skills-catalog.js?v=20261030-skills1"></script>
-<script src="/arena-skills.js?v=20261030-skills1"></script>
+<script src="/arena-skill-models.js?v=20261030-skillmodels1"></script>
+<script src="/arena-skills.js?v=20261030-skillmodels1"></script>
 <script src="/arena-chat-runs.js?v=20261029-typingclock1"></script>
 <script src="/arena-controls.js?v=20261029-debateresume1"></script>
 <script src="/arena-model-control.js?v=20261030-debatecontrols1"></script>
@@ -1529,7 +1530,8 @@ var TEAM_COLORS = {
   var skillsRuntime=ArenaSkills.install({
     auth:function(){return {username:$('aaUsername').value.trim(),password:getPass()};},
     scope:function(){return activeProjectId||'general';},mode:function(){return debate?'debate':'chat';},worker:function(){return WORKER;},
-    messages:function(){return msgs;},notice:function(text){arenaNotice(text);},changed:function(){render();saveCurrentChat();}
+    messages:function(){return msgs;},notice:function(text){arenaNotice(text);},changed:function(){render();saveCurrentChat();},
+    selectionChanged:function(){closeArenaModelMenu(false);enforceSkillModel();syncBrandUI();}
   });
   var _incognitoMode = false;
   var judgeModel = 'none';
@@ -2028,7 +2030,31 @@ var TEAM_COLORS = {
   }
 
   // === Get active submodel IDs for sending ===
+  function skillModelRestricted(){
+    return !debate&&!imageMode&&!videoMode&&!!skillsRuntime&&ArenaSkillModels.restricted(skillsRuntime.settings(),ArenaSkillCatalog);
+  }
+  function eligibleChatModels(){
+    return skillModelRestricted()?AVAILABLE_CHAT_MODELS.filter(ArenaSkillModels.supported):AVAILABLE_CHAT_MODELS;
+  }
+  function enforceSkillModel(){
+    if(aaRunning||!skillModelRestricted())return;
+    var model=ArenaSkillModels.choose(brandSelection.anthropic);
+    if(activeBrands.anthropic&&brandSelection.anthropic===model&&!Object.keys(activeBrands).some(function(brand){return brand!=='anthropic'&&activeBrands[brand];}))return;
+    activeBrands={xai:false,anthropic:true,openai:false,google:false,mj:false,kling:false};
+    brandSelection.anthropic=model;
+    saveState();
+  }
+  function adoptSkillExecutionModel(model,message){
+    if(!ArenaSkillModels.supported(model))return;
+    message.executionModel=model;message.submodel=model;message.brand='anthropic';message.name=SUBS[model].name+' · 官方文档';message.color=BRANDS.anthropic.color;
+    if(debate||imageMode||videoMode)return;
+    if(activeBrands.anthropic&&brandSelection.anthropic===model&&!Object.keys(activeBrands).some(function(brand){return brand!=='anthropic'&&activeBrands[brand];}))return;
+    activeBrands={xai:false,anthropic:true,openai:false,google:false,mj:false,kling:false};
+    brandSelection.anthropic=model;
+    saveState();syncBrandUI();
+  }
   function getActiveSubmodels(){
+    enforceSkillModel();
     normalizeAvailableModels();
     var result = [];
     if(videoMode && activeBrands['kling']){
@@ -3967,7 +3993,7 @@ var TEAM_COLORS = {
   function buildImageModelPop(){
     $('aaImageModelPop').innerHTML = '<div class="arena-image-menu-title">图像模型</div>'+IMAGE_MODELS.map(function(m){
       var c=ArenaImage.cap(m.value);
-      return popItem(m.value, m.label, m.value === imageComposerModel, '', m.disabled,c?(c.openai?(m.value.endsWith('sunburst')?'OpenAI · 注重编辑精度':'OpenAI · 快速日常创作'):c.provider+' · 生成与编辑 · 最多 '+c.references+' 张参考图'):'','image');
+      return popItem(m.value, m.label, m.value === imageComposerModel, '', m.disabled,c?(c.openai?(m.value.endsWith('sunburst')?'OpenAI · 画质优先':'OpenAI · 速度优先'):c.provider+' · 生成与编辑 · 最多 '+c.references+' 张参考图'):'','image');
     }).join('');
   }
 
@@ -5219,7 +5245,7 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
             if(meta.context)msgObj.context=meta.context;
             if(meta.skills)msgObj.skills=meta.skills;
             if(meta.skillSession)msgObj.skillSession=meta.skillSession;
-            if(meta.executionModel)msgObj.executionModel=meta.executionModel;
+            if(meta.executionModel)adoptSkillExecutionModel(meta.executionModel,msgObj);
             if(meta.artifacts)msgObj.artifacts=(msgObj.artifacts||[]).concat(meta.artifacts);
             if((meta.executionModel||meta.artifacts)&&firstChunk){firstChunk=false;beginStreamedReply(sub,msgObj);}
             if(meta.citation){
@@ -6023,7 +6049,7 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
     $('aaChatModelPop').innerHTML=ArenaModelControl.effortHTML({prefix:'aa',model:model,modelLabel:info?info.name.replace(/^Claude /,''):'选择模型',levels:EFFORT_LEVELS[model]||[],value:effortFor(model),labels:EFFORT_LABELS,descriptions:EFFORT_DESCRIPTIONS});
     if(typeof ArenaEffort!=='undefined')ArenaEffort.mount($('aaEffortScale'));
     $('aaModelPickerBtn').setAttribute('aria-controls','aaModelsSubmenu');
-    $('aaModelsSubmenu').innerHTML=ArenaModelControl.choicesHTML({label:'选择模型',back:true,items:AVAILABLE_CHAT_MODELS.map(function(id){return {value:id,label:SUBS[id].name.replace(/^Claude /,'')};})});
+    $('aaModelsSubmenu').innerHTML=ArenaModelControl.choicesHTML({label:skillModelRestricted()?'当前 Skill 仅支持 Claude':'选择模型',back:true,items:eligibleChatModels().map(function(id){return {value:id,label:SUBS[id].name.replace(/^Claude /,'')};})});
     syncArenaLayout();
   }
   $('aaChatModelPop').addEventListener('input', function(e){
@@ -6071,6 +6097,8 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
     if(!button) return;
     e.stopPropagation();
     var id = button.dataset.arenaModel;
+    if(!SUBS[id])return;
+    if(!debate&&eligibleChatModels().indexOf(id)===-1){arenaNotice('当前 Skill 仅支持 Claude');return;}
     var brand = SUBS[id].brand;
     if(debate && debateMode==='free'){
       var index=debateModels.indexOf(id);if(index===-1)debateModels.push(id);else debateModels.splice(index,1);

@@ -162,7 +162,7 @@ test('all native document continuations emit one canonical group and preserve ev
     const usage=calls===1?{input_tokens:100,cache_read_input_tokens:20,cache_creation_input_tokens:30,cache_creation:{ephemeral_5m_input_tokens:30,ephemeral_1h_input_tokens:0},output_tokens:10}:{input_tokens:50,cache_read_input_tokens:100,output_tokens:20};
     return Response.json({id:'synthetic-document-'+calls,container:{id:'container_test_123'},stop_reason:calls===1?'pause_turn':'end_turn',usage,content:[{type:'bash_code_execution_tool_result',content:{type:'bash_code_execution_result',return_code:0,content:[]}},{type:'text',text:'synthetic completed analysis'}]});
   });
-  const response=await worker.fetch(new Request('https://api.pickandcase.com/',{method:'POST',body:JSON.stringify({user:'tester',password:hash,model:'gpt-6.1-sol',chat:scoped('分析 1 和 2，不需文件',{mode:'manual',ids:['xlsx']})})}),env);
+  const response=await worker.fetch(new Request('https://api.pickandcase.com/',{method:'POST',body:JSON.stringify({user:'tester',password:hash,model:'claude-sonnet-5-5',chat:scoped('分析 1 和 2，不需文件',{mode:'manual',ids:['xlsx']})})}),env);
   const events=(await response.text()).split('\n').filter(l=>l.startsWith('data: {')).map(l=>JSON.parse(l.slice(6))),values=events.filter(e=>e.usage).map(e=>e.usage);
   assert.equal(calls,2);assert.equal(values.length,1);const value=values[0];
   assert.equal(value.schemaVersion,2);assert.equal(value.model,'claude-sonnet-5-5');assert.equal(value.execution.input,300);assert.equal(value.execution.output,30);assert.equal(value.knownCostUsd,'0.000687');assert.equal(value.costUsd,null);

@@ -8,6 +8,7 @@ import { OpenAITransport, openAIBackgroundFetch } from './openai-transport.js';
 import { createProjectScheduler } from './project-schedules.js';
 import { isOpenAIImage, validateOpenAIImage, buildImagePayload, readImageStream, IMAGE_ORCHESTRATOR } from './openai-images.js';
 import DebateCore from '../arena-debate.js';
+import SkillModels from '../arena-skill-models.js';
 var __defProp = Object.defineProperty;
 var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
 
@@ -560,6 +561,7 @@ async function handleChatRunRequest(request, env) {
       normalizeSettings(chat.skills);validateSkillFiles(chat.files);
       const config = OFFICIAL_MODELS[payload.model];
       if (!config || config.image) return projectReply({ error: '此模型不支持聊天恢复。' }, 400);
+      SkillModels.validate(payload.model,normalizeSettings(chat.skills),skillCatalog);
       if (!recovery || !Number.isSafeInteger(recovery.replyUid) || !Number.isSafeInteger(recovery.userMessage?.uid) || typeof recovery.userMessage.text !== 'string' || recovery.userMessage.text.length > 60000) return projectReply({ error: '缺少有效的聊天恢复信息。' }, 400);
       const message = recovery.userMessage;
       const userMessage = { uid: message.uid, isUser: true, brand: 'user', name: String(message.name || '用户').slice(0, 60), text: message.text, topicText: String(message.topicText || '').slice(0, 50000), color: '#A78BFA' };
@@ -567,7 +569,8 @@ async function handleChatRunRequest(request, env) {
       if (message._quote && typeof message._quote.text === 'string') userMessage._quote = { author: String(message._quote.author || '').slice(0, 100), text: message._quote.text.slice(0, 6000) };
       const clean = { ...payload }; delete clean.password; delete clean.passwordHash; delete clean.username; delete clean.user;
       internal.fingerprint = await hashText(JSON.stringify(clean));
-      internal.payload = { ...clean, user, username: user, password, passwordHash: password };
+      // One explicitly started run must never silently become a second attempt.
+      internal.payload = { ...clean, noAutomaticRetry: true, user, username: user, password, passwordHash: password };
       internal.recovery = { user, projectId, chatId: body.chatId, incognito: !!chat.incognito, title: String(recovery.title || chat.question).replace(/\s+/g, ' ').slice(0, 80), userMessage, historyEndUid: chat.historyEndUid,
         reply: { uid: recovery.replyUid, name: config.name, submodel: payload.model, effort: payload.effort, brand: config.provider === 'anthropic' ? 'anthropic' : config.provider === 'xai' ? 'xai' : config.provider, color: recovery.color || '#777777', text: '', reasoning: '', citations: [], activity: [] } };
     }
@@ -958,7 +961,7 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
       return new Response(JSON.stringify(result), { headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
     }
     if (request.method === "GET" && url.pathname !== "/memory") {
-      return new Response(JSON.stringify({ mode: "official", debate:DebateCore.version==='studio-v3'&&DebateRun.contractVersion==='studio-v3'?'studio-v3':null, skillsVersion:"20261030-skills1", xai: !!env.GROK_API_KEY, openai: !!env.OPENAI_API_KEY, anthropic: !!env.ANTHROPIC_API_KEY, google: !!env.GEMINI_API_KEY, mj: false }), {
+      return new Response(JSON.stringify({ mode: "official", debate:DebateCore.version==='studio-v3'&&DebateRun.contractVersion==='studio-v3'?'studio-v3':null, skillsVersion:"20261030-skillmodels1", xai: !!env.GROK_API_KEY, openai: !!env.OPENAI_API_KEY, anthropic: !!env.ANTHROPIC_API_KEY, google: !!env.GEMINI_API_KEY, mj: false }), {
         status: 200,
         headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*", "Cache-Control":"no-store" }
       });
@@ -1023,6 +1026,7 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
         : "该模型未启用官方 API，请刷新后选择当前官方模型";
       return new Response(JSON.stringify({ error: reason }), { status: 400, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
     }
+    if(body.chat){try{SkillModels.validate(model,normalizeSettings(body.chat.skills),skillCatalog);}catch(error){return projectReply({error:error.message},400);}}
     if(modelConfig.image){
       try{validateImageRequest(modelConfig,model,body,allImages);}catch(error){return projectReply({error:error.message},400);}
     }
@@ -1117,6 +1121,9 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
       try{await writer.write(encoder.encode("data: "+JSON.stringify({usage:value})+"\n\n"));}catch{}
       return value;
     }
+    async function sendDiagnostics(diagnostics) {
+      await writer.write(encoder.encode("data: "+JSON.stringify({diagnostics})+"\n\n"));
+    }
     async function readOfficialStream(response, handle) {
       if (!response.body) throw new Error("官方接口未返回响应流");
       const reader = response.body.getReader();
@@ -1146,7 +1153,7 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
     }
     async function parseAnthropicStream(response, accounting) {
       accounting=accounting||{};const billedSearches=new Set();
-      let usage;
+      let usage,lastPing=0;
       const searchInputs = new Map(), blockCitations = new Map();
       async function flushCitations(index) {
         const values = blockCitations.get(index) || [], seen = new Set();
@@ -1162,6 +1169,13 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
         }
         if(usage)accounting.usage=usage;
         if(event.type==="message_stop"||(event.type==="message_delta"&&event.delta?.stop_reason))accounting.final=true;
+        if ((event.type === "message_start" || event.type === "message_delta") && usage) {
+          const checkpoint=Billing.receipt(model,usage,{provider:'anthropic',id:usageGroupId,incompleteUsage:true});
+          await writer.write(encoder.encode("data: "+JSON.stringify({usageCheckpoint:{input:checkpoint.input,output:checkpoint.output,partial:true}})+"\n\n"));
+        }
+        if (event.type==="message_delta"&&typeof event.delta?.stop_reason==="string") await sendDiagnostics({stopReason:event.delta.stop_reason.slice(0,80)});
+        if (event.type==="message_stop") await sendDiagnostics({providerCompleted:true});
+        if (event.type==="ping"&&(!lastPing||Date.now()-lastPing>=10000)){lastPing=Date.now();await sendDiagnostics({lastProviderPingAt:lastPing});}
         if (event.type === "content_block_start" && event.content_block?.type === "thinking") await sendStatus("thinking");
         if (event.type === "content_block_start" && event.content_block?.type === "server_tool_use" && event.content_block.name === "web_search") {
           await sendStatus("searching");
@@ -1450,7 +1464,7 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
         }
         const documentUsage=[];
         try{
-          await runOfficialDocuments({env,user:authUser,scope:projectId||'general',incognito:!!body.chat.incognito,selection,system:scoped.system,messages:scoped.messages,files,images:allImages,artifactInputs:body.chat.artifactInputs||[],session:body.chat.skillSession,search:!!search,signal:upstreamAbort.signal,send:sendEvent,recordUsage:async(id,raw,options={})=>{
+          await runOfficialDocuments({env,user:authUser,scope:projectId||'general',incognito:!!body.chat.incognito,model,effort:SkillModels.supported(model)?effort:undefined,selection,system:scoped.system,messages:scoped.messages,files,images:allImages,artifactInputs:body.chat.artifactInputs||[],session:body.chat.skillSession,search:!!search,signal:upstreamAbort.signal,send:sendEvent,recordUsage:async(id,raw,options={})=>{
             const receipt=await recordUsage(id,raw,{...options,provider:'anthropic',purpose:'file-generation',primary:documentUsage.length===0});documentUsage.push(receipt);return receipt;
           }});
         }finally{
@@ -1507,6 +1521,8 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
           if(response)Object.assign(accounting,await errorAccounting(response,config.provider));
           throw new Error(await getUpstreamError(response,config.provider+" 官方接口请求失败"));
         }
+        const requestId=response.headers.get('request-id')||response.headers.get('x-request-id');
+        await sendDiagnostics({provider:config.provider,model,effort,maxOutputTokens:outputLimit,upstreamStatus:response.status,...(requestId&&/^[a-zA-Z0-9_-]{1,200}$/.test(requestId)?{providerRequestId:requestId}:{})});
         if(config.provider==="anthropic")await parseAnthropicStream(response,accounting);
         else if(config.provider==="google")await parseGeminiStream(response,accounting);
         else await parseResponsesStream(response,config.provider,accounting);

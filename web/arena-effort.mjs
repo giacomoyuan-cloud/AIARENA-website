@@ -1,4 +1,4 @@
-import { positionAt, stopAt } from './effort-math.mjs';
+import { clamp, effortGeometry, positionAt, stopAt } from './effort-math.mjs';
 
 let active;
 function mount(root) {
@@ -17,13 +17,13 @@ function mount(root) {
   gesture.className = 'arena-effort-gesture';
   gesture.setAttribute('aria-hidden', 'true');
   root.appendChild(gesture);
-  let pointer = null, rect, grabOffset = 0, width = 0, frame = 0, pendingX;
+  let pointer = null, rect, grabOffset = 0, width = 0, thumbSize = 0, travel = 0, frame = 0, pendingX;
   let drawnIndex = -1, drawnX = 0, animations = [];
   function stop() { animations.forEach(animation => animation.cancel()); animations = []; }
   function draw(x, settle = false) {
     const transformAt = (position) => [
       `translateX(${position}px)`,
-      `scaleX(${(position + 16) / Math.max(32, width)})`,
+      `scaleX(${travel ? clamp(position / travel, 0, 1) : 0})`,
     ];
     const previousX = drawnX, from = transformAt(previousX), to = transformAt(x);
     drawnX = x;
@@ -34,7 +34,7 @@ function mount(root) {
       elements.forEach((element, i) => {
         element.style.transform = to[i];
         animations.push(element.animate([{ transform: from[i] }, { transform: to[i] }], {
-          duration: 240, easing: 'cubic-bezier(.22, 1, .36, 1)',
+          duration: 140, easing: 'cubic-bezier(.22, 1, .36, 1)',
         }));
       });
     } else elements.forEach((element, i) => { element.style.transform = to[i]; });
@@ -42,16 +42,19 @@ function mount(root) {
   function sync() {
     root.classList.toggle('is-disabled', input.disabled);
     if (pointer !== null) return;
-    const nextWidth = root.getBoundingClientRect().width, index = Number(input.value);
+    const nextWidth = root.getBoundingClientRect().width, nextThumbSize = thumb.offsetWidth, index = Number(input.value);
     // Do not truncate a release animation when unrelated app state synchronizes.
-    if (nextWidth <= 32 || (nextWidth === width && index === drawnIndex)) return;
-    width = nextWidth; drawnIndex = index; stop(); draw(index / max * (width - 32));
+    if (nextWidth <= nextThumbSize || (nextWidth === width && nextThumbSize === thumbSize && index === drawnIndex)) return;
+    width = nextWidth; thumbSize = nextThumbSize;
+    const geometry = effortGeometry(width, thumbSize); travel = geometry.travel;
+    root.style.setProperty('--effort-inset', geometry.inset + 'px');
+    drawnIndex = index; stop(); draw(index / max * travel);
   }
   function paint() {
     frame = 0;
     if (pendingX === undefined) return;
     if (input.disabled) { pendingX = undefined; return; }
-    const next = positionAt(pendingX, rect.left, width, grabOffset);
+    const next = positionAt(pendingX, rect.left, width, grabOffset, thumbSize);
     pendingX = undefined; draw(next.x);
     const index = stopAt(next.fraction, max); drawnIndex = index;
     if (index !== Number(input.value)) {
@@ -73,15 +76,17 @@ function mount(root) {
     if (gesture.hasPointerCapture(event.pointerId)) gesture.releasePointerCapture(event.pointerId);
     delete input.dataset.effortDragging;
     root.classList.remove('is-dragging');
-    draw(Number(input.value) / max * (width - 32), true);
+    draw(Number(input.value) / max * travel, true);
     input.dispatchEvent(new Event('change', { bubbles: true }));
   }
   gesture.addEventListener('pointerdown', event => {
     if (input.disabled || pointer !== null || !event.isPrimary || event.button !== 0) return;
-    const center = thumb.getBoundingClientRect().left + 16;
+    const center = thumb.getBoundingClientRect().left + thumb.offsetWidth / 2;
     event.preventDefault(); stop();
-    rect = root.getBoundingClientRect(); width = rect.width;
-    grabOffset = Math.abs(event.clientX - center) <= 22 ? event.clientX - center : 0;
+    rect = root.getBoundingClientRect(); width = rect.width; thumbSize = thumb.offsetWidth;
+    const geometry = effortGeometry(width, thumbSize); travel = geometry.travel;
+    root.style.setProperty('--effort-inset', geometry.inset + 'px');
+    grabOffset = Math.abs(event.clientX - center) <= thumbSize / 2 + 6 ? event.clientX - center : 0;
     pointer = event.pointerId; gesture.setPointerCapture(pointer);
     input.dataset.effortDragging = 'true';
     input.focus({ preventScroll: true }); root.classList.add('is-dragging');

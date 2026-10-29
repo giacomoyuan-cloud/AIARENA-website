@@ -118,6 +118,7 @@
       h+='<div class="arena-image-custom-wrap arena-image-span"'+(s.size==='custom'?'':' hidden')+'><div class="arena-image-custom"><label>宽度（像素）<input type="number" data-image-setting="customWidth" aria-label="自定义图片宽度" min="256" max="3840" step="16" value="'+escape(s.customWidth)+'"></label><span>×</span><label>高度（像素）<input type="number" data-image-setting="customHeight" aria-label="自定义图片高度" min="256" max="3840" step="16" value="'+escape(s.customHeight)+'"></label></div><div class="arena-image-custom-preview" data-custom-size-preview aria-live="polite">'+customSizePreview(s)+'</div></div>';
       h+='<p class="arena-image-field-help arena-image-span">尺寸须为 16 的倍数，长宽比不超过 3:1，总像素 655,360–8,294,400。超过 2560 × 1440 为实验性分辨率。</p>';
       h+=segments('quality','画质',[['auto','自动'],['low','草稿'],['medium','标准'],['high','精细'],['xhigh','超精细'],['max','最高']],s.quality);
+      if(model.endsWith('flare'))h+='<p class="arena-image-field-help arena-image-span">Flare 注重速度；对照片质感要求高，可选择画质优先的 Sunburst。</p>';
       h+=segments('format','文件格式',[['png','PNG'],['jpeg','JPEG'],['webp','WebP']],s.format);
       h+=segments('background','背景',[['auto','自动'],['opaque','不透明'],['transparent','透明']],s.background);
       h+='<p class="arena-image-field-help arena-image-span">透明背景使用 PNG 或 WebP；选择透明时会自动改用 PNG 保存。</p>';

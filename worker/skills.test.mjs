@@ -1,3 +1,4 @@
+import Billing from '../arena-billing.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
@@ -28,6 +29,22 @@ function executionResult({ code = 0, fileId, stop = 'end_turn' } = {}) {
   };
 }
 const documentArgs = fields => ({ env: providerEnv, user: 'tester', scope: 'general', selection: selection(['analyze']), system: 'Synthetic test', messages: [{ role: 'user', content: '计算实际数据并核验' }], send: async () => {}, ...fields });
+
+for(const model of ['claude-fable-5-1','claude-opus-5-5','claude-sonnet-5-5'])test('native Skills use selected '+model+' and effort in payload, display and billing',async()=>{
+  let payload;const events=[],usage=[];
+  await runOfficialDocuments(documentArgs({model,effort:'xhigh',env:{...providerEnv,SKILLS_DOCUMENT_MODEL:'claude-sonnet-5-5'},send:async item=>events.push(item),recordUsage:async(...args)=>usage.push(args),fetcher:async(url,options)=>{payload=JSON.parse(options.body);return Response.json(executionResult());}}));
+  assert.equal(payload.model,model);assert.equal(payload.output_config.effort,'xhigh');assert.equal(payload.thinking.type,'adaptive');
+  assert.equal(events.find(item=>item.modelName).executionModel,model);assert(events.find(item=>item.modelName).modelName.includes(model.includes('fable')?'Fable':model.includes('opus')?'Opus':'Sonnet'));
+  assert.equal(usage[0][0],model);assert.equal(payload.service_tier,'standard_only');assert.deepEqual(usage[0][1],{input_tokens:20,output_tokens:10});
+  const receipt=Billing.receipt(usage[0][0],usage[0][1],usage[0][2]);
+  assert.equal(receipt.knownCostUsd,{'claude-fable-5-1':'0.0007','claude-opus-5-5':'0.00028','claude-sonnet-5-5':'0.00014'}[model]);
+  assert.equal(events.filter(item=>item.usage).length,0);
+});
+test('automatic document routing from another provider chooses only a compatible Claude default',async()=>{
+  let payload;
+  await runOfficialDocuments(documentArgs({model:'grok-4.7',env:{...providerEnv,SKILLS_DOCUMENT_MODEL:'gpt-6-astra'},fetcher:async(url,options)=>{payload=JSON.parse(options.body);return Response.json(executionResult());}}));
+  assert.equal(payload.model,'claude-sonnet-5-5');
+});
 function accountFixture() {
   const data = new Map([['user:tester', JSON.stringify({ hash: accountHash })], ['user:another', JSON.stringify({ hash: accountHash })]]), writes = [];
   const kv = {
@@ -39,9 +56,43 @@ function accountFixture() {
   return { data, writes, env: { MEMORY_KV: kv, BIZ_KV: kv, PASSWORD: 'synthetic-shared', ANTHROPIC_API_KEY: 'synthetic-provider-key', OPENAI_API_KEY: 'synthetic-openai-key', GROK_API_KEY: 'synthetic-xai-key', GEMINI_API_KEY: 'synthetic-google-key' } };
 }
 const accountRequest = (path, fields) => new Request('https://api.pickandcase.com' + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: 'tester', password: accountHash, ...fields }) });
+
+for(const id of ['pptx','xlsx','docx','pdf'])test(id+' rejects every non-Claude model before direct or recoverable execution',async t=>{
+  const fixture=accountFixture();let network=0,actors=0;
+  t.mock.method(globalThis,'fetch',async()=>{network++;throw Error('Must not contact provider');});
+  fixture.env.CHAT_RUNS={idFromName(){actors++;throw Error('Must not create a run');}};
+  for(const model of ['grok-4.7','gemini-4-argon','gpt-6-astra','gpt-6.1-sol']){
+    const chat={chatId:'chat-model-guard',scope:'general',question:'分析文档',history:[],skills:{mode:'manual',ids:[id]}};
+    const payload={model,projectId:null,chat};
+    for(const [path,fields] of [['/',payload],['/chat-runs',{action:'start',runId:'run-model-guard',chatId:chat.chatId,payload}]]){
+      const response=await worker.fetch(accountRequest(path,fields),fixture.env);
+      assert.equal(response.status,400,model+' '+path);assert.match((await response.json()).error,/仅支持 Claude/);
+    }
+  }
+  assert.equal(network,0);assert.equal(actors,0);
+});
+test('the Worker passes the selected Opus and effort through a manual PDF task',async t=>{
+  const fixture=accountFixture();let payload;
+  t.mock.method(globalThis,'fetch',async(url,options)=>{assert.equal(new URL(url).hostname,'api.anthropic.com');payload=JSON.parse(options.body);return Response.json(executionResult());});
+  const response=await worker.fetch(accountRequest('/',{model:'claude-opus-5-5',effort:'max',chat:{scope:'general',chatId:'chat-opus-doc',question:'分析这份文档',history:[],skills:{mode:'manual',ids:['pdf']}}}),fixture.env);
+  assert.equal(response.status,200);const stream=await response.text();assert(!stream.includes('"error":'),stream);
+  assert.equal(payload.model,'claude-opus-5-5');assert.equal(payload.output_config.effort,'max');assert.equal(payload.container.skills[0].skill_id,'pdf');
+  assert.match(stream,/"executionModel":"claude-opus-5-5"/);assert.match(stream,/Claude Opus 5.5/);assert.match(stream,/"model":"claude-opus-5-5"/);
+});
+test('automatic routing from Grok to a document reports the real Claude model',async t=>{
+  const fixture=accountFixture(),payloads=[];
+  t.mock.method(globalThis,'fetch',async(url,options)=>{assert.equal(new URL(url).hostname,'api.anthropic.com');const payload=JSON.parse(options.body);payloads.push(payload);return payload.tools.some(tool=>tool.name==='select_skills')?fakeRouter({ids:['pdf'],output:'text'})():Response.json(executionResult());});
+  const response=await worker.fetch(accountRequest('/',{model:'grok-4.7',effort:'high',chat:{scope:'general',chatId:'chat-auto-doc',question:'请读取并分析这份PDF文件',history:[],skills:{mode:'auto',ids:[]}}}),fixture.env);
+  assert.equal(response.status,200);const stream=await response.text();assert(!stream.includes('"error":'),stream);
+  assert.equal(payloads.length,2);assert.equal(payloads[1].model,'claude-sonnet-5-5');assert.match(stream,/"executionModel":"claude-sonnet-5-5"/);
+});
 function actorStorage() {
   const db = new DatabaseSync(':memory:');
-  return { db, sql: { exec(query, ...values) { const statement = db.prepare(query); const rows = statement.columns().length ? statement.all(...values) : (statement.run(...values), []); return { toArray: () => rows }; } }, setAlarm: async () => {} };
+  return { db, transactionSync(callback) {
+    db.exec('BEGIN');
+    try { const value = callback(); db.exec('COMMIT'); return value; }
+    catch (error) { db.exec('ROLLBACK'); throw error; }
+  }, sql: { exec(query, ...values) { const statement = db.prepare(query); const rows = statement.columns().length ? statement.all(...values) : (statement.run(...values), []); return { toArray: () => rows }; } }, setAlarm: async () => {} };
 }
 
 test('disabled skills and greetings do not make a classifier request', async () => {
@@ -212,6 +263,7 @@ for (const incognito of [false, true]) test((incognito ? 'incognito' : 'saved') 
   assert.equal(actor.meta.status, 'completed');
   assert.equal(actor.meta.reply.artifacts[0].name, 'report.pdf'); assert.equal(actor.meta.reply.skills[0].id, 'pdf');
   assert.equal(actor.meta.reply.skillSession, 'synthetic-session'); assert.equal(actor.meta.reply.executionModel, 'claude-sonnet-5-5');
+  assert.equal(actor.meta.reply.submodel,'claude-sonnet-5-5');assert.equal(actor.meta.reply.brand,'anthropic');
   await actor.fetch(request()); assert.equal(calls, 1);
   if (incognito) {
     assert.deepEqual(storage.sql.exec('SELECT * FROM run_meta').toArray(), []); assert.deepEqual(storage.sql.exec('SELECT * FROM run_events').toArray(), []);
@@ -219,6 +271,7 @@ for (const incognito of [false, true]) test((incognito ? 'incognito' : 'saved') 
   } else {
     const restored = new Actor(context, fixture.env); assert.equal(restored.meta.reply.artifacts[0].name, 'report.pdf'); assert.equal(restored.meta.reply.skillSession, 'synthetic-session'); assert.equal(calls, 1);
     const saved = JSON.parse(fixture.data.get('chats:tester:chat-metadata-001')); assert.equal(saved.find(message => message.uid === 2).artifacts[0].token, 'synthetic-file-token');
+    assert.equal(saved.find(message=>message.uid===2).submodel,'claude-sonnet-5-5');assert.equal(saved.find(message=>message.uid===2).brand,'anthropic');
   }
   storage.db.close();
 });

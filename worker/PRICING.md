@@ -81,7 +81,7 @@ Sources: [OpenAI pricing](https://developers.openai.com/api/docs/pricing), [Open
 
 ## Automatic skills and official document execution
 
-Automatic skill selection uses the existing Haiku 4.5 model, billed with its complete cache-aware usage. Official documents use Sonnet 5.5 by default, or the explicitly configured document model. Every `pause_turn` continuation is a separate paid Messages request with its own immutable receipt. The reply groups all document-generation token counts and expenses; classifier, memory and summary tokens remain under their own model and purpose.
+Automatic skill selection uses the existing Haiku 4.5 model, billed with its complete cache-aware usage. Official documents use the selected compatible Claude Fable, Opus or Sonnet model, with the configured compatible default used only for automatic routing from another provider. Every `pause_turn` continuation is a separate paid Messages request with its own immutable receipt, priced for the model that actually executes it. The reply groups all document-generation token counts and expenses; classifier, memory and summary tokens remain under their own model and purpose.
 
 Claude code execution has an organization-wide allowance of **1,550 hours per month**. Beyond it, the price is **$0.05/hour/container**, with a **5-minute minimum**. Preloaded files can incur execution time even if the model does not call the tool. Current document requests do not qualify for the newer search/fetch tool exemption. Their response cannot establish the remaining shared allowance or billable time, so execution expense stays pending alongside the known token/search subtotal. It is not inferred from request latency, counted once per continuation as a new container, or assumed free.
 

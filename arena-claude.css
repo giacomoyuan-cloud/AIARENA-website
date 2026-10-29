@@ -374,12 +374,12 @@
 #ai-arena-app.arena-shell .arena-effort-heading > span:first-child { display: none; }
 #ai-arena-app.arena-shell .arena-effort-heading > output,
 #ai-arena-app.arena-shell:not(.light-mode) .arena-effort-heading > output { text-align: left; color: var(--arena-text); font: 500 15px/1.4 var(--claude-serif); letter-spacing: 0; }
-#ai-arena-app.arena-shell .arena-effort-model { justify-content: flex-start; gap: 9px; min-height: 40px; margin-top: 2px; padding: 0 10px; border-radius: 9px; background: var(--arena-hover); color: var(--arena-text); font-size: 14px; }
+#ai-arena-app.arena-shell .arena-effort-model { justify-content: flex-start; gap: 9px; min-height: 40px; margin-top: 2px; padding: 0 10px; border-radius: 7px; background: transparent; color: var(--arena-text); font-size: 14px; }
 #ai-arena-app.arena-shell .arena-effort-model > span { flex: 1; text-align: left; }
 #ai-arena-app.arena-shell .arena-effort-model svg { color: var(--arena-muted); }
 /* 滑块几何由 arena-effort.js 按 32px 圆点计算，这里只改外观：轨道变 4px 细线，圆点视觉 18px、外框仍是 32px */
-#ai-arena-app.arena-shell .arena-effort-popover .arena-effort-scale { height: 44px; margin: 8px 6px 0; }
-#ai-arena-app.arena-shell .arena-effort-popover .arena-effort-track { inset: 20px 0; height: 4px; border-radius: 4px; }
+#ai-arena-app.arena-shell .arena-effort-popover .arena-effort-scale { margin: 8px 6px 0; }
+#ai-arena-app.arena-shell .arena-effort-popover .arena-effort-track { border-radius: 4px; }
 #ai-arena-app.arena-shell .arena-effort-popover .arena-effort-thumb > span { width: 18px; height: 18px; margin: 7px; border: 2px solid var(--arena-accent); background: var(--arena-surface); box-shadow: 0 1px 4px rgba(0, 0, 0, .2); }
 #ai-arena-app.arena-shell .arena-effort-popover .arena-effort-halo { box-shadow: 0 0 0 6px var(--claude-accent-soft); }
 #ai-arena-app.arena-shell .arena-effort-popover .arena-effort-ticks > span { opacity: .6; }

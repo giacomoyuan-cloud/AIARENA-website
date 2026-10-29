@@ -64,5 +64,8 @@
 /arena-skills-catalog.js
   Cache-Control: no-cache, max-age=0, must-revalidate
 
+/arena-skill-models.js
+  Cache-Control: no-cache, max-age=0, must-revalidate
+
 /arena-debate-studio.js
   Cache-Control: no-cache, max-age=0, must-revalidate

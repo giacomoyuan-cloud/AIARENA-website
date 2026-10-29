@@ -9,7 +9,7 @@
       try{var value=JSON.parse(localStorage.getItem(key())||'null');if(value&&['auto','manual','off'].indexOf(value.mode)!==-1)return {mode:value.mode,ids:(value.ids||[]).filter(function(id){return catalog.some(function(s){return s.id===id;});}).slice(0,3)};}catch(e){}
       return {mode:'auto',ids:[]};
     }
-    function set(value){localStorage.setItem(key(),JSON.stringify(value));update();}
+    function set(value){localStorage.setItem(key(),JSON.stringify(value));update();if(options.selectionChanged)options.selectionChanged(value);}
     function update(){
       var value=settings(),skill=catalog.find(function(s){return s.id===value.ids[0];});
       document.getElementById('aaSkillsBtn').textContent=value.mode==='manual'&&skill?skill.name:'Skills · '+(value.mode==='off'?'关闭':'自动');
@@ -19,12 +19,12 @@
     }
     function render(){
       var value=settings(),drop=document.getElementById('aaSkillsDrop');
-      var h='<div class="arena-skills-heading">按任务调用 Skills</div><p class="arena-skills-hint">任务识别使用 Claude；普通回复使用所选模型，文档和计算由 Claude 执行。</p>';
+      var h='<div class="arena-skills-heading">按任务调用 Skills</div><p class="arena-skills-hint">文档和计算仅支持 Claude，选择后会切换兼容模型；自动识别后会显示实际执行模型。</p>';
       [{mode:'auto',name:'自动识别任务'},{mode:'off',name:'关闭技能，普通对话'}].forEach(function(item){h+='<button type="button" class="aa-drop-item arena-skill-option" data-skill-mode="'+item.mode+'" aria-pressed="'+(value.mode===item.mode)+'">'+(value.mode===item.mode?'✓ ':'')+item.name+'</button>';});
       h+='<div class="arena-skills-heading">手动指定</div>';
       catalog.filter(function(s){return options.mode()!=='debate'||['document','compute'].indexOf(s.kind)===-1;}).forEach(function(skill){
         var selected=value.mode==='manual'&&value.ids.indexOf(skill.id)!==-1;
-        h+='<button type="button" class="aa-drop-item arena-skill-option" data-skill-id="'+skill.id+'" aria-pressed="'+selected+'"><span>'+escape(skill.name)+(skill.official?' <small>官方文档</small>':'')+'</span><small>'+escape(skill.description)+'</small></button>';
+        h+='<button type="button" class="aa-drop-item arena-skill-option" data-skill-id="'+skill.id+'" aria-pressed="'+selected+'"><span>'+escape(skill.name)+(skill.official?' <small>官方文档 · 仅 Claude</small>':skill.kind==='compute'?' <small>仅 Claude</small>':'')+'</span><small>'+escape(skill.description)+'</small></button>';
       });
       drop.innerHTML=h;
       drop.querySelectorAll('[data-skill-mode]').forEach(function(button){button.onclick=function(){set({mode:button.dataset.skillMode,ids:[]});drop.classList.remove('open');};});

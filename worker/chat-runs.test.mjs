@@ -1,13 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
+import { setImmediate } from 'node:timers/promises';
 import worker, { ChatRun } from './worker.js';
 
 const pass = 'synthetic-account-hash';
 const post = body => new Request('https://api.pickandcase.com/chat-runs', { method: 'POST', body: JSON.stringify(body) });
 function storage() {
   const db = new DatabaseSync(':memory:');
-  return { db, sql: { exec(query, ...values) {
+  return { db, transactionSync(callback) {
+    db.exec('BEGIN');
+    try { const value = callback(); db.exec('COMMIT'); return value; }
+    catch (error) { db.exec('ROLLBACK'); throw error; }
+  }, sql: { exec(query, ...values) {
     const statement = db.prepare(query);
     const rows = statement.columns().length ? statement.all(...values) : (statement.run(...values), []);
     return { toArray: () => rows };
@@ -30,15 +35,16 @@ function setup(t, model = 'claude-opus-5-5') {
     assert.equal(new URL(url).hostname, openai ? 'api.openai.com' : 'api.anthropic.com');
     let control;
     const stream = new ReadableStream({ start(controller) { control = controller; } });
-    const request = { text(text) { control.enqueue(new TextEncoder().encode('data: '+JSON.stringify(openai ? {type:'response.output_text.delta',delta:text} : {type:'content_block_delta',delta:{type:'text_delta',text}})+'\n\n')); }, end() { try { control.close(); } catch {} }, aborted: false };
+    const event = value => control.enqueue(new TextEncoder().encode('data: '+JSON.stringify(value)+'\n\n'));
+    const request = { event, text(text) { event(openai ? {type:'response.output_text.delta',delta:text} : {type:'content_block_delta',delta:{type:'text_delta',text}}); }, end() { try { control.close(); } catch {} }, fail() { control.error(new Error('fixture interrupted')); }, aborted: false };
     options.signal.addEventListener('abort', () => { request.aborted = true; try { control.error(new DOMException('cancelled','AbortError')); } catch {} });
     upstreams.push(request);
-    return new Response(stream, { headers: { 'Content-Type': 'text/event-stream' } });
+    return new Response(stream, { headers: { 'Content-Type': 'text/event-stream', 'request-id': 'req_offline_test' } });
   });
   const payload = { user:'tester',password:pass,model,projectId:null,chat:{scope:'general',chatId:'chat-test-001',question:'请写一段测试文字。',history:[],historyEndUid:null},recovery:{replyUid:2,userMessage:{uid:1,text:'请写一段测试文字。',name:'Tester'},title:'测试'} };
   const fields = { user:'tester',password:pass,chatId:payload.chat.chatId,runId:'run-test-001',projectId:null };
   async function call(action, extra={}) { return worker.fetch(post({...fields,action,...extra}),env); }
-  async function waitFor(check) { for(let i=0;i<200;i++){if(check())return;await new Promise(resolve=>setTimeout(resolve,2));}throw new Error('fixture did not progress'); }
+  async function waitFor(check) { for(let i=0;i<200;i++){if(check())return;await setImmediate();}throw new Error('fixture did not progress'); }
   return { env,data,objects,pending,upstreams,payload,fields,call,waitFor };
 }
 
@@ -205,4 +211,149 @@ test('late mobile saves and a stopped display queue cannot truncate completed se
   const clipped=saved.map(item=>item.isUser?item:{...item,text:'服务器已'});
   const response=await worker.fetch(new Request('https://api.pickandcase.com/chats',{method:'POST',body:JSON.stringify({username:'tester',password:pass,action:'save',chatId:'chat-test-001',messages:clipped})}),f.env);
   assert.equal(response.status,200);assert.equal(JSON.parse(f.data.get('chats:tester:chat-test-001'))[1].text,'服务器已经生成并完整保存的回答。');
+});
+
+test('thinking can cross 14 minutes and finish, retaining timestamps, usage and provider identifiers', async t => {
+  t.mock.timers.enable({ apis:['Date','setTimeout'], now:1800000000000 });
+  const f=setup(t);await f.call('start',{payload:f.payload});await f.waitFor(()=>f.upstreams.length===1);
+  const actor=Array.from(f.objects.values())[0],upstream=f.upstreams[0];
+  upstream.event({type:'message_start',message:{usage:{input_tokens:17,output_tokens:2}}});
+  upstream.event({type:'content_block_delta',delta:{type:'thinking_delta',thinking:'先分析'}});
+  await f.waitFor(()=>actor.meta.reply.reasoning==='先分析');
+  const first=actor.meta.reply.diagnostics.firstReasoningAt;
+  t.mock.timers.tick(16*60*1000);
+  assert.equal(upstream.aborted,false);assert.equal(actor.meta.status,'running');
+  upstream.event({type:'content_block_delta',delta:{type:'thinking_delta',thinking:'再核对'}});
+  upstream.text('完整正文');
+  upstream.event({type:'message_delta',delta:{stop_reason:'end_turn'},usage:{output_tokens:88}});
+  upstream.event({type:'message_stop'});upstream.end();await Promise.all(f.pending);
+  assert.equal(actor.meta.status,'completed');assert.equal(actor.meta.reply.text,'完整正文');
+  assert.equal(f.upstreams.length,1);
+  assert.equal(actor.meta.reply.diagnostics.providerRequestId,'req_offline_test');
+  assert.equal(actor.meta.reply.diagnostics.stopReason,'end_turn');
+  assert.equal(actor.meta.reply.diagnostics.providerCompleted,true);
+  assert.equal(actor.meta.reply.diagnostics.firstTextAt-first,16*60*1000);
+  assert.equal(actor.meta.reply.usage.input,17);assert.equal(actor.meta.reply.usage.output,88);assert.equal(actor.meta.reply.usage.schemaVersion,2);assert.equal(actor.meta.reply.usage.costUsd,'0.001828');
+  assert.ok(actor.sql.exec('SELECT received_at FROM run_events').toArray().every(row=>Number.isSafeInteger(row.received_at)));
+});
+
+test('retry preserves the failed run; old status, replay, stop and duplicate start cannot affect or repeat the new run', async t => {
+  const f=setup(t);await f.call('start',{payload:f.payload});await f.waitFor(()=>f.upstreams.length===1);
+  const actor=Array.from(f.objects.values())[0];
+  f.upstreams[0].event({type:'message_start',message:{usage:{input_tokens:19,output_tokens:1}}});
+  f.upstreams[0].event({type:'content_block_delta',delta:{type:'thinking_delta',thinking:'已收到的摘要'}});
+  await f.waitFor(()=>actor.meta.reply.reasoning==='已收到的摘要');
+  f.upstreams[0].fail();await Promise.all(f.pending);
+  const failed=await(await f.call('status')).json();
+  assert.equal(failed.status,'failed');assert.equal(failed.reply.usage.input,19);assert.equal(failed.reply.usage.output,1);assert.equal(failed.reply.usage.usageComplete,false);assert.equal(failed.reply.usage.costUsd,null);
+  const payload={...f.payload,chat:{...f.payload.chat,historyEndUid:2},recovery:{...f.payload.recovery,replyUid:4,userMessage:{...f.payload.recovery.userMessage,uid:3}}};
+  await f.call('start',{runId:'run-retry-002',payload});await f.waitFor(()=>f.upstreams.length===2);
+  assert.deepEqual(await(await f.call('status')).json(),failed);
+  assert.equal((await f.call('status',{user:'other'})).status,410);
+  assert.equal((await f.call('status',{password:'wrong'})).status,401);
+  const replay=await(await f.call('events')).text();
+  assert.ok(replay.includes('已收到的摘要'));assert.ok(replay.includes('fixture interrupted'));assert.ok(replay.includes('[DONE]'));
+  assert.equal((await f.call('start',{payload:f.payload})).status,200);
+  assert.equal((await f.call('start',{payload:{...f.payload,search:true}})).status,409);
+  assert.equal((await(await f.call('stop')).json()).runId,'run-test-001');
+  assert.equal(f.upstreams.length,2);assert.equal(f.upstreams[1].aborted,false);
+  f.upstreams[1].text('第二次的正文');f.upstreams[1].end();await Promise.all(f.pending);
+  assert.ok(!(await(await f.call('events')).text()).includes('第二次的正文'));
+  const stored=JSON.parse(f.data.get('chats:tester:chat-test-001'));
+  assert.equal(stored.length,4);assert.equal(stored[1].run.status,'failed');assert.equal(stored[3].text,'第二次的正文');
+  const restarted=new ChatRun(actor.ctx,f.env);
+  assert.equal(restarted.archived('run-test-001').reply.reasoning,'已收到的摘要');
+  assert.equal(f.upstreams.length,2);
+});
+
+test('an old subscriber finishing after a retry never receives the retry output', async t => {
+  const f=setup(t);await f.call('start',{payload:f.payload});await f.waitFor(()=>f.upstreams.length===1);
+  const old=await f.call('events');
+  f.upstreams[0].text('原来这一轮');f.upstreams[0].end();await Promise.all(f.pending);
+  await f.call('start',{runId:'run-next-002',payload:{...f.payload,recovery:{...f.payload.recovery,replyUid:4,userMessage:{...f.payload.recovery.userMessage,uid:3}}}});
+  await f.waitFor(()=>f.upstreams.length===2);
+  f.upstreams[1].text('下一轮不能混入');f.upstreams[1].end();await Promise.all(f.pending);
+  const text=await old.text();assert.ok(text.includes('原来这一轮'));assert.ok(!text.includes('下一轮不能混入'));
+});
+
+test('each run expires 24 hours after its own completion; a later retry neither resets nor purges another run early', async t => {
+  t.mock.timers.enable({apis:['Date'],now:1800000000000});
+  const f=setup(t);await f.call('start',{payload:f.payload});await f.waitFor(()=>f.upstreams.length===1);
+  f.upstreams[0].text('第一轮');f.upstreams[0].end();await Promise.all(f.pending);
+  const actor=Array.from(f.objects.values())[0];
+  t.mock.timers.tick(60*60*1000);
+  await f.call('start',{runId:'run-later-002',payload:f.payload});await f.waitFor(()=>f.upstreams.length===2);
+  f.upstreams[1].end();await Promise.all(f.pending);
+  t.mock.timers.tick(22*60*60*1000);await actor.alarm();
+  assert.equal((await f.call('status')).status,200);
+  t.mock.timers.tick(60*60*1000+1);await actor.alarm();
+  assert.equal((await f.call('status')).status,410);
+  assert.equal((await f.call('status',{runId:'run-later-002'})).status,200);
+  assert.equal(actor.sql.exec('SELECT * FROM run_event_history').toArray().length,0);
+  t.mock.timers.tick(60*60*1000);await actor.alarm();
+  assert.equal(actor.meta,null);
+});
+
+test('normal retries archive neither account credentials nor incognito output', async t => {
+  const f=setup(t);f.payload.chat.incognito=true;
+  await f.call('start',{payload:f.payload});await f.waitFor(()=>f.upstreams.length===1);
+  f.upstreams[0].text('PRIVATE_RETRY_CANARY');f.upstreams[0].end();await Promise.all(f.pending);
+  f.payload.chat.incognito=false;
+  await f.call('start',{runId:'run-public-002',payload:f.payload});await f.waitFor(()=>f.upstreams.length===2);
+  f.upstreams[1].text('public');f.upstreams[1].end();await Promise.all(f.pending);
+  const actor=Array.from(f.objects.values())[0];
+  const persisted=['run_meta','run_events','run_history','run_event_history'].map(table=>actor.sql.exec('SELECT * FROM '+table).toArray());
+  const text=JSON.stringify(persisted);
+  assert.ok(!text.includes('PRIVATE_RETRY_CANARY'));assert.ok(!text.includes(pass));assert.ok(!text.includes(f.env.ANTHROPIC_API_KEY));
+  assert.equal(actor.archived('run-test-001'),null);
+});
+
+test('an archive transaction failure preserves the previous run and makes no new provider request', async t => {
+  const f=setup(t);await f.call('start',{payload:f.payload});await f.waitFor(()=>f.upstreams.length===1);
+  f.upstreams[0].text('不能丢失');f.upstreams[0].end();await Promise.all(f.pending);
+  const actor=Array.from(f.objects.values())[0],before=await(await f.call('status')).json();
+  const execute=actor.sql.exec;
+  t.mock.method(actor.sql,'exec',(query,...values)=>{
+    if(query.startsWith('INSERT OR REPLACE INTO run_history'))throw Error('archive write failed');
+    return execute(query,...values);
+  });
+  assert.equal((await f.call('start',{runId:'run-failed-save',payload:f.payload})).status,503);
+  assert.equal(f.upstreams.length,1);assert.deepEqual(await(await f.call('status')).json(),before);
+  assert.equal(actor.sql.exec('SELECT * FROM run_event_history').toArray().length,0);
+  assert.ok((await(await f.call('events')).text()).includes('不能丢失'));
+});
+
+test('a run makes no automatic second provider attempt on a retryable upstream HTTP failure', async t => {
+  const f=setup(t);let calls=0;
+  t.mock.method(globalThis,'fetch',async()=>{calls++;return Response.json({error:{message:'unavailable'}},{status:503})});
+  await f.call('start',{payload:f.payload});await Promise.all(f.pending);
+  assert.equal(calls,1);assert.equal((await(await f.call('status')).json()).status,'failed');
+});
+
+test('cleanup scheduling failure before an ordinary run cannot leave a stuck running placeholder or charge a provider', async t => {
+  const f=setup(t);await f.call('status');const actor=Array.from(f.objects.values())[0];
+  actor.ctx.storage.setAlarm=async()=>{throw Error('storage unavailable')};
+  assert.equal((await f.call('start',{payload:f.payload})).status,503);
+  assert.equal(actor.meta.status,'failed');assert.equal(f.upstreams.length,0);assert.equal(actor.execution,null);
+});
+
+test('legacy single-run tables migrate in place and their original events survive the first retry', async t => {
+  const f=setup(t),store=storage();
+  store.db.exec('CREATE TABLE run_meta (id INTEGER PRIMARY KEY, value TEXT NOT NULL); CREATE TABLE run_events (seq INTEGER PRIMARY KEY, value TEXT NOT NULL)');
+  const userMessage={uid:1,isUser:true,text:'旧问题'};
+  const reply={uid:2,text:'',reasoning:'旧摘要',activity:[],citations:[]};
+  const meta={runId:'legacy-run-001',status:'failed',sequence:2,createdAt:Date.now()-900000,updatedAt:Date.now(),reply,userMessage,user:'tester',chatId:f.fields.chatId,projectId:null};
+  store.sql.exec('INSERT INTO run_meta VALUES (1, ?)',JSON.stringify(meta));
+  store.sql.exec('INSERT INTO run_events VALUES (1, ?)',JSON.stringify({r:'旧摘要'}));
+  store.sql.exec('INSERT INTO run_events VALUES (2, ?)', '[DONE]');
+  f.data.set('chats:tester:'+f.fields.chatId,JSON.stringify([userMessage,reply]));
+  const actor=new ChatRun({storage:store,waitUntil:promise=>f.pending.push(promise)},f.env);
+  f.objects.set('tester:general:'+f.fields.chatId,actor);
+  const payload={...f.payload,chat:{...f.payload.chat,historyEndUid:2},recovery:{...f.payload.recovery,replyUid:4,userMessage:{...f.payload.recovery.userMessage,uid:3}}};
+  await f.call('start',{payload});await f.waitFor(()=>f.upstreams.length===1);
+  assert.equal((await(await f.call('status',{runId:meta.runId})).json()).reply.reasoning,'旧摘要');
+  assert.ok((await(await f.call('events',{runId:meta.runId})).text()).includes('旧摘要'));
+  assert.ok(store.sql.exec('SELECT received_at FROM run_event_history').toArray().every(row=>row.received_at===null),'do not invent receipt times for legacy events');
+  f.upstreams[0].text('新正文');f.upstreams[0].end();await Promise.all(f.pending);
+  assert.equal(JSON.parse(f.data.get('chats:tester:'+f.fields.chatId)).length,4);
 });

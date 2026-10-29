@@ -121,7 +121,21 @@ The prepared OpenAI Responses request is additionally dispatched by a fresh, pri
 
 The server saves the question and answer placeholder before calling the provider, checkpoints partial output in its original chat, and saves terminal output and citations even if the phone stays offline. A reloaded signed-in page can reopen the pending chat using a session-local pointer containing IDs only and follow its saved progress. Normal tasks retain their recovery log for 24 hours; their ordinary chat history is retained as before. Incognito bodies and recovery events remain in memory only and do not create saved chats. Account password hashes and API keys are never persisted in task storage.
 
-Each generation has a 14-minute ceiling within the Durable Object background lifetime. A server process restart preserves recorded events and marks the task interrupted rather than automatically repeating a potentially paid model call. The old direct SSE routes remain compatible and gain heartbeats; image generation and multi-round debate still use those routes. Existing project ownership, account authentication, provider routing, model/effort settings, memory boundaries, KV namespaces and placement are unchanged.
+Chat generation no longer has a fixed 14-minute wall-clock cutoff. Thinking can continue until the provider finishes or the user explicitly stops it; upstream failures and the existing per-run 8 MiB recovery-log bound still terminate a run. Provider token limits and Cloudflare runtime limits still apply. A process restart marks the run interrupted and never repeats a potentially paid request automatically. Chat runs also disable automatic retries of retryable provider HTTP responses: starting a new attempt requires an explicit user action.
+
+Starting another run in the same chat atomically archives the previous run's metadata and events by `runId`. Authenticated `status`, `events` and `stop` requests for that old ID read its own record; stopping an old run cannot stop the current one. Repeating an old `start` returns the old result rather than issuing another provider call. Recovery records expire separately, 24 hours after each run's last terminal update; retries neither reset that retention period nor erase other runs early. Ordinary chat history remains independent of recovery-log expiry. Existing single-run SQLite records are upgraded in place. This change does not recreate logs already overwritten by older versions. Incognito runs are not archived, and credentials are never saved in these tables.
+
+New events have server receipt timestamps. Saved replies retain the first/last reasoning and text times, provider request ID when supplied, and Claude's stop reason and message-stop signal. Claude usage is checkpointed as it arrives, marked `partial: true` until final usage is received; a cancelled run's partial count is not a final bill. Aggregate usage is recorded only once on successful completion.
+
+The old direct SSE routes remain compatible; image generation and multi-round debate still use those routes. Project ownership, authentication, model/effort settings, memory boundaries, KV namespaces and placement are unchanged.
+
+Run the combined backend/frontend regression suite without network access from the repository root:
+
+```sh
+npm run test:offline
+```
+
+The guard blocks fetch, HTTP/HTTPS, TCP/TLS, HTTP/2 and WebSocket connections unless a test explicitly replaces them with an in-process fixture. Tests advance a virtual clock beyond 14 minutes; they do not spend 14 real minutes or call a paid model. They verify completion, Stop, failed-run replay after retry/restart, per-run expiry, atomic rollback, account/project boundaries and incognito storage. These are offline logic checks, not a claim of real-model production acceptance.
 
 Deploy the Worker with `worker/wrangler.jsonc` before publishing the new frontend. The configuration adds only the `CHAT_RUNS` binding and the `chat-runs-v1` SQLite class migration. Preserve existing secret values and bindings. Verify observer cancellation, loss of a start acknowledgement, duplicate event replay, background/foreground, reload, explicit Stop, account/project isolation and incognito storage with the included recovery tests. Physical iPhone suspension still requires hardware acceptance; responsive browser dimensions are not device proof.
 
