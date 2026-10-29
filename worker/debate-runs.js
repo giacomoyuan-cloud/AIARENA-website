@@ -7,6 +7,7 @@ const retryable = status => ['failed', 'interrupted', 'cancelled', 'skipped'].in
 
 export function createDebateRunClass(execute, authorize, core) {
   return class DebateRun {
+    static contractVersion = 'studio-v3';
     constructor(ctx, env) {
       this.ctx = ctx; this.env = env; this.sql = ctx.storage.sql;
       this.jobs = new Map(); this.inputs = new Map(); this.execution = null; this.abort = null;

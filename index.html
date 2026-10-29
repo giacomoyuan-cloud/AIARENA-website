@@ -1265,7 +1265,7 @@
 <script src="/arena-controls.js?v=20261029-debateresume1"></script>
 <script src="/arena-debate.js?v=20261030-debatestudio2"></script>
 <script src="/arena-debate-studio.js?v=20261030-debatestudio2"></script>
-<script src="/arena-debate-runs.js?v=20261029-debateresume1"></script>
+<script src="/arena-debate-runs.js?v=20261030-debatestudio3"></script>
 <script src="/arena-workspace.js?v=20261029-debateresume1"></script>
 <script src="/arena-project-page.js?v=20261030-projects1"></script>
 <script src="/arena-account.js?v=20261027-account2"></script>
@@ -2990,7 +2990,7 @@ var TEAM_COLORS = {
     setSendButtonIcon($('aaSendBtn'),true);$('aaSendBtn').className='aa-send stop';$('aaSendBtn').disabled=false;
     stopActiveGeneration=function(){controlDurableDebate('stop');};
     syncDebateRecovery();syncArenaLayout();
-    ArenaDebateRuns.watch(WORKER,debateCredentials(view.ref),{input:input,snapshot:checkpoint,signal:controller.signal,
+    ArenaDebateRuns.watch(WORKER,debateCredentials(view.ref),{input:input,requiredVersion:input?'studio-v3':null,snapshot:checkpoint,signal:controller.signal,
       onState:function(state){if(debateCurrent(view)){view.connection=state;syncDebateRecovery();}},
       onSnapshot:function(data,meta){if(view.controller===controller){applyDebateSnapshot(view,data,meta.initial&&!!view.restoreDisplay);view.restoreDisplay=false;view.unconfirmed=null;}}
     }).catch(function(error){
@@ -4829,6 +4829,7 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
   // === Main start ===
   async function aaStart(){
     if(aaRunning||skillSubmitPending)return;
+    if(debate){var previousScope=debateDraftScope;restoreDebateDraft();if(previousScope!==debateDraftScope){syncArenaLayout();arenaNotice('讨论范围已变化，请确认席位和思考深度后再发送。');return;}}
     var submittingScope=JSON.stringify([activeProjectId,currentChatId,debate,imageMode,$('aaUsername').value]);
     skillSubmitPending=true;
     try{await skillsRuntime.ready();if(submittingScope!==JSON.stringify([activeProjectId,currentChatId,debate,imageMode,$('aaUsername').value])){arenaNotice('对话范围已变化，请在当前对话重新发送');return;}}catch(error){arenaNotice(error.message);return;}finally{skillSubmitPending=false;}
@@ -4923,8 +4924,8 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
     renderTextPreviews();
     if(debate){
       var progress=$('aaDebateProgress');progress.hidden=false;
-      var debateUser=serializeMsgs().slice(-1)[0],debateInput={config:Object.assign({},debateSettings,{mode:debatePlan.mode,rounds:debatePlan.rounds,members:debatePlan.members,topic:debatePlan.topic,summaryModel:judgeModel,summaryEffort:debateEffort({id:'summary',model:judgeModel}),priorRunId:debatePriorRunId}),
-        userMessage:debateUser,images:_imgs.map(function(i){return {data:i.data,mime:i.mime||'image/jpeg'};}),efforts:{},search:searchOn,incognito:!!_incognitoMode,title:getChatTitle(),
+      var debateUser=serializeMsgs().slice(-1)[0],debateInput={config:ArenaDebateStudio.requestConfig(debatePlan),
+        userMessage:debateUser,images:_imgs.map(function(i){return {data:i.data,mime:i.mime||'image/jpeg'};}),efforts:ArenaDebateStudio.legacyEfforts(debatePlan),search:searchOn,incognito:!!_incognitoMode,title:getChatTitle(),
         skills:skillsRuntime.settings(),historyEndUid:msgs.length>1?msgs[msgs.length-2].uid:null,replyUids:debatePlan.turns.map(function(){return newUid();})};
       saveDebateDraft();
       startDurableDebate({id:debatePlan.id,chatId:currentChatId,projectId:activeProjectId},debateInput);

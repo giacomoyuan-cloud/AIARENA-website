@@ -58,13 +58,16 @@ http.createServer(async(req,res)=>{
     if(url.pathname.startsWith('/__test-api')){
       let raw='';for await(const part of req)raw+=part;const body=JSON.parse(raw||'{}'),route=url.pathname.slice('/__test-api'.length)||'/';
       events.push({kind:'request',action:body.action,route,runId:body.runId,after:body.after,at:Date.now()});await evidence();
+      if(req.method==='GET'){
+        const result=await worker.fetch(new Request('https://api.pickandcase.com'+route),env);res.writeHead(result.status,Object.fromEntries(result.headers));res.end(await result.text());return;
+      }
       if(route==='/debate-runs'&&body.action==='status'&&Date.now()<offlineUntil){res.writeHead(503,{'Content-Type':types['.json']});res.end('{"error":"模拟断网"}');return;}
       if(route==='/memory'){res.writeHead(200,{'Content-Type':types['.json']});res.end('{"memory":""}');return;}
       if(['/auth','/chats','/chat-runs','/debate-runs','/projects','/account','/system-prompt'].includes(route)){
         const result=await worker.fetch(new Request('https://api.pickandcase.com'+route,{method:'POST',headers:{'Content-Type':'application/json'},body:raw}),env);
         res.writeHead(result.status,Object.fromEntries(result.headers));if(result.body){for await(const chunk of result.body){if(res.destroyed)break;res.write(chunk);}}res.end();return;
       }
-      res.writeHead(200,{'Content-Type':types['.json']});res.end('{"ok":true,"quick":true,"anthropic":true,"xai":true,"google":true}');return;
+      res.writeHead(200,{'Content-Type':types['.json']});res.end(JSON.stringify({ok:true,quick:true,anthropic:true,xai:true,google:true,debate:core.version===Debate.contractVersion?core.version:null}));return;
     }
     const file=path.resolve(root,'.'+decodeURIComponent(url.pathname==='/'?'/index.html':url.pathname));if(!file.startsWith(root+path.sep))throw new Error('outside fixture');
     let bytes=await readFile(file);if(file.endsWith('/index.html'))bytes=Buffer.from(bytes.toString().replace("var WORKER = 'https://api.pickandcase.com';","var WORKER = '/__test-api';"));

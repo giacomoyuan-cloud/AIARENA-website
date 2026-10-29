@@ -11,6 +11,12 @@ test('same-model seats keep independent depth; bulk choices respect every select
   assert.deepEqual(Studio.commonEfforts([...members,{model:'other'}],{...choices,other:['low','high']}),['low','high']);
   assert.deepEqual(Studio.commonEfforts([...members,{model:'no-depth'}],choices),[]);
 });
+test('request settings come from the frozen plan and uniform depth also reaches the legacy map',()=>{
+  const members=[{id:'seat-1',label:'一席',model,effort:'low'},{id:'seat-2',label:'二席',model,effort:'low'}];
+  const p=make({members,objective:'decision',detail:'concise',summaryModel:model,summaryEffort:'low'}),request=Studio.requestConfig(p);
+  assert.equal(request.objective,'decision');assert.equal(request.summaryEffort,'low');assert.equal(request.contractVersion,'studio-v3');assert.deepEqual(Studio.legacyEfforts(p),{[model]:'low'});
+  assert.deepEqual(Studio.legacyEfforts(make()),{},'different depths on one model cannot be represented as a model-wide fallback');
+});
 test('six-role drafts retain allowed values and bound stale or oversized fields',()=>{
   const draft=Studio.cleanDraft({mode:'persona',roleCount:6,roles:Array(7).fill({model,role:'甲'.repeat(200),desc:'乙'.repeat(700)}),context:'字'.repeat(7000),efforts:{'role-6':'max','role-7':'low',summary:'low'},summary:model},[model],choices);
   assert.equal(draft.roles.length,6);assert.equal(draft.roleCount,6);assert.equal(draft.roles[0].role.length,120);assert.equal(draft.roles[0].desc.length,500);assert.equal(draft.context.length,6000);

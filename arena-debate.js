@@ -103,5 +103,5 @@
     }
     return {status:records.some(function(r){return !r.ok;})?'partial':'completed',records:records};
   }
-  return {plan:plan,prompt:prompt,run:run,stages:stages,objectives:objectives,details:details,continuation:continuation,exportMarkdown:exportMarkdown};
+  return {version:'studio-v3',plan:plan,prompt:prompt,run:run,stages:stages,objectives:objectives,details:details,continuation:continuation,exportMarkdown:exportMarkdown};
 });
