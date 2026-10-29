@@ -21,7 +21,7 @@
     if(!message)return '';
     var text=full&&typeof message.original==='string'?message.original:(message.text||message.content||'');
     if(message.isUser && typeof message.topicText==='string')text=message.topicText;
-    if(message._quote)text='引用：'+message._quote.text+'\n'+text;
+    if(message._quote)text='引用'+(full&&message._quote.author?'（'+message._quote.author+'）':'')+'：'+message._quote.text+'\n'+text;
     if(full && message.pastedTexts && message.pastedTexts.length)text+='\n'+message.pastedTexts.join('\n');
     if(full && Array.isArray(message.citations)){
       var sources=message.citations.map(function(source){

@@ -19,6 +19,13 @@ function validTextChat(chat){
     &&chat.history.every(m=>m&&typeof m==='object'&&typeof m.text==='string'&&m.text.length<=TokenLimits.maxTextChars)
     &&new TextEncoder().encode(JSON.stringify({question:chat.question,history:chat.history})).length<=TokenLimits.maxRequestBytes;
 }
+function validRecoveryText(message){
+  if(!message||typeof message.text!=='string'||message.text.length>TokenLimits.maxTextChars)return false;
+  if(message.topicText!==undefined&&(typeof message.topicText!=='string'||message.topicText.length>TokenLimits.maxTextChars))return false;
+  if(message.pastedTexts!==undefined&&(!Array.isArray(message.pastedTexts)||message.pastedTexts.length>100000||message.pastedTexts.some(t=>typeof t!=='string'||t.length>TokenLimits.maxTextChars)))return false;
+  if(message._quote&&(typeof message._quote.text!=='string'||message._quote.text.length>TokenLimits.maxTextChars))return false;
+  return new TextEncoder().encode(JSON.stringify({text:message.text,topicText:message.topicText,pastedTexts:message.pastedTexts,quote:message._quote})).length<=TokenLimits.maxRequestBytes;
+}
 var __defProp = Object.defineProperty;
 var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
 
@@ -47,7 +54,7 @@ var __name = (target, value) => __defProp(target, "name", { value, configurable:
     if(!message)return '';
     var text=full&&typeof message.original==='string'?message.original:(message.text||message.content||'');
     if(message.isUser && typeof message.topicText==='string')text=message.topicText;
-    if(message._quote)text='引用：'+message._quote.text+'\n'+text;
+    if(message._quote)text='引用'+(full&&message._quote.author?'（'+message._quote.author+'）':'')+'：'+message._quote.text+'\n'+text;
     if(full && message.pastedTexts && message.pastedTexts.length)text+='\n'+message.pastedTexts.join('\n');
     if(full && Array.isArray(message.citations)){
       var sources=message.citations.map(function(source){
@@ -596,11 +603,11 @@ async function handleChatRunRequest(request, env) {
       const config = OFFICIAL_MODELS[payload.model];
       if (!config || config.image) return projectReply({ error: '此模型不支持聊天恢复。' }, 400);
       SkillModels.validate(payload.model,normalizeSettings(chat.skills),skillCatalog);
-      if (!recovery || !Number.isSafeInteger(recovery.replyUid) || !Number.isSafeInteger(recovery.userMessage?.uid) || typeof recovery.userMessage.text !== 'string' || recovery.userMessage.text.length > TokenLimits.maxTextChars) return projectReply({ error: '缺少有效的聊天恢复信息。' }, 400);
+      if (!recovery || !Number.isSafeInteger(recovery.replyUid) || !Number.isSafeInteger(recovery.userMessage?.uid) || !validRecoveryText(recovery.userMessage)) return projectReply({ error: '缺少有效的聊天恢复信息，或文字超过单次传输容量。' }, 400);
       const message = recovery.userMessage;
       const userMessage = { uid: message.uid, isUser: true, brand: 'user', name: String(message.name || '用户').slice(0, 60), text: message.text, topicText: String(message.topicText || ''), color: '#A78BFA' };
-      if (Array.isArray(message.pastedTexts)) userMessage.pastedTexts = message.pastedTexts.filter(x => typeof x === 'string').slice(0, 10);
-      if (message._quote && typeof message._quote.text === 'string') userMessage._quote = { author: String(message._quote.author || '').slice(0, 100), text: message._quote.text.slice(0, 6000) };
+      if (Array.isArray(message.pastedTexts)) userMessage.pastedTexts = message.pastedTexts;
+      if (message._quote && typeof message._quote.text === 'string') userMessage._quote = { author: String(message._quote.author || '').slice(0, 100), text: message._quote.text };
       const clean = { ...payload }; delete clean.password; delete clean.passwordHash; delete clean.username; delete clean.user;
       internal.fingerprint = await hashText(JSON.stringify(clean));
       // One explicitly started run must never silently become a second attempt.

@@ -75,6 +75,16 @@ test('saved originals, long answers and pasted attachments all survive full-hist
   assert.ok(actual.messages[1].content.endsWith('LONG_ANSWER_END'));assert.match(output,/"historyPolicy":"full"/);
   assert.equal(f.data.get('chats:tester:history-123'),before);
 });
+test('recoverable user messages preserve long quotes and every accepted pasted attachment',async t=>{
+  const f=setup();let submitted;
+  t.mock.method(globalThis,'fetch',()=>{throw Error('No provider call permitted');});
+  f.env.CHAT_RUNS={idFromName:value=>value,get:()=>({fetch:async request=>{submitted=await request.json();return Response.json({status:'running'},{status:202});}})};
+  const quote='QUOTE_START '+('q'.repeat(15000))+' QUOTE_END',pasted=Array.from({length:15},(_,i)=>'完整附件 '+i);
+  const payload={model:'claude-opus-5-5',chat:{scope:'general',chatId:'quote-history-123',question:'current '+quote+' '+pasted.join(' '),history:[]},recovery:{replyUid:2,userMessage:{uid:1,text:'current',topicText:'current',_quote:{author:'Original author',text:quote},pastedTexts:pasted}}};
+  const response=await worker.fetch(new Request('https://api.pickandcase.com/chat-runs',{method:'POST',body:JSON.stringify({user:'tester',password:pass,action:'start',runId:'quote-run-123',chatId:'quote-history-123',payload})}),f.env);
+  assert.equal(response.status,202);assert.equal(submitted.recovery.userMessage._quote.text,quote);assert.deepEqual(submitted.recovery.userMessage.pastedTexts,pasted);
+  const full=Context.fullHistory([submitted.recovery.userMessage]).messages[0].text;assert.ok(full.includes(quote));assert.ok(full.includes('Original author'));assert.ok(full.endsWith('完整附件 14'));
+});
 
 test('browser carries all original text in incognito instead of only eight clipped messages',()=>{
   const source=readFileSync(new URL('../index.html',import.meta.url),'utf8');
