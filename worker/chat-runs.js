@@ -183,6 +183,7 @@ export function createChatRunClass(execute, DebateRun, { deferStart = () => fals
         if (!chat) { chat = { id: meta.chatId }; list.push(chat); }
         chat.title = meta.title || chat.title || '新对话';
         chat.updatedAt = Date.now();
+        chat.mode = 'chat';
         if (terminal(meta.status)) chat.lastReplyAt = reply.completedAt;
         list.sort((a, b) => b.updatedAt - a.updatedAt);
         await put(listKey, JSON.stringify(list));

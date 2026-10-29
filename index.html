@@ -864,7 +864,7 @@
   #ai-arena-app #aaSkillEditPrompt::placeholder { color: #888; opacity: 1; }
 
 </style>
-<link rel="stylesheet" href="/arena.css?v=20261030-sliderends1">
+<link rel="stylesheet" href="/arena.css?v=20261030-chatmodes1">
 <link rel="stylesheet" href="/arena-billing.css?v=20261030-billing1">
 <link rel="stylesheet" href="/arena-workspace.css?v=20261029-debateresume1">
 <link rel="stylesheet" href="/arena-controls.css?v=20261029-debateresume1">
@@ -1264,6 +1264,7 @@
 <script src="/arena-native.js?v=20261028-smooth2"></script>
 <script src="/arena-effort.js?v=20261030-sliderends1"></script>
 <script src="/arena-context.js?v=20261027-account1"></script>
+<script src="/arena-chat-mode.js?v=20261030-chatmodes1"></script>
 <script src="/arena-skills-catalog.js?v=20261030-skills1"></script>
 <script src="/arena-skill-models.js?v=20261030-skillmodels1"></script>
 <script src="/arena-skills.js?v=20261030-skillmodels1"></script>
@@ -1675,7 +1676,7 @@ var TEAM_COLORS = {
 
   function serializeMsgs(){
     return msgs.map(function(m){
-      var obj = {uid:m.uid, brand:m.brand, name:m.name, text:m.text, color:m.color, isUser:m.isUser, isError:m.isError,generationError:m.generationError, round:m.round, _team:m._team, _liked:m._liked, _comment:m._comment, topicText:m.topicText, pastedTexts:m.pastedTexts, _quote:m._quote, context:m.context, reasoning:m.reasoning, activity:m.activity, citations:m.citations, _feedback:m._feedback, effort:m.effort, submodel:m.submodel, completedAt:m.completedAt, moderationHelp:m.moderationHelp, suggestedPrompt:m.suggestedPrompt, moderationTask:m.moderationTask, imageTurn:m.imageTurn, imageResponse:m.imageResponse, imageDetails:m.imageDetails, imageSettings:m.imageSettings, imageUsage:m.imageUsage, grounding:m.grounding,skills:m.skills,artifacts:m.artifacts,skillSession:m.skillSession,executionModel:m.executionModel,participantId:m.participantId,debateSessionId:m.debateSessionId,debateStage:m.debateStage};
+      var obj = {uid:m.uid, chatMode:m.chatMode, brand:m.brand, name:m.name, text:m.text, color:m.color, isUser:m.isUser, isError:m.isError,generationError:m.generationError, round:m.round, _team:m._team, _liked:m._liked, _comment:m._comment, topicText:m.topicText, pastedTexts:m.pastedTexts, _quote:m._quote, context:m.context, reasoning:m.reasoning, activity:m.activity, citations:m.citations, _feedback:m._feedback, effort:m.effort, submodel:m.submodel, completedAt:m.completedAt, moderationHelp:m.moderationHelp, suggestedPrompt:m.suggestedPrompt, moderationTask:m.moderationTask, imageTurn:m.imageTurn, imageResponse:m.imageResponse, imageDetails:m.imageDetails, imageSettings:m.imageSettings, imageUsage:m.imageUsage, grounding:m.grounding,skills:m.skills,artifacts:m.artifacts,skillSession:m.skillSession,executionModel:m.executionModel,participantId:m.participantId,debateSessionId:m.debateSessionId,debateStage:m.debateStage};
       if(m.run) obj.run = m.run;
       if(m.debateRun) { obj.debateRun=m.debateRun;obj.debateTurn=m.debateTurn;obj.debateAttempt=m.debateAttempt;obj.debateStatus=m.debateStatus;obj.debateError=m.debateError;obj.debateOutdated=m.debateOutdated;obj.usage=m.usage; }
       if(m.imgSrcs && m.debateRun) obj.imgSrcs=m.imgSrcs;
@@ -1717,6 +1718,27 @@ var TEAM_COLORS = {
     }, 2000);
   }
 
+  var historyModeCache=new Map();
+  async function hydrateHistoryModes(scope,epoch,listEpoch){
+    var owner=scopeViewKey(scope),pending=chatList.filter(function(chat){
+      var cached=historyModeCache.get(owner+':'+chat.id);
+      if(!ArenaChatMode.labels[chat.mode]&&cached&&cached.updatedAt===chat.updatedAt)chat.mode=cached.mode;
+      return !Object.prototype.hasOwnProperty.call(ArenaChatMode.labels,chat.mode);
+    });
+    renderHistoryList();
+    for(var i=0;i<pending.length;i+=8){
+      if(epoch!==scopeEpoch||listEpoch!==chatListEpoch||scope!==activeProjectId||owner!==scopeViewKey(scope))return;
+      var batch=pending.slice(i,i+8),data=await chatApiCall('modes',{projectId:scope,chatIds:batch.map(function(chat){return chat.id;})});
+      if(epoch!==scopeEpoch||listEpoch!==chatListEpoch||scope!==activeProjectId||owner!==scopeViewKey(scope))return;
+      if(!data||!Array.isArray(data.modes))return;
+      data.modes.forEach(function(item){
+        var original=batch.find(function(chat){return chat.id===item.id;}),chat=chatList.find(function(chat){return chat.id===item.id;});
+        if(!original||!chat||chat.updatedAt!==original.updatedAt||!Object.prototype.hasOwnProperty.call(ArenaChatMode.labels,item.mode))return;
+        chat.mode=item.mode;historyModeCache.set(owner+':'+chat.id,{updatedAt:chat.updatedAt,mode:item.mode});
+      });
+      renderHistoryList();
+    }
+  }
   function loadChatList(){
     var scope=activeProjectId,epoch=scopeEpoch,listEpoch=++chatListEpoch,pinReadVersion=chatPins.version();
     return Promise.all([chatApiCall('list'),chatApiCall('groups')]).then(function(results){
@@ -1739,12 +1761,26 @@ var TEAM_COLORS = {
       });
       if(changed){ try { localStorage.setItem(CHAT_REPLY_TIMES_KEY, JSON.stringify(knownTimes)); } catch(e){} }
       renderHistoryList();
+      hydrateHistoryModes(scope,epoch,listEpoch);
       if(linkedChat&&chatList.some(function(c){return c.id===linkedChat;})){var target=linkedChat;linkedChat=null;loadChat(target);return;}
       if(typeof restorePendingDebateRun==='function'&&restorePendingDebateRun())return;
       if(typeof restorePendingChatRun==='function')restorePendingChatRun();
     });
   }
 
+  function restoreChatMode(){
+    var state=ArenaChatMode.infer(msgs);
+    debate=state.mode==='debate';imageMode=state.mode==='image';videoMode=state.mode==='video';
+    if(imageMode&&ArenaImage.cap(state.model))imageComposerModel=ArenaImage.canonical(state.model);
+    if(state.mode==='chat'&&AVAILABLE_CHAT_MODELS.indexOf(state.model)!==-1){
+      activeBrands={xai:false,anthropic:false,openai:false,google:false,mj:false,kling:false};
+      activeBrands[SUBS[state.model].brand]=true;brandSelection[SUBS[state.model].brand]=state.model;
+    }
+    $('aaDebateModeBar').style.display=debate?'flex':'none';
+    $('aaRoundsBar').style.display='none';
+    if($('aaSkillsWrap'))$('aaSkillsWrap').style.display=imageMode||videoMode?'none':'';
+    syncImageCards();syncBrandUI();sync2v2UI();updateModeBadge();saveState();
+  }
   function loadChat(chatId){
     if(aaRunning){arenaNotice('回答完成后可以切换对话');return Promise.resolve(false);}
     if(scopeSwitchPending)return Promise.resolve(false);
@@ -1753,28 +1789,30 @@ var TEAM_COLORS = {
     if(_saveTimer){ clearTimeout(_saveTimer); _saveTimer = null; }
     return chatApiCall('load', { chatId: chatId }).then(function(data){
       if(epoch!==scopeEpoch||loadEpoch!==chatLoadEpoch||loadScope!==activeProjectId||!data||data.error) return false;
-      var switched=String(currentChatId)!==String(chatId);
-      var hadAutomaticReference=switched&&sentImgs.some(function(image){return image.autoFollowup;});
+      var switched=String(currentChatId)!==String(chatId),wasImageMode=imageMode;
+      var hadAutomaticReference=switched&&sentImgs.some(function(image){return image.autoFollowup||image.generatedReference;});
       if(hadAutomaticReference){
-        sentImgs=sentImgs.filter(function(image){return !image.autoFollowup;});
+        sentImgs=sentImgs.filter(function(image){return !image.autoFollowup&&!image.generatedReference;});
         if(!sentImgs.length&&imageComposerTask==='edit')imageComposerTask='generation';
       }
       currentChatId = chatId;
       if(switched){imageEditParentUid=null;if(typeof imageMaskState!=='undefined')imageMaskState=null;}
       msgs = data.messages || [];
+      restoreChatMode();
+      var listed=chatList.find(function(chat){return chat.id===chatId;});if(listed)listed.mode=ArenaChatMode.infer(msgs).mode;
       if(imageEditParentUid!=null&&!msgs.some(function(message){return String(message.uid)===String(imageEditParentUid);}))imageEditParentUid=null;
       var loadedReplyAt = getLastAssistantReplyAt(msgs);
       if(loadedReplyAt) rememberChatReplyTime(chatId, loadedReplyAt);
       if(msgs.length){
         _uidCounter = Math.max.apply(null, msgs.map(function(m){ return Math.max(m.uid||0,m.debateRun&&m.debateRun.maxUid||0); })) + 1;
       }
-      if(switched&&imageMode&&!sentImgs.length&&!sentTexts.length&&!$('aaTopic').value.trim()){
+      if((switched||!wasImageMode)&&imageMode&&!sentImgs.length&&!sentTexts.length&&!$('aaTopic').value.trim()){
         var latestAnswer=msgs.slice().reverse().find(function(message){return !message.isUser;});
         if(latestAnswer&&!latestAnswer.isError&&latestAnswer.imgItems&&latestAnswer.imgItems.length===1&&ArenaImage.canonical(latestAnswer.submodel)===ArenaImage.canonical(imageComposerModel))setGeneratedImageReference(latestAnswer.imgItems[0],latestAnswer,true,0);
       }
       _skipNextChatSave = true;
       if(typeof clearDebateView==='function')clearDebateView();
-      render();if(imageMode){renderImgPreviews();syncImageComposer();}setImageError('');
+      render();renderImgPreviews();if(imageMode)syncImageComposer();setImageError('');
       closeHistory();
       msgs.forEach(function(message){if(message.run&&message.run.status!=='running')forgetPendingChatRun(message.run.id);});
       if(!(typeof resumeLoadedDebateRun==='function'&&resumeLoadedDebateRun())&&typeof resumeLoadedChatRun==='function')resumeLoadedChatRun();
@@ -1817,8 +1855,10 @@ var TEAM_COLORS = {
       var isActive = chat.id === currentChatId;
       var safeId = esc(String(chat.id));
       var displayTime = Number(chat.lastReplyAt) || Number(replyTimes[chat.id]) || Number(chat.updatedAt);
+      var modeLabel=Object.prototype.hasOwnProperty.call(ArenaChatMode.labels,chat.mode)?ArenaChatMode.labels[chat.mode]:'…';
       h += '<div class="aa-history-item'+(isActive?' active':'')+'">'
         +'<button type="button" class="aa-history-item-open" data-cid="'+safeId+'"'+(isActive?' aria-current="true"':'')+'>'
+        +'<span class="arena-history-mode" aria-label="会话类型：'+modeLabel+'">'+modeLabel+'</span>'
         +'<span class="aa-history-item-text">'
         +'<span class="aa-history-item-title">'+esc(chat.title)+'</span>'
         +'<span class="aa-history-item-time">'+formatTime(displayTime)+'</span>'
@@ -4176,8 +4216,21 @@ var TEAM_COLORS = {
       b.style.color = isActive ? '#e8e8ee' : '#6b6b88';
     });
   });
-   $('aaBarDebateBtn').addEventListener('click', function(){
-    if(aaRunning){arenaNotice('回答完成后可以切换模式');return;}
+  async function prepareModeNavigation(target){
+    if(aaRunning){arenaNotice('回答完成后可以切换模式');return false;}
+    if(scopeSwitchPending)return false;
+    var current=debate?'debate':imageMode?'image':videoMode?'video':'chat';
+    if(current!==target&&msgs.length){
+      var scope=activeProjectId,chat=currentChatId,epoch=chatLoadEpoch;
+      var saved=await flushScopeChat(true);
+      if(scope!==activeProjectId||chat!==currentChatId||epoch!==chatLoadEpoch||aaRunning||scopeSwitchPending)return false;
+      if(!saved||!saved.ok){arenaNotice('当前对话保存失败，已保留原对话，请重试');return false;}
+      beginNewChat();
+    }
+    return true;
+  }
+   $('aaBarDebateBtn').addEventListener('click', async function(){
+    if(!await prepareModeNavigation('debate'))return;
     debate = true; imageMode = false; videoMode = false;
     if(brandSelection['xai'] === 'grok41-biz-official') brandSelection['xai'] = 'grok-4.7';
     if(brandSelection['google'] === 'nanbanana2-official' || brandSelection['google'] === 'nanbanana2-custom') brandSelection['google'] = 'gemini-4-argon';
@@ -4205,9 +4258,8 @@ var TEAM_COLORS = {
     if($('aaSkillsWrap')) $('aaSkillsWrap').style.display = imageMode||videoMode?'none':'';
     if($('aaDebateModeBar')) $('aaDebateModeBar').style.display = 'flex';
   });
-  $('aaBarChatBtn').addEventListener('click', function(){
-    if(aaRunning){arenaNotice('回答完成后可以切换模式');return;}
-    if((imageMode || videoMode) && msgs.length > 0){ alert('当前对话有上下文，建议新建窗口再切换回对话模式。'); return; }
+  $('aaBarChatBtn').addEventListener('click', async function(){
+    if(!await prepareModeNavigation('chat'))return;
     debate = false; imageMode = false; videoMode = false;
     $('aaBarChatBtn').classList.add('active');
     $('aaBarDebateBtn').classList.remove('active');
@@ -4235,8 +4287,8 @@ var TEAM_COLORS = {
     if($('aaRoundsBar')) $('aaRoundsBar').style.display = 'none';
   });
 
-    $('aaBarVideoBtn').addEventListener('click', function(){
-    if(msgs.length > 0){ alert('当前对话有上下文，建议新建窗口再切换视频模式。'); return; }
+    $('aaBarVideoBtn').addEventListener('click', async function(){
+    if(!await prepareModeNavigation('video'))return;
     debate = false; imageMode = false; videoMode = true; debateMode = 'free';
     $('aaBarVideoBtn').classList.add('active');
     $('aaBarImageBtn').classList.remove('active');
@@ -4262,9 +4314,8 @@ var TEAM_COLORS = {
     syncImageComposer();
   });
 
-  $('aaBarImageBtn').addEventListener('click', function(){
-    if(aaRunning){arenaNotice('回答完成后可以切换模式');return;}
-    if(msgs.length > 0){ alert('当前对话有上下文，建议新建窗口再切换图像模式，避免混乱。'); return; }
+  $('aaBarImageBtn').addEventListener('click', async function(){
+    if(!await prepareModeNavigation('image'))return;
     debate = false; imageMode = true; videoMode = false;
     $('aaBarImageBtn').classList.add('active');
     $('aaBarDebateBtn').classList.remove('active');
@@ -5087,7 +5138,7 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
 
     var topicWithQuote = _quotePrefix + topic;
 
-    msgs.push({uid: newUid(), brand:'user', name:userName, text:topicWithQuote+(_imgs.length?' [img]':''), color:'#A78BFA', isUser:true, pastedTexts:_texts, topicText:_topicText, _quote:_quotedBlock, imgSrc:(_img?('data:'+(_imgMime||'image/jpeg')+';base64,'+_img):null), imgSrcs:_imgs.map(function(i){ return 'data:'+i.mime+';base64,'+i.data; }), _editImg:_img, _editImgMime:_imgMime});
+    msgs.push({uid: newUid(), chatMode:debate?'debate':imageMode?'image':videoMode?'video':'chat', submodel:imageMode?imageComposerModel:undefined, brand:'user', name:userName, text:topicWithQuote+(_imgs.length?' [img]':''), color:'#A78BFA', isUser:true, pastedTexts:_texts, topicText:_topicText, _quote:_quotedBlock, imgSrc:(_img?('data:'+(_imgMime||'image/jpeg')+';base64,'+_img):null), imgSrcs:_imgs.map(function(i){ return 'data:'+i.mime+';base64,'+i.data; }), _editImg:_img, _editImgMime:_imgMime});
 
     clearQuote();
     $('aaTopic').value = ''; $('aaTopic').style.height = 'auto';
