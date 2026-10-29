@@ -1,0 +1,17 @@
+# Automatic Skills
+
+The browser defaults to automatic task recognition. The Skills menu can select a specific workflow or disable skills. Settings are account, project and mode scoped. Old built-in prompts and the old custom-prompt editor are retired; legacy saved content is left in storage for recovery and is not loaded by the new interface.
+
+`skills/catalog.json` is the registry. Each workflow has an adapted `SKILL.md`; upstream snapshots, blob hashes and licenses are retained beside it. `node scripts/build-skills.mjs` generates the server instructions and public metadata. The browser receives descriptions only. Runtime instructions are loaded only for the selected task. New upstream versions must be reviewed, adapted and tested before replacing the pinned snapshot.
+
+Automatic selection uses the existing Anthropic key and Haiku route. It sees the current question, up to three short recent messages, attachment names and previous skill IDs. Simple greetings and disabled/manual mode do not call the classifier. General responses retain the selected model. Research uses that provider's native web tools; Anthropic additionally receives basic web fetch. With web access off, research workflows are unavailable.
+
+PPTX, XLSX, DOCX and PDF tasks invoke Anthropic's hosted Skills through the Messages API and code execution. Precise data-analysis workflows also use this execution path. The UI labels Claude as executor and records usage against the actual model. There is no automatic paid generation retry. `pause_turn` continues the same container, bounded to eight iterations and the existing chat-run timeout.
+
+Original attachments (up to five, 8 MB each, 16 MB total) travel as transient request data and are uploaded to Files API only when needed. Chat history contains a text preview, not the raw binary. Matching project materials are loaded from the owning project's original files. Uploaded originals are deleted from Files API after execution; the provider's container retention still applies. Generated files remain at Anthropic until explicitly deleted from their file card. Download handles expire after 30 days; container session handles after 20 hours or earlier provider expiry. Optional `SKILL_FILE_SIGNING_KEY` keeps handles independent of API-key rotation; without it, rotating the Anthropic key invalidates existing handles.
+
+File and session handles are signed, authenticated and scoped to account and project. Moving a completed chat re-signs valid file handles for the destination and clears the old execution container. A new container can load a referenced generated file. Incognito does not persist prompts, outputs, handles or credentials in application history/SQLite; provider-side retention remains separate. Ordinary chat-run replay retains artifacts, workflow metadata and container handles without submitting a new model request.
+
+Text/research workflows are available in debate; document execution remains a normal-chat operation rather than creating a separate file per seat. Image creation retains its existing model path. Existing cached clients and scheduled jobs without the new Skills settings retain their previous behavior.
+
+Run `npm run build`, `npm test`, and `node --test worker/*.test.mjs`. `worker/skills.test.mjs` uses synthetic provider responses and covers routing, original-file integrity, cancellation, native tool configuration, scopes, signatures, downloads, continuation, chat moves, replay and incognito. Real-provider file generation and layout checks are separate acceptance steps.

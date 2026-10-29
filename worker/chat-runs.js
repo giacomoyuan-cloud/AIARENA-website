@@ -78,6 +78,10 @@ export function createChatRunClass(execute, DebateRun, { deferStart = () => fals
       if (item.t) reply.text += item.t;
       if (item.r) reply.reasoning = (reply.reasoning || '') + item.r;
       if (item.context) reply.context = item.context;
+      if (item.skills) reply.skills=item.skills;
+      if (item.artifacts) reply.artifacts=[...(reply.artifacts||[]),...item.artifacts];
+      if (item.skillSession) reply.skillSession=item.skillSession;
+      if (item.executionModel) reply.executionModel=item.executionModel;
       if (item.grounding) reply.grounding = item.grounding;
       if (item.usage) reply.usage = item.usage;
       if (item.citation) {
