@@ -5,8 +5,8 @@ Release: `20261030-projectscope1`
 Clicking a global sidebar destination now exits the active project before applying
 the destination action. Project-home chat actions remain inside their project.
 The application restores each account and scope's own conversation, draft,
-attachments, quote, mode, and sidebar list. A project home preserves unsent input
-while preparing a new conversation.
+attachments, image-editing mask, quote, mode, and sidebar list. A project home preserves unsent input
+while preparing a new conversation, including original upload bytes used by Skills.
 
 Delayed project, conversation-list, and memory responses cannot replace a newer
 navigation choice. Pending saves are shared between competing scope switches;
@@ -16,8 +16,8 @@ and a project chat's context bar stays at the top.
 
 ## Validation
 
-- `npm test`: 186 passing tests, including 13 scope/navigation regression cases.
-- `npm --prefix worker test`: 220 passing tests, including server-side project,
+- `npm test`: 199 passing tests, including 13 scope/navigation regression cases.
+- `npm --prefix worker test`: 256 passing tests, including server-side project,
   account, memory, retrieval, and conversation isolation checks.
 - Browser acceptance uses the real frontend and Worker with an in-memory KV,
   SQLite-backed Durable Objects, and synthetic model streams. No production

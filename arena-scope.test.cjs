@@ -98,17 +98,18 @@ test('new scope sidebars are empty immediately and late list responses cannot re
 });
 
 test('opening a project home keeps its unsent draft while starting an independent conversation',async()=>{
-  const {c,get}=fixture();
-  Object.assign(c,{genChatId:()=> 'new-project-chat',hideThink(){},setImageError(){},syncKitten(){},
-    clearPreview(){c.sentImgs=[];c.sentTexts=[];}});
+  const {c,get}=fixture();let clearedFiles=0;
+  Object.assign(c,{genChatId:()=> 'new-project-chat',hideThink(){},setImageError(){},syncKitten(){},skillsRuntime:{clear(){clearedFiles++;}}});
   c.activeProjectId=A.id;c.sentImgs.push({autoFollowup:true,name:'automatic.png'});
-  vm.runInContext(fn('beginNewChat'),c);c.beginNewChat({preserveDraft:true});
+  vm.runInContext(fn('clearPreview')+'\n'+fn('beginNewChat'),c);c.beginNewChat({preserveDraft:true});
   assert.equal(c.activeProjectId,A.id);assert.equal(c.currentChatId,'new-project-chat');assert.equal(c.msgs.length,0);
   assert.equal(get('aaTopic').value,'general draft');assert.equal(c.sentTexts[0].name,'general.txt');
   assert.equal(c.sentImgs.length,1);assert.equal(c.sentImgs[0].name,'general.png');assert.equal(c.activeQuote.text,'general quote');
   assert.equal(c.imageMaskState.data,'general-mask');
+  assert.equal(clearedFiles,0,'original Skill upload bytes must survive a project-home draft round trip');
   c.beginNewChat();assert.equal(get('aaTopic').value,'');assert.equal(c.sentTexts.length,0);
   assert.equal(c.sentImgs.length,0);assert.equal(c.activeQuote,null);
+  assert.equal(c.imageMaskState,null);assert.equal(clearedFiles,1);
 });
 
 test('late project metadata cannot undo a newer return to general chat',async()=>{

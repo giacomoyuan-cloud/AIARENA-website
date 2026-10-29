@@ -2379,8 +2379,8 @@ var TEAM_COLORS = {
       container.appendChild(wrap);
     });
   }
-  function clearPreview(){
-    skillsRuntime.clear();
+  function clearPreview(options){
+    if(!(options&&options.preserveSkillFiles))skillsRuntime.clear();
     sentImgs = []; sentTexts = [];
     renderImgPreviews();
     renderTextPreviews();
@@ -4399,7 +4399,7 @@ var TEAM_COLORS = {
     $('aaDebateProgress').hidden=true;
     _bizMode = false;
     var resetImageTask=imageMode&&imageComposerTask==='edit'&&sentImgs.some(function(image){return image.generatedReference;})&&!(draft&&draft.images.length);
-    imageEditParentUid=null;msgs = []; render(); hideThink(); $('aaTopic').value = ''; $('aaTopic').style.height = ''; clearQuote();clearPreview();setImageError('');
+    imageEditParentUid=null;imageMaskState=null;msgs = []; render(); hideThink(); $('aaTopic').value = ''; $('aaTopic').style.height = ''; clearPreview({preserveSkillFiles:!!draft});setImageError('');
     if(draft){$('aaTopic').value=draft.text;sentImgs=draft.images;sentTexts=draft.texts;imageMaskState=draft.images.length?draft.mask:null;if(draft.quote)setQuote(draft.quote.author,draft.quote.text,draft.quote.color);renderImgPreviews();renderTextPreviews();$('aaSendBtn').disabled=!draft.text.trim()&&!sentImgs.length&&!sentTexts.length;}
     if(resetImageTask){imageComposerTask='generation';syncImageComposer();}
     closeHistory(); $('aaTopic').focus();
