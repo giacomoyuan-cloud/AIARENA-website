@@ -699,6 +699,7 @@
 #ai-arena-app.arena-shell .arena-operation-content p { margin: 0 0 6px; }
 #ai-arena-app.arena-shell .arena-operation-content a { display: block; color: var(--arena-text); text-decoration: underline; text-underline-offset: 3px; margin: 4px 0; }
 #ai-arena-app.arena-shell .arena-operation-row[open] > .aa-reasoning-content { display: block; max-height: 320px; overflow-y: auto; border: 0; background: transparent; margin: 0; }
+#ai-arena-app.arena-shell .arena-operation-summary { display: block; max-height: 320px; overflow-y: auto; border: 0; background: transparent; margin: 0; padding: 12px 14px; color: var(--arena-text); font: 14px/1.75 var(--arena-ui-font); }
 #ai-arena-app.arena-shell .aa-msg-body .arena-source-chip { display: inline; font: 10px/1.5 var(--arena-ui-font); color: var(--arena-muted); background: var(--arena-sidebar); border: 1px solid var(--arena-border); padding: 1px 6px; border-radius: 12px; white-space: nowrap; text-decoration: none; vertical-align: 1px; }
 #ai-arena-app.arena-shell .arena-source-preview { position: fixed; z-index: 100010; width: 310px; max-width: calc(100vw - 28px); padding: 16px; background: var(--arena-surface); color: var(--arena-text); border: 1px solid var(--arena-border); border-radius: 13px; box-shadow: 0 8px 30px #0000001c; pointer-events: none; font-family: var(--arena-ui-font); }
 #ai-arena-app.arena-shell .arena-source-preview[hidden] { display: none; }

@@ -29,9 +29,10 @@ function browser(saved = {}) {
 test('search summary distinguishes actual image, web and combined search results', () => {
   const context=vm.createContext({esc:value=>String(value),URL});
   vm.runInContext(browserFunction('renderMessageActivity'),context);
-  for(const [searchModes,label] of [[{web:false,image:true},'已思考，已搜索图片'],[{web:true,image:true},'已思考，已搜索网页与图片'],[{web:true,image:false},'已思考，已搜索网页'],[undefined,'已思考，已搜索网页']]){
+  for(const [searchModes,label] of [[{web:false,image:true},'已搜索图片'],[{web:true,image:true},'已搜索网页与图片'],[{web:true,image:false},'已搜索网页'],[undefined,'已搜索网页']]){
     const html=context.renderMessageActivity({activity:[{kind:'search_results',searchModes,label:'Search'}]});
     assert.ok(html.includes('<summary>'+label+'</summary>'));
+    assert.ok(context.renderMessageActivity({activity:[{kind:'search_results',searchModes,label:'Search'}],reasoning:'公开摘要'}).includes('<summary>已思考，'+label+'</summary>'));
   }
   assert.equal(context.renderMessageActivity({activity:[]}), '');
 });
