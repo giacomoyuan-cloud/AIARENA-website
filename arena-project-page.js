@@ -12,7 +12,7 @@
     page.id='aaProjectPage';page.className='arena-project-page';page.hidden=true;page.setAttribute('aria-label','项目工作区');main.appendChild(page);
     dialog.className='arena-workspace-dialog arena-project-editor';host.appendChild(dialog);
     var shortcuts=document.createElement('div');shortcuts.className='arena-project-shortcuts';shortcuts.hidden=true;host.querySelector('.arena-history-label').before(shortcuts);
-    var upload=document.createElement('input');upload.type='file';upload.multiple=true;upload.hidden=true;upload.accept='.txt,.md,.pdf,.docx,.xlsx,.xls,.pptx,.csv,.tsv,.json,.log';host.appendChild(upload);
+    var upload=document.createElement('input');upload.type='file';upload.multiple=true;upload.hidden=true;upload.accept=root.ArenaFiles.DOCUMENT_ACCEPT;host.appendChild(upload);
     var folder=document.createElement('input');folder.type='file';folder.multiple=true;folder.hidden=true;folder.setAttribute('webkitdirectory','');host.appendChild(folder);
     var epoch=0,account='',kind='',current=null,chats=[],tasks=[],catalog=[],archiveCatalog=[],archived=false,taskTab='mine',taskScope,taskSearch='',taskFilter='all',taskSort='next',projectSearch='',sort='updated',uploading=false,formSave=null,creationTarget=null;
     var menu=document.createElement('div');menu.className='arena-project-menu';menu.setAttribute('popover','auto');menu.setAttribute('role','menu');host.appendChild(menu);
@@ -118,21 +118,29 @@
     function addText(){var p=current,credentials=auth();openForm('添加文本资料','<label>标题<input name="name" required maxlength="160" placeholder="例如：项目背景"></label><label>内容<textarea name="text" required rows="10" maxlength="400000"></textarea></label>',async function(f){var name=f.elements.name.value.trim().replace(/\.txt$/i,'')+'.txt',file=new File([f.elements.text.value],name,{type:'text/plain'});await app.api('upload',Object.assign({projectId:p.id,file:await root.ArenaWorkspace.readFile(file)},credentials));await refreshHome();notice('文本资料已保存');});}
     async function uploadFiles(files,isFolder){
       if(uploading)return;var p=app.currentProject(),credentials=auth(),a=key();if(!p||!files.length)return;
-      uploading=true;var success=0,errors=[],skipped=0,currentFiles=[];
+      uploading=true;var success=0,errors=[],currentFiles=[];
       try{
         currentFiles=(await app.api('get',Object.assign({projectId:p.id},credentials))).project.files;
+        var expanded=await root.ArenaFiles.expandFiles(files,{progress:notice});
+        errors=expanded.skipped.map(function(item){return item.name+'：'+item.reason;});
+        files=expanded.files;
         for(var i=0;i<files.length;i++){
-          var source=files[i],path=source.webkitRelativePath||source.name;
-          if(isFolder&&(!/\.(txt|md|pdf|docx|xlsx|xls|pptx|csv|tsv|json|log)$/i.test(path)||path.split('/').some(function(x){return x.startsWith('.');}))){skipped++;continue;}
+          if(a!==key()||p.id!==(app.currentProject()||{}).id)break;
+          var entry=files[i],source=entry.file,path=entry.path;
           try{
-            var data=await root.ArenaWorkspace.readFile(source),replace=null;
-            if(isFolder){data.folder=path.split('/')[0];data.relativePath=path.split('/').slice(1).join('/');replace=currentFiles.find(function(f){return f.folder===data.folder&&f.relativePath===data.relativePath;});}
+            var folderName=isFolder||entry.archive?path.split('/')[0]:null,relativePath=folderName?path.split('/').slice(1).join('/'):null;
+            var replace=folderName?currentFiles.find(function(f){return f.folder===folderName&&f.relativePath===relativePath;}):null;
+            if(!replace&&currentFiles.length>=15)throw Error('每个项目最多保存 15 份资料');
+            if(currentFiles.reduce(function(n,f){return n+(replace&&replace.id===f.id?0:f.size);},0)+source.size>40*1024*1024)throw Error('项目资料总量超过 40MB');
+            var data=await root.ArenaWorkspace.readFile(source);
+            if(a!==key()||p.id!==(app.currentProject()||{}).id)break;
+            if(folderName){data.folder=folderName;data.relativePath=relativePath;}
             notice('正在保存 '+source.name+'（'+(i+1)+'/'+files.length+'）');
             var result=await app.api('upload',Object.assign({projectId:p.id,file:data,replaceFileId:replace?replace.id:undefined},credentials));currentFiles=result.files;success++;
           }catch(err){errors.push(source.name+'：'+err.message);}
         }
         if(a===key()){
-          await refreshHome();var summary='已导入 '+success+' 份资料'+(skipped?'，跳过 '+skipped+' 份不支持或隐藏文件':'');
+          await refreshHome();var summary='已导入 '+success+' 份资料'+(errors.length?'，'+errors.length+' 项未导入':'');
           if(errors.length||!success)openForm('导入结果','<p>'+e(summary)+'</p>'+errors.map(function(message){return '<p>'+e(message)+'</p>';}).join(''),async function(){});else notice(summary);
         }
       }catch(err){if(a===key())error(err.message);}finally{uploading=false;}

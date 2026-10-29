@@ -45,13 +45,13 @@ test('custom frame preview follows width and height immediately, including portr
   assert.ok(source.includes("$('aaImageSettingsPop').addEventListener('input'"),'custom preview is updated before blur/change');
 });
 
-test('OpenAI uploads preserve original resolution, alpha and MIME instead of converting every photo to JPEG',()=>{
+test('OpenAI uploads preserve original resolution, alpha and MIME instead of converting every photo to JPEG',async()=>{
   const original='data:image/png;base64,cG5nLW9yaWdpbmFs';let rendered=0;
   class Reader{readAsDataURL(){this.onload({target:{result:original}});}}
   class Image{set src(_value){this.width=4000;this.height=3000;this.onload();}}
-  const c=vm.createContext({ArenaImage:A,imageMode:true,imageComposerModel:A.OPENAI_MODELS[0],sentImgs:[],aaRunning:false,FileReader:Reader,Image,
+  const c=vm.createContext({ArenaImage:A,imageMode:true,imageComposerModel:A.OPENAI_MODELS[0],sentImgs:[],aaRunning:false,fileImporting:false,$:()=>({disabled:true}),FileReader:Reader,Image,
     imageReferenceLimit:()=>16,setImageError:()=>{},renderImgPreviews:()=>rendered++,alert:()=>assert.fail('unexpected alert'),document:{createElement:()=>assert.fail('must not resize/re-encode this reference')}});
-  vm.runInContext(fn('handleImageFile'),c);c.handleImageFile({size:100000,type:'image/png'});
+  vm.runInContext(fn('handleImageFile'),c);await c.handleImageFile({size:100000,type:'image/png'});
   assert.equal(c.sentImgs[0].data,'cG5nLW9yaWdpbmFs');assert.equal(c.sentImgs[0].mime,'image/png');assert.equal(rendered,1);
 });
 

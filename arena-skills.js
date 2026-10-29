@@ -32,7 +32,7 @@
     }
     function activate(id){if(!catalog.some(function(s){return s.id===id;}))return;set({mode:'manual',ids:[id]});}
     function capture(file){
-      if(!/\.(pdf|docx|pptx|xlsx|xls|csv|tsv|txt|md|json)$/i.test(file.name))return;
+      if(root.ArenaFiles?(!root.ArenaFiles.isDocument(file.name)&&!root.ArenaFiles.isArchive(file.name)):!/\.(pdf|docx|pptx|xlsx|xls|csv|tsv|txt|md|json)$/i.test(file.name))return;
       var scope=fileScope(),epoch=epochs[scope]||0,order=++sequence;
       var task=file.arrayBuffer().then(function(buffer){
         if((epochs[scope]||0)!==epoch)return;
