@@ -120,15 +120,24 @@ export function createDebateRunClass(execute, authorize, core) {
         if ([...this.jobs.values()].some(item => item.status === 'running') || this.execution) return json({ error: '本对话仍有讨论正在执行，请先等待或停止。' }, 409);
         const seed = body.seed;
         if (!seed) return json({ error: '缺少讨论恢复信息。' }, 400);
-        const plan = core.plan(seed.config), now = Date.now();
+        const config = { ...seed.config };
+        if(config.priorRunId){
+          const previous=this.jobs.get(config.priorRunId);
+          if(!previous?.plan||Date.now()-previous.updatedAt>RETENTION)return json({error:'上一场讨论的追问记录已过期，请引用聊天中的相关段落继续。'},410);
+          if(previous.status==='running')return json({error:'请等待上一场讨论完成后再追问。'},409);
+          // The actor is bound to one authenticated account/project/chat. A caller
+          // cannot supply another conversation's excerpt or a fabricated verdict.
+          try{config.priorContext=core.continuation(previous.plan,previous.turns);}catch(error){return json({error:error.message},400);}
+        }
+        const plan = core.plan(config), now = Date.now();
         job = { id: body.runId, fingerprint: body.fingerprint, user: seed.user, authVersion: seed.authVersion,
           projectId: seed.projectId, chatId: seed.chatId, incognito: seed.incognito, plan, status: 'running', revision: 1,
           createdAt: now, updatedAt: now, operations: [], turns: plan.turns.map((turn, index) => ({ index, status: 'pending', attempt: 0, revision: 1,
-            reply: { uid: seed.replyUids[index], submodel: turn.member.model, effort: seed.efforts[turn.member.model],
+            reply: { uid: seed.replyUids[index], submodel: turn.member.model, effort: turn.member.effort!==undefined?turn.member.effort:seed.efforts[turn.member.model],
               brand: seed.models[turn.member.model].brand, name: turn.member.label + ' · ' + seed.models[turn.member.model].name,
               color: seed.models[turn.member.model].color, round: turn.round, _team: turn.member.team,
               participantId: turn.member.id, debateSessionId: body.runId, debateStage: turn.stage, text: '', reasoning: '', citations: [], activity: [] } })) };
-        const input = { userMessage: seed.userMessage, images: seed.images, search: seed.search, title: seed.title, historyEndUid: seed.historyEndUid };
+        const input = { userMessage: seed.userMessage, images: seed.images, search: seed.search, skills:seed.skills, title: seed.title, historyEndUid: seed.historyEndUid };
         this.inputs.set(job.id, input); this.jobs.set(job.id, job);
         if (!job.incognito) {
           const text = JSON.stringify(input);
@@ -196,7 +205,7 @@ export function createDebateRunClass(execute, authorize, core) {
         timer = setTimeout(() => this.abort?.abort(), TURN_LIMIT);
         const payload = { ...credentials, model: spec.member.model, effort: turn.reply.effort, prompt, images: input.images, search: input.search, noAutomaticRetry: true,
           projectId: job.projectId, chat: { scope: job.projectId || 'general', chatId: job.chatId, question: prompt,
-            query: job.plan.topic, history: [], historyEndUid: null, incognito: job.incognito } };
+            query: job.plan.topic, history: [], historyEndUid: null, incognito: job.incognito, debate:true, skills:input.skills } };
         const response = await execute(new Request('https://internal.invalid/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), signal: this.abort.signal }), this.env);
         if (!response.ok) { const data = await response.json().catch(() => ({})); throw new Error(data.error || '模型请求失败（' + response.status + '）'); }
         reader = response.body.getReader(); const decoder = new TextDecoder(); let buffer = '', done = false;

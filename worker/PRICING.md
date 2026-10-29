@@ -76,6 +76,14 @@ OpenAI requests explicitly set `service_tier: default`, which requests Standard 
 
 Sources: [OpenAI pricing](https://developers.openai.com/api/docs/pricing), [OpenAI service tiers](https://developers.openai.com/api/reference/python/resources/responses/methods/create), [Anthropic search](https://platform.claude.com/docs/en/agents-and-tools/tool-use/web-search-tool), [Google pricing](https://ai.google.dev/gemini-api/docs/pricing), [xAI pricing](https://docs.x.ai/developers/pricing).
 
+## Automatic skills and official document execution
+
+Automatic skill selection uses the existing Haiku 4.5 model, billed with its complete cache-aware usage. Official documents use Sonnet 5.5 by default, or the explicitly configured document model. Every `pause_turn` continuation is a separate paid Messages request with its own immutable receipt. The reply groups all document-generation token counts and expenses; classifier, memory and summary tokens remain under their own model and purpose.
+
+Claude code execution has an organization-wide allowance of **1,550 hours per month**. Beyond it, the price is **$0.05/hour/container**, with a **5-minute minimum**. Preloaded files can incur execution time even if the model does not call the tool. Current document requests do not qualify for the newer search/fetch tool exemption. Their response cannot establish the remaining shared allowance or billable time, so execution expense stays pending alongside the known token/search subtotal. It is not inferred from request latency, counted once per continuation as a new container, or assumed free.
+
+Including `web_search_20260209` / `web_fetch_20260209` or later qualifies for the documented execution-fee exemption. The accounting adapter checks the tools actually sent; it does not infer an exemption just because a search switch is enabled. [Official execution pricing](https://platform.claude.com/docs/en/agents-and-tools/tool-use/code-execution-tool).
+
 ## Receipts, totals and historical data
 
 - Input/output come from provider counters, never text length. OpenAI/xAI output already contains reasoning; Google adds its separate thought counter once. Cumulative stream snapshots are merged, never summed as new calls.

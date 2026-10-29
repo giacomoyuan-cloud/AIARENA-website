@@ -38,21 +38,19 @@ test('an image draft typed during generation stays unsent and explains why',()=>
   f.fire('input');assert.equal(f.sendButton.disabled,false,'stop control stays available');
   f.fire('keydown');assert.equal(f.sends,0);assert.equal(f.prevented,1);assert.match(f.error,/仍在生成/);assert.equal(f.input.value,'token');
 });
-test('only explicit Skills or coding modes supplement the saved system prompt',()=>{
-  const c=vm.createContext({activeSkill:null,_pptTemplateInfo:null,SYS_CHAT:'DEFAULT',activeProjectId:null,activeProject:null,getActiveSubmodels:()=>['claude-sonnet-5-5']});
+test('retired browser Skills cannot replace server-owned workflows or system prompts',()=>{
+  const c=vm.createContext({activeSkill:{type:'prompt',id:'ppt-maker',prompt:'RETIRED'},SYS_CHAT:'DEFAULT'});
   vm.runInContext(fn('currentChatSystemPrompt')+'\n'+fn('chatSystemMode'),c);
   assert.equal(c.currentChatSystemPrompt('claude-sonnet-5-5'),'DEFAULT');
+  assert.equal(c.currentChatSystemPrompt('codex-official'),'DEFAULT');
   assert.equal(c.chatSystemMode('claude-sonnet-5-5'),'default');
-  c.activeSkill={type:'prompt',id:'ppt-maker',prompt:'SKILL'};c._pptTemplateInfo={name:'template.pptx',colors:{accent:'123456'},fonts:[]};
-  assert.equal(c.chatSystemMode('claude-sonnet-5-5'),'skill');
-  assert.match(c.currentChatSystemPrompt('claude-sonnet-5-5'),/SKILL/);assert.match(c.currentChatSystemPrompt('claude-sonnet-5-5'),/123456/);
-  assert.equal(c.chatSystemMode('codex-official'),'coding');
 });
-test('project requests never carry the general prompt or selected Skill',()=>{
-  const c=vm.createContext({activeSkill:{type:'prompt',prompt:'GENERAL_SKILL'},activeProjectId:null,currentChatId:'test-chat-123',msgs:[{uid:1,isUser:true,text:'question'}],_incognitoMode:false,getActiveSubmodels:()=>['claude-sonnet-5-5'],ArenaContext:{selectRecent:()=>({messages:[],earlier:[]})}});
+test('project requests carry only skill IDs and preserve project scope',()=>{
+  const c=vm.createContext({activeProjectId:null,currentChatId:'test-chat-123',msgs:[{uid:1,isUser:true,text:'question'}],_incognitoMode:false,getActiveSubmodels:()=>['claude-sonnet-5-5'],skillsRuntime:{settings:()=>({mode:'auto',ids:[]})},ArenaContext:{selectRecent:()=>({messages:[],earlier:[]})}});
   vm.runInContext(fn('chatSystemMode')+'\n'+fn('scopedChatInput'),c);
-  assert.equal(c.scopedChatInput('question','GENERAL_SKILL').systemMode,'skill');
+  assert.equal(c.scopedChatInput('question','GENERAL_PROMPT').skills.mode,'auto');
   c.activeProjectId='project-123';
-  const request=c.scopedChatInput('question','GENERAL_SKILL');
+  const request=c.scopedChatInput('question','GENERAL_PROMPT');
   assert.equal(request.system,'');assert.equal(request.systemMode,'project');assert.equal(request.scope,'project-123');
+  assert.equal(request.skills.mode,'auto');assert.deepEqual(Array.from(request.skills.ids),[]);
 });

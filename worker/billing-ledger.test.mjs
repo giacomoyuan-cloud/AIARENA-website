@@ -141,3 +141,31 @@ test('a final failed response still records the usage the provider returned',asy
   const events=(await response.text()).split('\n').filter(l=>l.startsWith('data: {')).map(l=>JSON.parse(l.slice(6)));
   assert.equal(events.find(e=>e.usage).usage.costUsd,'0.012');assert.ok(events.some(e=>e.error));assert.equal((await usageSummary(env,'tester')).total.calls,1);
 });
+
+const scoped=(question,skills)=>({scope:'general',chatId:'billing-scoped-test',question,query:question,history:[],historyEndUid:null,skills});
+test('automatic skill routing records the complete Haiku receipt alongside the selected model',async t=>{
+  const {env,hash}=await authenticatedFixture();env.ANTHROPIC_API_KEY='synthetic-anthropic-key';
+  t.mock.method(globalThis,'fetch',(url,options)=>{
+    const body=JSON.parse(options.body);
+    if(url.includes('anthropic.com')){assert.equal(body.service_tier,'standard_only');return Response.json({content:[{type:'text',text:'{"ids":[],"output":"text"}'}],usage:{input_tokens:10,output_tokens:5,service_tier:'standard'}});}
+    return completedResponse();
+  });
+  const response=await worker.fetch(new Request('https://api.pickandcase.com/',{method:'POST',body:JSON.stringify({user:'tester',password:hash,model:'gpt-6.1-sol',chat:scoped('请解释一个概念',{mode:'auto'})})}),env);
+  const events=(await response.text()).split('\n').filter(l=>l.startsWith('data: {')).map(l=>JSON.parse(l.slice(6))),value=events.find(e=>e.usage).usage;
+  assert.equal(value.costUsd,'0.012035');assert.equal(value.input,1000);assert.equal(value.auxiliary[0].purpose,'skill-router');
+  const stats=await usageSummary(env,'tester');assert.equal(stats.total.calls,2);assert.equal(stats.models['claude-haiku-4-5-20251001'].input,10);
+});
+test('all native document continuations emit one canonical group and preserve every raw usage snapshot',async t=>{
+  const {env,hash}=await authenticatedFixture();env.ANTHROPIC_API_KEY='synthetic-anthropic-key';let calls=0;
+  t.mock.method(globalThis,'fetch',(url,options)=>{
+    assert.equal(url,'https://api.anthropic.com/v1/messages');assert.equal(JSON.parse(options.body).service_tier,'standard_only');calls++;
+    const usage=calls===1?{input_tokens:100,cache_read_input_tokens:20,cache_creation_input_tokens:30,cache_creation:{ephemeral_5m_input_tokens:30,ephemeral_1h_input_tokens:0},output_tokens:10}:{input_tokens:50,cache_read_input_tokens:100,output_tokens:20};
+    return Response.json({id:'synthetic-document-'+calls,container:{id:'container_test_123'},stop_reason:calls===1?'pause_turn':'end_turn',usage,content:[{type:'bash_code_execution_tool_result',content:{type:'bash_code_execution_result',return_code:0,content:[]}},{type:'text',text:'synthetic completed analysis'}]});
+  });
+  const response=await worker.fetch(new Request('https://api.pickandcase.com/',{method:'POST',body:JSON.stringify({user:'tester',password:hash,model:'gpt-6.1-sol',chat:scoped('分析 1 和 2，不需文件',{mode:'manual',ids:['xlsx']})})}),env);
+  const events=(await response.text()).split('\n').filter(l=>l.startsWith('data: {')).map(l=>JSON.parse(l.slice(6))),values=events.filter(e=>e.usage).map(e=>e.usage);
+  assert.equal(calls,2);assert.equal(values.length,1);const value=values[0];
+  assert.equal(value.schemaVersion,2);assert.equal(value.model,'claude-sonnet-5-5');assert.equal(value.execution.input,300);assert.equal(value.execution.output,30);assert.equal(value.knownCostUsd,'0.000687');assert.equal(value.costUsd,null);
+  const stats=await usageSummary(env,'tester');assert.equal(stats.total.calls,2);assert.equal(stats.total.input,300);assert.equal(stats.total.output,30);assert.equal(stats.total.knownCostUsd,'0.000687');
+  const restored=await usageReceipt(env,'tester',value.id);assert.equal(restored.receipt.execution.input,300);assert.equal(restored.receipt.knownCostUsd,value.knownCostUsd);
+});

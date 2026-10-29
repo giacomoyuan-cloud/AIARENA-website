@@ -129,3 +129,30 @@ test('an unexpected Anthropic Priority response is not priced as Standard',()=>{
   const value=B.receipt('claude-haiku-4-5-20251001',{input_tokens:100,output_tokens:100,service_tier:'priority'},options);
   assert.equal(value.costUsd,null);assert.ok(value.notes.includes('service_tier_unpriced'));
 });
+
+test('document continuation sums all generating calls but keeps the router tokens separate',()=>{
+  const a=B.receipt('claude-sonnet-5-5',{input_tokens:100,cache_read_input_tokens:20,cache_creation_input_tokens:30,cache_creation:{ephemeral_5m_input_tokens:30,ephemeral_1h_input_tokens:0},output_tokens:10},{...options,id:'document-call-one',purpose:'file-generation',codeExecution:true});
+  const b=B.receipt('claude-sonnet-5-5',{input_tokens:50,cache_read_input_tokens:100,output_tokens:20},{...options,id:'document-call-two',purpose:'file-generation',codeExecution:true});
+  const router=B.receipt('claude-haiku-4-5-20251001',{input_tokens:10,output_tokens:5},{...options,id:'document-router',purpose:'skill-router'});
+  const grouped=B.combine(a,[a,b,router]),again=B.combine(grouped,[b,router]);
+  assert.equal(grouped.execution.input,300);assert.equal(grouped.execution.output,30);assert.equal(grouped.execution.calls,2);
+  assert.equal(grouped.execution.details.cachedInput,120);assert.equal(grouped.knownCostUsd,'0.000722');assert.equal(grouped.costUsd,null);
+  assert.equal(again.knownCostPico,grouped.knownCostPico);assert.equal(again.execution.input,300);assert.match(B.label(grouped),/输入 300/);
+  assert.match(UI.render(grouped),/2 次文档调用/);assert.match(UI.render(grouped),/0.05 \/ 小时/);
+});
+test('document execution time and shared allowance are not guessed from response latency',()=>{
+  const value=B.receipt('claude-sonnet-5-5',{input_tokens:100,output_tokens:100},{...options,codeExecution:true});
+  assert.equal(value.costUsd,null);assert.equal(value.knownCostUsd,'0.0012');assert.ok(value.notes.includes('code_execution_time_unknown'));
+  const included=B.receipt('claude-sonnet-5-5',{input_tokens:100,output_tokens:100},{...options,codeExecution:true,codeExecutionIncluded:true});
+  assert.equal(included.costUsd,'0.0012');
+});
+
+test('a contradictory cache total never becomes a claimed known input charge',()=>{
+  const r=B.receipt('gpt-6.1-sol',{input_tokens:100,output_tokens:100,input_tokens_details:{cached_tokens:200,cache_write_tokens:0}},options);
+  assert.equal(r.costUsd,null);assert.equal(r.knownCostUsd,'0.001');assert.ok(r.notes.includes('cache_total_exceeds_input'));
+});
+test('the charged token tier multiplier is visible without multiplying tool fees',()=>{
+  const r=B.receipt('gpt-6.1-sol',responses(),{...options,serviceTier:'priority',searches:2});
+  assert.equal(r.costUsd,'0.044');assert.match(UI.render(r),/服务档位 ×2/);
+  assert.equal(r.items.find(x=>x.kind==='webSearch').rateMultiplier,'1');
+});

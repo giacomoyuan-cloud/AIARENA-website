@@ -111,6 +111,7 @@
       }
     }
     if(issues.indexOf('cache_write_total_mismatch')!==-1){['uncachedInput','cachedInput','cacheWriteShort','cacheWriteLong'].forEach(function(key){d[key]=null;});if(provider==='anthropic')input=null;}
+    if(d.uncachedInput<0){['uncachedInput','cachedInput','cacheWriteShort','cacheWriteLong','cacheWriteUnknown'].forEach(function(key){d[key]=null;});issues.push('cache_total_exceeds_input');}
     Object.keys(d).forEach(function(key){if(d[key]!==null&&count(d[key])===null){d[key]=null;issues.push('invalid_counter:'+key);}});
     if(input===null||output===null)issues.push('token_totals_missing');
     return {input:input,output:output,details:d,issues:issues};
@@ -131,7 +132,7 @@
       var unit=rate===null||rate===undefined?null:units(rate,scale===undefined?6:scale),factor=scale===9?1000000n:multiplier?units(multiplier,6):null,amount=null;
       if(n!==null&&unit!==null&&factor!==null){amount=BigInt(n)*unit*factor/1000000n;known+=amount;}
       else if(n!==0)issues.push('unpriced:'+kind);
-      items.push({kind:kind,count:n,rate:rate===undefined?null:rate,unit:scale===9?'per_1000_calls':'per_million_tokens',amountUsd:amount===null?null:usd(amount)});
+      items.push({kind:kind,count:n,rate:rate===undefined?null:rate,rateMultiplier:scale===9?'1':multiplier||null,unit:scale===9?'per_1000_calls':'per_million_tokens',amountUsd:amount===null?null:usd(amount)});
     }
     if(!config)issues.push('model_price_unverified');
     else if(config.providerAmount){items.push({kind:'generatedImages',count:count(options.imagesGenerated),rate:null,unit:'provider_reported',amountUsd:null});}
@@ -152,6 +153,9 @@
       issues.push('google_search_free_allowance_unknown');
       items.push({kind:'googleSearch',count:options.groundingUsed?count(options.searches):null,rate:'14',unit:'per_1000_calls_after_shared_free_allowance',amountUsd:null});
     }else if(provider==='xai'&&searches!==undefined&&searches!==0)add('webSearch',count(searches),'5',9);
+    if(options.codeExecution&&!options.codeExecutionIncluded){
+      issues.push('code_execution_time_unknown');items.push({kind:'codeExecution',count:null,rate:'0.05',unit:'per_hour',amountUsd:null});
+    }
     if(options.incompleteUsage)issues.push('final_usage_missing');
     var official=provider==='xai'&&raw&&!options.incompleteUsage?exactTicks(raw.cost_in_usd_ticks):null;
     var complete=official!==null||!!config&&issues.length===0&&normalized.input!==null&&normalized.output!==null&&!config.providerAmount;
@@ -168,7 +172,12 @@
     if(!primary||primary.schemaVersion!==2)return primary;
     var own=Object.assign({},primary),children=[],seen=new Set(),all=(primary.auxiliary||[]).concat(extra||[]);
     delete own.auxiliary;
-    all.forEach(function(child){if(!child||child.schemaVersion!==2||child.id&&seen.has(child.id))return;if(child.id)seen.add(child.id);children.push(child);});
+    all.forEach(function(child){if(!child||child.schemaVersion!==2||child.id&&(child.id===own.id||seen.has(child.id)))return;if(child.id)seen.add(child.id);children.push(child);});
+    if(own.purpose==='file-generation'){
+      var generation=[own].concat(children.filter(function(child){return child.purpose==='file-generation'&&child.model===own.model;})),detailTotals={};
+      Object.keys(own.details||{}).forEach(function(key){detailTotals[key]=sum(generation.map(function(r){return r.details&&r.details[key]!==undefined?r.details[key]:null;}));});
+      own.execution={calls:generation.length,input:sum(generation.map(function(r){return r.input;})),output:sum(generation.map(function(r){return r.output;})),usageComplete:generation.every(function(r){return r.usageComplete;}),details:detailTotals};
+    }
     if(!children.length)return own;
     // Keep each provider request separate in the ledger; this is a UI total.
     var records=[own].concat(children),known=records.reduce(function(n,r){return n+BigInt(r.knownCostPico||'0');},0n),complete=records.every(function(r){return r.billingComplete;});
@@ -191,7 +200,7 @@
       return (parts.length?parts.join(' · ')+' · ':'')+(value||legacyText?'历史费用未核实':'');
     }
     if(!isReceipt(value))return '费用明细需核实';
-    var p=[];p.push(value.input===null?'输入未提供':(value.usageComplete?'输入 ':'已返回输入 ')+value.input);p.push(value.output===null?'输出未提供':(value.usageComplete?'输出 ':'已返回输出 ')+value.output);
+    var counters=value.execution||value,p=[];p.push(counters.input===null?'输入未提供':(counters.usageComplete?'输入 ':'已返回输入 ')+counters.input);p.push(counters.output===null?'输出未提供':(counters.usageComplete?'输出 ':'已返回输出 ')+counters.output);
     if(value.billingComplete)p.push((value.costBasis==='provider'?'官方金额 ':'按官方价 ')+money(value.costUsd));
     else p.push(BigInt(value.knownCostPico||'0')>0n?'已知费用 '+money(value.knownCostUsd)+'，另有待结算费用':'费用待结算');
     return p.join(' · ');
