@@ -38,13 +38,41 @@ test('a lost start acknowledgement retries with the same idempotency key',async(
   assert.equal(starts.length,2);assert.deepEqual(starts[0],starts[1]);
 });
 
-test('hiding and resuming the page only reconnects its observer',async()=>{
+test('the hidden page keeps receiving the same generation without cancelling its observer',async()=>{
+  const doc=new EventTarget();doc.hidden=false;const calls=[];let observer,signal;
+  const client=create({document:doc,makeId:()=> 'background-receive-id',fetch:async(url,options)=>{
+    const body=JSON.parse(options.body);calls.push(body);
+    if(body.action==='start')return Response.json({status:'running'});
+    signal=options.signal;
+    return new Response(new ReadableStream({start(controller){observer=controller;controller.enqueue(enc.encode(event(1,{t:'前半段'})));}}));
+  }});
+  const response=await client.open('https://example.test',payload),result=response.text();
+  await until(()=>!!observer);doc.hidden=true;doc.dispatchEvent(new Event('visibilitychange'));
+  assert.equal(signal.aborted,false);
+  observer.enqueue(enc.encode(event(2,{t:'后台生成的后半段'})+event(3,'[DONE]')));observer.close();
+  const text=await result;assert.ok(text.includes('后台生成的后半段'));assert.equal(doc.hidden,true);
+  assert.equal(calls.filter(x=>x.action==='events').length,1);
+  assert.equal(calls.filter(x=>x.action==='start').length,1);assert.ok(!calls.some(x=>x.action==='stop'));
+});
+
+test('a generation started in a hidden page receives text before the page returns',async()=>{
+  const doc=new EventTarget();doc.hidden=true;const calls=[];
+  const client=create({document:doc,makeId:()=> 'hidden-start-id',fetch:async(url,options)=>{
+    const body=JSON.parse(options.body);calls.push(body);
+    return body.action==='start'?Response.json({status:'running'}):stream([event(1,{t:'后台收到的回答'}),event(2,'[DONE]')]);
+  }});
+  const text=await(await client.open('https://example.test',payload)).text();
+  assert.ok(text.includes('后台收到的回答'));assert.equal(doc.hidden,true);
+  assert.equal(calls.filter(x=>x.action==='start').length,1);
+});
+
+test('returning to a running page reconnects only its observer and deduplicates the backlog',async()=>{
   const doc=new EventTarget();doc.hidden=false;const calls=[];let firstController;
   const client=create({document:doc,makeId:()=> 'background-id',fetch:async(url,options)=>{
     const body=JSON.parse(options.body);calls.push(body);
     if(body.action==='start')return Response.json({status:'running'});
     if(calls.filter(x=>x.action==='events').length===1)return new Response(new ReadableStream({start(controller){firstController=controller;controller.enqueue(enc.encode(event(1,{t:'前半段'})));options.signal.addEventListener('abort',()=>{try{controller.error(new DOMException('hidden','AbortError'));}catch{}});}}));
-    return stream([event(2,{t:'后台生成的后半段'}),event(3,'[DONE]')]);
+    return stream([event(1,{t:'前半段'}),event(2,{t:'后台生成的后半段'}),event(3,'[DONE]')]);
   }});
   const response=await client.open('https://example.test',payload),result=response.text();
   await until(()=>!!firstController);
@@ -52,7 +80,7 @@ test('hiding and resuming the page only reconnects its observer',async()=>{
   await new Promise(r=>setTimeout(r,20));
   assert.equal(calls.filter(x=>x.action==='events').length,1);
   doc.hidden=false;doc.dispatchEvent(new Event('visibilitychange'));
-  const text=await result;assert.ok(text.includes('后台生成的后半段'));
+  const text=await result;assert.ok(text.includes('后台生成的后半段'));assert.equal((text.match(/前半段/g)||[]).length,1);
   assert.equal(calls.filter(x=>x.action==='start').length,1);assert.ok(!calls.some(x=>x.action==='stop'));
 });
 

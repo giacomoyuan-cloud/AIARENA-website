@@ -44,26 +44,75 @@ test('a large network batch starts with one character and reveals about 15 per s
   for (let i = 1; i < paints.length; i++) assert.ok(paints[i].text.length - paints[i - 1].text.length <= 1, 'no batch dump at EOF');
 });
 
-test('new batches respect the same clock while an exhausted buffer waits for the network', async () => {
+test('late network batches use elapsed typing time instead of restarting the reply clock', async () => {
   const { timer, queue } = fixture();
   queue.write(1, '一'); timer.tick(10); queue.write(1, '一二三');
   assert.equal(queue.text(1, ''), '一');
   timer.tick(60); assert.equal(queue.text(1, ''), '一二');
   timer.tick(2000); assert.equal(queue.text(1, ''), '一二三');
-  queue.write(1, '一二三四五六'); assert.equal(queue.text(1, ''), '一二三四');
-  timer.tick(10); queue.write(1, '一二三四五六七'); assert.equal(queue.text(1, ''), '一二三四');
+  queue.write(1, '一二三四五六'); assert.equal(queue.text(1, ''), '一二三四五六');
+  timer.tick(10); queue.write(1, '一二三四五六七'); assert.equal(queue.text(1, ''), '一二三四五六七');
   const done = queue.finish(1, '一二三四五六七'); timer.tick(1000); await done;
 });
 
-test('a stalled main thread and hidden tab cannot cause a catch-up burst', async () => {
-  const { timer, queue } = fixture(), text = '慢慢显示这段文字'.repeat(10);
-  queue.write(1, text); timer.stall(10000);
-  assert.equal(queue.text(1, '').length, 2);
-  queue.pause(true); const paused = queue.text(1, ''); timer.tick(30000);
-  assert.equal(queue.text(1, ''), paused);
-  queue.pause(false); timer.tick(60); assert.equal(queue.text(1, ''), paused);
-  timer.tick(10); assert.equal(queue.text(1, '').length, paused.length + 1);
+test('a throttled timer catches up to 15 characters per second instead of slowing the reply', async () => {
+  const { timer, queue } = fixture(), text = '字'.repeat(300);
+  queue.write(1, text); timer.stall(1000);
+  assert.equal(queue.text(1, '').length, 16);
+  queue.pause(true); timer.tick(1000); queue.pause(false);
+  assert.equal(queue.text(1, '').length, 31);
+  timer.tick(1000); assert.equal(queue.text(1, '').length, 46);
+  const done = queue.finish(1, text); timer.tick(20000); await done;
+});
+
+test('100 characters are complete immediately on return after a hidden minute', async () => {
+  const { timer, paints, queue } = fixture(), text = '字'.repeat(100);
+  queue.write(1, text); queue.pause(true);
+  const done = queue.finish(1, text), count = paints.length;
+  timer.tick(60000);
+  assert.equal(paints.length, count, 'hidden rendering can sleep without pausing elapsed time');
+  queue.pause(false);
+  assert.equal(paints.at(-1).text, text);
+  assert.equal(paints.at(-1).done, true);
+  assert.equal(queue.has(1), false);
+  assert.equal(await done, true);
+});
+
+test('returning early catches up only the elapsed portion and then continues at the same rate', async () => {
+  const { timer, queue } = fixture(), text = '字'.repeat(300);
+  queue.write(1, text); queue.pause(true); timer.tick(2000);
+  queue.pause(false); assert.equal(queue.text(1, '').length, 31);
+  queue.pause(true); timer.tick(500); queue.pause(false);
+  assert.equal(queue.text(1, '').length, 38);
+  timer.tick(500); assert.equal(queue.text(1, '').length, 46);
+  const done = queue.finish(1, text); timer.tick(20000); await done;
+});
+
+test('text arriving while hidden and replayed batches share the first text deadline', async () => {
+  const { timer, queue, paints } = fixture(), text = '字'.repeat(100);
+  queue.pause(true); timer.tick(2000); queue.write(1, '字');
+  timer.tick(60000); queue.write(1, text.slice(0, 50));
+  queue.write(1, text); const done = queue.finish(1, text);
+  assert.equal(paints.length, 0);
+  queue.pause(false);
+  assert.equal(paints.at(-1).text, text);
+  assert.equal(await done, true);
+});
+
+test('thinking and empty updates do not consume typing time before the first character', async () => {
+  const { timer, queue } = fixture(), text = '字'.repeat(100);
+  queue.write(1, ''); timer.tick(60000); queue.write(1, text);
+  assert.equal(queue.text(1, ''), '字');
+  timer.tick(1000); assert.equal(queue.text(1, '').length, 16);
   const done = queue.finish(1, text); timer.tick(10000); await done;
+});
+
+test('a fully suspended event loop catches up in its first callback', async () => {
+  const { timer, queue, paints } = fixture(), text = '字'.repeat(100);
+  queue.write(1, text); const done = queue.finish(1, text);
+  timer.stall(60000);
+  assert.equal(paints.at(-1).text, text);
+  assert.equal(await done, true);
 });
 
 test('Chinese, combined accents and emoji are revealed as whole graphemes', async () => {
@@ -111,21 +160,34 @@ test('completion waits for every parallel model and preserves final text correct
 
 function appFixture() {
   const timer = clock(), body = { innerHTML: '', dataset: {}, classList: { contains: () => false, add() {} } };
+  const listeners = new Map(), document = { hidden: false, addEventListener(type, listener) { listeners.set(type, listener); } };
   const element = { querySelector: selector => selector === '.aa-msg-body' ? body : null };
   const messages = { querySelector: () => element, scrollTop: 0, scrollHeight: 100 };
   const message = { uid: 1, submodel: 'gemini-4-argon', text: '', citations: [] };
   const context = vm.createContext({
     ArenaStream: { create: options => ArenaStream.create({ ...options, ...timer }) },
     ArenaImage: require('./arena-image.js'), Map, Promise,
-    document: { hidden: false, addEventListener() {} }, msgs: [message], userScrolledUp: false,
+    document, msgs: [message], userScrolledUp: false,
     $: () => messages, renderMd: text => text, esc: text => text, currentChatId: null,
     highlightCodeBlocks() {}, requestAnimationFrame: fn => timer.setTimeout(fn, 16), cancelAnimationFrame: timer.clearTimeout,
     render() { body.innerHTML = context.liveReplies.text(1, message.text); }
   });
   const source = readFileSync(require('node:path').join(__dirname, 'index.html'), 'utf8');
   vm.runInContext(source.slice(source.indexOf('  var liveFrames='), source.indexOf('  function cleanThinkTags')), context);
-  return { timer, body, message, context };
+  return { timer, body, message, context, visibility(hidden) { document.hidden = hidden; listeners.get('visibilitychange')(); } };
 }
+
+test('the app resumes a complete 100-character reply before the first foreground paint', async () => {
+  const { timer, body, message, context, visibility } = appFixture();
+  message.text = '字'.repeat(100); context.liveUpdate(1, message.text);
+  visibility(true); const done = context.finalizeMsg(1, message.text, false);
+  timer.tick(60000); visibility(false);
+  assert.equal(body.innerHTML, message.text);
+  assert.equal(body.dataset.streaming, 'false');
+  assert.equal(await done, true);
+  assert.doesNotMatch(body.innerHTML, /arena-stream-caret/);
+  assert.equal(message.text.length, 100);
+});
 
 test('real app finalization and full renders keep the visible prefix while canonical history keeps all text', async () => {
   const { timer, body, message, context } = appFixture();
