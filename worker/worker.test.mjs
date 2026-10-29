@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import worker from './worker.js';
+import worker, { ChatRun } from './worker.js';
 
 const sha = async text => Buffer.from(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))).toString('hex');
 const password = await sha('test-only-access-password');
@@ -20,6 +20,15 @@ const responses = () => stream([
   {type:'response.output_text.delta',delta:' world'},
   {type:'response.completed',response:{usage:{input_tokens:11,output_tokens:7},output:[{content:[{text:'你好 world'}]}]}}
 ]);
+
+for(const model of ['gpt-6-astra','gpt-6.1-sol'])test(model+' uses the private US transport with its existing encrypted key',async t=>{
+  const {env}=setup();let hops=0;
+  const namespace={idFromName:name=>name,get:()=>({fetch:async request=>{hops++;assert.equal(request.headers.get('Authorization'),null);return ChatRun.prototype.fetch.call({env,ctx:{id:{jurisdiction:'us'}}},request);}})};
+  env.CHAT_RUNS={jurisdiction:value=>{assert.equal(value,'us');return namespace;}};
+  const calls=mockFetch(t,async(url,options)=>{assert.equal(url,'https://api.openai.com/v1/responses');assert.equal(options.headers.get('Authorization'),'Bearer '+env.OPENAI_API_KEY);assert.equal(JSON.parse(await new Response(options.body).text()).model,model);return responses();});
+  const output=await(await worker.fetch(request(model,{effort:'low'}),env)).text();
+  assert.match(output,/你好/);assert.equal(hops,1);assert.equal(calls.length,1);
+});
 function request(model, extra={}) { return new Request('https://api.pickandcase.com/',{method:'POST',body:JSON.stringify({model,prompt:'Test prompt',user:'tester',password,...extra}),headers:{'Content-Type':'application/json'}}); }
 function events(text) { return text.split('\n').filter(line=>line.startsWith('data: ')&&line!=='data: [DONE]').map(line=>JSON.parse(line.slice(6))); }
 function mockFetch(t, handler) {
@@ -167,6 +176,7 @@ test('Grok image generation uses the official endpoint and counts cost once',asy
 
 test('OpenAI image generation sends official JSON without unsupported response_format',async t=>{
   const {env}=setup();
+  env.CHAT_RUNS={jurisdiction(){throw new Error('Image generation must retain its existing route');}};
   mockFetch(t,(url,options)=>{ assert.equal(url,'https://api.openai.com/v1/images/generations'); assert.equal(options.headers.Authorization,'Bearer '+env.OPENAI_API_KEY); const body=JSON.parse(options.body); assert.equal(body.size,'1536x1024'); assert.equal(body.response_format,undefined); assert.equal(typeof body.safety_identifier,'string'); return Response.json({data:[{b64_json:'aGVsbG8='}]}); });
   const output=events(await (await worker.fetch(request('gpt-image-2.5-sunburst',{aspectRatio:'3:2'}),env)).text());
   assert.equal(output.find(value=>value.img).mime,'image/png');
@@ -174,6 +184,7 @@ test('OpenAI image generation sends official JSON without unsupported response_f
 
 test('OpenAI image editing uploads reference files as multipart data',async t=>{
   const {env}=setup();
+  env.CHAT_RUNS={jurisdiction(){throw new Error('Image editing must retain its existing route');}};
   mockFetch(t,(url,options)=>{ assert.equal(url,'https://api.openai.com/v1/images/edits'); assert.equal(options.headers['Content-Type'],undefined); assert.ok(options.body instanceof FormData); assert.equal(options.body.getAll('image[]').length,2); assert.equal(options.body.get('model'),'gpt-image-2.5-sunburst'); return Response.json({data:[{b64_json:'aGVsbG8='}]}); });
   const output=events(await (await worker.fetch(request('gpt-image-2.5-sunburst',{imageTask:'multi-edit',images:[{data:'aGVsbG8=',mime:'image/png'},{data:'aGVsbG8=',mime:'image/jpeg'}]}),env)).text());
   assert.ok(output.some(value=>value.img));

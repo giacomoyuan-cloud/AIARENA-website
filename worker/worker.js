@@ -1,4 +1,5 @@
 import { createChatRunClass } from './chat-runs.js';
+import { fetchOpenAIFromUS } from './openai-transport.js';
 import { createDebateRunClass } from './debate-runs.js';
 import DebateCore from '../arena-debate.js';
 var __defProp = Object.defineProperty;
@@ -1202,6 +1203,9 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
         // Cloudflare's native binding preserves the provider's response stream and multipart uploads.
         return env.AI.fetch("https://workers-binding.ai/ai-gateway/gateways/" + encodeURIComponent(gatewayId) + "/openai" + target.pathname + target.search,
           { ...options, headers, redirect: "manual" });
+      }
+      if (target.hostname === "api.openai.com" && target.pathname === "/v1/responses" && options.method === "POST" && env.CHAT_RUNS) {
+        return fetchOpenAIFromUS(env, url, options);
       }
       return fetch(url, { ...options, redirect: "manual" });
     }

@@ -1,3 +1,5 @@
+import { OPENAI_TRANSPORT_ORIGIN, handleOpenAITransport } from './openai-transport.js';
+
 // A generation belongs to its chat, not to a phone's HTTP connection.
 // Credentials and provider keys are never written to Durable Object storage.
 const encoder = new TextEncoder();
@@ -226,6 +228,9 @@ export function createChatRunClass(execute, DebateRun) {
     }
 
     async fetch(request) {
+      if (new URL(request.url).origin === OPENAI_TRANSPORT_ORIGIN) {
+        return handleOpenAITransport(request, this.env, this.ctx.id?.jurisdiction);
+      }
       const body = await request.json();
       if (body.kind === 'debate' && this.debate) return this.debate.fetchBody(body);
       if (body.action === 'start') {
