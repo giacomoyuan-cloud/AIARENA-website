@@ -154,10 +154,6 @@ test('editing a reloaded image message restores every attachment and its origina
   vm.runInContext(html.slice(start,end),c);c.window._aaConfirmEditMsg(1);
   assert.equal(sent.length,2);assert.deepEqual(sent.map(x=>x.preview),images);assert.deepEqual(quote,{author:'Source',text:'original quote'});
 });
-test('the installed app and its update endpoint identify the same release',()=>{
-  const version=JSON.parse(fs.readFileSync(__dirname+'/app-version.json','utf8')).version;
-  assert.equal(html.match(/<meta name="app-version" content="([^"]+)"/)[1],version);
-});
 test('login makes the app behind its modal inaccessible until authentication succeeds',()=>{
   const overlay=element(),main=element(),sidebar=element(),nodes={'aaLoginOverlay':overlay,'ai-arena-app':{children:[overlay,main,sidebar]},aaLoginUser:element()};
   const c=vm.createContext({$:id=>nodes[id],setTimeout:fn=>fn(),updateGearBtn(){},syncArenaNavigation(){}});

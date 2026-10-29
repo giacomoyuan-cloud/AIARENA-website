@@ -1,6 +1,15 @@
 (function(root){
   'use strict';
   var pending=new Map(),seq=0,config={},checking=false,lastCheck=0;
+  var updateAttemptKey='aa-native-update-attempt';
+  function claimUpdate(version){
+    try{
+      // This survives location.reload(); an in-memory timer cannot stop a reload loop.
+      if(root.sessionStorage.getItem(updateAttemptKey)===version)return false;
+      root.sessionStorage.setItem(updateAttemptKey,version);
+      return root.sessionStorage.getItem(updateAttemptKey)===version;
+    }catch(error){return false;}
+  }
   function available(){return !!(root.PickandcaseNative && typeof root.PickandcaseNative.postMessage==='function');}
   function request(action,payload){
     if(!available()) return Promise.reject(new Error('当前环境不支持此操作'));
@@ -26,13 +35,13 @@
       var response=await fetch('/app-version.json',{cache:'no-store'});
       if(!response.ok)return;
       var next=await response.json();
-      if(!current||typeof next.version!=='string'||next.version===current.content)return;
-      if(config.canRefresh&&config.canRefresh()){location.reload();return;}
+      if(!current||typeof next.version!=='string'||!next.version||next.version===current.content)return;
+      if(config.canRefresh&&config.canRefresh()&&claimUpdate(next.version)){location.reload();return;}
       if(document.getElementById('arenaAppUpdate'))return;
       var button=document.createElement('button');button.id='arenaAppUpdate';button.type='button';button.textContent='有新版本 · 更新';
       button.onclick=function(){
         // Keep drafts, uploads, active responses, projects and incognito edits intact.
-        if(config.canRefresh&&config.canRefresh())location.reload();
+        if(config.canRefresh&&config.canRefresh()){claimUpdate(next.version);location.reload();}
         else{button.textContent='请在空白新对话中更新';setTimeout(function(){button.textContent='有新版本 · 更新';},2600);}
       };
       document.getElementById('ai-arena-app').appendChild(button);
