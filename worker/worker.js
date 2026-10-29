@@ -10,6 +10,7 @@ import { isOpenAIImage, validateOpenAIImage, buildImagePayload, readImageStream,
 import DebateCore from '../arena-debate.js';
 import SkillModels from '../arena-skill-models.js';
 import ChatMode from '../arena-chat-mode.js';
+import { isDocument } from '../web/file-types.mjs';
 var __defProp = Object.defineProperty;
 var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
 
@@ -429,7 +430,7 @@ async function handleProjectRequest(request,env){
       if(files.length>=15)return projectReply({error:"每个项目最多保存 15 份资料"},400);
       if(!file||typeof file.name!=="string"||typeof file.text!=="string"||!file.text.trim()||file.text.length>400000)return projectReply({error:"资料为空或提取文字超过 40 万字"},400);
       if(!/^[\s\S]{1,180}$/.test(file.name)||/[\u0000-\u001f]/.test(file.name))return projectReply({error:"文件名无效"},400);
-      if(!/\.(txt|md|csv|tsv|json|log|pdf|docx|xlsx|xls|pptx)$/i.test(file.name))return projectReply({error:"暂不支持此资料格式"},400);
+      if(!isDocument(file.name))return projectReply({error:"暂不支持此资料格式；ZIP 请先在上传入口自动展开"},400);
       if(typeof file.data!=="string"||file.data.length>12*1024*1024||!/^[A-Za-z0-9+/]*={0,2}$/.test(file.data))return projectReply({error:"文件过大，单份资料上限 8 MB"},413);
       if(!Number.isInteger(file.size)||file.size<0||file.size>8*1024*1024)return projectReply({error:"单份资料上限 8 MB"},413);
       if(files.reduce((n,f)=>n+f.size,0)+file.size>40*1024*1024)return projectReply({error:"每个项目资料总量上限 40 MB"},413);

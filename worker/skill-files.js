@@ -1,4 +1,5 @@
 import SkillModels from '../arena-skill-models.js';
+import { isDocument, isArchive } from '../web/file-types.mjs';
 const API='https://api.anthropic.com/v1';
 const enc=new TextEncoder(),dec=new TextDecoder();
 const fileId=value=>typeof value==='string'&&/^file_[a-zA-Z0-9_-]{6,160}$/.test(value);
@@ -35,7 +36,7 @@ export function validateSkillFiles(files){
     if(!f||typeof f.name!=='string'||typeof f.data!=='string'||!/^[-a-zA-Z0-9+/=\s]*$/.test(f.data)||f.data.length>12*1024*1024)throw Error('文档格式无效或超过 8MB');
     const bytes=unb64(f.data.replace(/\s/g,''));total+=bytes.length;
     if(bytes.length>8*1024*1024||total>16*1024*1024)throw Error('单个文档最多 8MB，每轮总计最多 16MB');
-    const name=filename(f.name);if(!/\.(pdf|docx|pptx|xlsx|xls|csv|tsv|txt|md|json)$/i.test(name))throw Error('不支持的文档格式');
+    const name=filename(f.name);if(!isDocument(name)&&!isArchive(name))throw Error('不支持的文档格式');
     return {name,data:f.data,mime:typeof f.mime==='string'?f.mime.slice(0,100):'application/octet-stream',size:bytes.length};
   });
 }
