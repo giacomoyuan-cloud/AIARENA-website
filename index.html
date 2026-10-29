@@ -910,7 +910,7 @@
     <button class="arena-nav-item" id="aaProjectsBtn"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v10H3Z"/></svg><span>项目</span></button>
     <div class="arena-nav-modes" id="aaModeToggle">
       <button class="arena-nav-item aa-bar-btn active" id="aaBarChatBtn"><svg viewBox="0 0 24 24"><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5H4l-1 1v-9.5A8.5 8.5 0 0 1 11.5 3h1A8.5 8.5 0 0 1 21 11.5Z"/><path d="M8 10h8M8 14h5"/></svg><span>对话</span></button>
-      <button class="arena-nav-item aa-bar-btn" id="aaBarDebateBtn"><svg viewBox="0 0 24 24"><path d="M9 5v14M4 19h10M15 8h5M17.5 5v3M5 8h8L9 3Z"/><path d="m16 8-3 6h9l-3-6M3 8l-2 6h8l-2-6"/></svg><span>多 AI 辩论</span></button>
+      <button class="arena-nav-item aa-bar-btn" id="aaBarDebateBtn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 9a2 2 0 0 1-2 2H6l-4 4V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2z"/><path d="M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1"/></svg><span>多 AI 辩论</span></button>
       <button class="arena-nav-item aa-bar-btn" id="aaBarImageBtn"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8" cy="8" r="1.5"/><path d="m3 17 6-6 5 5 3-3 4 4"/></svg><span>图像创作</span></button>
       <button class="aa-bar-btn" id="aaBarVideoBtn" style="display:none;">视频</button>
     </div>
@@ -3063,6 +3063,16 @@ var TEAM_COLORS = {
     pending.frame=requestAnimationFrame(function(){liveFrames.delete(uid);paintLiveUpdate(uid,pending.text,pending.reasoning);});
     liveFrames.set(uid,pending);
   }
+  function positionStreamCaret(body){
+    var caret=body.querySelector(':scope > .arena-stream-caret');
+    if(!caret)return;
+    var tail=caret.previousElementSibling;
+    // Keep the caret in the final text block, after inline formatting and links.
+    while(tail && /^(DIV|BLOCKQUOTE|UL|OL|LI|PRE|TABLE|THEAD|TBODY|TR)$/.test(tail.tagName) && tail.lastElementChild){
+      tail=tail.lastElementChild;
+    }
+    if(tail && /^(P|H[1-6]|LI|PRE|CODE|TD|TH)$/.test(tail.tagName))tail.appendChild(caret);
+  }
   function paintLiveUpdate(uid, text, reasoning, streaming){
     var c = $('aaMessages');
     var el = c.querySelector('[data-uid="'+uid+'"]');
@@ -3089,6 +3099,7 @@ var TEAM_COLORS = {
         if(_liveText){if(!caption){caption=document.createElement('p');body.insertBefore(caption,body.firstChild);}caption.textContent=_liveText;}
         else if(caption)caption.remove();
       }else body.innerHTML=renderMd(_liveText,message&&message.citations)+(streaming===false?'':'<span class="arena-stream-caret" aria-hidden="true">▍</span>');
+      positionStreamCaret(body);
       body.dataset.streaming=String(streaming!==false);
       body.dataset.streamChunks=String(message&&message._streamChunks||0);
       body.dataset.textUpdates=String(Number(body.dataset.textUpdates||0)+1);
@@ -4508,9 +4519,10 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
       existing.classList.remove('aa-kitten--progress'); existing.classList.add('aa-kitten--reply');
       placeholder.replaceWith(existing);
     });
+    highlightCodeBlocks();
+    c.querySelectorAll('.aa-msg-body[data-streaming="true"]').forEach(positionStreamCaret);
     if(!userScrolledUp) c.scrollTop = c.scrollHeight;
     else c.scrollTop = savedScrollTop;
-    highlightCodeBlocks();
   }
 
   function highlightCodeBlocks(){
