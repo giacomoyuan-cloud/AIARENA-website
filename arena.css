@@ -843,3 +843,5 @@ html, body { overscroll-behavior: none; }
   #ai-arena-app.arena-shell .aa-input-area { max-height: 80%; }
   #ai-arena-app.arena-shell .arena-composer-note { display: none; }
 }
+/* The selected model's native capacity, independent of reasoning effort. */
+#ai-arena-app .arena-model-capacity { margin:0; padding:0 14px 12px; font-size:11px; line-height:1.6; color:var(--arena-muted,#777770); }

@@ -21,7 +21,9 @@ const responses = () => stream([
   {type:'response.output_text.delta',delta:' world'},
   {type:'response.completed',response:{usage:{input_tokens:11,output_tokens:7},output:[{content:[{text:'你好 world'}]}]}}
 ]);
-function request(model, extra={}) { return new Request('https://api.pickandcase.com/',{method:'POST',body:JSON.stringify({model,prompt:'Test prompt',user:'tester',password,...extra}),headers:{'Content-Type':'application/json'}}); }
+// This file exercises the GenerateContent parser at an explicit synchronous
+// budget. Argon's default maximum/background protocol is covered separately.
+function request(model, extra={}) { return new Request('https://api.pickandcase.com/',{method:'POST',body:JSON.stringify({model,prompt:'Test prompt',user:'tester',password,...(model==='gemini-4-argon'?{maxOutputTokens:65536}:{}),...extra}),headers:{'Content-Type':'application/json'}}); }
 function events(text) { return text.split('\n').filter(line=>line.startsWith('data: ')&&line!=='data: [DONE]').map(line=>JSON.parse(line.slice(6))); }
 function mockFetch(t, handler) {
   const calls=[];

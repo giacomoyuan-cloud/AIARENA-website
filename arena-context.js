@@ -23,6 +23,13 @@
     if(message.isUser && typeof message.topicText==='string')text=message.topicText;
     if(message._quote)text='引用：'+message._quote.text+'\n'+text;
     if(full && message.pastedTexts && message.pastedTexts.length)text+='\n'+message.pastedTexts.join('\n');
+    if(full && Array.isArray(message.citations)){
+      var sources=message.citations.map(function(source){
+        try{var url=new URL(source.url);if(/^https?:$/.test(url.protocol)&&!url.username&&!url.password)return String(source.title||'参考来源')+' '+url.href;}catch(ignore){}
+        return '';
+      }).filter(Boolean);
+      if(sources.length)text+='\n参考来源：\n'+sources.join('\n');
+    }
     return String(text).replace(/\[\[aa-citation:\d+\]\]/g,'').replace(/ \[img\]/g,' [图片]');
   }
   function normalize(messages){
@@ -42,6 +49,10 @@
     }
     var complete=new Set(result.filter(function(m){return !m.clipped;}).map(function(m){return m.uid;}));
     return {messages:result,chars:used,earlier:all.filter(function(m){return !complete.has(m.uid);}),truncated:start>0||result.some(function(m){return m.clipped;})};
+  }
+  function fullHistory(messages){
+    var result=normalize(messages).map(function(m){return {uid:m.uid,role:m.role,text:m.original||m.text,clipped:false};});
+    return {messages:result,chars:result.reduce(function(n,m){return n+m.text.length;},0),earlier:[],truncated:false};
   }
   function chunks(text,size,overlap){
     size=size||1600;overlap=overlap===undefined?180:overlap;
@@ -108,7 +119,7 @@
     if(fileNamed && !scores.size)scores.set(0,3);
     return Array.from(scores,function(pair){return {index:pair[0],score:pair[1]+(fileNamed?5:0)};}).sort(function(a,b){return b.score-a.score;});
   }
-  var api=Object.freeze({terms:terms,clip:clip,plain:plain,normalize:normalize,selectRecent:selectRecent,chunks:chunks,excerpts:excerpts,notes:notes,merge:merge,indexDocument:indexDocument,rankIndex:rankIndex});
+  var api=Object.freeze({terms:terms,clip:clip,plain:plain,normalize:normalize,selectRecent:selectRecent,fullHistory:fullHistory,chunks:chunks,excerpts:excerpts,notes:notes,merge:merge,indexDocument:indexDocument,rankIndex:rankIndex});
   root.ArenaContext=api;
   if(typeof module==='object'&&module.exports)module.exports=api;
 })(typeof globalThis!=='undefined'?globalThis:this);
