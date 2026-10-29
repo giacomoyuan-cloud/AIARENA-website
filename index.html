@@ -873,7 +873,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&family=Noto+Serif+SC:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="/arena-claude.css?v=20261030-skills1">
 <link rel="stylesheet" href="/arena-project-page.css?v=20261030-projects1">
-<link rel="stylesheet" href="/arena-debate-ui.css?v=20261030-debatestudio2">
+<link rel="stylesheet" href="/arena-debate-ui.css?v=20261030-debatestudio3">
 <link rel="preload" as="image" href="/assets/kitten/motion/knead-14b49069b5fd.png">
 
 <!-- Login overlay -->
@@ -1263,8 +1263,8 @@
 <script src="/arena-skills.js?v=20261030-skills1"></script>
 <script src="/arena-chat-runs.js?v=20261029-typingclock1"></script>
 <script src="/arena-controls.js?v=20261029-debateresume1"></script>
-<script src="/arena-debate.js?v=20261030-debatestudio2"></script>
-<script src="/arena-debate-studio.js?v=20261030-debatestudio2"></script>
+<script src="/arena-debate.js?v=20261030-debatestudio3"></script>
+<script src="/arena-debate-studio.js?v=20261030-debatestudio3"></script>
 <script src="/arena-debate-runs.js?v=20261030-debatestudio3"></script>
 <script src="/arena-workspace.js?v=20261029-debateresume1"></script>
 <script src="/arena-project-page.js?v=20261030-projects1"></script>
@@ -4319,6 +4319,7 @@ var TEAM_COLORS = {
     if(aaRunning){arenaNotice('回答完成后可以新建对话');return;}
     ++chatLoadEpoch;
     if(msgs.length && currentChatId) saveCurrentChat();
+    try{sessionStorage.removeItem(debateRunKey());}catch(ignore){}
     clearDebateView();
     currentChatId = genChatId();
     debatePriorRunId=null;clearQuote();
