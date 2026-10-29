@@ -76,7 +76,8 @@
   font-size: 14px; font-weight: 400; text-align: left; cursor: pointer;
 }
 #ai-arena-app.arena-shell .arena-nav-item svg { color: var(--arena-text); width: 19px; height: 19px; }
-#ai-arena-app.arena-shell .arena-nav-item.active { background: var(--arena-hover) !important; }
+#ai-arena-app.arena-shell .arena-nav-item.active,
+#ai-arena-app.arena-shell .arena-nav-item.active:hover { background: var(--arena-selected) !important; font-weight: 500; }
 #ai-arena-app.arena-shell .arena-skills-wrap { position: relative; }
 #ai-arena-app.arena-shell .arena-skills-icon { position: absolute; left: 11px; top: 10px; pointer-events: none; z-index: 1; }
 #ai-arena-app.arena-shell #aaSkillsBtn { padding-left: 42px; font-size: 14px !important; width: 100%; height: 40px !important; }

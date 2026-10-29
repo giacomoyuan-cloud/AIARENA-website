@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>AI 助手</title>
-<meta name="app-version" content="20261030-projectactions1">
+<meta name="app-version" content="20261030-projectactions2">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -12,7 +12,7 @@
 <meta name="theme-color" content="#faf9f5">
 <link rel="manifest" href="/manifest.json?v=20261027-oakley">
 <link rel="apple-touch-icon" href="/icon-192.png">
-<link rel="stylesheet" href="/arena-billing.css?v=20261030-billing1">
+<link rel="stylesheet" href="/arena-billing.css?v=20261030-billing2">
 </head>
 <body>
 
@@ -1278,7 +1278,7 @@
 <script src="/arena-debate-studio.js?v=20261030-debatecontrols1"></script>
 <script src="/arena-debate-runs.js?v=20261030-debatestudio3"></script>
 <script src="/arena-workspace.js?v=20261030-filezip1"></script>
-<script src="/arena-project-state.js?v=20261030-projectactions1"></script>
+<script src="/arena-project-state.js?v=20261030-projectactions2"></script>
 <script src="/arena-project-page.js?v=20261030-filezip1"></script>
 <script src="/arena-account.js?v=20261027-account2"></script>
 <script src="/arena-pet-catalog.js?v=20261029-petcycle1"></script>
@@ -1583,7 +1583,13 @@ var TEAM_COLORS = {
     billingDialog.querySelector('[data-billing-prices]').innerHTML=ArenaBillingUI.catalog(AVAILABLE_CHAT_MODELS.concat(['claude-haiku-4-5-20251001']));
     if(!billingDialog.open)billingDialog.showModal();
     try{var data=await requestBilling('summary');if(billingDialog.open&&epoch===billingDialogEpoch)billingDialog.querySelector('[data-billing-totals]').innerHTML=ArenaBillingUI.summary(data);}
-    catch(error){if(billingDialog.open&&epoch===billingDialogEpoch)billingDialog.querySelector('[data-billing-totals]').textContent=error.message;}
+    catch(error){if(billingDialog.open&&epoch===billingDialogEpoch){
+      var status=billingDialog.querySelector('[data-billing-totals]');status.textContent=error.message;
+      if(!$('aaUsername').value.trim()||!getPass()){
+        var loginButton=document.createElement('button');loginButton.type='button';loginButton.className='arena-billing-login';loginButton.dataset.billingLogin='';loginButton.textContent='登录账号';
+        loginButton.addEventListener('click',function(){billingDialog.close();showLoginOverlay();});status.appendChild(loginButton);
+      }
+    }}
   }
   $('aaUsageSettingsBtn').addEventListener('click',openBillingDialog);
   $('aaMessages').addEventListener('click',function(event){if(event.target.closest('[data-billing-summary]'))openBillingDialog();});
@@ -5956,7 +5962,7 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
     document.querySelector('.arena-topbar').inert = mobile && expanded;
     document.querySelector('.aa-main').inert = (mobile && expanded)||!!scopeSwitchPending;
     var general=!activeProjectId&&!$('ai-arena-app').classList.contains('arena-workspace-visible');
-    ['Chat','Debate','Image','Video'].forEach(function(name){var button=$('aaBar'+name+'Btn'),selected=name==='Chat'?!debate&&!imageMode&&!videoMode:name==='Debate'?debate:name==='Image'?imageMode:videoMode;if(button){button.classList.toggle('active',general&&selected);button.setAttribute('aria-current',general&&selected?'page':'false');}});
+    ['Chat','Debate','Image','Video'].forEach(function(name){var button=$('aaBar'+name+'Btn'),selected=general&&(name==='Chat'?!debate&&!imageMode&&!videoMode:name==='Debate'?debate:name==='Image'?imageMode:videoMode);if(button){button.classList.toggle('active',selected);button.setAttribute('aria-current',selected?'page':'false');button.setAttribute('aria-pressed',selected?'true':'false');}});
   }
   function syncArenaEffort(){
     var slider=$('aaEffortSlider');

@@ -29,9 +29,13 @@
         var change=state.changes.get(project.id);
         // A genuinely newer server edit (for example on another device) wins.
         if(change&&project.updatedAt>change.updatedAt){state.changes.delete(project.id);change=null;}
-        var item=change||project;if(viewOf(item)===view)rows.set(item.id,item);
+        var item=change||project;
+        // Once server metadata confirms a restore/archive, its independent pin
+        // preference is fresh input. Older metadata must still stay hidden.
+        if(change&&project.updatedAt===change.updatedAt&&viewOf(project)===viewOf(change))item=Object.assign({},change,{pinned:project.pinned});
+        if(viewOf(item)===view)rows.set(item.id,item);
       });
-      state.changes.forEach(function(project){if(viewOf(project)===view)rows.set(project.id,project);else rows.delete(project.id);});
+      state.changes.forEach(function(project){if(viewOf(project)!==view)rows.delete(project.id);else if(!rows.has(project.id))rows.set(project.id,project);});
       return Array.from(rows.values()).map(function(project){
         var key=pinKey(state,project.id);
         return Object.assign({},project,{pinned:view==='active'?pins.read(key,project.pinned,state.pinReads[view]||0):!!project.pinned,pinPending:pins.pending(key)});

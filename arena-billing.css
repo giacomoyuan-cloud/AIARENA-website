@@ -3,3 +3,4 @@
 
 #ai-arena-app.arena-shell .arena-billing-dialog .arena-billing-content tbody th{white-space:normal;overflow-wrap:anywhere;min-width:100px}
 @media(max-width:600px){#ai-arena-app.arena-shell .arena-billing-dialog .arena-billing-totals{grid-template-columns:repeat(2,minmax(0,1fr))}#ai-arena-app.arena-shell .arena-billing-dialog .arena-billing-totals>div:last-child{grid-column:1/-1}}
+#ai-arena-app.arena-shell .arena-billing-dialog .arena-billing-content .arena-billing-login{display:flex;align-items:center;justify-content:center;width:max-content;max-width:100%;min-height:38px;margin-top:12px;padding:8px 14px;border:1px solid rgba(120,120,112,.22);border-radius:10px;background:var(--arena-surface,#f7f7f4);color:var(--arena-text,#343431);font:inherit;cursor:pointer}
