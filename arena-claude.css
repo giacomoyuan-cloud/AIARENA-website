@@ -187,7 +187,7 @@
 #ai-arena-app.arena-shell .arena-skill-file { display: grid; grid-template-columns: 1fr auto; gap: 5px 14px; max-width: 100%; min-width: min(260px, 100%); font: 14px var(--arena-ui-font); padding: 12px 14px; border: 1px solid var(--arena-border); border-radius: 12px; background: var(--arena-surface); }
 #ai-arena-app.arena-shell .arena-skill-file > span { overflow-wrap: anywhere; grid-column: 1 / -1; }
 #ai-arena-app.arena-shell .arena-skill-file > small { color: var(--arena-muted); grid-column: 1 / -1; }
-#ai-arena-app.arena-shell .arena-skill-file button { justify-self: start; border: 0; border-radius: 6px; padding: 5px 9px; color: var(--arena-text); background: var(--arena-hover); cursor: pointer; }
+#ai-arena-app.arena-shell .arena-skill-file button, #ai-arena-app.arena-shell .arena-skill-file .arena-skill-save { justify-self: start; border: 0; border-radius: 6px; padding: 5px 9px; color: var(--arena-text); background: var(--arena-hover); cursor: pointer; text-decoration: none; }
 #ai-arena-app.arena-shell .arena-skill-file .arena-skill-delete { justify-self: end; color: var(--arena-muted); background: transparent; font-size: 11px; }
 /* ---------- 多 AI 辩论 ---------- */
 #aaDebateHint { display: none !important; }
