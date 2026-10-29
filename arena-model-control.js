@@ -1,8 +1,8 @@
 /* Model and reasoning controls share one presentation in chat and debate. */
 (function(root,factory){
-  var api=factory();
+  var api=factory(typeof module==='object'&&module.exports?require('./arena-slider.js'):root.ArenaSlider);
   if(typeof module==='object'&&module.exports)module.exports=api;else root.ArenaModelControl=api;
-})(typeof globalThis!=='undefined'?globalThis:this,function(){
+})(typeof globalThis!=='undefined'?globalThis:this,function(Slider){
   'use strict';
   var serial=0,active=null;
   var arrow='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>';
@@ -15,12 +15,7 @@
     var h='<div class="arena-effort-heading"><output id="'+prefix+'EffortValue" for="'+prefix+'EffortSlider" aria-live="polite">'+escape(name)+'</output>'
       +'<button type="button" class="arena-effort-reset" id="'+prefix+'ResetEffortBtn" data-model-effort-reset aria-label="恢复默认思考强度" title="恢复默认思考强度"'+(levels.length?'':' hidden')+'><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10a9 9 0 1 1 1.7 7M3 4v6h6"/></svg></button></div>'
       +'<button type="button" class="arena-effort-model" id="'+prefix+'ModelPickerBtn" data-model-picker aria-haspopup="dialog"><span>'+escape(options.modelLabel||'选择模型')+'</span>'+arrow+'</button>';
-    if(levels.length){
-      h+='<div class="arena-effort-scale" id="'+prefix+'EffortScale" style="--effort-progress:'+(levels.length>1?index/(levels.length-1)*100:0)+'%"><div class="arena-effort-track" aria-hidden="true"><div class="arena-effort-fill"></div></div><div class="arena-effort-thumb" aria-hidden="true"><span><i class="arena-effort-halo"></i></span></div><div class="arena-effort-ticks" aria-hidden="true">';
-      levels.forEach(function(value,i){h+='<span'+(i<=index?' class="is-filled"':'')+' style="left:'+(levels.length>1?i/(levels.length-1)*100:0)+'%"></span>';});
-      h+='</div><label class="arena-sr-only" for="'+prefix+'EffortSlider">'+escape(options.effortLabel||'思考强度')+'</label><input id="'+prefix+'EffortSlider" type="range" min="0" max="'+(levels.length-1)+'" step="1" value="'+index+'" class="arena-effort-input" data-effort-model="'+escape(options.model)+'" aria-valuetext="'+escape(name)+'" aria-describedby="'+prefix+'EffortDescription"><p class="arena-sr-only" id="'+prefix+'EffortDescription">'+escape(descriptions[level]||'')+'</p></div>';
-      h+='<div class="arena-effort-ends" aria-hidden="true"><span>'+escape(labels[levels[0]]||levels[0])+'</span><span>'+escape(labels[levels[levels.length-1]]||levels[levels.length-1])+'</span></div>';
-    }
+    if(levels.length)h+=Slider.markup({prefix:prefix,min:0,max:levels.length-1,value:index,label:options.effortLabel||'思考强度',valueText:name,description:descriptions[level]||'',left:labels[levels[0]]||levels[0],right:labels[levels[levels.length-1]]||levels[levels.length-1],attributes:{'data-effort-model':options.model}});
     return h;
   }
   function choicesHTML(options){

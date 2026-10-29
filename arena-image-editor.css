@@ -1,4 +1,17 @@
 /* The image tools inherit the site's surfaces, typography and accent. */
+#ai-arena-app.arena-shell .arena-image-slider-field { --effort-accent:var(--arena-accent);gap:0;color:var(--arena-text); }
+#ai-arena-app.arena-shell .arena-image-slider-field[hidden] { display:none !important; }
+#ai-arena-app.arena-shell .arena-image-slider-heading { display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:28px;font-size:12px; }
+#ai-arena-app.arena-shell .arena-image-slider-heading>div { display:flex;align-items:center;gap:9px; }
+#ai-arena-app.arena-shell .arena-image-slider-heading output { font-size:13px;font-weight:500;color:var(--arena-text);white-space:nowrap; }
+#ai-arena-app.arena-shell .arena-image-slider-auto { width:auto;min-width:36px;font:12px/1.4 var(--arena-ui-font); }
+#ai-arena-app.arena-shell .arena-image-slider-auto[aria-pressed="true"] { color:var(--arena-accent); }
+#ai-arena-app.arena-shell .arena-image-slider-field .arena-effort-scale { margin-top:6px; }
+#ai-arena-app.arena-shell .arena-image-slider-field .arena-effort-ends { margin-bottom:0; }
+#ai-arena-app.arena-shell .arena-image-disclosure>.arena-image-slider-field { padding:12px; }
+#ai-arena-app.arena-shell .arena-effort-scale.is-auto .arena-effort-thumb,
+#ai-arena-app.arena-shell .arena-effort-scale.is-auto .arena-effort-fill { opacity:0; }
+#ai-arena-app.arena-shell .arena-effort-scale.is-auto .arena-effort-track { background:var(--arena-user); }
 #ai-arena-app.arena-shell .arena-image-size-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; }
 #ai-arena-app.arena-shell .arena-image-size-grid .arena-image-radio-face { display:flex; flex-direction:column; justify-content:center; gap:5px; min-height:92px; padding:10px 5px; font-size:12px; }
 #ai-arena-app.arena-shell .arena-size-face small { font-size:10px; color:var(--arena-muted); }
