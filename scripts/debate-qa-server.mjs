@@ -12,7 +12,8 @@ const root=path.resolve(process.env.AI_DEBATE_QA_ROOT || path.resolve(import.met
 const data=new Map([['user:qa-reader',JSON.stringify({hash:hash('offline-fixture')})]]);
 const kv={get:async k=>data.get(k)||null,put:async(k,v)=>data.set(k,v),delete:async k=>data.delete(k),list:async({prefix})=>({keys:[...data.keys()].filter(k=>k.startsWith(prefix)).map(name=>({name})),list_complete:true})};
 const events=[],actors=new Map(),attempts=new Map();let offlineUntil=0;
-const evidence=()=>writeFile(process.env.AI_DEBATE_QA_REPORT || '/private/tmp/aiarena-debate-events.json',JSON.stringify({synthetic:true,externalModelCalls:0,events},null,2));
+let evidenceWrites=Promise.resolve();
+const evidence=()=>{const report=JSON.stringify({synthetic:true,externalModelCalls:0,events},null,2);evidenceWrites=evidenceWrites.catch(()=>{}).then(()=>writeFile(process.env.AI_DEBATE_QA_REPORT || '/private/tmp/aiarena-debate-events.json',report));return evidenceWrites;};
 async function execute(request){
   const payload=await request.json(),identity=payload.prompt.match(/你的独立席位：([^\n]+)/)?.[1]||'chat',stage=payload.prompt.includes('本轮：独立观点')?'independent':payload.prompt.includes('你是中立的总结者')?'summary':'cross';
   const key=payload.chat?.chatId+'|'+identity+'|'+stage,attempt=(attempts.get(key)||0)+1;attempts.set(key,attempt);
