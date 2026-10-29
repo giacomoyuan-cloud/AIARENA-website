@@ -11,6 +11,7 @@ for(const name of await readdir(target)) await rm(resolve(target,name),{recursiv
 for(const name of [...publicFiles,'songs','downloads','welcome-media'])await cp(resolve(root,name),resolve(target,name),{recursive:true});
 // Isolated design exploration; no production entry point imports these files.
 if((await readdir(root)).includes('design-review'))await cp(resolve(root,'design-review'),resolve(target,'design-review'),{recursive:true});
+if((await readdir(root)).includes('design-review-2'))await cp(resolve(root,'design-review-2'),resolve(target,'design-review-2'),{recursive:true});
 if(publicFiles.includes('arena-pet.js')){
   const folder='assets/kitten/motion';
   const manifest=JSON.parse(await readFile(resolve(root,folder,'manifest.json'),'utf8'));
