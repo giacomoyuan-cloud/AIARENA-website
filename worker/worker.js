@@ -553,7 +553,7 @@ async function retrieveProjectMaterials(env,user,project,query){
     const index=JSON.parse(value);
     for(const hit of ArenaContext.rankIndex(index,query,materialName(file)).slice(0,3))ranked.push({...hit,file:{...file,name:materialName(file)}});
   }
-  if(env.PROJECT_DOCUMENTS){const library=await projectLibrary(env,user,project.id,'search',{query});for(const hit of library.hits)ranked.push({file:hit.file,index:hit.ordinal,text:hit.text,location:hit.location,score:hit.score});}
+  if(env.PROJECT_DOCUMENTS){const library=await projectLibrary(env,user,project.id,'search',{query});for(const hit of library.hits){const source=files.find(f=>f.id===hit.file.id);if(source)ranked.push({file:{...hit.file,name:materialName(source)},index:hit.ordinal,text:hit.text,location:hit.location,score:hit.score});}}
   const namedQuery=String(query).toLowerCase();
   for(const hit of ranked){const name=hit.file.name.toLowerCase(),stem=name.replace(/\.[^.]+$/,'');if(namedQuery.includes(name)||(stem.length>1&&namedQuery.includes(stem)))hit.score+=1000;}
   ranked.sort((a,b)=>b.score-a.score);
