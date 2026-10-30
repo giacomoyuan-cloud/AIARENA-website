@@ -429,7 +429,7 @@ async function handleProjectRequest(request,env){
     const prefix=projectKey(user,project.id);
     if(action.startsWith('library_')){
       const operation=action.slice(8),extra={fileId:body.fileId,parts:body.parts,segments:body.segments,coverage:body.coverage,error:body.error,generation:body.generation};
-      if(operation==='ocr_page')Object.assign(extra,{page:body.page,total:body.total,data:body.data,mime:body.mime,retry:body.retry===true});
+      if(operation==='ocr_page')Object.assign(extra,{page:body.page,total:body.total,data:body.data,mime:body.mime,retry:body.retry===true,hasNativeText:body.hasNativeText===true});
       if(operation==='start'){
         extra.file=body.file;
         if(body.replaceFileId){

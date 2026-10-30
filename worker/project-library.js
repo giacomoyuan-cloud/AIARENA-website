@@ -116,7 +116,7 @@ export async function handleProjectLibrary(ctx,env,request){
       if(value.pendingGeneration&&body.generation!==value.pendingGeneration)fail('识别任务已更新，请刷新资料状态',409);
       if(!Number.isSafeInteger(body.total)||body.total<1||!Number.isSafeInteger(body.page)||body.page<1||body.page>body.total)fail('识别页码无效');
       const cached=rows(ctx,'SELECT state,result FROM library_ocr_pages WHERE file_id=? AND page=?',value.id,body.page)[0];
-      if(cached?.state==='done'&&!(body.retry===true&&JSON.parse(cached.result).uncertain))return json({...JSON.parse(cached.result),cached:true});
+      if(cached?.state==='done'&&!(body.retry===true&&JSON.parse(cached.result).uncertain)&&!(body.hasNativeText&&JSON.parse(cached.result).kind==='blank'))return json({...JSON.parse(cached.result),cached:true});
       let jobs=activeOCR.get(ctx);if(!jobs){jobs=new Map();activeOCR.set(ctx,jobs);}
       const key=value.id+':'+body.page;
       if(jobs.has(key))return json(await jobs.get(key));
@@ -125,7 +125,7 @@ export async function handleProjectLibrary(ctx,env,request){
       ctx.storage.sql.exec('INSERT INTO library_ocr_pages(file_id,page,state,result,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(file_id,page) DO UPDATE SET state=excluded.state,result=NULL,updated_at=excluded.updated_at',value.id,body.page,'running',null,Date.now());
       const job=(async()=>{
         try{
-          const result=await recognizeProjectPage(env,body.owner,body.projectId,body.page,body.data,body.mime);
+          const result=await recognizeProjectPage(env,body.owner,body.projectId,body.page,body.data,body.mime,body.hasNativeText===true);
           ctx.storage.sql.exec('UPDATE library_ocr_pages SET state=?,result=?,updated_at=? WHERE file_id=? AND page=?','done',JSON.stringify(result),Date.now(),value.id,body.page);
           return result;
         }catch(error){
@@ -179,7 +179,7 @@ export async function handleProjectLibrary(ctx,env,request){
       if(coverage&&(!Number.isSafeInteger(coverage.units)||!Number.isSafeInteger(coverage.emptyUnits)||coverage.emptyUnits<0||coverage.emptyUnits>coverage.units))fail('解析覆盖范围无效');
       if(coverage&&['uncertainUnits','ocrPages','blankUnits','nativeEmptyUnits'].some(key=>coverage[key]!==undefined&&(!Number.isSafeInteger(coverage[key])||coverage[key]<0||coverage[key]>coverage.units)))fail('识别覆盖范围无效');
       const ocrCount=rows(ctx,"SELECT COUNT(*) AS n FROM library_ocr_pages WHERE file_id=? AND state='done'",value.id)[0].n;
-      value.coverage=coverage||null;value.state=coverage?.emptyUnits>0||coverage?.uncertainUnits>0?'partial':'ready';value.characters=stats.chars;value.segments=stats.n;value.indexedAt=Date.now();if(ocrCount){value.ocrModel=OCR_MODEL;value.ocrPages=ocrCount;}delete value.parseError;delete value.previousParseState;
+      value.coverage=coverage||null;value.state=coverage?.emptyUnits>0||coverage?.uncertainUnits>0?'partial':'ready';value.characters=stats.chars;value.segments=stats.n;value.indexedAt=Math.max(Date.now(),Number(value.indexedAt||0)+1);if(ocrCount){value.ocrModel=OCR_MODEL;value.ocrPages=ocrCount;}delete value.parseError;delete value.previousParseState;
       transact(ctx,()=>{
         if(value.pendingGeneration){
           ctx.storage.sql.exec('DELETE FROM library_search WHERE file_id=?',value.id);

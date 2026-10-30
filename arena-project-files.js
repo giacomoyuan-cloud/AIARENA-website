@@ -74,7 +74,7 @@
               var bytes=await single.save({useObjectStreams:true});input=bytes.length>8*1024*1024?await rasterPage(file,number):{data:base64(bytes),mime:'application/pdf'};
             }catch(error){input=await rasterPage(file,number);}
           }else input=await rasterPage(file,number);
-          var result=await options.ocr(Object.assign({page:number,total:coverage.units},input));
+          var result=await options.ocr(Object.assign({page:number,total:coverage.units,hasNativeText:!!candidate.nativeText.trim()},input));
           if(!result||!['text','blank'].includes(result.kind)||typeof result.text!=='string'||result.kind==='text'&&!result.text.trim())throw Error('本页未能识别，请继续识别未完成页');
           if(result.kind==='blank'&&candidate.nativeText.trim())throw Error('本页包含文字，但识别结果为空白；请继续识别确认');
           for(var segment of split(result.text,'第 '+number+' 页 · Sol 视觉识别'))yield segment;
@@ -203,7 +203,7 @@
     // Only migrate an older browser's state after the server confirms its path.
     // A colliding path keeps the old state available to its original document.
     if(legacy){await session('put',key,saved);await session('delete',legacyKey);}
-    if(started.file.status==='ready'){await session('delete',key);return started.file;}
+    if(started.file.status==='ready'||started.file.status==='partial'&&!/\.pdf$/i.test(file.name)){await session('delete',key);return started.file;}
     saved.partSize=started.partSize;await session('put',key,saved);
     if(started.file.status==='uploading'){
       var count=Math.max(1,Math.ceil(file.size/saved.partSize));
@@ -215,7 +215,7 @@
       }await api('original_complete',{parts:saved.parts});
     }
     var generation;
-    if(['partial','unreadable'].includes(started.file.status)){generation=(await api('reparse')).generation;}
+    if(/\.pdf$/i.test(file.name)&&['partial','unreadable'].includes(started.file.status)){generation=(await api('reparse')).generation;}
     var completed=await indexFile(options,id,generation);
     if(completed.status==='ready')await session('delete',key);return completed;
   }

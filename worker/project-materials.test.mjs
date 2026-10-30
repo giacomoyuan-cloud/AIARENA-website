@@ -290,3 +290,21 @@ test('malformed, refused and contradictory blank OCR outputs never become comple
   for(let n=0;n<3;n++)await assert.rejects(s.api('library_ocr_page',{...input,retry:true}),e=>e.status===422);
   const preview=await s.api('preview',input);assert.equal(preview.file.status,'indexing');assert.equal(calls,3);
 });
+test('OCR supports the existing backup-key path and records billed rejection usage without replaying the page',async t=>{
+  const s=setup(t),input=await ocrSource(s);s.env.OPENAI_API_KEY_BACKUP='synthetic-ocr-backup-key';let calls=0;
+  t.mock.method(globalThis,'fetch',async(_,init)=>{calls++;assert.equal(new Headers(init.headers).get('Authorization'),'Bearer synthetic-ocr-backup-key');return Response.json({error:{code:'insufficient_quota',usage:{input_tokens:4,output_tokens:3}}},{status:429});});
+  await assert.rejects(s.api('library_ocr_page',input),e=>e.status===429);assert.equal(calls,1);
+  const usage=await usageSummary(s.env,'tester');assert.equal(usage.total.calls,1);assert.equal(usage.total.input,4);assert.equal(usage.total.output,3);
+});
+test('a page with native text cannot become a permanently cached blank OCR result',async t=>{
+  const s=setup(t),input=await ocrSource(s);s.env.OPENAI_API_KEY='synthetic-text-page-key';let calls=0;
+  t.mock.method(globalThis,'fetch',async()=>++calls===1?ocrReply({kind:'blank',text:'',warning:''}):ocrReply());
+  await assert.rejects(s.api('library_ocr_page',{...input,hasNativeText:true}),e=>e.status===422);
+  const next=await s.api('library_ocr_page',{...input,hasNativeText:true,retry:true});assert.equal(next.kind,'text');assert.equal(calls,2);
+});
+test('resuming other document formats never calls the PDF-only repair or OCR endpoint',async()=>{
+  const file=new File(['plain text source'],'resume.txt'),actions=[];
+  const api=async(action)=>{actions.push(action);if(action==='library_start')return {file:{status:'unreadable'},partSize:5*1024*1024};if(action==='library_commit')return {file:{status:'ready'}};return {ok:true};};
+  const result=await Files.upload({file,projectId:'project-123',credentials:{username:'offline',password:'synthetic'},api,binary:async()=>{throw Error('original already stored');}});
+  assert.equal(result.status,'ready');assert.ok(!actions.includes('library_reparse'));assert.ok(!actions.includes('library_ocr_page'));
+});

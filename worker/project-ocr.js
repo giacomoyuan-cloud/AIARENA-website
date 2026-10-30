@@ -1,5 +1,6 @@
 import { openAIBackgroundFetch } from './openai-transport.js';
 import { recordProviderUsage } from './billing-ledger.js';
+import { hasOpenAIKey, openAIFetch } from './openai-keys.js';
 
 export const OCR_MODEL = 'gpt-6.1-sol';
 export const OCR_MAX_DATA_CHARS = 12 * 1024 * 1024;
@@ -36,14 +37,16 @@ export function readOCRResponse(body) {
   if (result.text.length > 100000) fail('本页识别结果过长，尚未完成索引', 422);
   return { kind: result.kind, text: result.kind === 'blank' ? '' : result.text.trim(), warning: result.warning.slice(0, 500), uncertain: result.kind === 'text' && (!!result.warning.trim() || result.text.includes('[无法辨认]')), model: OCR_MODEL };
 }
-export async function recognizeProjectPage(env, owner, scope, page, data, mime) {
-  if (!env.OPENAI_API_KEY) fail('尚未配置 OpenAI，原文件已保留，配置后可继续识别', 503);
-  const payload = ocrPayload(page, data, mime), body = JSON.stringify(payload), receiptId = crypto.randomUUID(), signal = AbortSignal.timeout(180000);
+export async function recognizeProjectPage(env, owner, scope, page, data, mime, hasNativeText = false) {
+  if (!hasOpenAIKey(env)) fail('尚未配置 OpenAI，原文件已保留，配置后可继续识别', 503);
+  const payload = ocrPayload(page, data, mime);
+  if (hasNativeText) payload.input[1].content[0].text += ' 本页含有可提取文字，不得标为整页空白。';
+  const body = JSON.stringify(payload), receiptId = crypto.randomUUID(), signal = AbortSignal.timeout(180000);
   let response, raw;
   try {
     response = typeof env.CHAT_RUNS?.jurisdiction === 'function'
       ? await openAIBackgroundFetch(env.CHAT_RUNS, body, signal)
-      : await fetch('https://api.openai.com/v1/responses', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + env.OPENAI_API_KEY }, body, signal, redirect: 'manual' });
+      : await openAIFetch(env, 'https://api.openai.com/v1/responses', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, signal, redirect: 'manual' }, { store: env.BIZ_KV });
   } catch {
     await recordProviderUsage(env, owner, OCR_MODEL, null, { id: receiptId, scope, purpose: 'document-ocr', provider: 'openai', incompleteUsage: true });
     fail('Sol 识别连接中断，已保留进度；请继续识别未完成页', 502);
@@ -52,7 +55,13 @@ export async function recognizeProjectPage(env, owner, scope, page, data, mime) 
     await recordProviderUsage(env, owner, OCR_MODEL, null, { id: receiptId, scope, purpose: 'document-ocr', provider: 'openai', incompleteUsage: true });
     fail('Sol 识别响应中断，已保留进度；请继续识别未完成页', 502);
   }
-  if (!response.ok) fail('Sol 识别请求失败（HTTP ' + response.status + '），原文件和已完成页已保留', response.status === 429 ? 429 : response.status === 401 || response.status === 403 ? 503 : 502);
+  if (!response.ok) {
+    const rejectedUsage = raw?.usage || raw?.error?.usage;
+    if (rejectedUsage) await recordProviderUsage(env, owner, OCR_MODEL, rejectedUsage, { id: receiptId, scope, purpose: 'document-ocr', provider: 'openai', serviceTier: raw.service_tier || 'default' });
+    fail('Sol 识别请求失败（HTTP ' + response.status + '），原文件和已完成页已保留' + (rejectedUsage ? '；本次用量已记录，未自动重复识别' : ''), response.status === 429 ? 429 : response.status === 401 || response.status === 403 ? 503 : 502);
+  }
   const receipt = await recordProviderUsage(env, owner, OCR_MODEL, raw.usage, { id: receiptId, scope, purpose: 'document-ocr', provider: 'openai', incompleteUsage: !raw.usage, serviceTier: raw.service_tier || 'default', requestId: response.headers.get('x-request-id') });
-  return { ...readOCRResponse(raw), receiptId: receipt.id };
+  const result = readOCRResponse(raw);
+  if (hasNativeText && result.kind === 'blank') fail('本页含文字，识别结果却标为空白；可继续识别确认', 422);
+  return { ...result, receiptId: receipt.id };
 }
