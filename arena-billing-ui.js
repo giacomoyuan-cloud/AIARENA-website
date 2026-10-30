@@ -57,7 +57,7 @@
       if(value.ledgerStatus&&value.ledgerStatus!=='recorded')h+='<p class="arena-billing-note">累计统计'+(value.ledgerStatus==='pending'?'正在同步；本条费用明细已保留。':'暂未同步成功；请稍后查看累计用量。')+'</p>';
       if(value.auxiliary&&value.auxiliary.length){
         h+='<div class="arena-billing-aux"><strong>本条其他调用</strong>';
-        value.auxiliary.forEach(function(a){var purpose={context:'上下文摘要','context-summary':'上下文摘要',memory:'记忆整理',retry:'重试前一次调用','skill-router':'技能识别','file-generation':'文档继续处理','image-generation':'本批后续图片','image-orchestrator':'描述理解与编辑上下文'}[a.purpose]||'其他调用';h+='<p>'+e(purpose)+' · '+e((B.MODELS[a.model]||{}).name||a.model)+'：'+e(B.label(a))+'</p>';});h+='</div>';
+        value.auxiliary.forEach(function(a){var purpose={context:'上下文摘要','context-summary':'上下文摘要','project-reading':'全文阅读',memory:'记忆整理',retry:'重试前一次调用','skill-router':'技能识别','file-generation':'文档继续处理','image-generation':'本批后续图片','image-orchestrator':'描述理解与编辑上下文'}[a.purpose]||'其他调用';h+='<p>'+e(purpose)+' · '+e((B.MODELS[a.model]||{}).name||a.model)+'：'+e(B.label(a))+'</p>';});h+='</div>';
       }
       var card=B.MODELS[value.model];
       if(card)h+='<p class="arena-billing-muted">'+e(value.rateCard&&value.rateCard.checkedAt||B.CHECKED)+' 核对 · '+(value.costBasis==='provider'?'金额来自官方响应。':'按公开 API 单价核算，不含账号折扣、税费或汇率调整。')+' <a href="'+e(value.costBasis==='provider'?B.SOURCES.xaiCost:card.source)+'" target="_blank" rel="noopener noreferrer">官方说明</a></p>';
@@ -65,16 +65,21 @@
     return h+'<button type="button" data-billing-summary>累计用量与官方价格</button></div></details></div>';
   }
   function catalog(ids){
-    var nano=B.publicCard('gemini-nano-banana-2.1'),grok=B.publicCard('grok-imagine-image-2.0'),g4=B.MODELS['gemini-4-argon'];
+    var nano=B.publicCard('gemini-nano-banana-2.1'),grok=B.publicCard('grok-imagine-image-2.0'),g4=B.MODELS['gemini-4-argon'],haiku=B.publicCard('claude-haiku-5-5');
     function imageCost(size){return B.usd(BigInt(nano.imageTokens[size])*BigInt(Math.round(Number(nano.imageOutput)*1000000)));}
     var h='<h3>官方价格</h3><p class="arena-billing-muted">USD / 百万 token · 标准服务 · '+B.CHECKED+' 核对</p><div class="arena-billing-table-wrap"><table><thead><tr><th>对话模型</th><th>输入</th><th>缓存命中</th><th>输出</th></tr></thead><tbody>';
-    (ids||[]).forEach(function(id){var c=B.publicCard(id);if(!c||c.image)return;h+='<tr><th><a href="'+e(c.source)+'" target="_blank" rel="noopener noreferrer">'+e(c.name)+'</a></th><td>$'+e(c.input)+'</td><td>$'+e(c.cached)+'</td><td>$'+e(c.output)+'</td></tr>';});
+    (ids||[]).forEach(function(id){var c=B.publicCard(id);if(!c||c.image||c.internal||c.legacy)return;h+='<tr><th><a href="'+e(c.source)+'" target="_blank" rel="noopener noreferrer">'+e(c.name)+'</a></th><td>$'+e(c.input)+'</td><td>$'+e(c.cached)+'</td><td>$'+e(c.output)+'</td></tr>';});
     h+='</tbody></table></div><p class="arena-billing-muted">GPT 超过 272,000 输入 token、Grok 达到 200,000 输入 token 后按整次请求的长上下文单价核算。缓存写入另按实际时长计费，输出已包含思考 token。</p>';
+    h+='<h3>自动辅助任务</h3><p class="arena-billing-muted">启用记忆时更新用户资料，自动选择技能时识别任务。普通对话保留完整历史，不另做自动摘要。每次实际调用单独记录，并计入累计费用；不是每条消息固定收费。辅助任务使用 Haiku 5.5，关闭思考，独立于对话的思考强度。</p><div class="arena-billing-table-wrap"><table><thead><tr><th>Haiku 5.5 · 本次总输入</th><th>输入</th><th>缓存命中</th><th>输出</th></tr></thead><tbody>';
+    [haiku,haiku.long].forEach(function(c,i){h+='<tr><th>'+(i?'超过 100,000 token':'不超过 100,000 token')+'</th><td>$'+e(c.input)+'</td><td>$'+e(c.cached)+'</td><td>$'+e(c.output)+'</td></tr>';});
+    h+='</tbody></table></div><p class="arena-billing-muted">USD / 百万 token。总输入包括普通输入、缓存命中和缓存写入；超过阈值时整次请求按较高一档核算。5 分钟 / 1 小时缓存写入：短上下文 $'+e(haiku.writeShort)+' / $'+e(haiku.writeLong)+'，长上下文 $'+e(haiku.long.writeShort)+' / $'+e(haiku.long.writeLong)+'。Haiku 4.5 的历史回执保留原单价。<a href="'+e(haiku.source)+'" target="_blank" rel="noopener noreferrer">Anthropic 官方价格</a></p>';
+    h+='<h3>图片生成与编辑</h3><p class="arena-billing-muted">以下四款图片模型均纳入累计统计，包括生成、编辑、参考图输入和批量中的每次请求。回复下方可展开实际费用；接口未提供的用量不填成 0。</p>';
     h+='<div class="arena-billing-rate-note"><strong>Nano Banana 2.1</strong><p>输入 $'+e(nano.input)+' / 百万 token，文字与思考输出 $'+e(nano.output)+' / 百万 token，图片输出 $'+e(nano.imageOutput)+' / 百万 token。1K / 2K / 4K 方图的图片输出分别约 $'+imageCost('1K')+' / $'+imageCost('2K')+' / $'+imageCost('4K')+'，另计实际输入、文字与思考用量。</p><a href="'+B.SOURCES.google+'" target="_blank" rel="noopener noreferrer">Google 官方价格</a></div>';
     h+='<div class="arena-billing-rate-note"><strong>Grok Image 2.0</strong><p>参考图 $'+e(grok.inputImage)+' / 张。1K：Low $'+e(grok.outputImages['1k-low'])+'、Medium $'+e(grok.outputImages['1k-medium'])+'；2K：Low $'+e(grok.outputImages['2k-low'])+'、Medium $'+e(grok.outputImages['2k-medium'])+' / 张。每次优先显示官方响应金额。</p><a href="'+B.SOURCES.xai+'" target="_blank" rel="noopener noreferrer">xAI 官方价格</a></div>';
+    ['gpt-image-2.5-sunburst','gpt-image-2.5-flare'].forEach(function(id){var c=B.publicCard(id);h+='<div class="arena-billing-rate-note"><strong>'+e(c.name)+'</strong><p>文字输入 $'+e(c.input)+'、图片输入 $'+e(c.imageInput)+'、图片输出 $'+e(c.output)+' / 百万 token；缓存命中的文字 / 图片输入分别 $'+e(c.cachedText)+' / $'+e(c.cachedImage)+'。Responses 未披露图片输入缓存命中量，输入费用待账单核实。</p><a href="'+e(c.source)+'" target="_blank" rel="noopener noreferrer">OpenAI 官方价格</a></div>';});
+    h+='<p class="arena-billing-muted">OpenAI 图片流程中，描述理解和编辑上下文使用 GPT-6.1 Sol，其真实输入、输出和缓存用量另外计入；不会与图片 token 混算，也不会重复收取预览费用。</p>';
     h+='<p class="arena-billing-muted">Google 搜索：共享每月 5,000 次免费额度，之后 $14 / 千次；免费额度和最终搜索费以 Google 结算为准。Gemini 4 在 '+e(g4.effectiveUntil)+' 起调整为输入 $'+e(g4.next.input)+'、缓存命中 $'+e(g4.next.cached)+'、输出 $'+e(g4.next.output)+' / 百万 token。</p>';
     h+='<p class="arena-billing-muted">Claude 官方文档代码执行：每组织共享每月 1,550 免费小时，之后 $0.05 / 小时 / 容器，最低 5 分钟；执行时长和额度无法从本条响应核实，执行费单独待结算。</p>';
-    h+='<div class="arena-billing-rate-note"><strong>GPT Image 2.5 Sunburst / Flare</strong><p>文字输入 $5、图片输入 $8、图片输出 $30 / 百万 token；Responses 图片输入缓存价分别 $1.25 / $2，但官方响应未披露命中量，图片输入费待核实。描述理解和编辑上下文的 GPT-6.1 Sol 用量另外按其官方价核算。</p><a href="https://developers.openai.com/api/docs/guides/image-generation#cached-input-pricing" target="_blank" rel="noopener noreferrer">OpenAI 官方缓存与计费说明</a></div>';
     return h;
   }
   function summary(data){

@@ -2,14 +2,20 @@
   'use strict';
   function escape(value){return String(value||'').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
   function install(options){
-    var catalog=root.ArenaSkillCatalog||[],files=[],pending=[],epochs={},sequence=0;
+    var catalog=root.ArenaSkillCatalog||[],files=[],pending=[],epochs={},sequence=0,settingsKey=null,currentSettings=null;
     function fileScope(){var a=options.auth();return String(a.username||a.user||'').toLowerCase()+':'+options.scope();}
     function key(){var a=options.auth();return 'aa-skills-v2:'+String(a.username||a.user||'').toLowerCase()+':'+options.scope()+':'+options.mode();}
     function settings(){
-      try{var value=JSON.parse(localStorage.getItem(key())||'null');if(value&&['auto','manual','off'].indexOf(value.mode)!==-1)return {mode:value.mode,ids:(value.ids||[]).filter(function(id){return catalog.some(function(s){return s.id===id;});}).slice(0,3)};}catch(e){}
-      return {mode:'auto',ids:[]};
+      var nextKey=key();
+      if(settingsKey!==nextKey||!currentSettings){
+        settingsKey=nextKey;currentSettings={mode:'auto',ids:[]};
+        try{var value=JSON.parse(localStorage.getItem(nextKey)||'null');if(value&&['auto','manual','off'].indexOf(value.mode)!==-1)currentSettings={mode:value.mode,ids:(Array.isArray(value.ids)?value.ids:[]).filter(function(id){return catalog.some(function(s){return s.id===id;});}).slice(0,3)};}catch(e){}
+      }
+      // Another tab may remember its own preference, but cannot change the
+      // current composer's visible choice underneath an in-flight submission.
+      return {mode:currentSettings.mode,ids:currentSettings.ids.slice()};
     }
-    function set(value){localStorage.setItem(key(),JSON.stringify(value));update();if(options.selectionChanged)options.selectionChanged(value);}
+    function set(value){localStorage.setItem(key(),JSON.stringify(value));settingsKey=key();currentSettings={mode:value.mode,ids:value.ids.slice()};update();if(options.selectionChanged)options.selectionChanged(value);}
     function update(){
       var value=settings(),skill=catalog.find(function(s){return s.id===value.ids[0];});
       document.getElementById('aaSkillsBtn').textContent=value.mode==='manual'&&skill?skill.name:'Skills · '+(value.mode==='off'?'关闭':'自动');
@@ -33,18 +39,29 @@
     function activate(id){if(!catalog.some(function(s){return s.id===id;}))return;set({mode:'manual',ids:[id]});}
     function capture(file){
       if(root.ArenaFiles?(!root.ArenaFiles.isDocument(file.name)&&!root.ArenaFiles.isArchive(file.name)):!/\.(pdf|docx|pptx|xlsx|xls|csv|tsv|txt|md|json)$/i.test(file.name))return;
-      var scope=fileScope(),epoch=epochs[scope]||0,order=++sequence;
+      var scope=fileScope(),entry={scope:scope,epoch:epochs[scope]||0},order=++sequence;
       var task=file.arrayBuffer().then(function(buffer){
-        if((epochs[scope]||0)!==epoch)return;
-        if(buffer.byteLength>8*1024*1024)throw Error('官方文档处理单个文件最多 8MB');
+        var scope=entry.scope;
+        if((epochs[scope]||0)!==entry.epoch)return;
+        if(buffer.byteLength>(root.ArenaFiles&&root.ArenaFiles.LIMITS?root.ArenaFiles.LIMITS.fileBytes:20*1024*1024))throw Error('官方文档处理单个文件最多 20MB');
         var bytes=new Uint8Array(buffer),binary='';for(var i=0;i<bytes.length;i+=32768)binary+=String.fromCharCode.apply(null,bytes.subarray(i,i+32768));
         if(files.some(function(f){return f.scope===scope&&f.name===file.name&&f.order>order;}))return;
         files=files.filter(function(f){return f.scope!==scope||f.name!==file.name;});files.push({scope:scope,order:order,name:file.name,mime:file.type||'application/octet-stream',size:bytes.length,data:btoa(binary)});
-      });pending.push({scope:scope,task:task});task.catch(function(error){options.notice(error.message);});
+      });entry.task=task;pending.push(entry);task.catch(function(error){options.notice(error.message);});
     }
-    async function ready(){var scope=fileScope(),tasks=pending.filter(function(p){return p.scope===scope;});pending=pending.filter(function(p){return p.scope!==scope;});await Promise.all(tasks.map(function(p){return p.task;}));}
+    async function ready(){var scope=fileScope(),tasks=pending.filter(function(p){return p.scope===scope;});try{await Promise.all(tasks.map(function(p){return p.task;}));}finally{pending=pending.filter(function(p){return tasks.indexOf(p)===-1;});}}
     function filesForTexts(texts){var scope=fileScope();return files.filter(function(file){return file.scope===scope&&texts.some(function(text){return text.indexOf('[文件: '+file.name+']')===0;});}).map(function(file){return {name:file.name,mime:file.mime,size:file.size,data:file.data};});}
     function clear(){var scope=fileScope();epochs[scope]=(epochs[scope]||0)+1;files=files.filter(function(f){return f.scope!==scope;});pending=pending.filter(function(p){return p.scope!==scope;});}
+    function migrateAccount(from,to){
+      from=String(from||'').trim().toLowerCase();to=String(to||'').trim().toLowerCase();
+      if(!from||!to||from===to)return;
+      var prefix='aa-skills-v2:'+from+':',keys=[];
+      for(var i=0;i<localStorage.length;i++){var name=localStorage.key(i);if(name&&name.indexOf(prefix)===0)keys.push(name);}
+      keys.forEach(function(name){localStorage.setItem('aa-skills-v2:'+to+':'+name.slice(prefix.length),localStorage.getItem(name));});
+      if(settingsKey&&settingsKey.indexOf(prefix)===0&&currentSettings){settingsKey='aa-skills-v2:'+to+':'+settingsKey.slice(prefix.length);localStorage.setItem(settingsKey,JSON.stringify(currentSettings));}
+      files.forEach(function(file){if(file.scope.indexOf(from+':')===0)file.scope=to+file.scope.slice(from.length);});
+      pending.forEach(function(entry){if(entry.scope.indexOf(from+':')!==0)return;var old=entry.scope,next=to+old.slice(from.length);entry.epoch=entry.epoch===(epochs[old]||0)?(epochs[next]||0):-1;entry.scope=next;});
+    }
     function artifacts(message){
       if(!message.artifacts||!message.artifacts.length)return '';
       return '<div class="arena-skill-files" aria-label="生成的文件">'+message.artifacts.map(function(file,index){return '<div class="arena-skill-file"><span>'+escape(file.name)+'</span><small>Claude 官方 Skills'+(file.size?' · '+Math.ceil(file.size/1024)+' KB':'')+'</small><button type="button" data-skill-file="'+index+'" data-skill-message="'+message.uid+'"'+(file.deleted||file.unavailable?' disabled':'')+'>'+(file.deleted?'已删除':file.unavailable?'文件不可用':'下载')+'</button><button type="button" class="arena-skill-delete" data-skill-delete="'+index+'" data-skill-message="'+message.uid+'" aria-label="删除生成文件 '+escape(file.name)+'"'+(file.deleted||file.unavailable?' disabled':'')+'>删除文件</button></div>';}).join('')+'</div>';
@@ -66,7 +83,7 @@
         setTimeout(function(){if(anchor.isConnected)anchor.replaceWith(button);URL.revokeObjectURL(url);},60000);
       }catch(error){options.notice(error.message);}finally{if(!file.deleted)button.disabled=false;}
     });
-    return {settings:settings,update:update,render:render,activate:activate,automatic:function(){set({mode:'auto',ids:[]});},capture:capture,ready:ready,filesForTexts:filesForTexts,clear:clear,artifacts:artifacts};
+    return {settings:settings,update:update,render:render,activate:activate,automatic:function(){set({mode:'auto',ids:[]});},capture:capture,ready:ready,filesForTexts:filesForTexts,clear:clear,artifacts:artifacts,migrateAccount:migrateAccount};
   }
   root.ArenaSkills={install:install};
 })(typeof window!=='undefined'?window:globalThis);

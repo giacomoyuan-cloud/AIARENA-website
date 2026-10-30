@@ -3,8 +3,33 @@ import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { setImmediate } from 'node:timers/promises';
 import worker, { ChatRun } from './worker.js';
+import { createChatRunClass } from './chat-runs.js';
 
 const pass = 'synthetic-account-hash';
+test('in-process execution retains a large payload without another JSON body copy',async()=>{
+  const payload={marker:'original',toJSON(){throw Error('must not serialize the payload again');}};
+  let calls=0;
+  const Run=createChatRunClass(()=>assert.fail('must use direct payload execution'),null,{executePayload:async(value,env,signal)=>{
+    assert.equal(value,payload);assert.equal(signal.aborted,false);calls++;
+    return new Response('data: {"t":"complete"}\n\ndata: [DONE]\n\n');
+  }});
+  const actor=new Run({storage:storage(),waitUntil:()=>{}},{});
+  actor.meta={runId:'large-file',status:'running',sequence:0,createdAt:Date.now(),reply:{text:''},incognito:true};
+  await actor.generate(payload);
+  assert.equal(calls,1);assert.equal(actor.meta.status,'completed');assert.equal(actor.meta.reply.text,'complete');
+});
+test('multi-megabyte Unicode replies persist and archive in bounded SQLite rows without retry replacement',()=>{
+  const store=storage(),ctx={storage:store,waitUntil:()=>{}},actor=new ChatRun(ctx,{});
+  const text='x'.repeat(63980)+'😀'+('长正文😀'.repeat(300000));
+  actor.meta={runId:'large-old-run',status:'completed',sequence:0,createdAt:Date.now(),updatedAt:Date.now(),reply:{text}};
+  actor.persistMeta();
+  const restored=new ChatRun(ctx,{});assert.equal(restored.snapshot().reply.text,text);
+  assert.ok(store.db.prepare('SELECT value FROM run_meta_chunks').all().length>1);
+  assert.ok(store.db.prepare('SELECT value FROM run_meta_chunks').all().every(r=>Buffer.byteLength(r.value)<256001));
+  restored.archiveCurrent();restored.meta={runId:'new-run',status:'completed',reply:{text:'new result'}};restored.persistMeta();
+  assert.equal(restored.archived('large-old-run').reply.text,text);assert.equal(restored.snapshot().reply.text,'new result');
+  const again=new ChatRun(ctx,{});assert.equal(again.archived('large-old-run').reply.text,text);
+});
 const post = body => new Request('https://api.pickandcase.com/chat-runs', { method: 'POST', body: JSON.stringify(body) });
 function storage() {
   const db = new DatabaseSync(':memory:');
@@ -82,6 +107,25 @@ test('stopping OpenAI before its alarm finalizes the answer without a provider c
   await Promise.all(f.pending);await actor.alarm();
   assert.equal(f.upstreams.length,0);assert.equal(actor.pendingRun,null);
   assert.equal(JSON.parse(f.data.get('chats:tester:chat-test-001'))[1].run.status,'cancelled');
+});
+
+test('chat recovery preserves uploaded image previews using validated request bytes',async t=>{
+  const f=setup(t),image={mime:'image/png',data:'aGVsbG8='};
+  f.payload.images=[image];f.payload.recovery.userMessage.text+=' [img]';
+  f.payload.recovery.userMessage.imgSrcs=['UNTRUSTED_RECOVERY_METADATA'];
+  assert.equal((await f.call('start',{payload:f.payload})).status,202);
+  await f.waitFor(()=>f.upstreams.length===1);f.upstreams[0].text('image answer');f.upstreams[0].end();await Promise.all(f.pending);
+  const saved=JSON.parse(f.data.get('chats:tester:chat-test-001'));
+  assert.deepEqual(saved[0].imgSrcs,['data:image/png;base64,'+image.data]);
+  assert.ok(!JSON.stringify(saved).includes('UNTRUSTED_RECOVERY_METADATA'));
+});
+
+test('invalid chat image attachments are rejected before creating a run or calling a provider',async t=>{
+  const f=setup(t);
+  for(const images of [{data:'invalid'},[{data:'aGVsbG8=',mime:'image/svg+xml'}],Array.from({length:11},()=>({data:'aGVsbG8=',mime:'image/png'}))]){
+    f.payload.images=images;assert.equal((await f.call('start',{payload:f.payload})).status,413);
+  }
+  assert.equal(f.objects.size,0);assert.equal(f.upstreams.length,0);
 });
 
 test('stopping an active OpenAI alarm cancels its upstream and retains the received text',async t=>{

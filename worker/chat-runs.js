@@ -1,14 +1,15 @@
 import { handleBillingLedger } from './billing-ledger.js';
+import { handleProjectLibrary } from './project-library.js';
 // A generation belongs to its chat, not to a phone's HTTP connection.
 // Credentials and provider keys are never written to Durable Object storage.
 const encoder = new TextEncoder();
 const RETENTION_MS = 24 * 60 * 60 * 1000;
-const MAX_LOG_BYTES = 8 * 1024 * 1024;
+const MAX_LOG_BYTES = 64 * 1024 * 1024;
 const cors = { 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' };
 const json = (value, status = 200) => Response.json(value, { status, headers: cors });
 const terminal = status => status && status !== 'running';
 
-export function createChatRunClass(execute, DebateRun, { deferStart = () => false, createTransport } = {}) {
+export function createChatRunClass(execute, DebateRun, { deferStart = () => false, createTransport, onInterrupt, executePayload } = {}) {
   return class ChatRun {
     constructor(ctx, env) {
       this.ctx = ctx;
@@ -30,8 +31,9 @@ export function createChatRunClass(execute, DebateRun, { deferStart = () => fals
       this.sql.exec('CREATE TABLE IF NOT EXISTS run_history (run_id TEXT PRIMARY KEY, expires_at INTEGER NOT NULL, value TEXT NOT NULL)');
       this.sql.exec('CREATE TABLE IF NOT EXISTS run_event_history (run_id TEXT NOT NULL, seq INTEGER NOT NULL, value TEXT NOT NULL, received_at INTEGER, PRIMARY KEY (run_id, seq))');
       this.sql.exec('CREATE INDEX IF NOT EXISTS run_history_expiry ON run_history(expires_at)');
+      this.sql.exec('CREATE TABLE IF NOT EXISTS run_meta_chunks (run_id TEXT NOT NULL, idx INTEGER NOT NULL, value TEXT NOT NULL, PRIMARY KEY (run_id, idx))');
       const saved = this.sql.exec('SELECT value FROM run_meta WHERE id = 1').toArray()[0];
-      this.meta = saved ? JSON.parse(saved.value) : null;
+      this.meta = saved ? this.readMeta(saved.value) : null;
       // A process restart must not silently charge for a second provider request.
       if (this.meta?.status === 'running') {
         for (const event of this.sql.exec('SELECT seq, value, received_at FROM run_events WHERE seq > ? ORDER BY seq', this.meta.sequence).toArray()) {
@@ -42,12 +44,40 @@ export function createChatRunClass(execute, DebateRun, { deferStart = () => fals
         this.meta.status = 'interrupted';
         this.meta.error = '服务器连接已中断，已保留收到的内容。请重新回答以继续。';
         this.persistMeta();
+        if(onInterrupt&&this.meta.reply?.diagnostics?.googleInteractionId){
+          const interrupted=this.meta;
+          const cancelled=Promise.resolve().then(()=>onInterrupt(interrupted,this.env)).catch(()=>{});
+          this.ctx.waitUntil?.(cancelled);
+        }
       }
+    }
+
+    readMeta(value) {
+      const meta=JSON.parse(value);
+      if(!meta._chunkedMeta)return meta;
+      const chunks=this.sql.exec('SELECT value FROM run_meta_chunks WHERE run_id = ? ORDER BY idx',meta.runId).toArray();
+      if(chunks.length!==meta._chunkedMeta)throw new Error('已保存的回答分段不完整。');
+      return JSON.parse(chunks.map(c=>c.value).join(''));
+    }
+
+    writeMeta(meta) {
+      const value=JSON.stringify(meta);
+      this.sql.exec('DELETE FROM run_meta_chunks WHERE run_id = ?',meta.runId);
+      if(value.length<=64000)return value;
+      let count=0;
+      for(let offset=0;offset<value.length;){
+        let end=Math.min(value.length,offset+64000);
+        if(end<value.length&&/[\uD800-\uDBFF]/.test(value[end-1]))end--;
+        this.sql.exec('INSERT INTO run_meta_chunks (run_id, idx, value) VALUES (?, ?, ?)',meta.runId,count++,value.slice(offset,end));offset=end;
+      }
+      return JSON.stringify({_chunkedMeta:count,runId:meta.runId});
     }
 
     persistMeta() {
       if (!this.meta || this.meta.incognito) return;
-      this.sql.exec('INSERT OR REPLACE INTO run_meta (id, value) VALUES (1, ?)', JSON.stringify(this.meta));
+      this.ctx.storage.transactionSync(()=>{
+        this.sql.exec('INSERT OR REPLACE INTO run_meta (id, value) VALUES (1, ?)',this.writeMeta(this.meta));
+      });
       this.lastMetaSave = Date.now();
     }
 
@@ -59,7 +89,7 @@ export function createChatRunClass(execute, DebateRun, { deferStart = () => fals
 
     archived(runId) {
       const row = this.sql.exec('SELECT value FROM run_history WHERE run_id = ? AND expires_at > ?', runId, Date.now()).toArray()[0];
-      return row ? JSON.parse(row.value) : null;
+      return row ? this.readMeta(row.value) : null;
     }
 
     archiveCurrent() {
@@ -68,7 +98,7 @@ export function createChatRunClass(execute, DebateRun, { deferStart = () => fals
       // Copy and clear atomically. A failed copy leaves the old run intact.
       this.ctx.storage.transactionSync(() => {
         this.sql.exec('INSERT OR REPLACE INTO run_event_history (run_id, seq, value, received_at) SELECT ?, seq, value, received_at FROM run_events', meta.runId);
-        this.sql.exec('INSERT OR REPLACE INTO run_history (run_id, expires_at, value) VALUES (?, ?, ?)', meta.runId, (meta.updatedAt || meta.createdAt || Date.now()) + RETENTION_MS, JSON.stringify(meta));
+        this.sql.exec('INSERT OR REPLACE INTO run_history (run_id, expires_at, value) VALUES (?, ?, ?)', meta.runId, (meta.updatedAt || meta.createdAt || Date.now()) + RETENTION_MS, this.writeMeta(meta));
         this.sql.exec('DELETE FROM run_events');
         this.sql.exec('DELETE FROM run_meta');
       });
@@ -76,6 +106,7 @@ export function createChatRunClass(execute, DebateRun, { deferStart = () => fals
 
     pruneHistory() {
       this.ctx.storage.transactionSync(() => {
+        this.sql.exec('DELETE FROM run_meta_chunks WHERE run_id IN (SELECT run_id FROM run_history WHERE expires_at <= ?)', Date.now());
         this.sql.exec('DELETE FROM run_event_history WHERE run_id IN (SELECT run_id FROM run_history WHERE expires_at <= ?)', Date.now());
         this.sql.exec('DELETE FROM run_history WHERE expires_at <= ?', Date.now());
       });
@@ -136,7 +167,10 @@ export function createChatRunClass(execute, DebateRun, { deferStart = () => fals
         else if (item.citation.title) reply.citations[index].title = item.citation.title;
         if (item.citationInline !== false) reply.text += ' [[aa-citation:' + (index < 0 ? reply.citations.length : index + 1) + ']] ';
       }
-      if (item.activity && reply.activity.length < 80) reply.activity.push(item.activity);
+      if(item.activity?.kind==='project_reading'){
+        const index=reply.activity.findIndex(a=>a.kind==='project_reading');
+        if(index>=0)reply.activity[index]=item.activity;else if(reply.activity.length<80)reply.activity.push(item.activity);
+      }else if (item.activity && reply.activity.length < 80) reply.activity.push(item.activity);
       else if (item.status && item.status !== 'responding' && reply.activity.at(-1)?.kind !== item.status) {
         reply.activity.push({ kind: item.status, label: item.status === 'searching' ? '搜索网页' : '模型思考' });
       }
@@ -197,7 +231,7 @@ export function createChatRunClass(execute, DebateRun, { deferStart = () => fals
         this.abort = new AbortController();
         // Let a slow thinking stream finish. Only Stop, upstream failure or
         // the existing output-size bound cancels it; elapsed time does not.
-        const response = await execute(new Request('https://internal.invalid/', {
+        const response = executePayload ? await executePayload(payload,this.env,this.abort.signal) : await execute(new Request('https://internal.invalid/', {
           method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), signal: this.abort.signal
         }), this.env);
         if (!response.ok) {
@@ -283,6 +317,7 @@ export function createChatRunClass(execute, DebateRun, { deferStart = () => fals
     async fetch(request) {
       const target=new URL(request.url);
       if(target.hostname==='usage-ledger.internal'&&target.pathname==='/__billing')return handleBillingLedger(this.ctx,request);
+      if(target.hostname==='project-library.internal')return handleProjectLibrary(this.ctx,this.env,request);
       if (this.transport?.matches(request)) return this.transport.fetch(request);
       const body = await request.json();
       if (body.kind === 'debate' && this.debate) return this.debate.fetchBody(body);
@@ -379,6 +414,7 @@ export function createChatRunClass(execute, DebateRun, { deferStart = () => fals
         return;
       }
       if (this.meta && this.meta.status !== 'running' && Date.now() - (this.meta.updatedAt || this.meta.createdAt || 0) >= RETENTION_MS) {
+        this.sql.exec('DELETE FROM run_meta_chunks WHERE run_id = ?',this.meta.runId);
         this.sql.exec('DELETE FROM run_events'); this.sql.exec('DELETE FROM run_meta'); this.meta = null;
       }
       await this.scheduleCleanup();

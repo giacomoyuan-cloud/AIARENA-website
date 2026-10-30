@@ -69,9 +69,9 @@ test('corrupt, encrypted, truncated and excessive-entry archives report readable
 });
 test('both declared ZIP bombs and forged small sizes are bounded before they become attachments', async () => {
   const file = await archive({ 'a.txt': 'A'.repeat(10000) });
-  const declaredBomb = await changed(file, (_bytes, view, central) => view.setUint32(central + 24, 41 * 1024 * 1024, true));
+  const declaredBomb = await changed(file, (_bytes, view, central) => view.setUint32(central + 24, 101 * 1024 * 1024, true));
   assert.throws(() => preflightZip(new Uint8Array([])), /ZIP/);
-  await assert.rejects(openZip(await declaredBomb.arrayBuffer()), /40MB/);
+  await assert.rejects(openZip(await declaredBomb.arrayBuffer()), /100MB/);
   const forged = await changed(file, (_bytes, view, central) => view.setUint32(central + 24, 1, true));
   const zip = await openZip(await forged.arrayBuffer());
   await assert.rejects(readZipEntry(zip.files['a.txt'], 100), /上限|校验|损坏/);

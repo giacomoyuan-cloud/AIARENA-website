@@ -4,9 +4,7 @@
   "main": "worker.js",
   "compatibility_date": "2026-02-28",
   "keep_vars": true,
-  "vars": {
-    "NATIVE_OWNER_ACCOUNT": "oakleyyuen"
-  },
+  "keep_names": true,
   "durable_objects": {
     "bindings": [
       {
@@ -44,6 +42,12 @@
     }
   ],
   "workers_dev": true,
+  "r2_buckets": [
+    {
+      "binding": "PROJECT_DOCUMENTS",
+      "bucket_name": "ai-assistant-project-files"
+    }
+  ],
   "placement": {
     "region": "aws:us-east-1"
   },
@@ -65,5 +69,8 @@
   ],
   "observability": {
     "enabled": true
+  },
+  "vars": {
+    "NATIVE_OWNER_ACCOUNT": "oakleyyuen"
   }
 }

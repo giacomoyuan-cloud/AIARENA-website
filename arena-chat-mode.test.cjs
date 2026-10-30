@@ -22,7 +22,7 @@ function fixture(overrides={}){
   const element=id=>{if(!elements.has(id))elements.set(id,{value:'',style:{},classList:{add(){},remove(){},toggle(){}},addEventListener:(event,handler)=>events.set(id+':'+event,handler)});return elements.get(id);};
   const noop=()=>{};
   const c=vm.createContext({ArenaChatMode:Modes,ArenaImage:Image,window:{},document:{querySelectorAll:()=>[]},$:element,
-    aaRunning:false,scopeSwitchPending:false,activeProjectId:null,scopeEpoch:1,chatLoadEpoch:0,_saveTimer:null,currentChatId:'previous',msgs:[],chatList:[],
+    aaRunning:false,scopeSwitchPending:false,chatNavigationPending:false,privacySwitchPending:false,activeProjectId:null,scopeEpoch:1,chatLoadEpoch:0,_saveTimer:null,currentChatId:'previous',msgs:[],chatList:[],
     debate:true,imageMode:false,videoMode:false,debateMode:'free',imageComposerModel:'grok-imagine-image-2.0',imageComposerTask:'generation',imageEditParentUid:null,imageMaskState:null,
     sentImgs:[],sentTexts:[],brandSelection:{},activeBrands:{xai:true},AVAILABLE_CHAT_MODELS:['gpt-6.1-sol','claude-sonnet-5-5'],SUBS:{'gpt-6.1-sol':{brand:'openai'},'claude-sonnet-5-5':{brand:'anthropic'}},
     chatApiCall:async()=>({messages:imageMessages}),getLastAssistantReplyAt:()=>0,rememberChatReplyTime:noop,clearDebateView:noop,render:noop,
@@ -50,7 +50,7 @@ test('opening normal or debate history restores its mode and removes references 
 });
 test('a stale history load cannot change the active conversation mode',async()=>{
   let finish;const {c}=fixture({chatApiCall:()=>new Promise(resolve=>finish=resolve)}),pending=c.loadChat('image-chat');c.scopeEpoch++;
-  finish({messages:imageMessages});assert.equal(await pending,false);assert.equal(c.debate,true);assert.equal(c.imageMode,false);
+  await Promise.resolve();if(finish)finish({messages:imageMessages});assert.equal(await pending,false);assert.equal(c.debate,true);assert.equal(c.imageMode,false);
 });
 for(const [button,target] of [['Debate','debate'],['Image','image'],['Chat','chat'],['Video','video']])test('sidebar '+target+' navigation starts a separate conversation after saving existing messages',async()=>{
   const {c,calls,events}=fixture({debate:target!=='debate',imageMode:target==='debate',msgs:imageMessages});
@@ -111,8 +111,8 @@ test('repeated image/chat/debate history round trips restore mode, model and ref
   assert.deepEqual(requests,Array(9).fill('load'));
 });
 test('sidebar current-page marker, pressed state and active class select exactly the restored mode',()=>{
-  const nodes=new Map(),get=id=>{if(!nodes.has(id))nodes.set(id,{classList:{contains:()=>false,toggle(name,value){this[name]=value;}},attrs:{},setAttribute(name,value){this.attrs[name]=value;}});return nodes.get(id);};
-  const c=vm.createContext({$:get,window:{matchMedia:()=>({matches:false})},document:{querySelector:()=>({})},activeProjectId:null,scopeSwitchPending:false,debate:false,imageMode:false,videoMode:false});
+  const nodes=new Map(),get=id=>{if(!nodes.has(id))nodes.set(id,{style:{},classList:{contains:()=>false,toggle(name,value){this[name]=value;}},attrs:{},setAttribute(name,value){this.attrs[name]=value;}});return nodes.get(id);};
+  const c=vm.createContext({$:get,window:{matchMedia:()=>({matches:false})},document:{querySelector:()=>({})},activeProjectId:null,scopeSwitchPending:false,chatNavigationPending:false,privacySwitchPending:false,aaRunning:false,skillSubmitPending:false,debate:false,imageMode:false,videoMode:false});
   vm.runInContext(fn('syncArenaNavigation'),c);
   for(const mode of ['Image','Chat','Debate','Image','Debate','Chat']){
     c.imageMode=mode==='Image';c.debate=mode==='Debate';c.syncArenaNavigation();
