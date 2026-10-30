@@ -6,7 +6,7 @@
   else root.ArenaBilling=api;
 })(typeof window!=='undefined'?window:this,function(){
   'use strict';
-  var VERSION='official-2026-10-30-v1', CHECKED='2026-10-30';
+  var VERSION='official-2026-10-30-v2', CHECKED='2026-10-30';
   var SOURCES={
     openai:'https://developers.openai.com/api/docs/pricing',
     anthropic:'https://platform.claude.com/docs/en/about-claude/pricing',
@@ -22,7 +22,8 @@
     'claude-opus-5-5':card('Claude Opus 5.5','anthropic','4','20','0.2',{writeShort:'5',writeLong:'8'}),
     'claude-sonnet-5-5':card('Claude Sonnet 5.5','anthropic','2','10','0.1',{writeShort:'2.5',writeLong:'4'}),
     'claude-opus-5':card('Claude Opus 5','anthropic','5','25','0.5',{writeShort:'6.25',writeLong:'10',legacy:true}),
-    'claude-haiku-4-5-20251001':card('Claude Haiku 4.5（后台整理）','anthropic','1','5','0.1',{writeShort:'1.25',writeLong:'2',internal:true}),
+    'claude-haiku-5-5':card('Claude Haiku 5.5（辅助任务）','anthropic','0.1','0.5','0.01',{writeShort:'0.125',writeLong:'0.2',internal:true,longAbove:100000,long:{input:'0.5',output:'2.5',cached:'0.05',writeShort:'0.625',writeLong:'1'}}),
+    'claude-haiku-4-5-20251001':card('Claude Haiku 4.5（历史记录）','anthropic','1','5','0.1',{writeShort:'1.25',writeLong:'2',legacy:true}),
     'gpt-6-astra':card('GPT-6 Astra','openai','10','50','1',{writeShort:'12.5',writeLong:'25',longAbove:272000,long:{input:'20',output:'75',cached:'2',writeShort:'25',writeLong:'50'}}),
     'gpt-6.1-sol':card('GPT-6.1 Sol','openai','2','10','0.1',{writeShort:'2.5',writeLong:'5',longAbove:272000,long:{input:'4',output:'15',cached:'0.2',writeShort:'5',writeLong:'10'}}),
     'gpt-5.6-sol':card('GPT-5.6 Sol','openai','4','20','0.4',{writeShort:'5',writeLong:'10',longAbove:272000,long:{input:'8',output:'30',cached:'0.8',writeShort:'10',writeLong:'20'},legacy:true}),
