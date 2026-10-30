@@ -2,6 +2,16 @@
 
 The browser remains on Cloudflare Pages. `worker.js` serves the existing `ai` Worker at `api.pickandcase.com` and keeps its existing login, chats, memory and KV bindings.
 
+## Project materials
+
+Projects have a saved **按需检索 / 全文阅读** switch, independent of model thinking intensity. Retrieval is the default: SQLite FTS searches this account's current project, and at most three matching excerpts (4,800 characters total) are sent with source filenames and page/row locations. A miss is reported honestly; it never means the whole file was reviewed.
+
+Full reading submits every indexed text segment in batches, then combines the reading notes for the final answer. Progress and additional provider usage are visible. Reading calls use the selected model at Low when supported, without web search or Skills. Completed batches can be reused for an unchanged source revision, question and project context for seven days; cached batches are not billed as fresh calls. After 24 fresh reading calls in one execution window, a resumable progress message replaces the answer: retry continues completed work rather than claiming the unread remainder was processed. Incognito does not persist reading notes; very long incognito reviews require normal mode before any paid reading starts. Reading notes may omit details, and Office charts/images, scanned pages, external links and uncached formulas are not silently treated as parsed text.
+
+New project originals use the private `PROJECT_DOCUMENTS` R2 binding (`ai-assistant-project-files`). Multipart uploads resume acknowledged parts after the original file is reselected. Text extraction runs in a browser worker with acknowledged index batches and no base64 copy of the whole original. PDF, DOCX, XLSX/XLS, additional Office/OpenDocument formats and text/code formats are supported. Project uploads no longer use the old 8 MB / 40 MB / 15-file / 400,000-character / 200-page application limits; actual browser, Worker, R2 and SQLite capacities still apply. ZIP import keeps the existing archive safety bounds; native document-generation tools retain their own per-request original-file limits. Scan-only, empty or failed parses remain unavailable to AI; mixed PDFs with pages lacking text are visibly partial and cannot claim completed full reading.
+
+Original bytes are downloaded only through authenticated Worker routes. R2 public access stays disabled. Existing KV files remain readable, and project/account authorization precedes original transfer or index access. Soft removal and replacement preserve recoverability. No embedding/model call is made merely to upload or index a file. See [R2 limits](https://developers.cloudflare.com/r2/platform/limits/) and [Durable Objects limits](https://developers.cloudflare.com/durable-objects/platform/limits/).
+
 ## Provider routes
 
 | Models | API host | Existing secret binding |

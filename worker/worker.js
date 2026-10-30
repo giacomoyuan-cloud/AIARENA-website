@@ -1503,7 +1503,7 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
         const library=(action,extra)=>projectLibrary(env,authUser,projectId,action,extra);
         async function* batchLegacy(file){let batch=[],chars=0;for(let ordinal=0;ordinal<file.chunks;ordinal++){const text=await env.BIZ_KV.get(prefix+':file:'+file.id+':chunk:'+ordinal);if(!text)throw Error('资料「'+file.name+'」缺少片段，请重新上传');if(chars+text.length>24000&&batch.length){yield batch;batch=[];chars=0;}batch.push({fileId:file.id,name:file.name,ordinal,text});chars+=text.length;}if(batch.length)yield batch;}
         try{
-          materials=await readProject({files,question,history:history.messages.slice(-4).map(m=>({role:m.role,text:m.text})),model,scope:projectId,library,batchLegacy,incognito,signal:upstreamAbort.signal,
+          materials=await readProject({files,question,history:history.messages.slice(-4).map(m=>({role:m.role,text:m.text})),context:{instructions:project.instructions||'',memory},model,scope:projectId,library,batchLegacy,incognito,signal:upstreamAbort.signal,
             progress:async progress=>{await sendActivity({kind:'project_reading',...progress});},
             complete:async question=>{
               const child=new Request(request.url,{method:'POST',headers:{'Content-Type':'application/json'},signal:upstreamAbort.signal,body:JSON.stringify({user:authUser,password:authPass,model,projectId,search:false,maxOutputTokens:1600,...(MODEL_EFFORT_LEVELS[model]?.includes('low')?{effort:'low'}:{}),chat:{scope:projectId,incognito:true,history:[],question,skills:{mode:'off',ids:[]}}})});
@@ -1560,10 +1560,19 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
       if(selection.skills.some(s=>s.official||s.kind==='compute')){
         const files=validateSkillFiles(body.chat.files);
         if(project&&!files.length&&!body.chat.skillSession){
+          const sourceFiles=await projectFiles(env,authUser,projectId),selected=(scoped.materialFiles||[]).map(ref=>sourceFiles.find(file=>file.id===ref.id)).filter(Boolean);
+          if(selected.some(f=>f.size>8*1024*1024)||selected.length>5||selected.reduce((n,f)=>n+f.size,0)>16*1024*1024)throw Error('资料已保存在项目中，但超过当前文档处理工具的单次原件容量。请关闭本轮 Skills 后使用按需检索或全文阅读分析文字；生成文件时可选择较小的原件。');
           for(const reference of scoped.materialFiles||[]){
+            const record=selected.find(file=>file.id===reference.id);
+            if(record?.storage==='r2'){
+              const response=await projectLibrary(env,authUser,projectId,'download',{fileId:record.id}),bytes=new Uint8Array(await response.arrayBuffer());let binary='';
+              for(let n=0;n<bytes.length;n+=32768)binary+=String.fromCharCode(...bytes.subarray(n,n+32768));
+              files.push({name:record.name,data:btoa(binary),mime:record.type,size:bytes.length});continue;
+            }
             const raw=await env.BIZ_KV.get(projectKey(authUser,projectId)+':file:'+reference.id+':original');
             if(raw){const file=JSON.parse(raw);if(file.data)files.push({name:file.name,data:file.data,mime:file.type||'application/octet-stream',size:file.size});}
           }
+          validateSkillFiles(files);
         }
         const documentUsage=[];
         try{

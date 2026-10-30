@@ -57,7 +57,7 @@
       if(value.ledgerStatus&&value.ledgerStatus!=='recorded')h+='<p class="arena-billing-note">累计统计'+(value.ledgerStatus==='pending'?'正在同步；本条费用明细已保留。':'暂未同步成功；请稍后查看累计用量。')+'</p>';
       if(value.auxiliary&&value.auxiliary.length){
         h+='<div class="arena-billing-aux"><strong>本条其他调用</strong>';
-        value.auxiliary.forEach(function(a){var purpose={context:'上下文摘要','context-summary':'上下文摘要',memory:'记忆整理',retry:'重试前一次调用','skill-router':'技能识别','file-generation':'文档继续处理','image-generation':'本批后续图片','image-orchestrator':'描述理解与编辑上下文'}[a.purpose]||'其他调用';h+='<p>'+e(purpose)+' · '+e((B.MODELS[a.model]||{}).name||a.model)+'：'+e(B.label(a))+'</p>';});h+='</div>';
+        value.auxiliary.forEach(function(a){var purpose={context:'上下文摘要','context-summary':'上下文摘要','project-reading':'全文阅读',memory:'记忆整理',retry:'重试前一次调用','skill-router':'技能识别','file-generation':'文档继续处理','image-generation':'本批后续图片','image-orchestrator':'描述理解与编辑上下文'}[a.purpose]||'其他调用';h+='<p>'+e(purpose)+' · '+e((B.MODELS[a.model]||{}).name||a.model)+'：'+e(B.label(a))+'</p>';});h+='</div>';
       }
       var card=B.MODELS[value.model];
       if(card)h+='<p class="arena-billing-muted">'+e(value.rateCard&&value.rateCard.checkedAt||B.CHECKED)+' 核对 · '+(value.costBasis==='provider'?'金额来自官方响应。':'按公开 API 单价核算，不含账号折扣、税费或汇率调整。')+' <a href="'+e(value.costBasis==='provider'?B.SOURCES.xaiCost:card.source)+'" target="_blank" rel="noopener noreferrer">官方说明</a></p>';
