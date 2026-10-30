@@ -48,15 +48,16 @@ export function mergeMaterials(first,second,query){
 export async function readSources(sources,options){
   const actual=sources.filter(s=>s.files.length),total=actual.reduce((n,s)=>n+s.files.reduce((m,f)=>m+Number(f.segments||f.chunks||0),0),0);let offset=0,calls=0;const results=[];
   // Validate every source before the first potentially paid reading call.
-  const invalid=actual.flatMap(s=>s.files.filter(f=>f.storage==='r2'&&f.status!=='ready'));
+  const invalid=actual.flatMap(s=>s.files.filter(f=>f.storage==='r2'&&f.status!=='ready'&&!(f.status==='partial'&&f.coverage?.emptyUnits===0&&f.coverage?.uncertainUnits>0)));
   if(invalid.length)fail('尚不能全文阅读：'+invalid.map(f=>f.name+'（'+(f.status==='partial'?'部分页面需要 OCR':'索引未完成或解析失败')+'）').join('、'));
   if(actual.some(s=>s.files.some(f=>!Number.isSafeInteger(f.segments||f.chunks)||Number(f.segments||f.chunks)<1)))fail('文件索引不完整，请重新上传；本轮尚未产生阅读调用');
   if(options.incognito&&total>192)fail('这份资料需要保存分批阅读进度，请使用普通模式；本轮尚未产生阅读调用');
   for(const source of actual){
     try{
-      const result=await readProject({...options,...source,budget:Math.max(0,24-calls),complete:async prompt=>{calls++;return options.complete(prompt);},progress:p=>options.progress({...p,done:offset+p.done,total,complete:p.complete&&offset+p.done===total,label:p.complete?'已读入 '+(offset+p.done)+'/'+total+' 个片段':'全文阅读 · '+(offset+p.done)+'/'+total+' 个片段'})});
+      const result=await readProject({...options,...source,budget:Math.max(0,24-calls),complete:async prompt=>{calls++;return options.complete(prompt);},progress:p=>options.progress({...p,done:offset+p.done,total,complete:p.complete&&offset+p.done===total,label:p.complete?'已读入 '+(offset+p.done)+'/'+total+' 个片段'+(p.recognitionWarnings?.length?' · 保留识别不清晰提示':''):'全文阅读 · '+(offset+p.done)+'/'+total+' 个片段'})});
       results.push({...result,files:result.files.map(f=>({...f,source:source.kind||'project'}))});offset+=result.fragments;
     }catch(error){if(error instanceof ReadingPaused)throw new ReadingPaused({...error.progress,done:offset+error.progress.done,total});throw error;}
   }
-  return {text:results.map(r=>r.text).join('\n\n'),files:results.flatMap(r=>r.files),fragments:offset,mode:'full',coverage:{done:offset,total,complete:offset===total},usage:results.flatMap(r=>r.usage||[])};
+  const recognitionWarnings=results.flatMap(r=>r.coverage?.recognitionWarnings||[]);
+  return {text:results.map(r=>r.text).join('\n\n'),files:results.flatMap(r=>r.files),fragments:offset,mode:'full',coverage:{done:offset,total,complete:offset===total,...(recognitionWarnings.length?{recognitionWarnings}:{})},usage:results.flatMap(r=>r.usage||[])};
 }

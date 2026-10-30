@@ -4,6 +4,7 @@ import {recognizeProjectPage, ocrPayload, OCR_MODEL} from './project-ocr.js';
 
 const initialized=new WeakSet();
 const activeOCR=new WeakMap();
+const readableSQL="(f.state='ready' OR (f.state='partial' AND COALESCE(json_extract(f.meta,'$.coverage.emptyUnits'),-1)=0 AND COALESCE(json_extract(f.meta,'$.coverage.uncertainUnits'),0)>0))";
 const idOK=id=>typeof id==='string'&&/^[a-zA-Z0-9_-]{6,80}$/.test(id);
 const json=(data,status=200)=>Response.json(data,{status,headers:{'Cache-Control':'no-store','Access-Control-Allow-Origin':'*'}});
 const fail=(message,status=400)=>{throw Object.assign(Error(message),{status});};
@@ -45,6 +46,10 @@ async function identity(ctx,owner,project){
   if(!existing)ctx.storage.sql.exec('INSERT INTO library_identity(id,owner,project) VALUES(1,?,?)',owner,project);
 }
 function location(value){return typeof value==='string'?value.slice(0,400):'';}
+function readingText(meta,where,text){
+  const page=Number(String(where||'').match(/^第\s+(\d+)\s+页/)?.[1]),warnings=(meta?.coverage?.warnings||[]).filter(w=>w.page===page&&typeof w.text==='string').map(w=>w.text);
+  return text+(warnings.length?'\n\n[本页识别提示：'+warnings.join('；')+'。不清晰部分不得推测补全。]':'');
+}
 
 // This actor uses a separate, project-specific ID in the existing SQLite-backed
 // namespace. Its files/search tables never share an instance with chat runs.
@@ -99,7 +104,7 @@ export async function handleProjectLibrary(ctx,env,request){
       const queryName=String(body.query||'').toLowerCase(),specific=available.filter(f=>f.relativePath&&queryName.includes(materialName(f).toLowerCase())),relative=available.filter(f=>f.relativePath&&queryName.includes(f.relativePath.toLowerCase())),named=specific.length?specific:relative.length?relative:available.filter(f=>{const name=f.name.toLowerCase(),stem=name.replace(/\.[^.]+$/,'');return queryName.includes(name)||(stem.length>1&&queryName.includes(stem));});
       for(const f of named.slice(0,3))if(!hits.some(h=>f.id===h.file_id))hits.push(...rows(ctx,'SELECT file_id,ordinal,location,text,0 AS score FROM library_segments WHERE file_id=? ORDER BY ordinal LIMIT 1',f.id));
       const byId=new Map(available.map(f=>[f.id,f]));
-      return json({hits:hits.map(h=>({...h,file:{id:h.file_id,name:materialName(byId.get(h.file_id)),characters:byId.get(h.file_id)?.characters},score:-h.score+(named.some(f=>f.id===h.file_id)?1000:0)})),available:available.map(f=>({id:f.id,name:materialName(f),characters:f.characters,segments:f.segments}))});
+      return json({hits:hits.map(h=>({...h,text:readingText(byId.get(h.file_id),h.location,h.text),file:{id:h.file_id,name:materialName(byId.get(h.file_id)),characters:byId.get(h.file_id)?.characters},score:-h.score+(named.some(f=>f.id===h.file_id)?1000:0)})),available:available.map(f=>({id:f.id,name:materialName(f),characters:f.characters,segments:f.segments}))});
     }
     if(action==='scope'){
       if(typeof body.scope!=='string'||!/^[a-f0-9]{64}$/.test(body.scope)||!Array.isArray(body.ids)||body.ids.some(id=>!idOK(id)))fail('阅读范围无效');
@@ -108,11 +113,11 @@ export async function handleProjectLibrary(ctx,env,request){
     if(action==='batch'){
       const offset=Number(body.offset||0);if(!Number.isSafeInteger(offset)||offset<0)fail('阅读位置无效');
       if(typeof body.scope!=='string'||!/^[a-f0-9]{64}$/.test(body.scope))fail('阅读范围无效');
-      const unavailable=rows(ctx,"SELECT COUNT(*) AS n FROM library_scope_files q LEFT JOIN library_files f ON f.id=q.file_id WHERE q.scope=? AND (f.id IS NULL OR f.state!='ready' OR f.removed!=0)",body.scope)[0].n;
+      const unavailable=rows(ctx,"SELECT COUNT(*) AS n FROM library_scope_files q LEFT JOIN library_files f ON f.id=q.file_id WHERE q.scope=? AND (f.id IS NULL OR NOT "+readableSQL+" OR f.removed!=0)",body.scope)[0].n;
       if(unavailable)fail('阅读期间项目资料发生变化，请重新开始全文阅读',409);
-      const result=rows(ctx,"SELECT s.file_id,s.ordinal,s.location,s.text,f.meta FROM library_segments s JOIN library_files f ON f.id=s.file_id JOIN library_scope_files q ON q.file_id=f.id WHERE q.scope=? AND f.state='ready' AND f.removed=0 ORDER BY s.file_id,s.ordinal LIMIT 16 OFFSET ?",body.scope,offset);
+      const result=rows(ctx,"SELECT s.file_id,s.ordinal,s.location,s.text,f.meta FROM library_segments s JOIN library_files f ON f.id=s.file_id JOIN library_scope_files q ON q.file_id=f.id WHERE q.scope=? AND "+readableSQL+" AND f.removed=0 ORDER BY s.file_id,s.ordinal LIMIT 16 OFFSET ?",body.scope,offset);
       const resultRows=[];let chars=0;
-      for(const row of result){if(resultRows.length&&chars+row.text.length>24000)break;const meta=JSON.parse(row.meta);resultRows.push({fileId:row.file_id,name:materialName(meta),ordinal:row.ordinal,location:row.location,text:row.text});chars+=row.text.length;}
+      for(const row of result){const meta=JSON.parse(row.meta),text=readingText(meta,row.location,row.text);if(resultRows.length&&chars+text.length>24000)break;resultRows.push({fileId:row.file_id,name:materialName(meta),ordinal:row.ordinal,location:row.location,text});chars+=text.length;}
       return json({segments:resultRows,next:offset+resultRows.length,done:resultRows.length===0,total:rows(ctx,"SELECT COUNT(*) AS n FROM library_segments s JOIN library_files f ON f.id=s.file_id JOIN library_scope_files q ON q.file_id=f.id WHERE q.scope=?",body.scope)[0].n});
     }
     if(action==='restore_legacy'){ctx.storage.sql.exec('DELETE FROM library_retired WHERE id=?',body.fileId);return json({ok:true});}
@@ -220,7 +225,7 @@ export async function handleProjectLibrary(ctx,env,request){
     if(action==='preview'){
       if(value.removed)fail('项目资料不存在',404);
       const parts=rows(ctx,'SELECT location,text FROM library_segments WHERE file_id=? ORDER BY ordinal LIMIT 32',value.id);let text='';
-      for(const p of parts){if(text.length>=60000)break;text+=(p.location?'['+p.location+']\n':'')+p.text+'\n\n';}
+      for(const p of parts){if(text.length>=60000)break;text+=(p.location?'['+p.location+']\n':'')+readingText(value,p.location,p.text)+'\n\n';}
       return json({file:{...publicFile(value),text:text.slice(0,60000),previewTruncated:value.characters>60000}});
     }
     if(action==='download'){

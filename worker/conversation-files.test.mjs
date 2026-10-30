@@ -154,3 +154,7 @@ test('a newly attached file supplies a bounded first excerpt for a generic quest
  await ask(s,c,'概括这个新附件',{documents:{enabled:true,currentFileIds:[f.id]}});assert.equal(calls.length,1);assert.match(JSON.stringify(calls[0]),/NEW_FILE_EXCERPT/);
  await ask(s,c,'概括这个新附件');assert.equal(calls.length,2);assert.doesNotMatch(JSON.stringify(calls[1]),/NEW_FILE_EXCERPT/);
 });
+
+test('full reading preserves recognition warnings without rejecting fully processed pages',async t=>{
+ const s=setup(t),c={chatId:'recognized-warning-chat'};await upload(s,c,{name:'scan.pdf',text:'Budget 73921.50 [部分文字不清晰]',coverage:{units:1,emptyUnits:0,uncertainUnits:1,warnings:[{page:1,warning:'局部不清晰'}]}});const calls=mockProvider(t),r=await ask(s,c,'请全文阅读这份文件并检查预算');assert.equal(r.status,200);assert.match(r.text,/recognitionWarnings/);assert.match(JSON.stringify(calls.at(-1)),/识别情况/);
+});

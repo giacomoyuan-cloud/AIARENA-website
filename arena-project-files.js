@@ -126,7 +126,7 @@
       await flush();return {coverage:coverage,segments:ordinal};
     })();
     return new Promise(function(resolve,reject){
-      var worker=new Worker('/arena-project-parser-worker.js?v=20261030-pdfocr1'),finished=false;
+      var worker=new Worker('/arena-project-parser-worker.js?v=20261030-pdfocr2'),finished=false;
       function stop(error,result){if(finished)return;finished=true;worker.terminate();if(signal)signal.removeEventListener('abort',abort);error?reject(error):resolve(result);}
       function abort(){stop(Object.assign(Error('上传已暂停，重新选择原文件可继续'),{name:'AbortError'}));}
       if(signal){if(signal.aborted)return abort();signal.addEventListener('abort',abort,{once:true});}
@@ -220,8 +220,18 @@
     var completed=await indexFile(options,id,generation);
     if(completed.status==='ready')await session('delete',key);return completed;
   }
-  function status(file){return file.status==='uploading'?'原文件待续传':file.status==='indexing'?'正在解析或识别，可继续处理':file.status==='unreadable'?'尚不可供 AI 查阅 · '+(file.parseError||'可用 Sol 继续识别'):file.status==='partial'?'部分页面待识别或确认 · 可继续识别':'已建立检索索引'+(file.ocrPages?' · Sol 已识别 '+file.ocrPages+' 页':'');}
+  function warningsOnly(file){return file.status==='partial'&&file.coverage?.emptyUnits===0&&file.coverage?.uncertainUnits>0;}
+  function repairLabel(file){return warningsOnly(file)?'重试不清晰页':'继续识别';}
+  function status(file){
+    if(file.status==='uploading')return '原文件待续传';
+    if(file.status==='indexing')return '正在解析或识别，可继续处理';
+    if(file.status==='unreadable')return '尚不可供 AI 查阅 · '+(file.parseError||'可用 Sol 继续识别');
+    var recognized=file.ocrPages?'Sol 已识别 '+file.ocrPages+' 页':'';
+    if(warningsOnly(file))return (recognized||'已处理全部页面')+' · '+file.coverage.uncertainUnits+' 页有不清晰内容，可查阅';
+    if(file.status==='partial')return (recognized?recognized+' · ':'')+(file.coverage?.emptyUnits?'还有 '+file.coverage.emptyUnits+' 页待识别':'部分页面待识别')+(file.coverage?.ocrError?' · '+file.coverage.ocrError:'');
+    return '已建立检索索引'+(recognized?' · '+recognized:'');
+  }
   function canRepair(file){return file.storage==='r2'&&/\.pdf$/i.test(file.name)&&['unreadable','partial','indexing'].includes(file.status);}
   function name(file){return (file.folder?file.folder+'/':'')+(file.relativePath||file.name);}
-  return {parse:parse,parseInWorker:parseInWorker,upload:upload,repair:repair,canRepair:canRepair,status:status,name:name,split:split,expandFiles:expandFiles};
+  return {parse:parse,parseInWorker:parseInWorker,upload:upload,repair:repair,canRepair:canRepair,repairLabel:repairLabel,status:status,name:name,split:split,expandFiles:expandFiles};
 });

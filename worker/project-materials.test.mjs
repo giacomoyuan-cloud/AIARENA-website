@@ -308,3 +308,19 @@ test('resuming other document formats never calls the PDF-only repair or OCR end
   const result=await Files.upload({file,projectId:'project-123',credentials:{username:'offline',password:'synthetic'},api,binary:async()=>{throw Error('original already stored');}});
   assert.equal(result.status,'ready');assert.ok(!actions.includes('library_reparse'));assert.ok(!actions.includes('library_ocr_page'));
 });
+test('full reading accepts complete OCR coverage with visible uncertainty notes while missing pages still block it',async t=>{
+  const s=setup(t),p=(await s.api('create',{name:'OCR warnings'})).project;
+  const file=await material(s,p.id,{name:'annotated.pdf',text:'DM6 功率约 36W，瓶身[无法辨认]。',coverage:{units:2,emptyUnits:0,uncertainUnits:1,warnings:[{page:1,text:'瓶身微小标签无法辨认'}]}});
+  assert.equal(file.status,'partial');const seen=[];
+  const result=await readProject({files:[file],question:'说明参数',history:[],model:'synthetic',scope:p.id,library:(a,b)=>projectLibrary(s.env,'tester',p.id,a,b),batchLegacy:async function*(){},progress:async()=>{},complete:async prompt=>{seen.push(prompt);return {text:'已读资料，瓶身标签不确定。'};}});
+  assert.equal(result.coverage.complete,true);assert.equal(result.coverage.recognitionWarnings[0].pages,1);assert.match(result.text,/不得自行补全/);assert.ok(seen[0].includes('瓶身微小标签无法辨认'));
+  const preview=(await s.api('preview',{projectId:p.id,fileId:file.id})).file;assert.match(preview.text,/本页识别提示/);
+  const search=await projectLibrary(s.env,'tester',p.id,'search',{query:'功率'});assert.match(search.hits[0].text,/瓶身微小标签无法辨认/);
+  const missing=await material(s,p.id,{name:'missing.pdf',coverage:{units:2,emptyUnits:1}});
+  await assert.rejects(readProject({files:[missing],question:'read',history:[],model:'synthetic',scope:p.id,library:()=>{throw Error('must not read incomplete file');}}),/OCR/);
+});
+test('file status distinguishes fully processed OCR warnings from pages that have not been recognized',()=>{
+  const file={storage:'r2',name:'manual.pdf',status:'partial',ocrPages:22,coverage:{units:22,emptyUnits:0,uncertainUnits:2}};
+  assert.match(Files.status(file),/Sol 已识别 22 页/);assert.match(Files.status(file),/2 页有不清晰内容，可查阅/);assert.equal(Files.repairLabel(file),'重试不清晰页');
+  const missing={...file,coverage:{units:22,emptyUnits:3,ocrError:'连接中断'}};assert.match(Files.status(missing),/3 页待识别/);assert.match(Files.status(missing),/连接中断/);assert.equal(Files.repairLabel(missing),'继续识别');
+});
