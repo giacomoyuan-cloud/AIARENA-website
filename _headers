@@ -12,6 +12,8 @@
   Cache-Control: no-cache, max-age=0, must-revalidate
 /arena-context.js
   Cache-Control: no-cache, max-age=0, must-revalidate
+/arena-token-limits.js
+  Cache-Control: no-cache, max-age=0, must-revalidate
 /arena-chat-runs.js
   Cache-Control: no-cache, max-age=0, must-revalidate
 /arena-workspace.js
@@ -70,4 +72,7 @@
   Cache-Control: no-cache, max-age=0, must-revalidate
 
 /arena-debate-studio.js
+  Cache-Control: no-cache, max-age=0, must-revalidate
+
+/arena-files.js
   Cache-Control: no-cache, max-age=0, must-revalidate

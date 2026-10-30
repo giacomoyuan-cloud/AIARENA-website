@@ -1,4 +1,5 @@
 import Context from '../arena-context.js';
+import {isDocument} from '../web/file-types.mjs';
 
 const initialized=new WeakSet();
 const idOK=id=>typeof id==='string'&&/^[a-zA-Z0-9_-]{6,80}$/.test(id);
@@ -64,7 +65,7 @@ export async function handleProjectLibrary(ctx,env,request){
       if(!env.PROJECT_DOCUMENTS)fail('大文件存储暂未配置',503);
       const input=body.file;
       if(!input||!idOK(input.id)||typeof input.name!=='string'||!input.name.trim()||input.name.length>180||/[\u0000-\u001f]/.test(input.name)||!Number.isSafeInteger(input.size)||input.size<0)fail('文件信息无效');
-      if(!/\.(pdf|docx|xlsx|xls|pptx|txt|md|csv|tsv|json|log)$/i.test(input.name))fail('暂不支持此资料格式');
+      if(!isDocument(input.name))fail('暂不支持此资料格式');
       const existing=rows(ctx,'SELECT id FROM library_files WHERE id=?',input.id)[0];
       if(existing){const prior=file(ctx,input.id);if(prior.name!==input.name||prior.size!==input.size||prior.state==='aborted'||prior.removed)fail('上传会话与文件不匹配，请重新开始上传',409);return json({file:publicFile(prior),partSize:prior.partSize});}
       if(input.folder!==undefined&&(typeof input.folder!=='string'||!input.folder.trim()||input.folder.length>180||/[\u0000-\u001f/\\]/.test(input.folder)||typeof input.relativePath!=='string'||input.relativePath.length>500||input.relativePath.split(/[\\/]/).some(p=>!p||p==='.'||p==='..')))fail('文件夹路径无效');

@@ -1,6 +1,11 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
 const C=require('./arena-context.js');
+test('full text history preserves original source links and attachments without leaking credentialed URLs',()=>{
+  const value=C.fullHistory([{uid:1,isUser:true,text:'question',pastedTexts:['complete attachment']},{uid:2,text:'answer [[aa-citation:1]]',citations:[{url:'https://example.com/source',title:'Original source'},{url:'https://private:secret@example.com/unsafe'}]}]);
+  assert.equal(value.messages.length,2);assert.equal(value.messages[0].text,'question\ncomplete attachment');assert.match(value.messages[1].text,/Original source https:\/\/example.com\/source/);
+  assert.doesNotMatch(value.messages[1].text,/aa-citation|private:secret/);assert.equal(value.truncated,false);
+});
 test('recent context stays bounded without deleting the original message array',()=>{
   const source=Array.from({length:120},(_,i)=>({uid:i,role:i%2?'assistant':'user',text:'记录 '+i+' '+('内容'.repeat(300))}));
   const original=JSON.stringify(source),recent=C.selectRecent(source);

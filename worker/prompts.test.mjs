@@ -14,7 +14,7 @@ async function setting(env,action,fields={}){const r=await worker.fetch(post('/s
 async function project(env,name){const r=await worker.fetch(post('/projects',{action:'create',name}),env);assert.equal(r.status,200);return (await r.json()).project;}
 async function chat(env,fields={}){
   const {projectId=null,model='claude-sonnet-5-5',user='tester',password=pass,...input}=fields;
-  const r=await worker.fetch(post('/',{user,password,projectId,model,chat:{scope:projectId||'general',question:'hello',history:[],system:'CLIENT_DEFAULT',systemMode:'default',...input}}),env);
+  const r=await worker.fetch(post('/',{user,password,projectId,model,...(model==='gemini-4-argon'?{maxOutputTokens:65536}:{}),chat:{scope:projectId||'general',question:'hello',history:[],system:'CLIENT_DEFAULT',systemMode:'default',...input}}),env);
   assert.equal(r.status,200);return r.text();
 }
 function providers(t){

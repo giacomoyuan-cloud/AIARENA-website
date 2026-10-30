@@ -17,8 +17,11 @@
   async function* parse(file,coverage){
     coverage=coverage||{};coverage.units=0;coverage.emptyUnits=0;
     var ext=file.name.split('.').pop().toLowerCase();
-    if(['txt','md','csv','tsv','json','log'].includes(ext)){
-      var reader=file.stream().getReader(),decoder=new TextDecoder(),buffer='',position=0;
+    var office=['pdf','docx','xlsx','xls','xlsm','xlsb','ods','pptx','odt','odp'];
+    if(!office.includes(ext)){
+      var sample=new Uint8Array(await file.slice(0,8192).arrayBuffer()),encoding=sample[0]===255&&sample[1]===254?'utf-16le':sample[0]===254&&sample[1]===255?'utf-16be':'utf-8';
+      if(encoding==='utf-8')try{new TextDecoder('utf-8',{fatal:true}).decode(sample,{stream:true});}catch{encoding='gb18030';}
+      var reader=file.stream().getReader(),decoder=new TextDecoder(encoding,{fatal:true}),buffer='',position=0;
       try{for(;;){var part=await reader.read();buffer+=decoder.decode(part.value||new Uint8Array(),{stream:!part.done});
         while(buffer.length>=2400){var end=boundary(buffer,2400),text=buffer.slice(0,end);buffer=buffer.slice(end);if(text.trim())yield {text:text,location:'正文 · 字符 '+(position+1)+'–'+(position+text.length)};position+=text.length;}
         if(part.done)break;
@@ -29,6 +32,9 @@
     if(ext==='pdf'){
       var pdfjs=await load('pdfjsLib','https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');
       pdfjs.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      // pdf.js cannot inject a script element from inside our parsing worker.
+      // Preload its handler so its local worker path needs no document/window.
+      if(typeof importScripts==='function'&&!root.pdfjsWorker)importScripts(pdfjs.GlobalWorkerOptions.workerSrc);
       var pdf=await pdfjs.getDocument({data:new Uint8Array(buffer),isEvalSupported:false}).promise;
       try{coverage.units=pdf.numPages;for(var pageNumber=1;pageNumber<=pdf.numPages;pageNumber++){
         var page=await pdf.getPage(pageNumber),content=await page.getTextContent(),text=content.items.map(function(x){return x.str+(x.hasEOL?'\n':' ');}).join('');
@@ -39,8 +45,8 @@
       var mammoth=await load('mammoth','https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js'),text=(await mammoth.extractRawText({arrayBuffer:buffer})).value;
       coverage.units=1;coverage.emptyUnits=text.trim()?0:1;for(var segment of split(text,'Word 正文'))yield segment;return;
     }
-    if(ext==='xlsx'||ext==='xls'){
-      var xlsx=await load('XLSX','https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'),book=xlsx.read(buffer,{type:'array',cellDates:false});coverage.units=book.SheetNames.length;
+    if(['xlsx','xls','xlsm','xlsb','ods'].includes(ext)){
+      var xlsx=await load('XLSX','https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js'),book=xlsx.read(buffer,{type:'array',cellDates:false});coverage.units=book.SheetNames.length;
       for(var name of book.SheetNames){
         var sheet=book.Sheets[name],addresses=Object.keys(sheet).filter(function(address){return /^[A-Z]+[1-9][0-9]*$/.test(address);}).map(function(address){return {address:address,position:xlsx.utils.decode_cell(address)};}).sort(function(a,b){return a.position.r-b.position.r||a.position.c-b.position.c;}),pending='',firstRow=addresses.length?addresses[0].position.r+1:0,lastRow=firstRow;
         for(var entry of addresses){
@@ -50,8 +56,14 @@
         }for(var segment of split(pending,'工作表「'+name+'」第 '+firstRow+'–'+lastRow+' 行'))yield segment;
       }return;
     }
-    if(ext==='pptx'){
-      var JSZip=await load('JSZip','https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js'),zip=await JSZip.loadAsync(buffer),slides=Object.keys(zip.files).filter(function(n){return /^ppt\/slides\/slide\d+\.xml$/.test(n);}).sort(function(a,b){return Number(a.match(/slide(\d+)/)[1])-Number(b.match(/slide(\d+)/)[1]);});coverage.units=slides.length;
+    if(['pptx','odt','odp'].includes(ext)){
+      var JSZip=await load('JSZip','https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js'),zip=await JSZip.loadAsync(buffer);
+      if(ext!=='pptx'){
+        if(!zip.file('content.xml'))throw Error('不是有效的 OpenDocument 文件');
+        var xml=await zip.file('content.xml').async('string'),text=xml.replace(/<\/(?:text:p|text:h|table:table-row)>/g,'\n').replace(/<text:tab\s*\/>/g,'\t').replace(/<[^>]+>/g,'').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&amp;/g,'&');
+        coverage.units=1;coverage.emptyUnits=text.trim()?0:1;for(var segment of split(text,'OpenDocument 正文'))yield segment;return;
+      }
+      var slides=Object.keys(zip.files).filter(function(n){return /^ppt\/slides\/slide\d+\.xml$/.test(n);}).sort(function(a,b){return Number(a.match(/slide(\d+)/)[1])-Number(b.match(/slide(\d+)/)[1]);});coverage.units=slides.length;
       for(var i=0;i<slides.length;i++){
         var xml=await zip.file(slides[i]).async('string'),parts=[];
         for(var match of xml.matchAll(/<a:t(?:\s[^>]*)?>([\s\S]*?)<\/a:t>/g))parts.push(match[1].replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&amp;/g,'&'));
@@ -78,6 +90,16 @@
   }
   async function session(action,key,value){var db=await sessionStore();if(!db)return null;return new Promise(function(resolve){var tx=db.transaction('sessions',action==='get'?'readonly':'readwrite'),store=tx.objectStore('sessions'),r=action==='get'?store.get(key):action==='delete'?store.delete(key):store.put(value,key);r.onsuccess=function(){resolve(r.result);};r.onerror=function(){resolve(null);};tx.oncomplete=function(){db.close();};});}
   async function fingerprint(file){var first=new Uint8Array(await file.slice(0,32768).arrayBuffer()),last=new Uint8Array(await file.slice(Math.max(0,file.size-32768)).arrayBuffer()),bytes=new Uint8Array(first.length+last.length);bytes.set(first);bytes.set(last,first.length);return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),b=>b.toString(16).padStart(2,'0')).join('');}
+  async function expandFiles(sources,options){
+    var result={files:[],skipped:[]};for(var source of sources){
+      if(/\.zip$/i.test(source.name)){
+        var expanded=await root.ArenaFiles.expandFiles([source],options);result.files.push(...expanded.files);result.skipped.push(...expanded.skipped);
+      }else if(root.ArenaFiles.isDocument(source.name)){
+        var path=source.webkitRelativePath||source.name;if(path.split('/').some(p=>p==='__MACOSX'||p==='.DS_Store'||p.startsWith('._')||p==='.git'||p==='node_modules')){result.skipped.push({name:path,reason:'已跳过隐藏或依赖文件'});continue;}
+        result.files.push({file:source,path:path,archive:false});
+      }else result.skipped.push({name:source.name,reason:'不支持的项目资料格式'});
+    }return result;
+  }
   async function upload(options){
     var file=options.file,credentials=options.credentials,key=credentials.username.toLowerCase()+'|'+options.projectId+'|'+file.name+'|'+file.size+'|'+file.lastModified+'|'+await fingerprint(file),saved=await session('get',key)||{id:crypto.randomUUID(),parts:[]};
     var auth=Object.assign({},credentials),id=saved.id;
@@ -104,5 +126,5 @@
     }catch(error){var result=await options.api('library_parse_failed',Object.assign({projectId:options.projectId,fileId:id,error:error.message},auth)).catch(()=>null);if(result?.file?.status==='ready')return result.file;throw error;}
   }
   function status(file){return file.status==='uploading'?'原文件待续传':file.status==='indexing'?'正在建立索引':file.status==='unreadable'?'尚不可供 AI 查阅 · '+(file.parseError||'需重新解析'):file.status==='partial'?'部分页面无文字，需 OCR':'已建立检索索引';}
-  return {parse:parse,parseInWorker:parseInWorker,upload:upload,status:status,split:split};
+  return {parse:parse,parseInWorker:parseInWorker,upload:upload,status:status,split:split,expandFiles:expandFiles};
 });

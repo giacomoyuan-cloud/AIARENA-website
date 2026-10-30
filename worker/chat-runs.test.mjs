@@ -5,6 +5,18 @@ import { setImmediate } from 'node:timers/promises';
 import worker, { ChatRun } from './worker.js';
 
 const pass = 'synthetic-account-hash';
+test('multi-megabyte Unicode replies persist and archive in bounded SQLite rows without retry replacement',()=>{
+  const store=storage(),ctx={storage:store,waitUntil:()=>{}},actor=new ChatRun(ctx,{});
+  const text='x'.repeat(63980)+'😀'+('长正文😀'.repeat(300000));
+  actor.meta={runId:'large-old-run',status:'completed',sequence:0,createdAt:Date.now(),updatedAt:Date.now(),reply:{text}};
+  actor.persistMeta();
+  const restored=new ChatRun(ctx,{});assert.equal(restored.snapshot().reply.text,text);
+  assert.ok(store.db.prepare('SELECT value FROM run_meta_chunks').all().length>1);
+  assert.ok(store.db.prepare('SELECT value FROM run_meta_chunks').all().every(r=>Buffer.byteLength(r.value)<256001));
+  restored.archiveCurrent();restored.meta={runId:'new-run',status:'completed',reply:{text:'new result'}};restored.persistMeta();
+  assert.equal(restored.archived('large-old-run').reply.text,text);assert.equal(restored.snapshot().reply.text,'new result');
+  const again=new ChatRun(ctx,{});assert.equal(again.archived('large-old-run').reply.text,text);
+});
 const post = body => new Request('https://api.pickandcase.com/chat-runs', { method: 'POST', body: JSON.stringify(body) });
 function storage() {
   const db = new DatabaseSync(':memory:');
