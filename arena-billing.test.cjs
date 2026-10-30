@@ -10,7 +10,7 @@ const options={at,id:'test-receipt-001'};
 test('every official enabled model and the internal summary model has a sourced rate card',()=>{
   const source=fs.readFileSync('worker/worker.js','utf8');
   const block=source.slice(source.indexOf('const OFFICIAL_MODELS'),source.indexOf('const MODEL_EFFORT_LEVELS'));
-  const ids=[...block.matchAll(/"([^"]+)": \{ provider:/g)].map(m=>m[1]).concat('claude-haiku-4-5-20251001');
+  const ids=[...block.matchAll(/"([^"]+)": \{ provider:/g)].map(m=>m[1]).concat('claude-haiku-5-5');
   assert.ok(ids.length>=15,'the configured-model source block must actually be discovered');
   for(const id of ids){assert.ok(B.MODELS[id],id);assert.ok(['developers.openai.com','platform.claude.com','ai.google.dev','docs.x.ai'].includes(new URL(B.MODELS[id].source).hostname),id);}
 });
@@ -28,6 +28,22 @@ test('all seven selectable text models use their separately verified Standard ra
 test('Anthropic input includes reads and both cache-write lifetimes, not only uncached input',()=>{
   const r=B.receipt('claude-fable-5-1',{input_tokens:1000,output_tokens:2000,cache_read_input_tokens:4000,cache_creation_input_tokens:5000,cache_creation:{ephemeral_5m_input_tokens:3000,ephemeral_1h_input_tokens:2000}},options);
   assert.equal(r.input,10000);assert.equal(r.output,2000);assert.equal(r.costUsd,'0.1885');
+});
+test('Haiku 5.5 changes the entire request price only above 100000 total input tokens',()=>{
+  const short=B.receipt('claude-haiku-5-5',{input_tokens:100000,output_tokens:1000},options);
+  const long=B.receipt('claude-haiku-5-5',{input_tokens:100001,output_tokens:1000},options);
+  assert.equal(short.costUsd,'0.0105');assert.equal(long.costUsd,'0.0525005');
+  for(const [lifetime,expected] of [['ephemeral_5m_input_tokens','0.007501075'],['ephemeral_1h_input_tokens','0.00750145']]){
+    const value=B.receipt('claude-haiku-5-5',{input_tokens:1,cache_read_input_tokens:99999,cache_creation_input_tokens:1,cache_creation:{ephemeral_5m_input_tokens:0,ephemeral_1h_input_tokens:0,[lifetime]:1},output_tokens:1000},options);
+    assert.equal(value.input,100001);assert.equal(value.costUsd,expected);
+    assert.equal(value.items.find(item=>item.kind==='cachedInput').rate,'0.05');
+    assert.equal(value.items.find(item=>item.kind==='outputText').rate,'2.5');
+  }
+});
+test('the official catalog separates auxiliary tasks and lists all four image models',()=>{
+  const html=UI.catalog(['gpt-6.1-sol']);
+  for(const text of ['自动辅助任务','不是每条消息固定收费','关闭思考','超过 100,000 token','图片生成与编辑','Nano Banana 2.1','Grok Image 2.0','GPT Image 2.5 Sunburst','GPT Image 2.5 Flare'])assert.ok(html.includes(text),text);
+  assert.doesNotMatch(html,/后台整理/);
 });
 test('OpenAI mixed 30m and 12h writes are removed from ordinary input and charged once',()=>{
   const r=B.receipt('gpt-6.1-sol',{input_tokens:12000,output_tokens:2000,input_tokens_details:{cached_tokens:4000,cache_write_tokens:7000,cache_write_tokens_details:{ttl_30m_tokens:3000,ttl_12h_tokens:4000}},output_tokens_details:{reasoning_tokens:500}},options);
@@ -93,7 +109,7 @@ test('unknown models are unpriced rather than assigned zero or another model pri
   const r=B.receipt('unknown-future-model',responses(),{...options,provider:'openai'});
   assert.equal(r.costUsd,null);assert.ok(r.notes.includes('model_price_unverified'));
 });
-test('auxiliary model fees survive serialization and repeated receipt enrichment exactly once',()=>{
+test('historical Haiku 4.5 auxiliary fees keep their original price after the model upgrade',()=>{
   const main=B.receipt('gpt-6.1-sol',responses(),options),aux=B.receipt('claude-haiku-4-5-20251001',{input_tokens:100,output_tokens:100},{...options,id:'aux-receipt-001',purpose:'memory'});
   const first=B.combine(main,[aux]);assert.equal(first.costUsd,'0.0126');assert.equal(first.input,1000);
   const restored=JSON.parse(JSON.stringify(first)),second=B.combine(restored,[aux]);assert.equal(second.costUsd,'0.0126');assert.equal(second.auxiliary.length,1);

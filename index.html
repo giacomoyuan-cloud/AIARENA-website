@@ -1285,8 +1285,8 @@
 <script src="/arena-pet-catalog.js?v=20261029-petcycle1"></script>
 <script src="/arena-pet.js?v=20261029-petnoghost1"></script>
 <script src="/arena-stream.js?v=20261030-typing50-1"></script>
-<script src="/arena-billing.js?v=20261030-billing1"></script>
-<script src="/arena-billing-ui.js?v=20261030-billing1"></script>
+<script src="/arena-billing.js?v=20261030-billing-haiku55"></script>
+<script src="/arena-billing-ui.js?v=20261030-billing-haiku55"></script>
 <script>
 (function(){
   (function(){
@@ -1581,7 +1581,7 @@ var TEAM_COLORS = {
     billingDialog.onclose=function(){billingDialogEpoch++;if(focus&&focus.isConnected)focus.focus();else $('aaGearBtn').focus();};
     $('aaSidebar').classList.add('hidden');$('aaGearBtn').setAttribute('aria-expanded','false');
     billingDialog.querySelector('[data-billing-totals]').textContent='正在读取累计用量…';
-    billingDialog.querySelector('[data-billing-prices]').innerHTML=ArenaBillingUI.catalog(AVAILABLE_CHAT_MODELS.concat(['claude-haiku-4-5-20251001']));
+    billingDialog.querySelector('[data-billing-prices]').innerHTML=ArenaBillingUI.catalog(AVAILABLE_CHAT_MODELS);
     if(!billingDialog.open)billingDialog.showModal();
     try{var data=await requestBilling('summary');if(billingDialog.open&&epoch===billingDialogEpoch)billingDialog.querySelector('[data-billing-totals]').innerHTML=ArenaBillingUI.summary(data);}
     catch(error){if(billingDialog.open&&epoch===billingDialogEpoch){

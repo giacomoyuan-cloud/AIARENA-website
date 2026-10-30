@@ -1,6 +1,7 @@
 import catalog from './skills-catalog.js';
 import SkillModels from '../arena-skill-models.js';
-export const ROUTER_MODEL='claude-haiku-4-5-20251001';
+import { AUXILIARY_MODEL, AUXILIARY_SETTINGS } from './auxiliary-model.js';
+export const ROUTER_MODEL=AUXILIARY_MODEL;
 export const DOCUMENT_MODEL=SkillModels.defaultModel;
 export const skillCatalog=catalog;
 export function normalizeSettings(value){
@@ -45,7 +46,7 @@ export async function selectSkills({settings,question,history=[],files=[],previo
   const abort=()=>controller.abort();signal?.addEventListener('abort',abort,{once:true});
   let recorded=false;
   try{
-    const response=await fetcher('https://api.anthropic.com/v1/messages',{method:'POST',redirect:'manual',headers:{'Content-Type':'application/json','x-api-key':env.ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01'},signal:controller.signal,body:JSON.stringify({model:ROUTER_MODEL,service_tier:'standard_only',max_tokens:240,system:instructions,tools,tool_choice:{type:'tool',name:'select_skills',disable_parallel_tool_use:true},messages:[{role:'user',content:JSON.stringify({question:String(question).slice(0,10000),files:files.map(f=>({name:f.name,size:f.size})),previousIds,history:history.slice(-3).map(m=>({role:m.role,text:String(m.content||m.text||'').slice(0,1200)}))})}]})});
+    const response=await fetcher('https://api.anthropic.com/v1/messages',{method:'POST',redirect:'manual',headers:{'Content-Type':'application/json','x-api-key':env.ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01'},signal:controller.signal,body:JSON.stringify({...AUXILIARY_SETTINGS,max_tokens:240,system:instructions,tools,tool_choice:{type:'tool',name:'select_skills',disable_parallel_tool_use:true},messages:[{role:'user',content:JSON.stringify({question:String(question).slice(0,10000),files:files.map(f=>({name:f.name,size:f.size})),previousIds,history:history.slice(-3).map(m=>({role:m.role,text:String(m.content||m.text||'').slice(0,1200)}))})}]})});
     const data=await response.json();await onUsage(ROUTER_MODEL,data?.usage||null);recorded=true;
     if(!response.ok)throw Error('自动技能选择暂不可用（'+response.status+'）');
     const selected=(data.content||[]).find(x=>x.type==='tool_use'&&x.name==='select_skills')?.input;
