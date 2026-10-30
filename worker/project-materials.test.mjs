@@ -89,6 +89,52 @@ test('upload client streams text beyond 400000 characters in acknowledged bounde
   const result=await Files.parseInWorker(file,async batch=>{max=Math.max(max,batch.length);all.push(...batch);});
   assert.ok(text.length>400000);assert.equal(all.map(s=>s.text).join(''),text);assert.ok(max<=24);assert.equal(result.segments,all.length);assert.ok(all.every(s=>s.text.length<=2400));
 });
+test('project indexing rejects renamed binary data even when the control bytes arrive after a full batch',async()=>{
+  for(const prefix of ['','x'.repeat(2400*25)]){
+    const file=new File([prefix,new Uint8Array([0,1,2]),'END'],'renamed.txt');
+    await assert.rejects(Files.parseInWorker(file,async()=>{}),/二进制/);
+  }
+});
+test('same-named folder sources remain distinct in search, full-reading batches and final source labels',async t=>{
+  const s=setup(t),p=(await s.api('create',{name:'Folder sources'})).project;
+  const files=[];
+  for(const [relativePath,text] of [['设计/说明.txt','ORANGE_DESIGN_523'],['财务/说明.txt','BLUE_FINANCE_867']]){
+    files.push(await Files.upload({file:new File([text],'说明.txt'),projectId:p.id,folder:'QA.zip',relativePath,credentials:{username:'tester',password:pass},api:s.api,binary:s.binary}));
+  }
+  const search=await projectLibrary(s.env,'tester',p.id,'search',{query:'QA.zip/财务/说明.txt 的暗号'});
+  assert.ok(search.hits.some(h=>h.file.name==='QA.zip/财务/说明.txt'&&h.text==='BLUE_FINANCE_867'));
+  assert.deepEqual(search.available.map(f=>f.name).sort(),['QA.zip/设计/说明.txt','QA.zip/财务/说明.txt'].sort());
+  let revision;const seen=[];
+  const read=await readProject({files,question:'compare',history:[],model:'synthetic-low',scope:p.id,library:(action,extra)=>{if(action==='scope')revision=extra.scope;return projectLibrary(s.env,'tester',p.id,action,extra);},batchLegacy:async function*(){},progress:async()=>{},complete:async prompt=>{seen.push(prompt);return {text:'notes'};}});
+  assert.ok(revision);assert.ok(seen.join('').includes('QA.zip/设计/说明.txt'));assert.ok(seen.join('').includes('QA.zip/财务/说明.txt'));
+  assert.deepEqual(read.files.map(f=>f.name).sort(),search.available.map(f=>f.name).sort());
+  s.env.OPENAI_API_KEY='synthetic-openai-key';const provider=[];
+  t.mock.method(globalThis,'fetch',async(url,options)=>{assert.equal(new URL(url).hostname,'api.openai.com');provider.push(JSON.parse(options.body));return new Response('data: '+JSON.stringify({type:'response.output_text.delta',delta:'Synthetic answer'})+'\n\ndata: '+JSON.stringify({type:'response.completed',response:{usage:{input_tokens:8,output_tokens:3}}})+'\n\n');});
+  const response=await worker.fetch(new Request('https://api.pickandcase.com/',{method:'POST',body:JSON.stringify({user:'tester',password:pass,model:'gpt-6.1-sol',effort:'low',projectId:p.id,maxOutputTokens:100,chat:{scope:p.id,question:'QA.zip/财务/说明.txt 的暗号是什么？',history:[],incognito:true,skills:{mode:'off',ids:[]}}})}),s.env);
+  const output=await response.text();assert.ok(output.includes('Synthetic answer'));assert.equal(provider.length,1);assert.ok(JSON.stringify(provider).includes('BLUE_FINANCE_867'));assert.ok(!JSON.stringify(provider).includes('ORANGE_DESIGN_523'));assert.ok(output.includes('QA.zip/财务/说明.txt'));
+});
+test('interrupted uploads with identical bytes and names in different folders never share resume state',async t=>{
+  const s=setup(t),p=(await s.api('create',{name:'Resume paths'})).project,prior=globalThis.indexedDB,records=new Map();
+  globalThis.indexedDB={open(){const request={};queueMicrotask(()=>{request.result={close(){},transaction(){const tx={objectStore:()=>({get:key=>op(()=>records.get(key)),put:(value,key)=>op(()=>records.set(key,value)),delete:key=>op(()=>records.delete(key))})};function op(fn){const r={};queueMicrotask(()=>{r.result=fn();r.onsuccess?.();tx.oncomplete?.();});return r;}return tx;}};request.onsuccess();});return request;}};
+  try{
+    const file=new File(['common content'],'说明.txt',{lastModified:123}),base={file,projectId:p.id,folder:'QA.zip',credentials:{username:'tester',password:pass},api:s.api,binary:s.binary};
+    let interrupted=false;
+    await assert.rejects(Files.upload({...base,relativePath:'设计/说明.txt',binary:async(path,options)=>{const result=await s.binary(path,options);if(!interrupted){interrupted=true;throw Error('synthetic lost acknowledgement');}return result;}}),/lost acknowledgement/);
+    // A pre-release browser has only the old basename-based resume key.
+    const [[oldKey,oldState]]=records,bytes=new Uint8Array(await file.arrayBuffer()),both=new Uint8Array(bytes.length*2);both.set(bytes);both.set(bytes,bytes.length);
+    const stamp=Buffer.from(await crypto.subtle.digest('SHA-256',both)).toString('hex');records.delete(oldKey);records.set('tester|'+p.id+'|'+file.name+'|'+file.size+'|'+file.lastModified+'|'+stamp,oldState);
+    const finance=await Files.upload({...base,relativePath:'财务/说明.txt'}),design=await Files.upload({...base,relativePath:'设计/说明.txt'});
+    assert.notEqual(finance.id,design.id);assert.equal(design.id,oldState.id);assert.equal(finance.relativePath,'财务/说明.txt');assert.equal(design.relativePath,'设计/说明.txt');assert.equal(records.size,0);
+    await assert.rejects(s.api('library_start',{projectId:p.id,file:{id:finance.id,name:file.name,size:file.size,folder:'QA.zip',relativePath:'设计/说明.txt'}}),e=>e.status===409);
+    let disconnected=true;
+    const replacement={...base,file:new File(['updated finance source'],'说明.txt',{lastModified:456}),relativePath:'财务/说明.txt',replaceFileId:finance.id,api:async(action,extra)=>{
+      const result=await s.api(action,extra);if(disconnected&&action==='library_commit')throw Error('synthetic lost commit acknowledgement');if(disconnected&&action==='library_parse_failed')throw Error('synthetic offline recovery');return result;
+    }};
+    await assert.rejects(Files.upload(replacement),/lost commit/);disconnected=false;
+    const recovered=await Files.upload(replacement);assert.equal(recovered.status,'ready');assert.equal(records.size,0);assert.equal((await s.api('get',{projectId:p.id})).project.files.length,2);
+    assert.equal((await s.api('removed_files',{projectId:p.id})).files.filter(f=>f.id===finance.id).length,1);
+  }finally{globalThis.indexedDB=prior;}
+});
 test('PDF parsing has no 200-page cutoff and empty pages cannot masquerade as readable text',async()=>{
   const prior=globalThis.pdfjsLib;globalThis.pdfjsLib={GlobalWorkerOptions:{},getDocument:()=>({promise:Promise.resolve({numPages:205,getPage:async n=>({getTextContent:async()=>({items:n===3?[]:[{str:'PAGE_'+n,hasEOL:true}]}),cleanup(){}}),destroy:async()=>{}})})};
   try{const coverage={},parts=[];for await(const s of Files.parse(new File(['synthetic'],'pages.pdf'),coverage))parts.push(s);assert.equal(coverage.units,205);assert.equal(coverage.emptyUnits,1);assert.ok(parts.at(-1).text.includes('PAGE_205'));assert.equal(parts.length,204);}finally{globalThis.pdfjsLib=prior;}

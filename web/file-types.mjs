@@ -8,6 +8,7 @@ export function isText(name) { return TEXT_EXTENSIONS.includes(extension(name)) 
 export function isDocument(name) { return isText(name) || OFFICE_EXTENSIONS.includes(extension(name)); }
 export function isImage(name) { return IMAGE_EXTENSIONS.includes(extension(name)); }
 export function isArchive(name) { return extension(name) === 'zip'; }
+export function materialName(file) { return (file.folder ? file.folder + '/' : '') + (file.relativePath || file.name); }
 export const DOCUMENT_ACCEPT = [...TEXT_EXTENSIONS, ...OFFICE_EXTENSIONS, 'zip'].map(ext => '.' + ext).join(',') + ',text/plain';
 export const CHAT_ACCEPT = DOCUMENT_ACCEPT + ',' + IMAGE_EXTENSIONS.map(ext => '.' + ext).join(',');
 export function mimeFor(name) {
