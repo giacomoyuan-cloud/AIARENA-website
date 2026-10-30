@@ -40,7 +40,7 @@ const Run=createChatRunClass(execute,Debate),env={MEMORY_KV:kv,BIZ_KV:kv,PASSWOR
 env.CHAT_RUNS={idFromName:name=>name,get:name=>({fetch:request=>{
   if(!actors.has(name)){
     const db=new DatabaseSync(':memory:');let alarm;
-    const storage={sql:{exec(query,...values){const s=db.prepare(query),rows=s.columns().length?s.all(...values):(s.run(...values),[]);return {toArray:()=>rows};}},async setAlarm(time){clearTimeout(alarm);alarm=setTimeout(()=>actors.get(name).alarm().catch(error=>console.error(error)),Math.max(1,time-Date.now()));alarm.unref();}};
+    const storage={transactionSync(fn){db.exec('BEGIN');try{const result=fn();db.exec('COMMIT');return result;}catch(error){db.exec('ROLLBACK');throw error;}},sql:{exec(query,...values){const s=db.prepare(query),rows=s.columns().length?s.all(...values):(s.run(...values),[]);return {toArray:()=>rows};}},async setAlarm(time){clearTimeout(alarm);alarm=setTimeout(()=>actors.get(name).alarm().catch(error=>console.error(error)),Math.max(1,time-Date.now()));alarm.unref();}};
     actors.set(name,new Run({storage,waitUntil:promise=>promise.catch(console.error)},env));
   }
   return actors.get(name).fetch(request);

@@ -2,6 +2,7 @@ import Billing from '../arena-billing.js';
 import { recordProviderUsage, usageSummary, usageReceipt } from './billing-ledger.js';
 import { createChatRunClass } from './chat-runs.js';
 import { skillCatalog, normalizeSettings, selectSkills, selectionInstructions } from './skills.js';
+import { AUXILIARY_MODEL, AUXILIARY_SETTINGS, auxiliaryText } from './auxiliary-model.js';
 import { validateSkillFiles, serveSkillFile, runOfficialDocuments, rescopeSkillArtifacts } from './skill-files.js';
 import { createDebateRunClass } from './debate-runs.js';
 import { OpenAITransport, openAIBackgroundFetch } from './openai-transport.js';
@@ -632,6 +633,9 @@ async function handleChatRunRequest(request, env) {
       if (!recovery || !Number.isSafeInteger(recovery.replyUid) || !Number.isSafeInteger(recovery.userMessage?.uid) || !validRecoveryText(recovery.userMessage)) return projectReply({ error: '缺少有效的聊天恢复信息，或文字超过单次传输容量。' }, 400);
       const message = recovery.userMessage;
       const userMessage = { uid: message.uid, isUser: true, brand: 'user', name: String(message.name || '用户').slice(0, 60), text: message.text, topicText: String(message.topicText || ''), color: '#A78BFA' };
+      const images=payload.images|| (payload.image?[{data:payload.image,mime:payload.imageMime||'image/jpeg'}]:[]);
+      if(!Array.isArray(images)||images.length>10||images.some(image=>!validImage(image))||images.reduce((size,image)=>size+image.data.length,0)>12*1024*1024)return projectReply({error:'参考图片过多或过大，请压缩后重试。'},413);
+      if(images.length)userMessage.imgSrcs=images.map(image=>'data:'+(image.mime||'image/jpeg')+';base64,'+image.data);
       if (Array.isArray(message.pastedTexts)) userMessage.pastedTexts = message.pastedTexts;
       if (message._quote && typeof message._quote.text === 'string') userMessage._quote = { author: String(message._quote.author || '').slice(0, 100), text: message._quote.text };
       const clean = { ...payload }; delete clean.password; delete clean.passwordHash; delete clean.username; delete clean.user;
@@ -1030,20 +1034,19 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
           redirect: "manual",
           headers: { "Content-Type": "application/json", Authorization: "Bearer " + env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
           body: JSON.stringify({
-            model: "claude-haiku-4-5-20251001",
-            service_tier: "standard_only",
+            ...AUXILIARY_SETTINGS,
             max_tokens: 1024,
             messages: [{ role: "user", content: extractPrompt }]
           })
         });
         const data = await res.json();
-        memoryUsage=await recordProviderUsage(env,memPAuthOk?user.toLowerCase():"shared-access","claude-haiku-4-5-20251001",data.usage,{provider:"anthropic",purpose:"memory",parentId:typeof body2.billingParentId==="string"?body2.billingParentId.slice(0,160):undefined});
+        memoryUsage=await recordProviderUsage(env,memPAuthOk?user.toLowerCase():"shared-access",AUXILIARY_MODEL,data.usage,{provider:"anthropic",purpose:"memory",parentId:typeof body2.billingParentId==="string"?body2.billingParentId.slice(0,160):undefined});
         if (!res.ok) return projectReply({error:"Anthropic 官方记忆接口请求失败，HTTP "+res.status,usage:memoryUsage},500);
-        const newMem = (data.content?.find(block => block.type === "text")?.text || existingMem).slice(0,2400);
+        const newMem = auxiliaryText(data).slice(0,2400);
         await putProjectKV(env.MEMORY_KV,memoryKey,newMem);
         return new Response(JSON.stringify({ ok: true, memory: newMem, usage:memoryUsage }), { status: 200, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
       } catch (e) {
-        if(!memoryUsage)memoryUsage=await recordProviderUsage(env,memPAuthOk?user.toLowerCase():"shared-access","claude-haiku-4-5-20251001",null,{provider:"anthropic",purpose:"memory",incompleteUsage:true,parentId:typeof body2.billingParentId==="string"?body2.billingParentId.slice(0,160):undefined});
+        if(!memoryUsage)memoryUsage=await recordProviderUsage(env,memPAuthOk?user.toLowerCase():"shared-access",AUXILIARY_MODEL,null,{provider:"anthropic",purpose:"memory",incompleteUsage:true,parentId:typeof body2.billingParentId==="string"?body2.billingParentId.slice(0,160):undefined});
         return new Response(JSON.stringify({ error: e.message, usage:memoryUsage }), { status: 500, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
       }
     }
