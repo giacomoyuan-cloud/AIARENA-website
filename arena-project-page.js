@@ -12,15 +12,29 @@
     page.id='aaProjectPage';page.className='arena-project-page';page.hidden=true;page.setAttribute('aria-label','项目工作区');main.appendChild(page);
     dialog.className='arena-workspace-dialog arena-project-editor';host.appendChild(dialog);
     var shortcuts=document.createElement('div');shortcuts.className='arena-project-shortcuts';shortcuts.hidden=true;host.querySelector('.arena-history-label').before(shortcuts);
-    var upload=document.createElement('input');upload.type='file';upload.multiple=true;upload.hidden=true;upload.accept=root.ArenaFiles.DOCUMENT_ACCEPT;host.appendChild(upload);
+    var upload=document.createElement('input');upload.type='file';upload.multiple=true;upload.hidden=true;upload.accept=root.ArenaFiles.PROJECT_ACCEPT;host.appendChild(upload);
     var folder=document.createElement('input');folder.type='file';folder.multiple=true;folder.hidden=true;folder.setAttribute('webkitdirectory','');host.appendChild(folder);
     var epoch=0,account='',kind='',current=null,chats=[],tasks=[],catalog=[],archiveCatalog=[],deletedCatalog=[],archived=false,deleted=false,taskTab='mine',taskScope,taskSearch='',taskFilter='all',taskSort='next',projectSearch='',sort='updated',uploading=false,formSave=null,creationTarget=null;
     var projectState=root.ArenaProjectState.create({api:app.api,accountKey:key,credentials:auth,onError:function(err){notice(err.message);},onChange:function(){
       syncCatalogs();paintPins();if(kind==='home')renderHome();else if(kind==='list')paintList(projectsForView());
     }});
+    var uploads=root.ArenaProjectUploadQueue.create({
+      isCurrent:function(owner){return owner===key();},
+      upload:function(options){return root.ArenaProjectFiles.upload(Object.assign({},options,{api:app.api,binary:app.binary}));},
+      recognize:function(options){var config=Object.assign({},options,{api:app.api,binary:app.binary});return options.file?root.ArenaProjectFiles.process(config):root.ArenaProjectFiles.repair(Object.assign({},config,{file:options.meta}));},
+      onChange:function(){paintUploads();},
+      onComplete:async function(item){var data=await app.api('get',Object.assign({projectId:item.projectId},item.credentials));if(item.owner!==key())return;if(current?.id===item.projectId){current=Object.assign({},current,data.project);app.refreshProject(current);if(item.meta?.folder)renderHome();else paintUploads();}}
+    });
+    function uploadItems(){return current?uploads.items(key(),current.id):[];}
+    function regularFiles(files){var ids=new Set(uploadItems().filter(function(i){return i.meta;}).map(function(i){return i.meta.id;}));return files.filter(function(f){return !ids.has(f.id);});}
+    function paintUploads(){
+      if(kind!=='home'||!current||account!==key())return;
+      root.ArenaProjectUploadView.paint(page,uploadItems(),icon,root.ArenaProjectFiles.status);var manage=page.querySelector('[data-materials]');if(manage){manage.hidden=!current.files?.length;manage.textContent='管理资料 · '+(current.files||[]).length+' 份';}
+      var list=page.querySelector('[data-static-files]');if(list){var visible=regularFiles(current.files||[]).filter(function(f){return !f.folder;}),signature=JSON.stringify(visible.map(function(f){return [f.id,f.status,f.characters,f.ocrPages];}));if(list.dataset.signature!==signature){list.dataset.signature=signature;list.innerHTML=fileRows(visible);}}
+    }
     var menu=document.createElement('div');menu.className='arena-project-menu';menu.setAttribute('popover','auto');menu.setAttribute('role','menu');host.appendChild(menu);
     var menuAction=null,menuAnchor=null;
-    var legacy=mountLegacy(Object.assign({},app,{switchScope:async function(p){if(await app.switchScope(p)===false)return false;if(p)await home(p.id,true);else hide();return true;},refreshProject:function(p){app.refreshProject(p);if(current&&current.id===p.id){current=Object.assign({},current,p);if(kind==='home')renderHome();}loadPins();}}));
+    var legacy=mountLegacy(Object.assign({},app,{uploadProjectFiles:async function(files,p){if(app.currentProject()?.id!==p.id){if(await app.switchScope(p)===false)return;await home(p.id,true);}return uploadFiles(files,false);},switchScope:async function(p){if(await app.switchScope(p)===false)return false;if(p)await home(p.id,true);else hide();return true;},refreshProject:function(p){app.refreshProject(p);if(current&&current.id===p.id){current=Object.assign({},current,p);if(kind==='home')renderHome();}loadPins();}}));
     function auth(){return app.pinContext?app.pinContext():{};}
     function key(){return app.accountKey?app.accountKey():'';}
     function valid(n){return n===epoch&&account===key();}
@@ -111,28 +125,17 @@
       }catch(err){if(valid(n)){page.innerHTML=heading('项目',button('所有项目','data-list'))+'<p role="alert">'+e(err.message)+'</p>'+button('重新加载','data-home="'+e(id)+'"');}}
     }
     function fileRows(files){return files.map(function(f){return '<div class="arena-project-resource">'+button(icon('file')+'<span>'+e(f.relativePath||f.name)+'</span><small>'+e(root.ArenaProjectFiles.status(f))+'</small>','data-preview="'+e(f.id)+'"')+'<div class="arena-project-resource-actions">'+(root.ArenaProjectFiles.canRepair(f)?button(root.ArenaProjectFiles.repairLabel(f),'data-repair-pdf="'+e(f.id)+'" aria-label="使用 Sol 继续识别：'+e(root.ArenaProjectFiles.name(f))+'"','arena-project-ocr-action'):'')+button('×','data-remove-file="'+e(f.id)+'" aria-label="移除资料：'+e(root.ArenaProjectFiles.name(f))+'"')+'</div></div>';}).join('');}
-    async function repairFile(id){
-      if(uploading){notice('正在处理资料，请等待当前文件完成');return;}
-      var p=current,meta=p&&p.files.find(function(f){return f.id===id;}),credentials=auth(),a=key();if(!meta)return;
-      uploading=true;
-      try{
-        var result=await root.ArenaProjectFiles.repair({file:meta,projectId:p.id,credentials:credentials,api:app.api,binary:app.binary,isCurrent:function(){return a===key();},progress:function(progress){
-          if(a!==key()||current?.id!==p.id)return;var el=page.querySelector('[data-upload-progress]');if(el)el.textContent=progress.phase+' · '+progress.name+(progress.total?' · '+progress.done+'/'+progress.total:'');
-        }});
-        if(a===key()&&current?.id===p.id){await refreshHome();notice(result.status==='ready'?'已完成识别，现在可以查阅这份资料':root.ArenaProjectFiles.status(result));}
-      }catch(err){if(a===key()){if(current?.id===p.id)await refreshHome().catch(function(){});notice(err.message);}}
-      finally{uploading=false;}
-    }
+    async function repairFile(id){var meta=current?.files.find(function(f){return f.id===id;});if(meta)uploads.addRepair(meta,{owner:key(),projectId:current.id,credentials:auth()});}
     function renderHome(){
       if(!current||kind!=='home')return;var p=current,pin=catalog.find(function(x){return x.id===p.id;})||{},files=p.files||[],folders=Array.from(new Set(files.map(function(f){return f.folder;}).filter(Boolean))),selectedFocus=composer.contains(document.activeElement)?document.activeElement:null;
       show('home','<div class="arena-project-breadcrumb">'+button('项目','data-list')+'<span>/</span><span>'+e(p.name)+'</span></div>'+heading(p.name,button(root.ArenaControls.pinIcon,'data-pin-project="'+e(p.id)+'" aria-label="'+(pin.pinned?'取消置顶':'置顶')+'项目" aria-pressed="'+!!pin.pinned+'" aria-busy="'+!!pin.pinPending+'"','arena-project-heading-pin'+(pin.pinned?' pinned':''))+button(icon('more'),'data-project-menu="'+e(p.id)+'" aria-label="项目菜单" aria-haspopup="menu"'))+
         '<div class="arena-project-home-grid"><div class="arena-project-home-main"><div data-composer-slot></div><div class="arena-project-conversations"><div class="arena-project-section-heading"><h2>项目对话</h2>'+button(icon('plus')+'新建对话','data-new-chat')+'</div><label class="arena-project-search">'+icon('search')+'<input type="search" data-chat-search aria-label="搜索项目对话" placeholder="搜索对话"></label><div data-project-chats>'+chatRows(chats)+'</div></div></div><aside class="arena-project-context" aria-label="项目设置和资料">'+
         '<section><div class="arena-project-section-heading"><h2>指令</h2>'+button(icon('plus'),'data-edit-field="instructions" aria-label="编辑项目指令"')+'</div><p class="arena-project-instructions">'+e(p.instructions||'添加指令，定制这个项目中的回复。')+'</p></section>'+
         '<section><div class="arena-project-section-heading"><h2>记忆</h2><span class="arena-project-private">'+icon('lock')+'仅限本人</span>'+button('查看记忆','data-edit-field="memory"')+'</div><p class="arena-project-memory">'+e(p.memory||'在此项目中积累的记忆会显示在这里。')+'</p></section>'+
-        '<section><div class="arena-project-section-heading"><h2>项目资料</h2>'+button(icon('plus'),'data-context-menu aria-label="添加项目资料" aria-haspopup="menu"')+'</div><div class="arena-reading-switch" role="group" aria-label="项目资料阅读方式">'+button('按需检索','data-reading-mode="retrieve" aria-pressed="'+(p.readingMode!=='full')+'"')+button('全文阅读','data-reading-mode="full" aria-pressed="'+(p.readingMode==='full')+'"')+'</div><p>'+(p.readingMode==='full'?'每次提问会分批阅读全部可读文字，显示进度并增加模型用量。':'只发送与本轮问题相关的片段，节省 Token。')+'</p><p data-upload-progress role="status" aria-live="polite"></p>'+(files.length?fileRows(files.filter(function(f){return !f.folder;})):'<div class="arena-project-context-empty">'+icon('file')+'<p>添加 PDF、Word、Excel、PPT 或文本，作为本项目的参考资料。</p>'+button('添加资料','data-context-menu')+'</div>')+(files.some(function(f){return /\.pdf$/i.test(f.name);})?'<p class="arena-project-ocr-note">扫描页由 GPT‑6.1 Sol 识别，计入模型用量；清晰页会复用，只重试未完成或不清晰页。</p>':'')+(files.length?button('管理资料 · '+files.length+' 份','data-materials','arena-project-link'):'')+'</section>'+
+        '<section><div class="arena-project-section-heading"><h2>项目资料</h2>'+button(icon('plus'),'data-context-menu aria-label="添加项目资料" aria-haspopup="menu"')+'</div><div class="arena-reading-switch" role="group" aria-label="项目资料阅读方式">'+button('按需检索','data-reading-mode="retrieve" aria-pressed="'+(p.readingMode!=='full')+'"')+button('全文阅读','data-reading-mode="full" aria-pressed="'+(p.readingMode==='full')+'"')+'</div><p>'+(p.readingMode==='full'?'每次提问会分批阅读全部可读文字，显示进度并增加模型用量。':'只发送与本轮问题相关的片段，节省 Token。')+'</p>'+root.ArenaProjectUploadView.markup()+'<div data-static-files>'+fileRows(regularFiles(files).filter(function(f){return !f.folder;}))+'</div>'+'<p class="arena-project-ocr-note">图文由 GPT‑6.1 Sol 识别，计入模型用量；已完成内容会复用，重试只处理未完成项。</p>'+button('管理资料 · '+files.length+' 份','data-materials'+(files.length?'':' hidden'),'arena-project-link')+'</section>'+
         '<section><div class="arena-project-section-heading"><h2>文件夹</h2><span class="arena-project-private">'+icon('lock')+'仅限本人</span>'+button(icon('plus'),'data-folder aria-label="导入文件夹"')+'</div><p>选择此电脑上的文件夹，将其中的文档导入项目。</p>'+folders.map(function(name){return '<details class="arena-project-folder"><summary>'+icon('folder')+e(name)+'<span>'+files.filter(function(f){return f.folder===name;}).length+'</span></summary>'+fileRows(files.filter(function(f){return f.folder===name;}))+'</details>';}).join('')+(folders.length?button('重新导入以更新','data-folder','arena-project-link'):'')+'</section>'+
         '<section><div class="arena-project-section-heading"><h2>已排定</h2>'+button(icon('plus'),'data-new-task aria-label="为项目创建定时任务"')+'</div>'+(p.scheduleError?'<p role="alert">'+e(p.scheduleError)+'</p>'+button('重试','data-home="'+e(p.id)+'"'):tasks.length?tasks.map(function(t){return button('<span>'+icon('clock')+e(t.name)+'</span><small>'+(t.enabled?date(t.nextRunAt,t.schedule.timeZone):'已暂停')+'</small>','data-task="'+e(t.id)+'"','arena-project-task-link');}).join(''):'<p>为此项目设置定时任务。</p>')+button('查看全部任务','data-schedules','arena-project-link')+'</section></aside></div>'+status());
-      page.querySelector('[data-composer-slot]').appendChild(composer);if(selectedFocus)selectedFocus.focus({preventScroll:true});
+      page.querySelector('[data-composer-slot]').appendChild(composer);if(selectedFocus)selectedFocus.focus({preventScroll:true});paintUploads();uploads.sync();
     }
     function chatRows(items){return items.length?items.map(function(c){return '<article class="arena-project-chat-row">'+button(icon('chat')+'<span><strong>'+e(c.title)+'</strong><small>'+date(c.lastReplyAt||c.updatedAt)+'</small></span>','data-open-chat="'+e(c.id)+'"')+button(icon('more'),'data-chat-menu="'+e(c.id)+'" aria-label="对话菜单：'+e(c.title)+'" aria-haspopup="menu"')+'</article>';}).join(''):'<div class="arena-project-empty arena-project-empty-small">'+icon('chat')+'<p>在这个项目中发起对话，共用相同的指令和资料。</p></div>';}
     async function refreshHome(){if(current&&kind==='home')await home(current.id,false);}
@@ -170,29 +173,11 @@
     function editField(field){var p=current,credentials=auth(),limit=field==='memory'?2400:4000,label=field==='memory'?'项目记忆':'项目指令';openForm(label,'<p>'+(field==='memory'?'仅在本项目的对话之间共享。可以修改或清空。':'保存后用于本项目的下一条消息。')+'</p><label>'+label+'<textarea name="value" rows="9" maxlength="'+limit+'">'+e(p[field]||'')+'</textarea></label>',async function(f){var values={projectId:p.id};values[field]=f.elements.value.value;var data=await app.api('update',Object.assign(values,credentials));current=Object.assign({},p,data.project);current[field]=values[field];app.refreshProject(current);renderHome();notice(label+'已保存');});}
     function addText(){var p=current,credentials=auth();openForm('添加文本资料','<label>标题<input name="name" required maxlength="160" placeholder="例如：项目背景"></label><label>内容<textarea name="text" required rows="10" ></textarea></label>',async function(f){var name=f.elements.name.value.trim().replace(/\.txt$/i,'')+'.txt',file=new File([f.elements.text.value],name,{type:'text/plain'});if(key()!==credentials.username.toLowerCase()||app.currentProject()?.id!==p.id)throw Error('项目已切换，请重新打开添加资料');await uploadFiles([file],false);});}
     async function uploadFiles(files,isFolder){
-      if(uploading)return;var p=app.currentProject(),credentials=auth(),a=key();if(!p||!files.length)return;
-      uploading=true;var success=0,errors=[],currentFiles=[];
-      try{
-        currentFiles=(await app.api('get',Object.assign({projectId:p.id},credentials))).project.files;
-        var expanded=await root.ArenaProjectFiles.expandFiles(files,{progress:notice});
-        errors=expanded.skipped.map(function(item){return item.name+'：'+item.reason;});
-        files=expanded.files;
-        for(var i=0;i<files.length;i++){
-          if(a!==key()||p.id!==(app.currentProject()||{}).id)break;
-          var entry=files[i],source=entry.file,path=entry.path;
-          try{
-            var folderName=isFolder||entry.archive?path.split('/')[0]:null,relativePath=folderName?path.split('/').slice(1).join('/'):null,replace=folderName?currentFiles.find(function(f){return f.folder===folderName&&f.relativePath===relativePath;}):null;
-            var uploaded=await root.ArenaProjectFiles.upload({file:source,projectId:p.id,credentials:credentials,api:app.api,binary:app.binary,folder:folderName,relativePath:relativePath,replaceFileId:replace?replace.id:undefined,isCurrent:function(){return a===key();},progress:function(progress){
-              if(a!==key()||app.currentProject()?.id!==p.id)return;var label=progress.phase+' · '+progress.name+(progress.total?' · '+Math.round(progress.done/progress.total*100)+'%':progress.done?' · '+progress.done+' 个片段':'');
-              var status=page.querySelector('[data-upload-progress]');if(status)status.textContent=label;else notice(label);
-            }});currentFiles=currentFiles.filter(function(f){return !replace||f.id!==replace.id;}).concat([uploaded]);success++;
-          }catch(err){errors.push(source.name+'：'+err.message);}
-        }
-        if(a===key()){
-          if(app.currentProject()?.id===p.id&&current?.id===p.id)await refreshHome();var summary='已导入 '+success+' 份资料'+(errors.length?'，'+errors.length+' 项未导入':'');
-          if(errors.length||!success)openForm('导入结果','<p>'+e(summary)+'</p>'+errors.map(function(message){return '<p>'+e(message)+'</p>';}).join(''),async function(){});else notice(summary);
-        }
-      }catch(err){if(a===key())error(err.message);}finally{uploading=false;}
+      var p=app.currentProject(),credentials=auth(),owner=key();if(!p||!files.length)return;
+      try{var expanded=await root.ArenaProjectFiles.expandFiles(files,{progress:notice});if(owner!==key())return;
+        uploads.add(expanded.files,{owner:owner,projectId:p.id,credentials:credentials,isFolder:!!isFolder,files:current?.id===p.id?current.files:p.files});
+        if(expanded.skipped.length)notice(expanded.skipped.map(function(i){return i.name+'：'+i.reason;}).join('；'));
+      }catch(err){if(owner===key())notice(err.message);}
     }
     upload.addEventListener('change',function(){var files=Array.from(upload.files||[]);upload.value='';uploadFiles(files,false).catch(function(err){error(err.message);});});
     folder.addEventListener('change',function(){var files=Array.from(folder.files||[]);folder.value='';uploadFiles(files,true).catch(function(err){error(err.message);});});
@@ -291,6 +276,18 @@
       if(t.hasAttribute('data-task-search')){taskSearch=t.value;renderTasks();page.querySelector('[data-task-search]').focus();}
     });
     page.addEventListener('change',function(ev){if(ev.target.hasAttribute('data-task-filter')){taskFilter=ev.target.value;renderTasks();return;}if(ev.target.hasAttribute('data-task-sort')){taskSort=ev.target.value;renderTasks();return;}if(ev.target.hasAttribute('data-project-sort')){sort=ev.target.value;list();}});
+    page.addEventListener('dragover',function(ev){var target=ev.target.closest('[data-upload-drop]');if(target){ev.preventDefault();target.classList.add('dragging');}});
+    page.addEventListener('dragleave',function(ev){var target=ev.target.closest('[data-upload-drop]');if(target&&!target.contains(ev.relatedTarget))target.classList.remove('dragging');});
+    page.addEventListener('drop',function(ev){var target=ev.target.closest('[data-upload-drop]');if(target){ev.preventDefault();target.classList.remove('dragging');uploadFiles(Array.from(ev.dataTransfer.files||[]),false);}});
+    page.addEventListener('click',function(ev){var b=ev.target.closest('button');if(!b)return;
+      if(b.hasAttribute('data-pick-files')){upload.click();return;}
+      if(b.hasAttribute('data-clear-uploads')){uploads.clearDone(key(),current.id);return;}
+      if(b.hasAttribute('data-upload-formats')){openForm('支持的项目资料','<p>文档：PDF、DOCX、ODT、RTF、EPUB、TXT、Markdown</p><p>表格：XLSX、XLS、XLSM、XLSB、ODS、CSV、TSV</p><p>演示：PPTX、ODP；图片：PNG、JPG、WebP、GIF、SVG</p><p>代码与数据：JSON、HTML、XML、Python、JavaScript 等；可多选、拖入、导入文件夹或 ZIP。</p><p>PDF 每页进行图文读取；其他文档保留文字、表格、图表数据与内嵌图片。不清晰或未能读取的内容会显示提示。</p>',null);dialog.querySelector('footer').hidden=true;return;}
+      var row=b.closest('[data-upload-job]');if(!row)return;var item=uploadItems().find(function(i){return i.id===row.dataset.uploadJob;});if(!item)return;
+      if(b.hasAttribute('data-job-action'))uploads.act(item.id,b.dataset.jobAction);
+      if(b.hasAttribute('data-job-cancel'))uploads.act(item.id,'cancel');
+      if(b.hasAttribute('data-job-preview')&&item.meta)legacy.preview(item.meta.id,current.id);
+    });
     page.addEventListener('click',async function(ev){var b=ev.target.closest('button');if(!b)return;try{
       if(b.hasAttribute('data-reading-mode')){var p=current;if(await app.setReadingMode(b.dataset.readingMode)&&current?.id===p.id){current=Object.assign({},current,app.currentProject());renderHome();}return;}
       if(b.hasAttribute('data-list')){archived=false;deleted=false;projectSearch='';return list();}if(b.hasAttribute('data-general')){hide();return app.switchScope(null);}

@@ -169,3 +169,30 @@
   #ai-arena-app.arena-shell .arena-project-breadcrumb { margin-bottom:20px; }
   #ai-arena-app.arena-shell .arena-project-conversations { margin-bottom:12px; }
 }
+
+/* Selected sidebar layout: per-file transfer and recognition stay independent. */
+#ai-arena-app.arena-shell .arena-project-page .arena-file-drop{border:1px dashed var(--arena-border);border-radius:9px;padding:13px 12px;margin:14px 0 8px;text-align:center;background:var(--arena-bg)}
+#ai-arena-app.arena-shell .arena-project-page .arena-file-drop.dragging{border-color:var(--arena-accent);background:var(--arena-surface)}
+#ai-arena-app.arena-shell .arena-project-page .arena-file-drop strong{font:500 13px var(--arena-ui-font)}
+#ai-arena-app.arena-shell .arena-project-page .arena-file-drop button{padding:0;min-height:24px;border:0;text-decoration:underline;text-underline-offset:3px}
+#ai-arena-app.arena-shell .arena-project-page .arena-file-drop small{display:block;margin-top:5px;color:var(--arena-muted);font-size:11px}
+#ai-arena-app.arena-shell .arena-project-page .arena-file-queue-head{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px;color:var(--arena-muted);padding:5px 0}
+#ai-arena-app.arena-shell .arena-project-page .arena-file-queue-head>span:last-child{display:flex;gap:6px;flex:none}
+#ai-arena-app.arena-shell .arena-project-page .arena-file-queue-head button{font-size:11px;padding:2px 0;min-height:25px;border:0}
+#ai-arena-app.arena-shell .arena-project-page .arena-file-queue{max-height:580px;overflow:auto;scrollbar-gutter:stable}
+#ai-arena-app.arena-shell .arena-project-page .arena-file-job{padding:11px 0;border-top:1px solid var(--arena-border)}
+#ai-arena-app.arena-shell .arena-project-page .arena-file-job-top{display:flex;gap:7px;align-items:center;min-width:0;margin-bottom:5px}
+#ai-arena-app.arena-shell .arena-project-page .arena-file-job-top>svg{width:18px;height:20px;color:var(--arena-muted)}
+#ai-arena-app.arena-shell .arena-project-page .arena-file-job-top button{min-height:25px;padding:1px 4px;font-size:11px;border:0}
+#ai-arena-app.arena-shell .arena-project-page .arena-file-job-top [data-job-preview]{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;text-align:left;font-size:12px;font-weight:500;padding:0;opacity:1}
+#ai-arena-app.arena-shell .arena-project-page .arena-file-job-top [data-job-preview]:disabled{cursor:default}
+#ai-arena-app.arena-shell .arena-project-page .arena-file-transfer,#ai-arena-app.arena-shell .arena-project-page .arena-file-recognition{display:grid;grid-template-columns:72px 1fr;align-items:center;gap:10px;min-height:17px;padding-left:25px}
+#ai-arena-app.arena-shell .arena-project-page .arena-file-transfer label,#ai-arena-app.arena-shell .arena-project-page .arena-file-recognition label{display:flex;justify-content:space-between;gap:5px;font-size:10px;line-height:1.5;color:var(--arena-muted);font-variant-numeric:tabular-nums}
+#ai-arena-app.arena-shell .arena-project-page .arena-file-track{position:relative;height:3px;overflow:hidden;border-radius:4px;background:var(--arena-border)}
+#ai-arena-app.arena-shell .arena-project-page .arena-file-track i{position:absolute;inset:0;transform:scaleX(0);transform-origin:left center;background:var(--arena-muted);border-radius:4px;transition:transform 160ms ease-out}
+#ai-arena-app.arena-shell .arena-project-page .arena-file-recognition .arena-file-track i{background:var(--arena-accent)}
+#ai-arena-app.arena-shell .arena-project-page .arena-file-job [data-job-status]{padding-left:25px;margin:4px 0 0;color:var(--arena-muted);font-size:10px;line-height:1.7;overflow-wrap:anywhere}
+#ai-arena-app.arena-shell .arena-project-page .arena-file-job[data-state=failed] [data-job-status]{color:var(--arena-accent)}
+#ai-arena-app.arena-shell .arena-project-page .arena-file-job [hidden],#ai-arena-app.arena-shell .arena-project-page .arena-file-queue-head [hidden]{display:none!important}
+@media(prefers-reduced-motion:reduce){#ai-arena-app.arena-shell .arena-project-page .arena-file-track i{transition:none}}
+@media(pointer:coarse){#ai-arena-app.arena-shell .arena-project-page .arena-file-job-top button,#ai-arena-app.arena-shell .arena-project-page .arena-file-queue-head button,#ai-arena-app.arena-shell .arena-project-page .arena-file-drop button{min-height:40px}}

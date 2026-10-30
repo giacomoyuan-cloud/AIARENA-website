@@ -4,9 +4,10 @@
   'use strict';
   var libraries={};
   function load(name,url){
+    if(name==='ArenaDocumentParser'&&typeof document==='undefined'&&typeof importScripts==='undefined')return import('./web/arena-document-parser.mjs');
     if(root[name])return Promise.resolve(root[name]);if(libraries[name])return libraries[name];
     return libraries[name]=new Promise(function(resolve,reject){
-      if(typeof importScripts==='function'){try{importScripts(url);resolve(root[name]);}catch(error){reject(error);}return;}
+      if(typeof importScripts==='function'){try{importScripts(url);resolve(root[name]);}catch(error){delete libraries[name];reject(error);}return;}
       var script=document.createElement('script');script.src=url;script.onload=function(){resolve(root[name]);};script.onerror=function(){delete libraries[name];reject(Error('文件解析工具加载失败，请重试'));};document.head.appendChild(script);
     });
   }
@@ -27,10 +28,29 @@
       return {data:base64(new Uint8Array(await blob.arrayBuffer())),mime:'image/jpeg'};
     }finally{if(canvas){canvas.width=0;canvas.height=0;}if(pdf)await pdf.destroy();}
   }
+  async function normalizeVisual(task){
+    var sample=task.mime==='application/pdf'?'':atob(task.data.slice(0,512)),animated=task.mime==='image/gif'||task.mime==='image/webp'&&sample.includes('ANIM')||task.mime==='image/png'&&sample.includes('acTL');
+    if(task.mime==='application/pdf'||!animated&&['image/png','image/jpeg','image/webp'].includes(task.mime)&&task.data.length<=10*1024*1024)return task;
+    var data=Uint8Array.from(atob(task.data),function(c){return c.charCodeAt(0);}),blob=new Blob([data],{type:task.mime}),image,url,canvas;
+    if(task.mime==='image/svg+xml'){
+      var source=new TextDecoder().decode(data);if(/<!DOCTYPE|<!ENTITY|<script|<foreignObject|\bon\w+\s*=|(?:href|url)\s*[=(]\s*["']?\s*(?:https?:|\/\/|file:)/i.test(source))throw Error('SVG 含外部资源或活动内容，请导出为 PNG 后上传');
+    }
+    try{
+      if(typeof createImageBitmap==='function')try{image=await createImageBitmap(blob);}catch(e){}
+      if(!image){url=URL.createObjectURL(blob);image=await new Promise(function(resolve,reject){var el=new Image();el.onload=function(){resolve(el);};el.onerror=function(){reject(Error('图片无法解码，请转换为 PNG/JPEG'));};el.src=url;});}
+      var width=image.width,height=image.height,scale=Math.min(1,4000/Math.max(width,height));canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(width*scale));canvas.height=Math.max(1,Math.round(height*scale));canvas.getContext('2d').drawImage(image,0,0,canvas.width,canvas.height);
+      var output=await new Promise(function(resolve){canvas.toBlob(resolve,'image/webp',.94);});if(!output)throw Error('图片转换失败');
+      return Object.assign({},task,{mime:output.type,notice:animated?'动态图按静态帧读取，未包含全部动画帧':'',data:base64(new Uint8Array(await output.arrayBuffer()))});
+    }finally{if(url)URL.revokeObjectURL(url);if(image?.close)image.close();if(canvas){canvas.width=0;canvas.height=0;}}
+  }
   async function* parse(file,coverage,options){
     options=options||{};
     coverage=coverage||{};coverage.units=0;coverage.emptyUnits=0;
     var ext=file.name.split('.').pop().toLowerCase();
+    if(['docx','xlsx','xls','xlsm','xlsb','ods','pptx','odt','odp','rtf','epub','png','jpg','jpeg','webp','gif','svg'].includes(ext)){
+      var parser=await load('ArenaDocumentParser','/arena-document-parser.js?v=20261030-filequeue1');
+      for await(var segment of parser.parse(file,coverage,options))yield segment;return;
+    }
     var office=['pdf','docx','xlsx','xls','xlsm','xlsb','ods','pptx','odt','odp'];
     if(!office.includes(ext)){
       var sample=new Uint8Array(await file.slice(0,8192).arrayBuffer()),encoding=sample[0]===255&&sample[1]===254?'utf-16le':sample[0]===254&&sample[1]===255?'utf-16be':'utf-8';
@@ -52,7 +72,7 @@
       var pdf=await pdfjs.getDocument({data:new Uint8Array(buffer),isEvalSupported:false}).promise,candidates=[];
       try{coverage.units=pdf.numPages;for(var pageNumber=1;pageNumber<=pdf.numPages;pageNumber++){
         var page=await pdf.getPage(pageNumber),content=await page.getTextContent(),text=content.items.map(function(x){return x.str+(x.hasEOL?'\n':' ');}).join('');
-        var needsOCR=!text.trim();
+        var needsOCR=!!options.fullVision||!text.trim();
         // Scans can contain a selectable footer while the actual page is an image.
         if(options.ocr&&!needsOCR&&text.replace(/\s/g,'').length<80&&page.getOperatorList&&pdfjs.OPS){
           var ops=await page.getOperatorList(),imageOps=[pdfjs.OPS.paintImageXObject,pdfjs.OPS.paintInlineImageXObject,pdfjs.OPS.paintImageMaskXObject].filter(function(x){return x!==undefined;});
@@ -61,7 +81,7 @@
         if(needsOCR){coverage.emptyUnits++;candidates.push({page:pageNumber,nativeText:text});}for(var segment of split(text,'第 '+pageNumber+' 页'))yield segment;page.cleanup();
       }}finally{await pdf.destroy();}
       if(!options.ocr||!candidates.length)return;
-      coverage.nativeEmptyUnits=coverage.emptyUnits;coverage.ocrPages=0;coverage.blankUnits=0;coverage.uncertainUnits=0;
+      coverage.visualComplete=!!options.fullVision;coverage.nativeEmptyUnits=coverage.emptyUnits;coverage.ocrPages=0;coverage.blankUnits=0;coverage.uncertainUnits=0;
       var PDFLib,source;
       try{PDFLib=await load('PDFLib','https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js');source=await PDFLib.PDFDocument.load(await file.arrayBuffer(),{updateMetadata:false});if(source.getPageCount()!==coverage.units)source=null;}
       catch(error){source=null;} // PDF.js may read an original whose object table cannot be copied.
@@ -78,7 +98,7 @@
           if(!result||!['text','blank'].includes(result.kind)||typeof result.text!=='string'||result.kind==='text'&&!result.text.trim())throw Error('本页未能识别，请继续识别未完成页');
           if(result.kind==='blank'&&candidate.nativeText.trim())throw Error('本页包含文字，但识别结果为空白；请继续识别确认');
           for(var segment of split(result.text,'第 '+number+' 页 · Sol 视觉识别'))yield segment;
-          coverage.emptyUnits--;coverage.ocrPages++;if(result.kind==='blank')coverage.blankUnits++;
+          coverage.emptyUnits--;coverage.ocrPages++;if(options.progress)options.progress({phase:'Sol 图文读取',done:coverage.ocrPages,total:candidates.length,page:number});if(result.kind==='blank')coverage.blankUnits++;
           if(result.uncertain)coverage.uncertainUnits++;
           if(result.warning){coverage.warnings=coverage.warnings||[];if(coverage.warnings.length<20)coverage.warnings.push({page:number,text:String(result.warning).slice(0,500)});}
         }catch(error){if(error.name==='AbortError')throw error;coverage.ocrError=String(error.message||'识别中断').slice(0,250);break;}
@@ -121,23 +141,23 @@
     if(typeof Worker==='undefined')return (async function(){
       var coverage={},batch=[],ordinal=0;
       async function flush(){if(batch.length){await onBatch(batch);batch=[];}}
-      var settings={progress:options.progress,ocr:options.ocr?async function(task){await flush();if(signal?.aborted)throw Object.assign(Error('识别已暂停'),{name:'AbortError'});return options.ocr(task);}:null};
+      var settings={progress:options.progress,fullVision:options.fullVision,ocr:options.ocr?async function(task){await flush();if(signal?.aborted)throw Object.assign(Error('识别已暂停'),{name:'AbortError'});return options.ocr(task);}:null};
       for await(var segment of parse(file,coverage,settings)){batch.push(Object.assign({ordinal:ordinal++},segment));if(batch.length===24)await flush();}
       await flush();return {coverage:coverage,segments:ordinal};
     })();
     return new Promise(function(resolve,reject){
-      var worker=new Worker('/arena-project-parser-worker.js?v=20261030-pdfocr2'),finished=false;
+      var worker=new Worker('/arena-project-parser-worker.js?v=20261030-filequeue1'),finished=false;
       function stop(error,result){if(finished)return;finished=true;worker.terminate();if(signal)signal.removeEventListener('abort',abort);error?reject(error):resolve(result);}
       function abort(){stop(Object.assign(Error('上传已暂停，重新选择原文件可继续'),{name:'AbortError'}));}
       if(signal){if(signal.aborted)return abort();signal.addEventListener('abort',abort,{once:true});}
       worker.onerror=function(){stop(Error('文件解析中断，原文件已保存，可重新选择文件重试'));};
       worker.onmessage=async function(event){var data=event.data;try{
         if(data.type==='batch'){await onBatch(data.segments);if(!finished)worker.postMessage({type:'ack'});}
-        else if(data.type==='ocr'){try{var result=await options.ocr(data.task);if(!finished)worker.postMessage({type:'ocr_result',result:result});}catch(error){if(!finished)worker.postMessage({type:'ocr_result',error:error.message});}}
+        else if(data.type==='ocr'){try{var result=await options.ocr(data.task);if(!finished)worker.postMessage({type:'ocr_result',result:result});}catch(error){if(!finished)worker.postMessage({type:'ocr_result',error:error.message,aborted:error.name==='AbortError'});}}
         else if(data.type==='progress'){if(options.progress)options.progress(data.progress);}
-        else if(data.type==='done')stop(null,data.result);else if(data.type==='error')stop(Error(data.error));
+        else if(data.type==='done')stop(null,data.result);else if(data.type==='error')stop(Object.assign(Error(data.error),{name:data.aborted?'AbortError':'Error'}));
       }catch(error){stop(error);}};
-      worker.postMessage({type:'start',file:file,ocr:!!options.ocr});
+      worker.postMessage({type:'start',file:file,ocr:!!options.ocr,fullVision:!!options.fullVision});
     });
   }
   function sessionStore(){
@@ -149,8 +169,8 @@
   async function expandFiles(sources,options){
     var result={files:[],skipped:[]};for(var source of sources){
       if(/\.zip$/i.test(source.name)){
-        var expanded=await root.ArenaFiles.expandFiles([source],options);result.files.push(...expanded.files);result.skipped.push(...expanded.skipped);
-      }else if(root.ArenaFiles.isDocument(source.name)){
+        var expanded=await root.ArenaFiles.expandFiles([source],Object.assign({},options,{images:true}));result.files.push(...expanded.files);result.skipped.push(...expanded.skipped);
+      }else if((root.ArenaFiles.isDocument(source.name)||root.ArenaFiles.isImage(source.name))){
         var path=source.webkitRelativePath||source.name;if(path.split('/').some(p=>p==='__MACOSX'||p==='.DS_Store'||p.startsWith('._')||p==='.git'||p==='node_modules')){result.skipped.push({name:path,reason:'已跳过隐藏或依赖文件'});continue;}
         result.files.push({file:source,path:path,archive:false});
       }else result.skipped.push({name:source.name,reason:'不支持的项目资料格式'});
@@ -159,7 +179,7 @@
   async function indexFile(options,id,generation){
     var auth=Object.assign({},options.credentials),indexed=0;
     function api(action,extra){
-      if(options.signal?.aborted||options.isCurrent&&!options.isCurrent())throw Object.assign(Error('识别已暂停，原文件与已完成页已保留'),{name:'AbortError'});
+      if(options.shouldPause?.()||options.signal?.aborted||options.isCurrent&&!options.isCurrent())throw Object.assign(Error('识别已暂停，原文件与已完成页已保留'),{name:'AbortError'});
       return options.api('library_'+action,Object.assign({projectId:options.projectId,fileId:id,generation:generation},extra||{},auth));
     }
     function progress(phase,done,total){if(options.progress)options.progress({phase:phase,done:done,total:total,name:options.file.name});}
@@ -168,10 +188,12 @@
       var result=await parseInWorker(options.file,async function(segments){
         await api('segments',{segments:segments});indexed+=segments.length;progress('解析并建立索引',indexed,0);
       },options.signal,{
-        ocr:/\.pdf$/i.test(options.file.name)?function(task){return api('ocr_page',Object.assign({retry:!!options.retry},task));}:null,
-        progress:function(p){progress(p.phase+' · 第 '+p.page+' 页',p.done,p.total);}
+        fullVision:true,
+        ocr:async function(task){task=await normalizeVisual(task);var value=await api('ocr_page',Object.assign({retry:!!options.retry,retryUncertain:!!options.retryUncertain},task));if(options.shouldPause?.())throw Object.assign(Error('识别已暂停，已完成内容已保存'),{name:'AbortError'});if(task.notice)value=Object.assign({},value,{uncertain:true,warning:[value.warning,task.notice].filter(Boolean).join('；')});return value;},
+        progress:function(p){progress(p.phase+(p.page?' · 第 '+p.page+' 页':''),p.done,p.total);}
       });
-      if(!result.segments)throw Error(result.coverage.ocrError||(result.coverage.blankUnits===result.coverage.units?'这份 PDF 全为空白页，没有可查阅内容，原文件已保留':'未识别到可读内容，原文件已保留，可继续识别'));
+      if(!result.segments)throw Error(result.coverage.ocrError||(result.coverage.blankUnits===result.coverage.units?'这份文件没有可查阅内容，原文件已保留':'未识别到可读内容，原文件已保留，可继续识别'));
+      result.coverage.sourceVersion='20261030-filequeue1';
       var completed=await api('commit',{segments:result.segments,coverage:result.coverage});
       progress(completed.file.status==='partial'?'已保存可读内容，仍有页面待识别或确认':'已可供 AI 查阅',result.segments,result.segments);return completed.file;
     }catch(error){
@@ -188,7 +210,7 @@
     var file=new File([blob],meta.name,{type:meta.type||'application/pdf',lastModified:meta.createdAt||0});
     if(options.isCurrent&&!options.isCurrent())throw Object.assign(Error('账号已切换'),{name:'AbortError'});
     var started=await options.api('library_reparse',Object.assign({projectId:options.projectId,fileId:meta.id},auth));
-    return indexFile(Object.assign({},options,{file:file,retry:true}),meta.id,started.generation);
+    return indexFile(Object.assign({},options,{file:file,retry:true,retryUncertain:!!options.retryUncertain}),meta.id,started.generation);
   }
   async function upload(options){
     var file=options.file,credentials=options.credentials,stamp=await fingerprint(file),key=JSON.stringify([credentials.username.toLowerCase(),(options.resumeNamespace||options.projectId),options.folder||'',options.relativePath||'',options.replaceFileId||'',file.name,file.size,file.lastModified,stamp]),legacyKey=credentials.username.toLowerCase()+'|'+options.projectId+'|'+file.name+'|'+file.size+'|'+file.lastModified+'|'+stamp,saved=await session('get',key),legacy=false;
@@ -210,28 +232,31 @@
       var count=Math.max(1,Math.ceil(file.size/saved.partSize));
       for(var n=1;n<=count;n++){
         if(!saved.parts.some(p=>p.partNumber===n)){
-          var response=await options.binary('/project-upload?project='+encodeURIComponent(options.projectId)+'&file='+id+'&part='+n,{method:'PUT',body:file.slice((n-1)*saved.partSize,n*saved.partSize),credentials:auth,signal:options.signal}),part=(await response.json()).part;
+          var offset=(n-1)*saved.partSize,chunk=file.slice(offset,n*saved.partSize);var response=await options.binary('/project-upload?project='+encodeURIComponent(options.projectId)+'&file='+id+'&part='+n,{method:'PUT',body:chunk,credentials:auth,signal:options.signal,onUploadProgress:function(loaded){progress('上传原文件',Math.min(file.size,offset+Math.min(chunk.size,loaded)),file.size);}}),part=(await response.json()).part;
           saved.parts.push(part);saved.parts.sort((a,b)=>a.partNumber-b.partNumber);await session('put',key,saved);
         }progress('上传原文件',Math.min(file.size,n*saved.partSize),file.size);
       }await api('original_complete',{parts:saved.parts});
     }
+    progress('上传原文件',file.size,file.size);
+    if(options.uploadOnly)return Object.assign({},started.file,{id:id,status:'indexing',clientResumeKey:key});
     var generation;
     if(/\.pdf$/i.test(file.name)&&['partial','unreadable'].includes(started.file.status)){generation=(await api('reparse')).generation;}
     var completed=await indexFile(options,id,generation);
     if(completed.status==='ready')await session('delete',key);return completed;
   }
+  async function process(options){var started=await options.api('library_reparse',Object.assign({projectId:options.projectId,fileId:options.meta.id},options.credentials));var result=await indexFile(options,options.meta.id,started.generation);if(options.meta.clientResumeKey&&['ready','partial'].includes(result.status)&&!result.coverage?.emptyUnits)await session('delete',options.meta.clientResumeKey);return result;}
   function warningsOnly(file){return file.status==='partial'&&file.coverage?.emptyUnits===0&&file.coverage?.uncertainUnits>0;}
-  function repairLabel(file){return warningsOnly(file)?'重试不清晰页':'继续识别';}
+  function repairLabel(file){return warningsOnly(file)?(/\.pdf$/i.test(file.name)?'重试不清晰页':'重试不清晰内容'):file.status==='ready'?'补全图文':'继续识别';}
   function status(file){
     if(file.status==='uploading')return '原文件待续传';
     if(file.status==='indexing')return '正在解析或识别，可继续处理';
     if(file.status==='unreadable')return '尚不可供 AI 查阅 · '+(file.parseError||'可用 Sol 继续识别');
-    var recognized=file.ocrPages?'Sol 已识别 '+file.ocrPages+' 页':'';
-    if(warningsOnly(file))return (recognized||'已处理全部页面')+' · '+file.coverage.uncertainUnits+' 页有不清晰内容，可查阅';
+    var recognized=file.ocrPages?'Sol 已识别 '+file.ocrPages+' '+(file.coverage?.unitLabel||'页'):'';
+    if(warningsOnly(file))return (recognized||'已处理全部页面')+' · '+file.coverage.uncertainUnits+' '+(file.coverage?.unitLabel||'页')+'有不清晰内容，可查阅';
     if(file.status==='partial')return (recognized?recognized+' · ':'')+(file.coverage?.emptyUnits?'还有 '+file.coverage.emptyUnits+' 页待识别':'部分页面待识别')+(file.coverage?.ocrError?' · '+file.coverage.ocrError:'');
     return '已建立检索索引'+(recognized?' · '+recognized:'');
   }
-  function canRepair(file){return file.storage==='r2'&&/\.pdf$/i.test(file.name)&&['unreadable','partial','indexing'].includes(file.status);}
+  function canRepair(file){return file.storage==='r2'&&(['unreadable','partial','indexing'].includes(file.status)||/\.(?:pdf|docx|pptx|xlsx|xlsm|xlsb|odt|ods|odp|epub|rtf|png|jpe?g|webp|gif|svg)$/i.test(file.name)&&file.status==='ready'&&file.coverage?.visualComplete!==true);}
   function name(file){return (file.folder?file.folder+'/':'')+(file.relativePath||file.name);}
-  return {parse:parse,parseInWorker:parseInWorker,upload:upload,repair:repair,canRepair:canRepair,repairLabel:repairLabel,status:status,name:name,split:split,expandFiles:expandFiles};
+  return {process:process,normalizeVisual:normalizeVisual,parse:parse,parseInWorker:parseInWorker,upload:upload,repair:repair,canRepair:canRepair,repairLabel:repairLabel,status:status,name:name,split:split,expandFiles:expandFiles};
 });

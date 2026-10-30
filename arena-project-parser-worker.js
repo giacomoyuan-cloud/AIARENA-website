@@ -1,4 +1,4 @@
-importScripts('/arena-project-files.js?v=20261030-pdfocr2');
+importScripts('/arena-project-files.js?v=20261030-filequeue1');
 var acknowledge,ocrResult;
 self.onmessage=async function(event){
   if(event.data.type==='ack'){if(acknowledge)acknowledge();return;}
@@ -7,11 +7,11 @@ self.onmessage=async function(event){
   try{
     var coverage={},batch=[],ordinal=0;
     async function flush(){var waiting=new Promise(function(resolve){acknowledge=resolve;});self.postMessage({type:'batch',segments:batch});batch=[];await waiting;}
-    var settings={progress:function(progress){self.postMessage({type:'progress',progress:progress});},ocr:event.data.ocr?async function(task){
+    var settings={fullVision:!!event.data.fullVision,progress:function(progress){self.postMessage({type:'progress',progress:progress});},ocr:event.data.ocr?async function(task){
       if(batch.length)await flush();
-      return new Promise(function(resolve,reject){ocrResult=function(data){ocrResult=null;data.error?reject(Error(data.error)):resolve(data.result);};self.postMessage({type:'ocr',task:task});});
+      return new Promise(function(resolve,reject){ocrResult=function(data){ocrResult=null;data.error?reject(Object.assign(Error(data.error),{name:data.aborted?'AbortError':'Error'})):resolve(data.result);};self.postMessage({type:'ocr',task:task});});
     }:null};
     for await(var segment of ArenaProjectFiles.parse(event.data.file,coverage,settings)){batch.push(Object.assign({ordinal:ordinal++},segment));if(batch.length===24)await flush();}
     if(batch.length)await flush();self.postMessage({type:'done',result:{coverage:coverage,segments:ordinal}});
-  }catch(error){self.postMessage({type:'error',error:error.message||'文件解析失败'});}
+  }catch(error){self.postMessage({type:'error',error:error.message||'文件解析失败',aborted:error.name==='AbortError'});}
 };

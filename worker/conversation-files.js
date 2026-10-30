@@ -44,7 +44,7 @@ export async function handleConversationFiles(request,env,{authorize,checkScope,
     const allowed=new Set(['list','settings','start','original_complete','segments','commit','parse_failed','abort','reparse','ocr_page','preview','download','remove','restore']);
     const action=url.pathname==='/conversation-original'?'download':String(body.action||'').replace(/^library_/,'').replace(/_file$/,'');
     if(!allowed.has(action))invalid('不支持此文件操作');
-    const extra={};for(const key of ['fileId','parts','segments','coverage','error','generation','mode','page','total','data','mime','retry','hasNativeText'])if(body[key]!==undefined)extra[key]=body[key];
+    const extra={};for(const key of ['fileId','parts','segments','coverage','error','generation','mode','page','total','data','mime','retry','retryUncertain','location','hasNativeText'])if(body[key]!==undefined)extra[key]=body[key];
     if(action==='start'&&body.file){extra.file={};for(const key of ['id','name','size','type','folder','relativePath'])if(body.file[key]!==undefined)extra.file[key]=body.file[key];}
     const result=await conversationLibrary(env,user,body.chatId,body.projectId,action,extra);
     const linked=result.file||result.files?.[0];if(linked&&['start','commit','list'].includes(action)&&link)await link(user,body.projectId||null,body.chatId,linked.name);

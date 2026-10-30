@@ -433,7 +433,7 @@ async function handleProjectRequest(request,env){
     const prefix=projectKey(user,project.id);
     if(action.startsWith('library_')){
       const operation=action.slice(8),extra={fileId:body.fileId,parts:body.parts,segments:body.segments,coverage:body.coverage,error:body.error,generation:body.generation};
-      if(operation==='ocr_page')Object.assign(extra,{page:body.page,total:body.total,data:body.data,mime:body.mime,retry:body.retry===true,hasNativeText:body.hasNativeText===true});
+      if(operation==='ocr_page')Object.assign(extra,{page:body.page,total:body.total,data:body.data,mime:body.mime,retry:body.retry===true,retryUncertain:body.retryUncertain,location:typeof body.location==='string'?body.location.slice(0,400):'',hasNativeText:body.hasNativeText===true});
       if(operation==='start'){
         extra.file=body.file;
         if(body.replaceFileId){
@@ -1150,7 +1150,7 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
       return new Response(JSON.stringify(result), { headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
     }
     if (request.method === "GET" && url.pathname !== "/memory") {
-      return new Response(JSON.stringify({ mode: "official", openaiKeyFailoverVersion:"20261030-keyfallback1", conversationFilesVersion:env.PROJECT_DOCUMENTS?"20261030-chatfiles1":null, materialsVersion:env.PROJECT_DOCUMENTS?"20261030-materials1":null,projectOcrModel:env.PROJECT_DOCUMENTS&&hasOpenAIKey(env)?OCR_MODEL:null,projectOcrVersion:"20261030-pdfocr3", debate:DebateCore.version==='studio-v3'&&DebateRun.contractVersion==='studio-v3'?'studio-v3':null, skillsVersion:"20261030-skillmodels1", chatModesVersion:"20261030-chatmodes1", projectsVersion:"20261030-projectactions1", xai: !!env.GROK_API_KEY, openai: hasOpenAIKey(env), anthropic: !!env.ANTHROPIC_API_KEY, google: !!env.GEMINI_API_KEY, mj: false }), {
+      return new Response(JSON.stringify({ mode: "official", openaiKeyFailoverVersion:"20261030-keyfallback1", conversationFilesVersion:env.PROJECT_DOCUMENTS?"20261030-chatfiles1":null, materialsVersion:env.PROJECT_DOCUMENTS?"20261030-materials1":null,projectOcrModel:env.PROJECT_DOCUMENTS&&hasOpenAIKey(env)?OCR_MODEL:null,projectOcrVersion:"20261030-filequeue1", debate:DebateCore.version==='studio-v3'&&DebateRun.contractVersion==='studio-v3'?'studio-v3':null, skillsVersion:"20261030-skillmodels1", chatModesVersion:"20261030-chatmodes1", projectsVersion:"20261030-projectactions1", xai: !!env.GROK_API_KEY, openai: hasOpenAIKey(env), anthropic: !!env.ANTHROPIC_API_KEY, google: !!env.GEMINI_API_KEY, mj: false }), {
         status: 200,
         headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*", "Cache-Control":"no-store" }
       });
