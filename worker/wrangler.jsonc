@@ -4,7 +4,7 @@
   "main": "worker.js",
   "compatibility_date": "2026-02-28",
   "keep_vars": true,
-  "keep_names": false,
+  "keep_names": true,
   "durable_objects": { "bindings": [{ "name": "CHAT_RUNS", "class_name": "ChatRun" }, { "name": "PROJECT_SCHEDULES", "class_name": "ProjectScheduler" }] },
   "migrations": [{ "tag": "chat-runs-v1", "new_sqlite_classes": ["ChatRun"] }, { "tag": "project-schedules-v1", "new_sqlite_classes": ["ProjectScheduler"] }],
   "workers_dev": true,
