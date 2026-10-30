@@ -1,4 +1,4 @@
-importScripts('/arena-project-files.js?v=20261030-materials1');
+importScripts('/arena-project-files.js?v=20261030-deepaudit4');
 var acknowledge;
 self.onmessage=async function(event){
   if(event.data.type==='ack'){if(acknowledge)acknowledge();return;}

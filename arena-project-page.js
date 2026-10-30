@@ -110,7 +110,7 @@
         renderHome();paintPins();
       }catch(err){if(valid(n)){page.innerHTML=heading('项目',button('所有项目','data-list'))+'<p role="alert">'+e(err.message)+'</p>'+button('重新加载','data-home="'+e(id)+'"');}}
     }
-    function fileRows(files){return files.map(function(f){return '<div class="arena-project-resource">'+button(icon('file')+'<span>'+e(f.relativePath||f.name)+'</span><small>'+e(root.ArenaProjectFiles.status(f))+'</small>','data-preview="'+e(f.id)+'"')+button('×','data-remove-file="'+e(f.id)+'" aria-label="移除资料：'+e(f.name)+'"')+'</div>';}).join('');}
+    function fileRows(files){return files.map(function(f){return '<div class="arena-project-resource">'+button(icon('file')+'<span>'+e(f.relativePath||f.name)+'</span><small>'+e(root.ArenaProjectFiles.status(f))+'</small>','data-preview="'+e(f.id)+'"')+button('×','data-remove-file="'+e(f.id)+'" aria-label="移除资料：'+e(root.ArenaProjectFiles.name(f))+'"')+'</div>';}).join('');}
     function renderHome(){
       if(!current||kind!=='home')return;var p=current,pin=catalog.find(function(x){return x.id===p.id;})||{},files=p.files||[],folders=Array.from(new Set(files.map(function(f){return f.folder;}).filter(Boolean))),selectedFocus=composer.contains(document.activeElement)?document.activeElement:null;
       show('home','<div class="arena-project-breadcrumb">'+button('项目','data-list')+'<span>/</span><span>'+e(p.name)+'</span></div>'+heading(p.name,button(root.ArenaControls.pinIcon,'data-pin-project="'+e(p.id)+'" aria-label="'+(pin.pinned?'取消置顶':'置顶')+'项目" aria-pressed="'+!!pin.pinned+'" aria-busy="'+!!pin.pinPending+'"','arena-project-heading-pin'+(pin.pinned?' pinned':''))+button(icon('more'),'data-project-menu="'+e(p.id)+'" aria-label="项目菜单" aria-haspopup="menu"'))+

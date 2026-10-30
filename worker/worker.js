@@ -14,7 +14,7 @@ import ChatMode from '../arena-chat-mode.js';
 import { projectLibrary } from './project-library.js';
 import { readProject, consumeReadingStream } from './project-reading.js';
 const internalReadingRequests=new WeakMap();
-import { isDocument } from '../web/file-types.mjs';
+import { isDocument, materialName } from '../web/file-types.mjs';
 import { handleNativeRequest, NativeAccountRegistry } from './native-api.js';
 import ImageCore from '../arena-image.js';
 import { UPLOAD_LIMITS, uploadDataInfo } from '../web/upload-limits.mjs';
@@ -428,7 +428,13 @@ async function handleProjectRequest(request,env){
       const operation=action.slice(8),extra={fileId:body.fileId,parts:body.parts,segments:body.segments,coverage:body.coverage,error:body.error};
       if(operation==='start'){
         extra.file=body.file;
-        if(body.replaceFileId){extra.replaced=(await projectFiles(env,user,project.id)).find(f=>f.id===body.replaceFileId);if(!extra.replaced)return projectReply({error:'待更新资料不存在'},404);}
+        if(body.replaceFileId){
+          const files=await projectFiles(env,user,project.id);extra.replaced=files.find(f=>f.id===body.replaceFileId);
+          // A completed replacement has already retired the old source. Let its
+          // existing actor session validate the original replacement ID on retry.
+          if(!extra.replaced&&files.some(f=>f.storage==='r2'&&f.id===body.file?.id))extra.replaced={id:body.replaceFileId};
+          if(!extra.replaced)return projectReply({error:'待更新资料不存在'},404);
+        }
       }
       if(!['start','original_complete','segments','commit','parse_failed','abort'].includes(operation))return projectReply({error:'未知资料操作'},400);
       return projectReply(await projectLibrary(env,user,project.id,operation,extra));
@@ -544,7 +550,7 @@ async function retrieveProjectMaterials(env,user,project,query){
     const value=await env.BIZ_KV.get(prefix+":file:"+file.id+":index");
     if(!value)continue;
     const index=JSON.parse(value);
-    for(const hit of ArenaContext.rankIndex(index,query,file.name).slice(0,3))ranked.push({...hit,file});
+    for(const hit of ArenaContext.rankIndex(index,query,materialName(file)).slice(0,3))ranked.push({...hit,file:{...file,name:materialName(file)}});
   }
   if(env.PROJECT_DOCUMENTS){const library=await projectLibrary(env,user,project.id,'search',{query});for(const hit of library.hits)ranked.push({file:hit.file,index:hit.ordinal,text:hit.text,location:hit.location,score:hit.score});}
   const namedQuery=String(query).toLowerCase();
@@ -558,7 +564,7 @@ async function retrieveProjectMaterials(env,user,project,query){
     snippets.push("资料："+hit.file.name+"，"+(hit.location||"片段 "+(hit.index+1))+"\n"+fragment);
     if(!selected.some(f=>f.id===hit.file.id))selected.push({id:hit.file.id,name:hit.file.name,location:hit.location||'片段 '+(hit.index+1)});
   }
-  return {text:snippets.join("\n\n"),files:selected,fragments:snippets.length,mode:'retrieve',available:files.slice(0,12).map(f=>({id:f.id,name:f.name,status:f.status||'ready'}))};
+  return {text:snippets.join("\n\n"),files:selected,fragments:snippets.length,mode:'retrieve',available:files.slice(0,12).map(f=>({id:f.id,name:materialName(f),status:f.status||'ready'}))};
 }
 
 async function handleDebateRunRequest(request, env) {
@@ -1541,7 +1547,7 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
         const prefix=projectKey(authUser,projectId),files=await projectFiles(env,authUser,projectId);
         for(const file of files.filter(f=>f.storage!=='r2')){const index=JSON.parse(await env.BIZ_KV.get(prefix+':file:'+file.id+':index')||'null');if(!index?.count)throw Error('资料「'+file.name+'」索引不完整，请重新上传');file.chunks=index.count;}
         const library=(action,extra)=>projectLibrary(env,authUser,projectId,action,extra);
-        async function* batchLegacy(file){let batch=[],chars=0;for(let ordinal=0;ordinal<file.chunks;ordinal++){const text=await env.BIZ_KV.get(prefix+':file:'+file.id+':chunk:'+ordinal);if(!text)throw Error('资料「'+file.name+'」缺少片段，请重新上传');if(chars+text.length>24000&&batch.length){yield batch;batch=[];chars=0;}batch.push({fileId:file.id,name:file.name,ordinal,text});chars+=text.length;}if(batch.length)yield batch;}
+        async function* batchLegacy(file){let batch=[],chars=0;for(let ordinal=0;ordinal<file.chunks;ordinal++){const text=await env.BIZ_KV.get(prefix+':file:'+file.id+':chunk:'+ordinal);if(!text)throw Error('资料「'+file.name+'」缺少片段，请重新上传');if(chars+text.length>24000&&batch.length){yield batch;batch=[];chars=0;}batch.push({fileId:file.id,name:materialName(file),ordinal,text});chars+=text.length;}if(batch.length)yield batch;}
         try{
           materials=await readProject({files,question,history:history.messages.slice(-4).map(m=>({role:m.role,text:m.text})),context:{instructions:project.instructions||'',memory},model,scope:projectId,library,batchLegacy,incognito,signal:upstreamAbort.signal,
             progress:async progress=>{await sendActivity({kind:'project_reading',...progress});},
