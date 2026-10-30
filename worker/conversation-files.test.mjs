@@ -23,8 +23,8 @@ function setup(t){
     const response=await worker.fetch(new Request('https://api.pickandcase.com'+path,{method:options.method,headers,body:options.method==='PUT'?options.body:JSON.stringify({...options.body,...options.credentials})}),env);if(!response.ok)throw Object.assign(Error((await response.json()).error),{status:response.status});return response;}
   return {env,data,blobs,uploads,objects,api,binary};
 }
-async function material(s,projectId,{name='reference.txt',text='Document source budget 73921.50',size=text.length,segments=[{ordinal:0,location:'第 1 页',text}],coverage}={}){
-  const id=crypto.randomUUID(),start=await s.api('library_start',{projectId,file:{id,name,size,type:'text/plain'}}),count=Math.max(1,Math.ceil(size/start.partSize)),parts=[];
+async function material(s,projectId,{name='reference.txt',text='Document source budget 73921.50',size=text.length,segments=[{ordinal:0,location:'第 1 页',text}],coverage,folder,relativePath}={}){
+  const id=crypto.randomUUID(),start=await s.api('library_start',{projectId,file:{id,name,size,type:'text/plain',...(folder?{folder,relativePath}:{})}}),count=Math.max(1,Math.ceil(size/start.partSize)),parts=[];
   for(let n=1;n<=count;n++){const response=await s.binary('/project-upload?project='+projectId+'&file='+id+'&part='+n,{method:'PUT',credentials:{username:'tester',password:pass},body:new Blob([new Uint8Array(Math.min(start.partSize,size-(n-1)*start.partSize))])});parts.push((await response.json()).part);}
   await s.api('library_original_complete',{projectId,fileId:id,parts});
   for(let n=0;n<segments.length;n+=24)await s.api('library_segments',{projectId,fileId:id,segments:segments.slice(n,n+24)});
@@ -124,4 +124,19 @@ test('a late file preview cannot open inside a different conversation',async()=>
   context={...context,chatId:'chat_other'};controller.sync();
   releasePreview({ok:true,json:async()=>({file:{...file,text:'SYNTHETIC_ONLY'}})});await pending;
   assert.equal(created,0);
+});
+
+
+test('full reading a qualified folder path excludes same-named files elsewhere',async t=>{
+ const s=setup(t),c={chatId:'chat_folder'};await upload(s,c,{name:'notes.txt',folder:'pack',relativePath:'A/notes.txt',text:'A_ONLY_SOURCE budget 73921.50'});await upload(s,c,{name:'notes.txt',folder:'pack',relativePath:'B/notes.txt',text:'B_ONLY_SOURCE unrelated'});
+ const calls=mockProvider(t),result=await ask(s,c,'请全文阅读 pack/A/notes.txt 并找出预算数字');assert.equal(result.status,200);assert.match(result.text,/"complete":true/);assert.match(result.text,/pack\/A\/notes.txt/);
+ const readers=calls.filter(call=>String(call.system).startsWith('你负责逐批'));assert.equal(readers.length,1);assert.match(JSON.stringify(readers),/A_ONLY_SOURCE/);assert.doesNotMatch(JSON.stringify(readers),/B_ONLY_SOURCE/);
+});
+
+test('moving an upload in progress fails before copying the destination conversation',async t=>{
+ const s=setup(t),c={chatId:'pending-upload-chat'},p=(await s.api('create',{name:'Destination'})).project,id=crypto.randomUUID();
+ await docs(s,c,'library_start',{file:{id,name:'pending.txt',size:100,type:'text/plain'}});
+ const before=new Map(s.data);await assert.rejects(chat(s,'move',{chatId:c.chatId,targetProjectId:p.id}),e=>e.status===409);
+ assert.deepEqual([...s.data.entries()],[...before.entries()]);
+ await docs(s,c,'library_abort',{fileId:id});const moved=await chat(s,'move',{chatId:c.chatId,targetProjectId:p.id});assert.equal(moved.projectId,p.id);
 });

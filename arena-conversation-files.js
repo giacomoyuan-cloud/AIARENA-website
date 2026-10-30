@@ -24,6 +24,7 @@
       if(!force&&!known()&&!s.files.length){s.loaded=true;return s;}
       s.loading=api(s,'list').then(function(data){s.files=data.files;s.mode=data.readingMode||'retrieve';s.loaded=true;s.checkedKnown=true;s.error=null;return s;}).catch(function(error){s.error=error;throw error;}).finally(function(){s.loading=null;if(current(s))render();});return s.loading;
     }
+    function displayName(f){return root.ArenaProjectFiles.name?root.ArenaProjectFiles.name(f):f.name;}
     function preferred(s){return app.projectMode()||s.mode;}
     function render(){
       if(!controls)return;var s=state(),count=s.files.length,visible=!app.imageOrDebate()&&(count||known()||app.hasProject()&&!app.projectHome());
@@ -61,7 +62,7 @@
         await refresh(true);
         if(current(s))await app.reloadChats();
       }
-      if(!current(s))throw Error('对话已切换，已上传文件保留在原对话');render();return root.ArenaReading.marker(meta);
+      if(!current(s))throw Error('对话已切换，已上传文件保留在原对话');render();return root.ArenaReading.marker(Object.assign({},meta,{name:displayName(meta)}));
     }
     function file(text){var s=state(),id=root.ArenaReading.fileId(text);return s.files.find(f=>f.id===id)||null;}
     async function remove(text){var s=state(),id=root.ArenaReading.fileId(text);if(!id)return;
@@ -92,12 +93,12 @@
       var s=await refresh(),id=root.ArenaReading.fileId(text),f=s.files.find(f=>f.id===id);if(!f)throw Error('文件已移除或尚未加载，请重新上传');
       var data=s.ctx.incognito?{file:{...f,text:s.privateFiles.get(id).segments.map(x=>(x.location?'['+x.location+']\n':'')+x.text).join('\n\n').slice(0,60000),previewTruncated:f.characters>60000}}:await api(s,'preview',{fileId:id});
       if(!current(s))return;
-      var body=panel(f.name),status=document.createElement('p'),download=document.createElement('button'),content=document.createElement('pre');status.className='arena-document-help';status.textContent=root.ArenaProjectFiles.status(f)+(data.file.previewTruncated?' · 预览只显示前 6 万字符，全文阅读使用完整索引':'');download.textContent='下载原文件';content.textContent=data.file.text;body.append(status,download,content);
+      var body=panel(displayName(f)),status=document.createElement('p'),download=document.createElement('button'),content=document.createElement('pre');status.className='arena-document-help';status.textContent=root.ArenaProjectFiles.status(f)+(data.file.previewTruncated?' · 预览只显示前 6 万字符，全文阅读使用完整索引':'');download.textContent='下载原文件';content.textContent=data.file.text;body.append(status,download,content);
       download.onclick=async function(){try{var blob=s.ctx.incognito?s.privateFiles.get(id).file:await(await app.binary('/conversation-original',{method:'POST',body:{chatId:s.ctx.chatId,projectId:s.ctx.projectId,fileId:id}})).blob(),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=f.name;a.click();setTimeout(()=>URL.revokeObjectURL(url),30000);}catch(e){app.notice(e.message);}};
     }
     async function openList(){
       var s=await refresh(true);if(!current(s))return;var body=panel('本对话文件'),hint=document.createElement('p');hint.className='arena-document-help';hint.textContent='仅供当前对话查阅。移除后，后续回答不会再检索此文件。';body.append(hint);
-      for(var f of s.files)(function(f){var row=document.createElement('div'),button=document.createElement('button'),removeButton=document.createElement('button');row.className='arena-document-row';button.textContent=f.name+' · '+root.ArenaProjectFiles.status(f);button.onclick=()=>preview(root.ArenaReading.marker(f)).catch(e=>app.notice(e.message));removeButton.textContent='移除';removeButton.setAttribute('aria-label','移除文件：'+f.name);removeButton.onclick=async()=>{try{await remove(root.ArenaReading.marker(f));await openList();}catch(e){app.notice(e.message);}};row.append(button,removeButton);body.append(row);})(f);
+      for(var f of s.files)(function(f){var row=document.createElement('div'),button=document.createElement('button'),removeButton=document.createElement('button');row.className='arena-document-row';button.textContent=displayName(f)+' · '+root.ArenaProjectFiles.status(f);button.onclick=()=>preview(root.ArenaReading.marker(f)).catch(e=>app.notice(e.message));removeButton.textContent='移除';removeButton.setAttribute('aria-label','移除文件：'+displayName(f));removeButton.onclick=async()=>{try{await remove(root.ArenaReading.marker(f));await openList();}catch(e){app.notice(e.message);}};row.append(button,removeButton);body.append(row);})(f);
       if(!s.files.length){var empty=document.createElement('p');empty.textContent='当前对话没有文件。';body.append(empty);}
     }
     return {attach:attach,file:file,remove:remove,preview:preview,payload:payload,render:render,ready:refresh,originals:originals,close:close,hasFiles:function(){return state().files.length>0;},sync:function(){render();refresh().catch(function(){});}};

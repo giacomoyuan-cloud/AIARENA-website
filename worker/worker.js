@@ -16,7 +16,7 @@ import { projectLibrary } from './project-library.js';
 import { readProject, consumeReadingStream } from './project-reading.js';
 import Reading from '../arena-reading.js';
 import {conversationLibrary,handleConversationFiles,moveConversationFiles} from './conversation-files.js';
-import {inlineSource,retrieveLibrary,mergeMaterials,readSources} from './document-reading.js';
+import {inlineSource,retrieveLibrary,mergeMaterials,readSources,namedFiles} from './document-reading.js';
 const internalReadingRequests=new WeakMap();
 import { isDocument, materialName } from '../web/file-types.mjs';
 import { handleNativeRequest, NativeAccountRegistry } from './native-api.js';
@@ -868,6 +868,8 @@ var worker_default = {
         if(!raw)return projectReply({error:'对话暂不可用，请重试'},503);
         const source=JSON.parse(raw);
         if(source.some(m=>m.run?.status==='running'||m.debateRun?.status==='running'))return projectReply({error:'对话仍在执行，请完成或停止后再移动'},409);
+        const hasDocuments=env.CHAT_RUNS&&(item.hasDocuments||source.some(m=>(m.pastedTexts||[]).some(t=>Reading.fileId(t))));
+        if(hasDocuments){const pending=(await conversationLibrary(env,normalizedUsername,chatId,projectId,'list')).files.some(f=>['uploading','indexing'].includes(f.status));if(pending)return projectReply({error:'文件正在上传或建立索引，请完成或移除后再移动对话'},409);}
         const targetPrefix=chatStoragePrefix(normalizedUsername,targetProjectId),targetList=JSON.parse(await env.BIZ_KV.get(targetPrefix+':list')||'[]');
         const targetId=previousMove?.chatId||((targetList.some(c=>c.id===chatId)||await env.BIZ_KV.get(targetPrefix+':'+chatId)||await env.BIZ_KV.get(targetPrefix+':moved:'+chatId))?crypto.randomUUID():chatId);
         const copied=await rescopeSkillArtifacts(env,source.map(m=>{const {run,debateRun,...saved}=m;return saved;}),normalizedUsername,projectId||'general',targetProjectId||'general');
@@ -876,7 +878,7 @@ var worker_default = {
         await putProjectKV(env.BIZ_KV,targetPrefix+':'+targetId,JSON.stringify(copied));
         await putProjectKV(env.BIZ_KV,targetPrefix+':list',JSON.stringify([target,...targetList.filter(c=>c.id!==targetId)]));
         if(!await env.BIZ_KV.get(targetPrefix+':'+targetId))return projectReply({error:'目标保存未确认，原对话已保留，请重试'},503);
-        if(env.CHAT_RUNS&&(item.hasDocuments||source.some(m=>(m.pastedTexts||[]).some(t=>Reading.fileId(t)))))await moveConversationFiles(env,normalizedUsername,chatId,projectId,targetId,targetProjectId);
+        if(hasDocuments)await moveConversationFiles(env,normalizedUsername,chatId,projectId,targetId,targetProjectId);
         const receipt={projectId:targetProjectId,chatId:targetId};
         await putProjectKV(env.BIZ_KV,movedKey,JSON.stringify(receipt));
         await putList(list.filter(c=>c.id!==chatId));
