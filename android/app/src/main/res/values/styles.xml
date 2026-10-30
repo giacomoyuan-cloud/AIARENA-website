@@ -1,6 +1,8 @@
 <resources>
     <style name="AppThemeBase" parent="android:style/Theme.Material.Light.NoActionBar">
-        <item name="android:fontFamily">@font/modern_font</item>
+        <!-- Compose and Markdown apply NativeTypography explicitly. Loading the full
+             CJK XML family here creates four additional 17MB resource buffers. -->
+        <item name="android:fontFamily">sans-serif</item>
         <item name="android:colorAccent">#CC785C</item>
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:windowActionModeOverlay">true</item>

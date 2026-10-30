@@ -15,7 +15,7 @@ import core from '../arena-debate.js';
 const updateApk=process.env.NATIVE_QA_UPDATE_APK?await readFile(process.env.NATIVE_QA_UPDATE_APK):null;
 const root=path.resolve(process.env.AI_DEBATE_QA_ROOT || path.resolve(import.meta.dirname,'../dist-site')),hash=text=>createHash('sha256').update(text).digest('hex');
 const data=new Map([['user:qa-reader',JSON.stringify({hash:hash('offline-fixture')})],['user:qa-regular',JSON.stringify({hash:hash('offline-fixture')})]]);
-const kv={get:async k=>data.get(k)||null,put:async(k,v)=>data.set(k,v),delete:async k=>data.delete(k),list:async({prefix})=>({keys:[...data.keys()].filter(k=>k.startsWith(prefix)).map(name=>({name})),list_complete:true})};
+const kv={get:async k=>data.get(k)||null,put:async(k,v)=>data.set(k,v),delete:async k=>data.delete(k),list:async({prefix,cursor,limit=1000})=>{const keys=[...data.keys()].filter(k=>k.startsWith(prefix)).sort(),start=Number(cursor)||0,end=start+limit;return {keys:keys.slice(start,end).map(name=>({name})),list_complete:end>=keys.length,cursor:end<keys.length?String(end):undefined}}};
 const events=[],actors=new Map(),attempts=new Map();let offlineUntil=0;
 let evidenceWrites=Promise.resolve();
 const evidence=()=>{const report=JSON.stringify({synthetic:true,externalModelCalls:0,events},null,2);evidenceWrites=evidenceWrites.catch(()=>{}).then(()=>writeFile(process.env.AI_DEBATE_QA_REPORT || '/private/tmp/aiarena-debate-events.json',report));return evidenceWrites;};
@@ -81,7 +81,7 @@ globalThis.fetch=async(url,options={})=>{
  if(process.env.NATIVE_QA_FULL_WORKER==='1')return fullProvider(url,options);
  throw new Error('External network is disabled in native acceptance');
 };
-http.createServer(async(req,res)=>{
+http.createServer({keepAliveTimeout:60000,headersTimeout:65000},async(req,res)=>{
  try{
   const chunks=[];for await(const part of req)chunks.push(part);
   const route=new URL(req.url,'http://localhost');

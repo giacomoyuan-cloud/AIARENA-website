@@ -19,23 +19,48 @@ import org.junit.runner.RunWith
 class NativeAccountReadingRuntimeTest : NativeHarness() {
     @Test fun delete_confirmation_revokes_both_native_and_web_access_without_logging_out_owner() {
         login()
-        val id="qa-delete-"+System.currentTimeMillis()
-        model { it.createUser(id,"def");it.navigate(Page.ADMIN) }
-        ui.waitUntil(15000) { ui.onAllNodes(hasTestTag("admin-delete-"+id) and isEnabled()).fetchSemanticsNodes().isNotEmpty() }
+        val suffix=System.currentTimeMillis().toString()
+        val id="zz-qa-delete-"+suffix
+        val manager=NativeApi(base).apply { token=NativeSession(app).load()!!.token }
+        runBlocking {
+            repeat(21) { manager.route("users",json("username" to "qa-page-$suffix-$it","password" to "def")) }
+            manager.route("users",json("username" to id,"password" to "def"))
+        }
+        model { it.navigate(Page.ADMIN) }
+        scrollToAccount(id)
         val other=NativeApi(base)
         val token=runBlocking { other.route("login",json("username" to id,"password" to "def")).str("token") }
         other.token=token
-        ui.onNodeWithTag("admin-delete-"+id).performScrollTo().performClick()
+        ui.onNodeWithTag("admin-delete-"+id).assertIsDisplayed().assertIsEnabled().performClick()
+        try { waitFor("admin-delete-confirm") } catch (e:Throwable) { screenshot("native-delete-dialog-missing");ui.onRoot().printToLog("NativeAdminMissingDialog");throw e }
         ui.onNodeWithText("取消",substring=false).performClick()
         assertEquals(token,other.token)
         assertTrue(runBlocking { other.route("catalog").has("profile") })
-        ui.onNodeWithTag("admin-delete-"+id).performScrollTo().performClick()
+        scrollToAccount(id)
+        ui.onNodeWithTag("admin-delete-"+id).assertIsDisplayed().assertIsEnabled().performClick()
         ui.onNodeWithTag("admin-delete-confirm").performClick()
         ui.waitUntil(15000) { ui.onAllNodesWithTag("admin-delete-"+id).fetchSemanticsNodes().isEmpty() }
         val denied=runBlocking { runCatching { other.route("catalog") }.exceptionOrNull() }
         assertTrue(denied is ApiFailure && denied.status==401)
         assertTrue(NativeSession(app).load()!!.canManage)
         screenshot("native-admin-account-deleted")
+    }
+
+    private fun adminState(): AssistantState {
+        var value: AssistantState?=null
+        model { value=it.state.value }
+        return value!!
+    }
+    private fun scrollToAccount(id:String) {
+        ui.waitUntil(15000) { !adminState().loading && adminState().data.has("users") }
+        while(adminState().data.arr("users").objects().none { it.str("accountId")==id }) {
+            assertTrue("Account must be reachable through pagination",adminState().data.str("cursor").isNotBlank())
+            val before=adminState().data.arr("users").length()
+            ui.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("加载更多账号"))
+            ui.onNodeWithText("加载更多账号").performClick()
+            ui.waitUntil(15000) { adminState().data.arr("users").length()>before }
+        }
+        ui.onNode(hasScrollToIndexAction()).performScrollToNode(hasTestTag("admin-delete-"+id))
     }
 
     @Test fun a_deleted_signed_in_account_returns_to_login_with_an_explicit_reason() {

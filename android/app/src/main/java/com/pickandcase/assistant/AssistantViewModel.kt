@@ -2003,6 +2003,7 @@ class AssistantViewModel(application: Application, val api: NativeApi = NativeAp
     }
     override fun onCleared() {
         updates.close()
+        cache.close()
         super.onCleared()
     }
 

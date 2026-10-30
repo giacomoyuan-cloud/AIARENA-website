@@ -15,3 +15,5 @@ dist-site/
 
 .wrangler/
 /node_modules
+
+android/.kotlin/
