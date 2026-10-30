@@ -870,7 +870,7 @@
 <link rel="stylesheet" href="/arena-workspace.css?v=20261030-modernfont2">
 <link rel="stylesheet" href="/arena-controls.css?v=20261030-modernfont2">
 <link rel="stylesheet" href="/arena-claude.css?v=20261030-modernfont2">
-<link rel="stylesheet" href="/arena-project-page.css?v=20261030-modernfont2">
+<link rel="stylesheet" href="/arena-project-page.css?v=20261030-filequeue1">
 <link rel="stylesheet" href="/arena-project-files.css?v=20261030-modernfont2">
 <link rel="stylesheet" href="/arena-debate-ui.css?v=20261030-modernfont2">
 
@@ -1266,7 +1266,7 @@
 <script src="/arena-chat-mode.js?v=20261030-historymodes2"></script>
 <script src="/arena-skills-catalog.js?v=20261030-skills1"></script>
 <script src="/arena-skill-models.js?v=20261030-skillmodels1"></script>
-<script src="/arena-files.js?v=20261030-deepaudit4"></script>
+<script src="/arena-files.js?v=20261030-filequeue1"></script>
 <script src="/arena-skills.js?v=20261030-upload20m1"></script>
 <script src="/arena-chat-runs.js?v=20261029-typingclock1"></script>
 <script src="/arena-controls.js?v=20261029-debateresume1"></script>
@@ -1274,13 +1274,15 @@
 <script src="/arena-debate.js?v=20261030-debatestudio3"></script>
 <script src="/arena-debate-studio.js?v=20261030-debatecontrols1"></script>
 <script src="/arena-debate-runs.js?v=20261030-debatestudio3"></script>
-<script src="/arena-project-files.js?v=20261030-chatfiles1"></script>
+<script src="/arena-project-files.js?v=20261030-filequeue1"></script>
 <script src="/arena-reading.js?v=20261030-chatfiles1"></script>
 <script src="/arena-conversation-files.js?v=20261030-chatfiles1"></script>
 <link rel="stylesheet" href="/arena-conversation-files.css?v=20261030-modernfont2">
-<script src="/arena-workspace.js?v=20261030-deepaudit5"></script>
+<script src="/arena-workspace.js?v=20261030-filequeue1"></script>
 <script src="/arena-project-state.js?v=20261030-projectactions2"></script>
-<script src="/arena-project-page.js?v=20261030-pdfocr2"></script>
+<script src="/arena-project-upload-view.js?v=20261030-filequeue1"></script>
+<script src="/arena-project-upload-queue.js?v=20261030-filequeue1"></script>
+<script src="/arena-project-page.js?v=20261030-filequeue1"></script>
 <script src="/arena-account.js?v=20261027-account2"></script>
 <script src="/arena-stream.js?v=20261030-typing50-1"></script>
 <script src="/arena-billing.js?v=20261030-billing-haiku55"></script>
@@ -6594,7 +6596,21 @@ if(imageMode){
     var auth=options.credentials||{username:loginName($('aaUsername').value),password:getPass()},headers={},body=options.body;
     if(options.method==='PUT'){headers.Authorization='Bearer '+btoa(Array.from(new TextEncoder().encode(JSON.stringify(auth)),function(n){return String.fromCharCode(n);}).join(''));}
     else{headers['Content-Type']='application/json';body=JSON.stringify(Object.assign({},body,auth));}
-    var response=await fetch(WORKER+path,{method:options.method,headers:headers,body:body,signal:options.signal});
+    var response;
+    if(options.method==='PUT'&&options.onUploadProgress&&typeof XMLHttpRequest!=='undefined'){
+      response=await new Promise(function(resolve,reject){
+        var xhr=new XMLHttpRequest(),aborted=function(){xhr.abort();};
+        if(options.signal?.aborted)return reject(Object.assign(Error('上传已暂停'),{name:'AbortError'}));
+        xhr.open('PUT',WORKER+path);xhr.responseType='arraybuffer';xhr.timeout=180000;
+        Object.keys(headers).forEach(function(k){xhr.setRequestHeader(k,headers[k]);});
+        xhr.upload.onprogress=function(event){if(event.lengthComputable)options.onUploadProgress(event.loaded,event.total);};
+        function clean(){options.signal?.removeEventListener('abort',aborted);}
+        xhr.onload=function(){clean();resolve(new Response(xhr.response,{status:xhr.status,headers:{'Content-Type':xhr.getResponseHeader('Content-Type')||'application/json'}}));};
+        xhr.onerror=function(){clean();reject(Error('上传连接中断，可以重试续传'));};xhr.ontimeout=function(){clean();reject(Error('上传超时，可以重试续传'));};
+        xhr.onabort=function(){clean();reject(Object.assign(Error('上传已暂停'),{name:'AbortError'}));};
+        options.signal?.addEventListener('abort',aborted,{once:true});xhr.send(body);
+      });
+    }else response=await fetch(WORKER+path,{method:options.method,headers:headers,body:body,signal:options.signal});
     if(!response.ok){var data=await response.json().catch(function(){return {};});throw Error(data.error||'文件传输失败，请重试');}return response;
   }
   conversationFiles=ArenaConversationFiles.create({

@@ -11,7 +11,7 @@
     var pane=document.createElement('aside');pane.id='aaProjectFilePane';pane.className='arena-project-file-pane';pane.hidden=true;pane.setAttribute('role','dialog');pane.setAttribute('aria-label','项目资料预览');
     pane.innerHTML='<div class="arena-dialog-heading"><strong id="aaFileName"></strong><button class="arena-icon-btn" data-file-close aria-label="关闭资料预览">×</button></div><div class="arena-file-toolbar"><span id="aaFileMeta"></span><button data-file-download>下载原文件</button></div><div id="aaFilePreview" class="arena-file-preview"></div>';
     host.appendChild(pane);
-    var input=document.createElement('input');input.type='file';input.multiple=true;input.hidden=true;input.accept=root.ArenaFiles.DOCUMENT_ACCEPT;host.appendChild(input);
+    var input=document.createElement('input');input.type='file';input.multiple=true;input.hidden=true;input.accept=root.ArenaFiles.PROJECT_ACCEPT;host.appendChild(input);
     var content=dialog.querySelector('#aaWorkspaceContent'),title=dialog.querySelector('#aaWorkspaceTitle'),navigationEpoch=0;
     var listCache=new Map(),listVersions=new Map(),listRequests=new Map(),pinErrors=new Map(),cacheRevision=0,listView=false;
     var pins=root.ArenaControls.createPinStore({
@@ -173,6 +173,7 @@
     input.addEventListener('change',async function(){
       var files=Array.from(input.files||[]),current=project||app.currentProject();input.value='';
       if(!current||!files.length)return;
+      if(app.uploadProjectFiles){close();try{await app.uploadProjectFiles(files,current);}catch(err){notify(err.message);}return;}
       var status=content.querySelector('[data-w-error]'),upload=content.querySelector('[data-file-upload]');if(upload)upload.disabled=true;
       try{
         var expanded=await root.ArenaProjectFiles.expandFiles(files);

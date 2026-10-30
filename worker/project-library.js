@@ -1,5 +1,5 @@
 import Context from '../arena-context.js';
-import {isDocument,materialName} from '../web/file-types.mjs';
+import {isDocument,isImage,materialName} from '../web/file-types.mjs';
 import {recognizeProjectPage, ocrPayload, OCR_MODEL} from './project-ocr.js';
 
 const initialized=new WeakSet();
@@ -50,7 +50,7 @@ async function identity(ctx,owner,project){
 }
 function location(value){return typeof value==='string'?value.slice(0,400):'';}
 function readingText(meta,where,text){
-  const page=Number(String(where||'').match(/^第\s+(\d+)\s+页/)?.[1]),warnings=(meta?.coverage?.warnings||[]).filter(w=>w.page===page&&typeof w.text==='string').map(w=>w.text);
+  const page=Number(String(where||'').match(/^第\s+(\d+)\s+页/)?.[1]),warnings=(meta?.coverage?.warnings||[]).filter(w=>(w.location?String(where||'').startsWith(w.location):w.page===page)&&typeof w.text==='string').map(w=>w.text);
   return text+(warnings.length?'\n\n[本页识别提示：'+warnings.join('；')+'。不清晰部分不得推测补全。]':'');
 }
 
@@ -90,7 +90,7 @@ export async function handleProjectLibrary(ctx,env,request){
       if(!env.PROJECT_DOCUMENTS)fail('大文件存储暂未配置',503);
       const input=body.file;
       if(!input||!idOK(input.id)||typeof input.name!=='string'||!input.name.trim()||input.name.length>180||/[\u0000-\u001f]/.test(input.name)||!Number.isSafeInteger(input.size)||input.size<0)fail('文件信息无效');
-      if(!isDocument(input.name))fail('暂不支持此资料格式');
+      if(!isDocument(input.name)&&!isImage(input.name))fail('暂不支持此资料格式');
       const existing=rows(ctx,'SELECT id FROM library_files WHERE id=?',input.id)[0];
       if(existing){const prior=file(ctx,input.id);if(prior.name!==input.name||prior.size!==input.size||(prior.folder||'')!==(input.folder||'')||(prior.relativePath||'')!==(input.relativePath||'')||(prior.replaced?.id||'')!==(body.replaced?.id||'')||prior.state==='aborted'||prior.removed)fail('上传会话与文件不匹配，请重新开始上传',409);return json({file:publicFile(prior),partSize:prior.partSize});}
       if(input.folder!==undefined&&(typeof input.folder!=='string'||!input.folder.trim()||input.folder.length>180||/[\u0000-\u001f/\\]/.test(input.folder)||typeof input.relativePath!=='string'||input.relativePath.length>500||input.relativePath.split(/[\\/]/).some(p=>!p||p==='.'||p==='..')))fail('文件夹路径无效');
@@ -130,18 +130,18 @@ export async function handleProjectLibrary(ctx,env,request){
     }
     const value=file(ctx,body.fileId);
     if(action==='reparse'){
-      if(value.removed||!value.originalComplete||!/\.pdf$/i.test(value.name))fail('此资料暂不能继续识别',409);
+      if(value.removed||!value.originalComplete||(!isDocument(value.name)&&!isImage(value.name)))fail('此资料暂不能继续识别',409);
       if(value.state!=='indexing')value.previousParseState=value.state;
       value.state='indexing';value.pendingGeneration=crypto.randomUUID();
       transact(ctx,()=>{ctx.storage.sql.exec('DELETE FROM library_pending_segments WHERE file_id=?',value.id);save(ctx,value);});
       return json({file:publicFile(value),generation:value.pendingGeneration});
     }
     if(action==='ocr_page'){
-      if(value.removed||!value.originalComplete||value.state!=='indexing'||!/\.pdf$/i.test(value.name))fail('文件当前不能识别扫描页',409);
+      if(value.removed||!value.originalComplete||value.state!=='indexing'||(!isDocument(value.name)&&!isImage(value.name)))fail('文件当前不能进行图文识别',409);
       if(value.pendingGeneration&&body.generation!==value.pendingGeneration)fail('识别任务已更新，请刷新资料状态',409);
       if(!Number.isSafeInteger(body.total)||body.total<1||!Number.isSafeInteger(body.page)||body.page<1||body.page>body.total)fail('识别页码无效');
       const cached=rows(ctx,'SELECT state,result FROM library_ocr_pages WHERE file_id=? AND page=?',value.id,body.page)[0];
-      if(cached?.state==='done'&&!(body.retry===true&&JSON.parse(cached.result).uncertain)&&!(body.hasNativeText&&JSON.parse(cached.result).kind==='blank'))return json({...JSON.parse(cached.result),cached:true});
+      if(cached?.state==='done'&&!((body.retryUncertain??body.retry)===true&&JSON.parse(cached.result).uncertain)&&!(body.hasNativeText&&JSON.parse(cached.result).kind==='blank'))return json({...JSON.parse(cached.result),cached:true});
       let jobs=activeOCR.get(ctx);if(!jobs){jobs=new Map();activeOCR.set(ctx,jobs);}
       const key=value.id+':'+body.page;
       if(jobs.has(key))return json(await jobs.get(key));
@@ -150,7 +150,7 @@ export async function handleProjectLibrary(ctx,env,request){
       ctx.storage.sql.exec('INSERT INTO library_ocr_pages(file_id,page,state,result,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(file_id,page) DO UPDATE SET state=excluded.state,result=NULL,updated_at=excluded.updated_at',value.id,body.page,'running',null,Date.now());
       const job=(async()=>{
         try{
-          const result=await recognizeProjectPage(env,body.owner,body.conversation?body.channel:body.projectId,body.page,body.data,body.mime,body.hasNativeText===true);
+          const result=await recognizeProjectPage(env,body.owner,body.conversation?body.channel:body.projectId,body.page,body.data,body.mime,body.hasNativeText===true,body.location);
           ctx.storage.sql.exec('UPDATE library_ocr_pages SET state=?,result=?,updated_at=? WHERE file_id=? AND page=?','done',JSON.stringify(result),Date.now(),value.id,body.page);
           return result;
         }catch(error){

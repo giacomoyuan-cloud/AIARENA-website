@@ -1,6 +1,6 @@
 import JSZip from 'jszip';
 import { UPLOAD_LIMITS } from './upload-limits.mjs';
-import { CHAT_ACCEPT, DOCUMENT_ACCEPT, extension, isArchive, isDocument, isImage, isText, mimeFor } from './file-types.mjs';
+import { CHAT_ACCEPT, DOCUMENT_ACCEPT, PROJECT_ACCEPT, extension, isArchive, isDocument, isImage, isText, mimeFor } from './file-types.mjs';
 
 export const LIMITS = Object.freeze({ ...UPLOAD_LIMITS, archiveEntries: 100, characters: 400000, chatCharacters: 40000, pages: 200 });
 const loaded = new Map();
@@ -251,5 +251,5 @@ export async function prepareChatFile(source, { progress = () => {}, extract = e
   const text = parts.length || (isArchive(source.name) && images.length) ? '[文件: ' + source.name + ']\n' + summary + parts.join('\n\n') : '';
   return { source, text, images, skipped: result.skipped, count: parts.length + images.length };
 }
-export const api = { CHAT_ACCEPT, DOCUMENT_ACCEPT, LIMITS, isArchive, isDocument, isImage, expandFiles, extractText, readFile, prepareChatFile, decodeBase64 };
+export const api = { CHAT_ACCEPT, DOCUMENT_ACCEPT, PROJECT_ACCEPT, LIMITS, isArchive, isDocument, isImage, expandFiles, extractText, readFile, prepareChatFile, decodeBase64 };
 if (typeof window !== 'undefined') window.ArenaFiles = api;

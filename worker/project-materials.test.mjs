@@ -161,8 +161,11 @@ test('spreadsheet parsing includes all sheets and sparse final cells without ite
   try{const parts=[];for await(const s of Files.parse(new File(['synthetic'],'book.xlsx'),{}))parts.push(s);const text=parts.map(s=>s.text).join('');assert.match(text,/LAST_CELL_73921\.50/);assert.match(text,/001234567890/);assert.ok(parts.some(s=>s.location.includes('1048576')));assert.ok(parts.some(s=>s.location.includes('Sheet B')));}finally{globalThis.XLSX=previous;}
 });
 test('Word parsing does not truncate the end of a long document and chunks preserve Unicode pairs',async()=>{
-  const previous=globalThis.mammoth,text='A'.repeat(2399)+'😺'+'word '.repeat(90000)+'END_OF_WORD_73921';globalThis.mammoth={extractRawText:async()=>({value:text})};
-  try{const parts=[];for await(const s of Files.parse(new File(['synthetic'],'doc.docx'),{}))parts.push(s);assert.equal(parts.map(s=>s.text).join(''),text);assert.match(parts.at(-1).text,/END_OF_WORD_73921/);assert.ok(parts.every(s=>!/[\uD800-\uDBFF]$/.test(s.text)));}finally{globalThis.mammoth=previous;}
+  const {default:JSZip}=await import('jszip'),text='A'.repeat(2399)+'😺'+'word '.repeat(90000)+'END_OF_WORD_73921',zip=new JSZip();
+  zip.file('word/document.xml','<w:document xmlns:w="urn:word"><w:body><w:p><w:r><w:t>'+text+'</w:t></w:r></w:p></w:body></w:document>');
+  const source=await zip.generateAsync({type:'uint8array'}),parts=[];
+  for await(const part of Files.parse(new File([source],'doc.docx'),{}))parts.push(part);
+  assert.equal(parts.map(s=>s.text).join(''),text);assert.match(parts.at(-1).text,/END_OF_WORD_73921/);assert.ok(parts.every(s=>{const c=s.text.charCodeAt(s.text.length-1);return c<0xd800||c>0xdbff;}));
 });
 test('the browser upload protocol resumes acknowledged parts and sends no original as JSON base64',async t=>{
   const s=setup(t),p=(await s.api('create',{name:'Resume'})).project,prior=globalThis.indexedDB,records=new Map();
@@ -342,4 +345,12 @@ test('bounded previews disclose omitted short chunks even below the character li
   const s=setup(t),p=(await s.api('create',{name:'Bounded preview'})).project,segments=Array.from({length:257},(_,ordinal)=>({ordinal,location:'正文',text:'SHORT_'+ordinal}));
   const file=await material(s,p.id,{segments}),preview=(await s.api('preview',{projectId:p.id,fileId:file.id})).file;
   assert.ok(preview.text.length<60000);assert.equal(preview.previewTruncated,true);assert.match(preview.text,/SHORT_255/);assert.doesNotMatch(preview.text,/SHORT_256/);
+});
+
+test('project image recognition accepts PNG and caches completed units without retrying uncertain units on a failure-only retry',async t=>{
+ const s=setup(t),p=(await s.api('create',{name:'Image units'})).project,file=await material(s,p.id,{name:'photo.png'}),started=await s.api('library_reparse',{projectId:p.id,fileId:file.id});s.env.OPENAI_API_KEY='synthetic-only';let calls=0;
+ t.mock.method(globalThis,'fetch',async(url,options)=>{calls++;const body=JSON.parse(options.body);assert.equal(body.model,'gpt-6.1-sol');assert.equal(body.input[1].content[1].type,'input_image');assert.match(body.input[1].content[1].image_url,/^data:image\/png/);return ocrReply({kind:'text',text:'Visible power: 36 W; small serial [无法辨认]',warning:'small serial unreadable'});});
+ const input={projectId:p.id,fileId:file.id,generation:started.generation,page:1,total:1,mime:'image/png',location:'图片 1',data:'iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB'};
+ await s.api('library_ocr_page',input);await s.api('library_ocr_page',{...input,retry:true,retryUncertain:false});assert.equal(calls,1);
+ await s.api('library_ocr_page',{...input,retry:true,retryUncertain:true});assert.equal(calls,2);
 });
