@@ -39,7 +39,7 @@ export function nextOccurrence(schedule, after = Date.now()) {
   return null;
 }
 
-export function createProjectScheduler({ execute, credentials, project, models }) {
+export function createProjectScheduler({ execute, credentials, project, models, efforts = {} }) {
   return class ProjectScheduler {
     constructor(ctx, env) {
       this.ctx = ctx; this.env = env; this.running = false;
@@ -75,11 +75,13 @@ export function createProjectScheduler({ execute, credentials, project, models }
           const name = String(body.name || '').trim(), prompt = String(body.prompt || '').trim();
           if (!name || name.length > 80 || !prompt || prompt.length > 8000) return json({ error: '名称最多 80 字，任务指令需为 1–8000 字' }, 400);
           if (!models.includes(body.model)) return json({ error: '请选择可用的文字模型' }, 400);
+          const effort=typeof body.effort==='string'&&body.effort?body.effort:body.effort===undefined&&prior?.model===body.model?prior?.effort:undefined;
+          if(effort!==undefined&&!(efforts[body.model]||[]).includes(effort))return json({error:'请选择此模型支持的思考深度'},400);
           const projectId = body.projectId || null;
           if (projectId) await project(this.env, body.user, projectId);
           const schedule = validateSchedule(body.schedule), nextRunAt = nextOccurrence(schedule);
           if (!nextRunAt) return json({ error: '执行时间必须在将来' }, 400);
-          const task = { id: body.id, user: body.user, projectId, name, prompt, model: body.model, search: body.search === true, schedule, enabled: body.enabled !== false, nextRunAt, status: prior?.status || 'scheduled', createdAt: prior?.createdAt || Date.now(), updatedAt: Date.now(), history: prior?.history || [], ...(prior?.lastRunAt ? { lastRunAt: prior.lastRunAt } : {}) };
+          const task = { id: body.id, user: body.user, projectId, name, prompt, model: body.model, ...(effort!==undefined?{effort}:{}), search: body.search === true, schedule, enabled: body.enabled !== false, nextRunAt, status: prior?.status || 'scheduled', createdAt: prior?.createdAt || Date.now(), updatedAt: Date.now(), history: prior?.history || [], ...(prior?.lastRunAt ? { lastRunAt: prior.lastRunAt } : {}) };
           this.tasks = this.tasks.filter(t => t.id !== task.id); this.tasks.unshift(task);
           await this.persist(); await this.arm(); return json({ task });
         }
@@ -119,7 +121,7 @@ export function createProjectScheduler({ execute, credentials, project, models }
           const auth = await credentials(this.env, task.user), controller = new AbortController();
           timer = setTimeout(() => controller.abort(), 14 * 60000);
           const response = await execute(new Request('https://internal.invalid/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: controller.signal,
-            body: JSON.stringify({ ...auth, model: task.model, projectId: task.projectId, search: task.search, chat: { scope: task.projectId || 'general', chatId: task.chatId, question: task.prompt, query: task.prompt, history: [], historyEndUid: null, systemMode: 'default' } }) }), this.env);
+            body: JSON.stringify({ ...auth, model: task.model, ...(task.effort!==undefined?{effort:task.effort}:{}), projectId: task.projectId, search: task.search, chat: { scope: task.projectId || 'general', chatId: task.chatId, question: task.prompt, query: task.prompt, history: [], historyEndUid: null, systemMode: 'default' } }) }), this.env);
           if (!response.ok) { const data = await response.json().catch(() => ({})); throw Error(data.error || '模型请求失败'); }
           reader = response.body.getReader(); const decoder = new TextDecoder(); let buffer = '', completed = false;
           for (;;) {

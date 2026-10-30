@@ -35,9 +35,12 @@ data class NativeAttachment(
     val size: Long,
     val text: String = "",
     val relativePath: String = name,
+    val units: Int = 1,
+    val emptyUnits: Int = 0,
+    val parseError: String = "",
 ) {
     val image
-        get() = mime.startsWith("image/")
+        get() = mime in setOf("image/png", "image/jpeg", "image/webp", "image/gif")
 
     fun bytes() = File(path).readBytes()
 
@@ -69,46 +72,15 @@ class NativeFiles(private val context: Context) {
             "zip" to "application/zip",
         )
     private val textTypes =
-        setOf(
-            "txt",
-            "md",
-            "markdown",
-            "csv",
-            "tsv",
-            "json",
-            "jsonl",
-            "xml",
-            "html",
-            "css",
-            "js",
-            "jsx",
-            "mjs",
-            "ts",
-            "tsx",
-            "py",
-            "kt",
-            "java",
-            "c",
-            "cpp",
-            "h",
-            "go",
-            "rs",
-            "sh",
-            "yaml",
-            "yml",
-            "toml",
-            "ini",
-            "log",
-            "sql",
-            "svg",
-            "vue",
-            "svelte",
-            "dart",
-            "rb",
-            "php",
-        )
+        "makefile gemfile rakefile license readme txt md markdown mdx csv tsv json jsonl ndjson yaml yml xml html htm svg css scss sass less js mjs cjs jsx ts tsx vue svelte py pyi ipynb sql sh bash zsh java kt kts c h cc cpp cxx hpp cs go rs rb php swift r tex toml ini cfg conf properties log env gitignore dockerignore dockerfile"
+            .split(" ")
+            .toSet()
 
-    fun import(uri: Uri): List<NativeAttachment> {
+    fun import(uri: Uri): List<NativeAttachment> = readImport(uri, false)
+
+    fun projectImport(uri: Uri): List<NativeAttachment> = readImport(uri, true)
+
+    private fun readImport(uri: Uri, project: Boolean): List<NativeAttachment> {
         val name =
             context.contentResolver
                 .query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
@@ -132,13 +104,36 @@ class NativeFiles(private val context: Context) {
                     val n = input.read(buffer)
                     if (n < 0) break
                     total += n
-                    require(total <= 10 * 1024 * 1024) { "单个附件最多 10MB" }
+                    require(total <= 20 * 1024 * 1024) { "单个附件最多 20MB" }
                     output.write(buffer, 0, n)
                 }
             }
         } ?: error("无法读取这个文件，请重新选择")
-        return if (name.endsWith(".zip", true)) expand(file)
-        else listOf(describe(name, mime, file, name))
+        return if (name.endsWith(".zip", true)) expand(file, project)
+        else listOf(describeSafely(name, mime, file, name, project))
+    }
+
+    private fun describeSafely(
+        name: String,
+        mime: String,
+        file: File,
+        relative: String,
+        project: Boolean,
+    ): NativeAttachment {
+        return try {
+            describe(name, mime, file, relative)
+        } catch (error: Exception) {
+            if (!project) throw error
+            NativeAttachment(
+                UUID.randomUUID().toString(),
+                name,
+                mime,
+                file.path,
+                file.length(),
+                relativePath = relative,
+                parseError = error.message ?: "资料解析失败",
+            )
+        }
     }
 
     private fun describe(
@@ -148,9 +143,11 @@ class NativeFiles(private val context: Context) {
         relative: String,
     ): NativeAttachment {
         val ext = name.substringAfterLast('.', "").lowercase()
+        var units = 1
+        var emptyUnits = 0
         val text =
             when {
-                mime.startsWith("image/") -> ""
+                mime in setOf("image/png", "image/jpeg", "image/webp", "image/gif") -> ""
                 ext == "xls" ->
                     file.inputStream().use { input ->
                         HSSFWorkbook(input).use { book ->
@@ -164,7 +161,7 @@ class NativeFiles(private val context: Context) {
                                             append('\t')
                                         }
                                         append('\n')
-                                        require(length <= 400000) { "表格文字超过限制" }
+                                        require(length <= 20 * 1024 * 1024) { "表格文字超过限制" }
                                     }
                                 }
                             }
@@ -173,16 +170,31 @@ class NativeFiles(private val context: Context) {
                 ext == "pdf" -> {
                     PDFBoxResourceLoader.init(context)
                     PDDocument.load(file).use { document ->
-                        require(document.numberOfPages <= 200) { "PDF 最多 200 页" }
-                        PDFTextStripper().getText(document)
+                        require(document.numberOfPages <= 2000) { "PDF 页数较多，请拆分资料" }
+                        units = document.numberOfPages
+                        val stripper = PDFTextStripper()
+                        buildString {
+                            for (page in 1..document.numberOfPages) {
+                                stripper.startPage = page
+                                stripper.endPage = page
+                                val part = stripper.getText(document)
+                                if (part.isBlank()) emptyUnits++
+                                append("\n[第 $page 页]\n")
+                                append(part)
+                                require(length <= 20 * 1024 * 1024) { "PDF 文字过多，请拆分文件" }
+                            }
+                        }
                     }
                 }
-                ext in setOf("docx", "pptx", "xlsx") -> office(file, ext)
+                ext in setOf("xlsx", "xlsm") -> office(file, "xlsx")
+                ext == "xlsb" -> binaryWorkbook(file)
+                ext in setOf("docx", "pptx") -> office(file, ext)
+                ext in setOf("odt", "odp", "ods") -> openDocument(file)
                 ext in textTypes || !name.contains('.') || mime.startsWith("text/") ->
                     decode(file.readBytes())
                 else -> error("暂不支持这个附件格式：$name")
             }
-        require(text.length <= 400000) { "文件文字过长，请拆分资料后上传" }
+        require(text.length <= 20 * 1024 * 1024) { "文件文字过长，请拆分资料后上传" }
         return NativeAttachment(
             UUID.randomUUID().toString(),
             name,
@@ -191,10 +203,12 @@ class NativeFiles(private val context: Context) {
             file.length(),
             text,
             relative,
+            units = units,
+            emptyUnits = emptyUnits,
         )
     }
 
-    private fun expand(file: File): List<NativeAttachment> {
+    private fun expand(file: File, project: Boolean = false): List<NativeAttachment> {
         val zip =
             runCatching { ZipFile(file, Charsets.UTF_8) }
                 .getOrElse { ZipFile(file, charset("GB18030")) }
@@ -238,18 +252,19 @@ class NativeFiles(private val context: Context) {
                             if (n < 0) break
                             single += n
                             total += n
-                            require(single <= 8 * 1024 * 1024 && total <= 40 * 1024 * 1024) {
+                            require(single <= 20 * 1024 * 1024 && total <= 100 * 1024 * 1024) {
                                 "ZIP 展开大小超过限制"
                             }
                             output.write(buffer, 0, n)
                         }
                     }
                 }
-                describe(
+                describeSafely(
                     name,
                     types[name.substringAfterLast('.').lowercase()] ?: "text/plain",
                     target,
                     path,
+                    project,
                 )
             }
         }
@@ -281,6 +296,135 @@ class NativeFiles(private val context: Context) {
         }
         return result
     }
+
+    fun projectFolder(uri: Uri): List<NativeAttachment> {
+        val root =
+            androidx.documentfile.provider.DocumentFile.fromTreeUri(context, uri)
+                ?: error("无法读取文件夹")
+        val output = mutableListOf<NativeAttachment>()
+        var total = 0L
+        fun walk(directory: androidx.documentfile.provider.DocumentFile, prefix: String) {
+            directory.listFiles().forEach { entry ->
+                val name = entry.name ?: return@forEach
+                if (name.startsWith('.')) return@forEach
+                val relative = "$prefix/$name"
+                if (entry.isDirectory) walk(entry, relative)
+                else {
+                    val ext = name.substringAfterLast('.').lowercase()
+                    if (
+                        ext !in textTypes &&
+                            ext !in
+                                setOf(
+                                    "pdf",
+                                    "docx",
+                                    "xlsx",
+                                    "xlsm",
+                                    "xlsb",
+                                    "xls",
+                                    "pptx",
+                                    "odt",
+                                    "ods",
+                                    "odp",
+                                )
+                    )
+                        return@forEach
+                    require(output.size < 100) { "一次最多导入 100 份资料" }
+                    total += entry.length()
+                    require(total <= 100L * 1024 * 1024) { "文件夹资料总计超过 100MB" }
+                    output += projectImport(entry.uri).map { it.copy(relativePath = relative) }
+                }
+            }
+        }
+        walk(root, root.name ?: "资料")
+        require(output.isNotEmpty()) { "文件夹中没有可导入的资料" }
+        return output
+    }
+
+    private fun binaryWorkbook(file: File): String {
+        org.apache.poi.openxml4j.opc.OPCPackage.open(
+                file,
+                org.apache.poi.openxml4j.opc.PackageAccess.READ,
+            )
+            .use { pkg ->
+                val reader = org.apache.poi.xssf.eventusermodel.XSSFBReader(pkg)
+                val strings = org.apache.poi.xssf.binary.XSSFBSharedStringsTable(pkg)
+                val output = StringBuilder()
+                val formatter = DataFormatter()
+                val sheets = reader.sheetsData
+                while (sheets.hasNext()) {
+                    sheets.next().use { input ->
+                        output.append("\n[工作表]\n")
+                        val handler =
+                            object :
+                                org.apache.poi.xssf.eventusermodel.XSSFSheetXMLHandler.SheetContentsHandler {
+                                override fun startRow(rowNum: Int) {}
+
+                                override fun endRow(rowNum: Int) {
+                                    output.append('\n')
+                                }
+
+                                override fun cell(
+                                    reference: String?,
+                                    value: String?,
+                                    comment: org.apache.poi.xssf.usermodel.XSSFComment?,
+                                ) {
+                                    output
+                                        .append(reference.orEmpty())
+                                        .append('=')
+                                        .append(value.orEmpty())
+                                        .append('\t')
+                                    require(output.length <= 20 * 1024 * 1024) { "表格文字过多，请拆分文件" }
+                                }
+
+                                override fun headerFooter(
+                                    text: String?,
+                                    isHeader: Boolean,
+                                    tagName: String?,
+                                ) {}
+                            }
+                        org.apache.poi.xssf.binary
+                            .XSSFBSheetHandler(
+                                input,
+                                reader.getXSSFBStylesTable(),
+                                null,
+                                strings,
+                                handler,
+                                formatter,
+                                false,
+                            )
+                            .parse()
+                    }
+                }
+                return output.toString()
+            }
+    }
+
+    private fun openDocument(file: File): String =
+        ZipFile(file).use { zip ->
+            val entry = zip.getEntry("content.xml") ?: error("不是有效的 OpenDocument 文件")
+            require(entry.size <= 20 * 1024 * 1024) { "文档文字过多，请拆分文件" }
+            zip.getInputStream(entry).use { input ->
+                val parser =
+                    XmlPullParserFactory.newInstance()
+                        .apply { isNamespaceAware = true }
+                        .newPullParser()
+                        .apply { setInput(input, "UTF-8") }
+                buildString {
+                    while (parser.eventType != XmlPullParser.END_DOCUMENT) {
+                        if (parser.eventType == XmlPullParser.TEXT) append(parser.text)
+                        if (parser.eventType == XmlPullParser.START_TAG && parser.name == "tab")
+                            append('\t')
+                        if (
+                            parser.eventType == XmlPullParser.END_TAG &&
+                                parser.name in setOf("p", "h", "table-row")
+                        )
+                            append('\n')
+                        require(length <= 20 * 1024 * 1024) { "文档文字过多，请拆分文件" }
+                        parser.next()
+                    }
+                }
+            }
+        }
 
     private fun office(file: File, ext: String): String =
         ZipFile(file).use { zip ->
@@ -347,7 +491,7 @@ class NativeFiles(private val context: Context) {
                             valueTag = false
                         }
                         parser.next()
-                        require(out.length <= 400000) { "文档文字超过限制" }
+                        require(out.length <= 20 * 1024 * 1024) { "文档文字超过限制" }
                     }
                 }
             }
@@ -366,6 +510,23 @@ class NativeFiles(private val context: Context) {
                     },
             )
             .apply { writeBytes(Base64.decode(data, Base64.DEFAULT)) }
+
+    fun replayText(value: String): NativeAttachment {
+        val header = value.substringBefore('\n')
+        val text = if (header.startsWith("[文件: ")) value.substringAfter('\n', "") else value
+        val name =
+            if (header.startsWith("[文件: ")) header.removePrefix("[文件: ").removeSuffix("]")
+            else "参考资料.txt"
+        val file = File(folder, UUID.randomUUID().toString() + ".txt").apply { writeText(text) }
+        return NativeAttachment(
+            UUID.randomUUID().toString(),
+            name,
+            "text/plain",
+            file.path,
+            file.length(),
+            text,
+        )
+    }
 
     private fun xlsx(zip: ZipFile): String {
         val shared = mutableListOf<String>()
@@ -485,7 +646,7 @@ class NativeFiles(private val context: Context) {
                             }
                             tag = ""
                         }
-                        require(output.length <= 400000) { "表格文字超过限制" }
+                        require(output.length <= 20 * 1024 * 1024) { "表格文字超过限制" }
                         p.next()
                     }
                 }

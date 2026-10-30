@@ -74,6 +74,14 @@ fun AssistantApp(vm: AssistantViewModel) {
         if (dark)
             darkColorScheme(
                 primary = Color(0xFFE5A18B),
+                primaryContainer = Color(0xFF623F32),
+                onPrimaryContainer = Color(0xFFFFDCCE),
+                secondary = Color(0xFFD0C4AC),
+                onSecondaryContainer = Color(0xFFE8E3D6),
+                onSurface = Color(0xFFE8E6E0),
+                onBackground = Color(0xFFE8E6E0),
+                surfaceVariant = Color(0xFF36352F),
+                onSurfaceVariant = Color(0xFFC6C2B8),
                 background = Color(0xFF20201D),
                 surface = Color(0xFF272723),
                 secondaryContainer = Color(0xFF393930),
@@ -82,6 +90,15 @@ fun AssistantApp(vm: AssistantViewModel) {
         else
             lightColorScheme(
                 primary = WarmAccent,
+                primaryContainer = Color(0xFFF0D4C8),
+                onPrimaryContainer = Color(0xFF613527),
+                secondary = Color(0xFF776B58),
+                onSecondaryContainer = Color(0xFF423D32),
+                onSurface = Color(0xFF32322D),
+                onBackground = Color(0xFF32322D),
+                surfaceVariant = Color(0xFFF0EDE4),
+                onSurfaceVariant = Color(0xFF77746A),
+                outline = Color(0xFFB6B0A3),
                 background = Color(0xFFFAF9F5),
                 surface = Color(0xFFFFFEFB),
                 secondaryContainer = Color(0xFFF0EDE4),
@@ -611,7 +628,7 @@ private fun ChatScreen(s: AssistantState, vm: AssistantViewModel) {
 @Composable
 private fun AttachmentButton(vm: AssistantViewModel) {
     var menu by remember { mutableStateOf(false) }
-    var cameraUri by remember { mutableStateOf<Uri?>(null) }
+    var cameraUri by rememberSaveable { mutableStateOf<Uri?>(null) }
     val context = LocalContext.current
     val files =
         rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) {
@@ -640,7 +657,8 @@ private fun AttachmentButton(vm: AssistantViewModel) {
                     val file = File(folder, UUID.randomUUID().toString() + ".jpg")
                     cameraUri =
                         FileProvider.getUriForFile(context, context.packageName + ".files", file)
-                    camera.launch(cameraUri!!)
+                    runCatching { camera.launch(cameraUri!!) }
+                        .onFailure { vm.notice("当前设备没有可用的相机应用") }
                 },
                 leadingIcon = { Icon(Icons.Outlined.CameraAlt, null) },
             )
@@ -665,6 +683,23 @@ private fun MessageView(message: JSONObject, s: AssistantState, vm: AssistantVie
     var zoom by remember { mutableStateOf<String?>(null) }
     var imageIndex by rememberSaveable(message.optLong("uid")) { mutableIntStateOf(0) }
     var artifactDelete by remember { mutableStateOf<JSONObject?>(null) }
+    var receiptOpen by remember { mutableStateOf(false) }
+    var referenceText by remember { mutableStateOf<String?>(null) }
+    if (referenceText != null)
+        AlertDialog(
+            onDismissRequest = { referenceText = null },
+            title = { Text("参考资料") },
+            text = {
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    if (referenceText!!.length > 100000) Text("预览显示前 100,000 字；完整资料仍用于对话。")
+                    androidx.compose.foundation.text.selection.SelectionContainer {
+                        Text(referenceText!!.take(100000))
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { referenceText = null }) { Text("关闭") } },
+        )
+    if (receiptOpen) NativeUsageReceipt(message.obj("usage")) { receiptOpen = false }
     Column(
         Modifier.fillMaxWidth()
             .then(
@@ -721,17 +756,28 @@ private fun MessageView(message: JSONObject, s: AssistantState, vm: AssistantVie
                 Spacer(Modifier.width(10.dp))
                 Text("思考中…", style = MaterialTheme.typography.bodySmall)
             }
-        val images =
-            message.arr("imgItems").objects().ifEmpty {
-                if (message.str("imgData").isNotBlank())
-                    listOf(
-                        json(
-                            "data" to message.str("imgData"),
-                            "mime" to message.str("imgMime", "image/png"),
-                        )
+        if (message.arr("pastedTexts").length() > 0)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                message.arr("pastedTexts").strings().forEachIndexed { index, value ->
+                    AssistChip(
+                        onClick = { referenceText = value },
+                        label = {
+                            Text(
+                                value
+                                    .substringBefore('\n')
+                                    .takeIf { it.startsWith("[文件: ") }
+                                    ?.removePrefix("[文件: ")
+                                    ?.removeSuffix("]")
+                                    ?.take(64) ?: "参考资料 ${index + 1}"
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(Icons.Outlined.Description, null, Modifier.size(16.dp))
+                        },
                     )
-                else emptyList()
+                }
             }
+        val images = nativeImageItems(message)
         if (images.isEmpty() && message.str("localPreview").isNotBlank())
             NativeProgressImage(message.str("localPreview"))
         if (images.size > 1)
@@ -862,6 +908,18 @@ private fun MessageView(message: JSONObject, s: AssistantState, vm: AssistantVie
                 color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.bodySmall,
             )
+        if (message.has("usage")) {
+            val usage = message.obj("usage")
+            val counters = usage.optJSONObject("execution") ?: usage
+            TextButton(onClick = { receiptOpen = true }) {
+                Text(
+                    "输入 ${counters.str("input", "待提供")} · 输出 ${counters.str("output", "待提供")} token · " +
+                        if (usage.optBoolean("billingComplete")) "$" + usage.str("costUsd")
+                        else "费用待完整核算",
+                    style = MaterialTheme.typography.labelSmall,
+                )
+            }
+        }
         Row(Modifier.horizontalScroll(rememberScrollState())) {
             IconButton(
                 onClick = {
@@ -875,7 +933,9 @@ private fun MessageView(message: JSONObject, s: AssistantState, vm: AssistantVie
                 Icon(Icons.Outlined.FormatQuote, "引用", Modifier.size(18.dp))
             }
             IconButton(
-                onClick = { if (message.optBoolean("isUser")) edit = true else vm.fork(message) }
+                onClick = {
+                    if (message.optBoolean("isUser")) edit = true else vm.regenerate(message)
+                }
             ) {
                 Icon(
                     if (message.optBoolean("isUser")) Icons.Outlined.Edit

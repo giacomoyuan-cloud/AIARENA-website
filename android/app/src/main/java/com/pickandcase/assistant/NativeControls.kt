@@ -29,6 +29,65 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
 import org.json.JSONArray
+import org.json.JSONObject
+
+@Composable
+fun NativeUsageReceipt(receipt: JSONObject, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("请求明细") },
+        text = {
+            Column(
+                Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(receipt.str("model"))
+                Text(dateLabel(receipt.opt("at")))
+                val counters = receipt.optJSONObject("execution") ?: receipt
+                fun count(key: String) = if (counters.isNull(key)) "官方未提供" else counters.str(key)
+                Text("输入 token（含缓存）：" + count("input"))
+                Text("输出 token（含思考）：" + count("output"))
+                val details = counters.obj("details")
+                listOf(
+                        "cachedInput" to "其中缓存命中",
+                        "outputReasoning" to "其中思考 token（不重复加算）",
+                        "outputImage" to "其中图片输出 token",
+                        "toolInput" to "其中工具输入 token",
+                    )
+                    .forEach { (key, name) ->
+                        if (details.optLong(key) > 0) Text(name + "：" + details.str(key))
+                    }
+                Text(
+                    if (receipt.optBoolean("billingComplete")) "完整核算金额：$" + receipt.str("costUsd")
+                    else "已核算部分：$" + receipt.str("knownCostUsd", "待核实")
+                )
+                if (!receipt.optBoolean("billingComplete")) Text("部分费用尚未核实，未知部分未计为 0。")
+                receipt.arr("items").objects().forEach { item ->
+                    val name =
+                        mapOf(
+                            "input" to "输入",
+                            "uncachedInput" to "未缓存输入",
+                            "cachedInput" to "缓存输入",
+                            "output" to "输出",
+                            "imageOutput" to "图片输出",
+                            "webSearch" to "联网搜索",
+                        )[item.str("kind")] ?: item.str("kind")
+                    Text(
+                        "${name} · ${item.str("count", "待核实")} · $${item.str("amountUsd", "待核实")}",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+                receipt.arr("auxiliary").objects().forEach { child ->
+                    Text(
+                        "附加调用：${child.str("model")} · $${child.str("costUsd", child.str("knownCostUsd", "待核实"))}",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("关闭") } },
+    )
+}
 
 @Composable
 fun ChoiceField(

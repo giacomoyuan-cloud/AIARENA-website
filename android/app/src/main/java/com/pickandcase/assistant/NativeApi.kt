@@ -2,6 +2,7 @@ package com.pickandcase.assistant
 
 import java.io.File
 import java.io.IOException
+import java.io.RandomAccessFile
 import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
@@ -15,8 +16,10 @@ import okhttp3.Callback
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
+import okio.BufferedSink
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -35,6 +38,25 @@ fun JSONArray.objects(): List<JSONObject> = (0 until length()).mapNotNull { optJ
 fun JSONArray.strings(): List<String> = (0 until length()).map { optString(it) }
 
 fun JSONObject.copyJson() = JSONObject(toString())
+
+fun nativeImageItems(message: JSONObject): List<JSONObject> {
+    val items = message.arr("imgItems").objects()
+    if (items.isNotEmpty()) return items
+    if (message.str("imgData").isNotBlank())
+        return listOf(
+            json("data" to message.str("imgData"), "mime" to message.str("imgMime", "image/png"))
+        )
+    return message
+        .arr("imgSrcs")
+        .strings()
+        .filter { it.startsWith("data:image/") && it.contains(";base64,") }
+        .map {
+            json(
+                "mime" to it.substringAfter("data:").substringBefore(';'),
+                "data" to it.substringAfter(";base64,"),
+            )
+        }
+}
 
 fun sha256(value: String) =
     MessageDigest.getInstance("SHA-256").digest(value.toByteArray(Charsets.UTF_8)).joinToString(
@@ -107,6 +129,63 @@ class NativeApi(
         payload: JSONObject = JSONObject(),
         method: String = "POST",
     ): JSONObject = route("api", json("path" to path, "method" to method, "payload" to payload))
+
+    suspend fun uploadPart(
+        projectId: String,
+        fileId: String,
+        part: Int,
+        file: File,
+        offset: Long,
+        length: Long,
+    ): JSONObject {
+        val authorization = token
+        return withContext(Dispatchers.IO) {
+            val body =
+                object : RequestBody() {
+                    override fun contentType() = "application/octet-stream".toMediaType()
+
+                    override fun contentLength() = length
+
+                    override fun writeTo(sink: BufferedSink) {
+                        RandomAccessFile(file, "r").use { input ->
+                            input.seek(offset)
+                            var remaining = length
+                            val buffer = ByteArray(16384)
+                            while (remaining > 0) {
+                                val n =
+                                    input.read(
+                                        buffer,
+                                        0,
+                                        minOf(buffer.size.toLong(), remaining).toInt(),
+                                    )
+                                check(n > 0) { "原文件读取不完整" }
+                                sink.write(buffer, 0, n)
+                                remaining -= n
+                            }
+                        }
+                    }
+                }
+            val url =
+                baseUrl +
+                    "project-upload?project=" +
+                    java.net.URLEncoder.encode(projectId, "UTF-8") +
+                    "&file=" +
+                    java.net.URLEncoder.encode(fileId, "UTF-8") +
+                    "&part=" +
+                    part
+            val request =
+                Request.Builder()
+                    .url(url)
+                    .header("Authorization", "Bearer " + authorization)
+                    .put(body)
+                    .build()
+            client.newCall(request).execute().use { response ->
+                val text = response.body?.string().orEmpty()
+                if (!response.isSuccessful) throw problem(response.code, text)
+                JSONObject(text)
+            }
+        }
+    }
 
     suspend fun stream(route: String, body: JSONObject, onFrame: (StreamFrame) -> Unit) =
         withContext(Dispatchers.IO) {

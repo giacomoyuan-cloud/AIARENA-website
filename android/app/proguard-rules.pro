@@ -1,2 +1,37 @@
 # Bridge callbacks use AndroidX WebKit rather than reflection or JavascriptInterface.
 -keepattributes SourceFile,LineNumberTable
+
+# Unused Java desktop rendering, optional JPEG2000, annotations and OSGi integrations.
+-dontwarn aQute.bnd.annotation.baseline.BaselineIgnore
+-dontwarn aQute.bnd.annotation.spi.ServiceConsumer
+-dontwarn aQute.bnd.annotation.spi.ServiceProvider
+-dontwarn com.gemalto.jp2.JP2Decoder
+-dontwarn edu.umd.cs.findbugs.annotations.Nullable
+-dontwarn edu.umd.cs.findbugs.annotations.SuppressFBWarnings
+-dontwarn java.awt.Color
+-dontwarn java.awt.Dimension
+-dontwarn java.awt.Rectangle
+-dontwarn java.awt.color.ColorSpace
+-dontwarn java.awt.geom.AffineTransform
+-dontwarn java.awt.geom.Dimension2D
+-dontwarn java.awt.geom.Path2D
+-dontwarn java.awt.geom.PathIterator
+-dontwarn java.awt.geom.Point2D
+-dontwarn java.awt.geom.Rectangle2D
+-dontwarn java.awt.image.BufferedImage
+-dontwarn java.awt.image.ColorModel
+-dontwarn java.awt.image.ComponentColorModel
+-dontwarn java.awt.image.DirectColorModel
+-dontwarn java.awt.image.IndexColorModel
+-dontwarn java.awt.image.PackedColorModel
+-dontwarn org.apache.batik.anim.dom.SAXSVGDocumentFactory
+-dontwarn org.apache.batik.bridge.BridgeContext
+-dontwarn org.apache.batik.bridge.DocumentLoader
+-dontwarn org.apache.batik.bridge.GVTBuilder
+-dontwarn org.apache.batik.bridge.UserAgent
+-dontwarn org.apache.batik.bridge.UserAgentAdapter
+-dontwarn org.apache.batik.util.XMLResourceDescriptor
+-dontwarn org.osgi.framework.Bundle
+-dontwarn org.osgi.framework.BundleContext
+-dontwarn org.osgi.framework.FrameworkUtil
+-dontwarn org.osgi.framework.ServiceReference

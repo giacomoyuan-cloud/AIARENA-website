@@ -1,11 +1,18 @@
 // Native clients share the website's account identities and business handlers.
 // Tokens are opaque, revocable and have no automatic expiry. Passwords stay off-device after login.
 const sessions = 'native-session:';
-const allowedPaths = new Set(['/', '/chats', '/projects', '/schedules', '/system-prompt', '/account', '/skills', '/memory', '/usage', '/skill-files', '/chat-runs', '/debate-runs', '/pricing', '/skill-catalog']);
+const allowedPaths = new Set(['/', '/chats', '/projects', '/schedules', '/system-prompt', '/account', '/skills', '/memory', '/usage', '/skill-files', '/chat-runs', '/debate-runs', '/pricing', '/skill-catalog','/project-original']);
 const allowedGet = new Set(['/skills', '/memory', '/pricing', '/skill-catalog']);
 const reply = (body, status = 200) => Response.json(body, {status, headers: {'Cache-Control':'no-store','Access-Control-Allow-Origin':'*'}});
 const fault = (message, status) => Object.assign(new Error(message), {status});
 const hex = bytes => Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+
+async function boundedJson(request,limit){
+  if(Number(request.headers.get('Content-Length')||0)>limit)throw fault('请求内容过大，请分批发送',413);
+  const reader=request.body?.getReader();if(!reader)throw fault('请求内容为空',400);
+  const decoder=new TextDecoder();let text='',bytes=0;
+  try{for(;;){const part=await reader.read();if(part.done)break;bytes+=part.value.byteLength;if(bytes>limit){await reader.cancel();throw fault('请求内容过大，请分批发送',413)}text+=decoder.decode(part.value,{stream:true})}text+=decoder.decode();return JSON.parse(text)}finally{reader.releaseLock()}
+}
 
 async function identity(request, env, context) {
   const token = /^Bearer ([a-f0-9]{64})$/.exec(request.headers.get('Authorization') || '')?.[1];
@@ -26,7 +33,7 @@ export async function handleNativeRequest(request, env, context) {
   const url = new URL(request.url), route = url.pathname;
   try {
     if (route === '/native/login' && request.method === 'POST') {
-      const body = await request.json(), login = String(body.username || '').trim();
+      const body = await boundedJson(request,8192), login = String(body.username || '').trim();
       const passwordHash = typeof body.passwordHash === 'string' ? body.passwordHash : typeof body.password === 'string' ? await context.hashText(body.password) : '';
       if (!login || !/^[a-f0-9]{64}$/.test(passwordHash)) throw fault('登录名或密码错误', 401);
       const accountId = await context.storageAccountName(login, env), raw = await env.MEMORY_KV.get('user:' + accountId);
@@ -45,8 +52,17 @@ export async function handleNativeRequest(request, env, context) {
       return reply({ok:true});
     }
     const account = await identity(request, env, context);
+    if(route==='/native/project-upload'&&request.method==='PUT'){
+      const projectId=url.searchParams.get('project');await context.ownedProject(env,account.accountId,projectId);
+      const destination=new URL('/project-upload','https://api.pickandcase.com');
+      for(const key of ['project','file','part'])destination.searchParams.set(key,url.searchParams.get(key)||'');
+      const internalAuth=btoa(String.fromCharCode(...new TextEncoder().encode(JSON.stringify({user:account.accountId,password:account.record.hash}))));
+      const headers=new Headers({'Authorization':'Bearer '+internalAuth,'Content-Type':'application/octet-stream'});
+      if(request.headers.has('Content-Length'))headers.set('Content-Length',request.headers.get('Content-Length'));
+      return context.forward(new Request(destination,{method:'PUT',headers,body:request.body,duplex:'half',signal:request.signal}));
+    }
     if (route === '/native/session' && request.method === 'GET') return reply(publicIdentity(account));
-    if (route === '/native/catalog' && request.method === 'GET') return reply({version:'native-v2', models:Object.entries(context.models).map(([id,model]) => ({id,name:model.name,provider:model.provider,image:!!model.image,levels:context.efforts[id] || []})), imageCapabilities:context.imageCore.capabilities, skillModels:context.skillModels, defaultSkillModel:context.defaultSkillModel, skills:context.skillCatalog.map(({instructions,...skill})=>skill), ...publicIdentity(account)});
+    if (route === '/native/catalog' && request.method === 'GET') return reply({version:'native-v2', models:Object.entries(context.models).map(([id,model]) => ({id,name:model.name,provider:model.provider,image:!!model.image,levels:context.efforts[id] || []})), imageCapabilities:context.imageCore.capabilities, skillModels:context.skillModels, defaultSkillModel:context.defaultSkillModel, uploads:context.uploadLimits, tokenLimits:context.tokenLimits,maxTextChars:context.maxTextChars, skills:context.skillCatalog.map(({instructions,...skill})=>skill), ...publicIdentity(account)});
     if (route === '/native/users') {
       if (!account.canManage) throw fault('仅管理员可使用账号管理', 403);
       if (request.method === 'GET') {
@@ -69,7 +85,7 @@ export async function handleNativeRequest(request, env, context) {
       return env.NATIVE_ACCOUNTS.get(env.NATIVE_ACCOUNTS.idFromName('account:'+id)).fetch(new Request('https://native-account.internal/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,username,hash:passwordHash,createdBy:account.accountId})}));
     }
     if (request.method !== 'POST') throw fault('请求方式无效', 405);
-    const body = await request.json();
+    const body = await boundedJson(request,40*1024*1024);
     if (route === '/native/debate-plan') {
       try { return reply({plan:context.debateCore.plan({...body,models:Object.keys(context.models).filter(id=>!context.models[id].image)})}); }
       catch(error) { throw fault(error.message,400); }
@@ -104,10 +120,15 @@ export async function handleNativeRequest(request, env, context) {
     const credentials={user:account.accountId,username:account.accountId,password:account.record.hash,passwordHash:account.record.hash};
     const destination=new URL(path,'https://api.pickandcase.com');
     const init={method,headers:{'Content-Type':'application/json'},signal:request.signal};
-    if (method==='GET') {
-      for(const [key,value] of Object.entries({...payload,user:account.accountId,pass:account.record.hash})) destination.searchParams.set(key,String(value));
-    } else init.body=JSON.stringify({...payload,...credentials});
-    return context.forward(new Request(destination,init));
+    if(method==='GET'){
+      for(const[key,value]of Object.entries({...payload,user:account.accountId,pass:account.record.hash}))destination.searchParams.set(key,String(value));
+      return context.forward(new Request(destination,init));
+    }
+    const authorized={...payload,...credentials};
+    // The Worker already parsed this JSON. Reuse it instead of serializing and parsing large attachments twice.
+    const delegated=new Request(destination,init);
+    Object.defineProperty(delegated,'json',{value:async()=>authorized});
+    return context.forward(delegated,authorized);
   } catch (error) { return reply({error:error.status ? error.message : error instanceof SyntaxError ? '请求格式无效' : '请求暂时不可用，请稍后重试'},error.status || (error instanceof SyntaxError ? 400 : 503)); }
 }
 

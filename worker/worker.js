@@ -705,7 +705,7 @@ var worker_default = {
       });
     }
     const url = new URL(request.url);
-    if(url.pathname.startsWith('/native/'))return handleNativeRequest(request,env,{storageAccountName,accountProfile,publicAccountName,validLoginName,hashText,ownedProject,chatStoragePrefix,validResourceId,models:OFFICIAL_MODELS,efforts:MODEL_EFFORT_LEVELS,skillCatalog,skillModels:SkillModels.names,defaultSkillModel:SkillModels.defaultModel,imageCore:ImageCore,debateCore:DebateCore,ownerAccountId:env.NATIVE_OWNER_ACCOUNT||'',forward:inner=>worker_default.fetch(inner,env)});
+    if(url.pathname.startsWith('/native/'))return handleNativeRequest(request,env,{storageAccountName,accountProfile,publicAccountName,validLoginName,hashText,ownedProject,chatStoragePrefix,validResourceId,models:OFFICIAL_MODELS,efforts:MODEL_EFFORT_LEVELS,skillCatalog,uploadLimits:UPLOAD_LIMITS,tokenLimits:TokenLimits.models,maxTextChars:TokenLimits.maxTextChars,skillModels:SkillModels.names,defaultSkillModel:SkillModels.defaultModel,imageCore:ImageCore,debateCore:DebateCore,ownerAccountId:env.NATIVE_OWNER_ACCOUNT||'',forward:(inner,parsed)=>worker_default.fetch(inner,env,undefined,parsed)});
     if((url.pathname==='/project-upload'&&request.method==='PUT')||(url.pathname==='/project-original'&&request.method==='POST'))return handleProjectTransfer(request,env);
     if(url.pathname==='/model-limits'&&request.method==='GET')return Response.json({checkedAt:'2026-10-30',historyPolicy:'full-history-first',models:TokenLimits.models},{headers:{'Access-Control-Allow-Origin':'*','Cache-Control':'no-store'}});
     if (url.pathname === '/skill-files' && request.method === 'POST') return handleSkillFileRequest(request,env);
@@ -1859,7 +1859,7 @@ const ChatRun = createChatRunClass(executeRun, DebateRun, {
     if(id)await cancelGoogleInteraction(id,env);
   }
 });
-const ProjectScheduler = createProjectScheduler({execute:executeRun,project:ownedProject,models:Object.keys(OFFICIAL_MODELS).filter(id=>!OFFICIAL_MODELS[id].image),credentials:async(env,user)=>{
+const ProjectScheduler = createProjectScheduler({execute:executeRun,project:ownedProject,efforts:MODEL_EFFORT_LEVELS,models:Object.keys(OFFICIAL_MODELS).filter(id=>!OFFICIAL_MODELS[id].image),credentials:async(env,user)=>{
   const record=JSON.parse(await env.MEMORY_KV.get('user:'+user)||'null');
   if(!record?.hash)throw new Error('账号已不可用');
   return {user,username:user,password:record.hash};

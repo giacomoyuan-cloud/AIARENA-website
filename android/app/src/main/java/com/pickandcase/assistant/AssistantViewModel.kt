@@ -101,6 +101,7 @@ data class AssistantState(
     val notice: String = "",
     val connection: String = "",
     val run: JSONObject? = null,
+    val needsHistorySync: Boolean = false,
     val theme: String = "system",
 )
 
@@ -477,6 +478,8 @@ class AssistantViewModel(application: Application, val api: NativeApi = NativeAp
                 imageParent = null,
                 imageMask = null,
                 imageTask = "generation",
+                needsHistorySync = false,
+                loading = false,
                 run = null,
                 busy = false,
                 error = "",
@@ -570,6 +573,7 @@ class AssistantViewModel(application: Application, val api: NativeApi = NativeAp
                 imageParent = null,
                 imageMask = null,
                 imageTask = "generation",
+                needsHistorySync = false,
             )
         }
         val s = mutable.value
@@ -704,45 +708,63 @@ class AssistantViewModel(application: Application, val api: NativeApi = NativeAp
         service("/projects", extra.put("action", action).put("projectId", projectId), onDone)
     }
 
-    fun uploadProject(attachments: List<NativeAttachment>) {
-        val p = mutable.value.project ?: return
+    fun uploadProject(attachments: List<NativeAttachment>, replaceId: String? = null) {
+        val s = mutable.value
+        val p = s.project ?: return
+        val epoch = pageEpoch
+        mutable.update { it.copy(loading = true) }
         viewModelScope.launch {
             try {
-                for (file in attachments) {
-                    require(file.text.isNotBlank()) { "${file.name} 没有可提取的文字，请作为对话附件使用" }
-                    val entry =
-                        json(
-                            "name" to file.name,
-                            "text" to file.text,
-                            "size" to file.size,
-                            "type" to file.mime,
-                            "data" to Base64.encodeToString(file.bytes(), Base64.NO_WRAP),
-                        )
-                    if (file.relativePath.contains('/'))
-                        entry
-                            .put("folder", file.relativePath.substringBefore('/'))
-                            .put("relativePath", file.relativePath.substringAfter('/'))
-                    api.call(
-                        "/projects",
-                        json("action" to "upload", "projectId" to p.str("id"), "file" to entry),
-                    )
+                val uploader = NativeProjectUploads(getApplication(), api)
+                var failed = 0
+                for (attachment in attachments) {
+                    try {
+                        uploader.upload(
+                            s.session!!.accountId,
+                            p.str("id"),
+                            attachment,
+                            replaceId,
+                        ) { label ->
+                            if (account() == s.session.accountId)
+                                mutable.update { it.copy(connection = label) }
+                        }
+                    } catch (error: Exception) {
+                        if (error is CancellationException) throw error
+                        failed++
+                        notice(error.message ?: "原文件已保留，索引尚未完成")
+                    }
                 }
-                openProject(p)
-            } catch (e: Exception) {
-                error(e)
+                if (account() == s.session?.accountId) {
+                    mutable.update { it.copy(loading = false, connection = "已连接") }
+                    if (epoch == pageEpoch && mutable.value.page == Page.PROJECT) openProject(p)
+                    notice(if (failed == 0) "资料已导入，可供 AI 查阅" else "$failed 份资料尚需解析，原文件已保留，可下载后检查")
+                }
+            } catch (error: Exception) {
+                error(error)
             }
         }
     }
 
-    fun importProjectFiles(uris: List<Uri>) {
+    fun importProjectFiles(uris: List<Uri>, replaceId: String? = null) {
         viewModelScope.launch {
             try {
                 mutable.update { it.copy(loading = true) }
-                val imported = withContext(Dispatchers.IO) { uris.flatMap(files::import) }
-                uploadProject(imported)
-                mutable.update { it.copy(loading = false) }
-            } catch (e: Exception) {
-                error(e)
+                val imported = withContext(Dispatchers.IO) { uris.flatMap(files::projectImport) }
+                uploadProject(imported, replaceId)
+            } catch (error: Exception) {
+                error(error)
+            }
+        }
+    }
+
+    fun importProjectFolder(uri: Uri) {
+        viewModelScope.launch {
+            try {
+                mutable.update { it.copy(loading = true) }
+                val entries = withContext(Dispatchers.IO) { files.projectFolder(uri) }
+                uploadProject(entries)
+            } catch (error: Exception) {
+                error(error)
             }
         }
     }
@@ -752,20 +774,46 @@ class AssistantViewModel(application: Application, val api: NativeApi = NativeAp
     }
 
     fun downloadProjectFile(file: JSONObject) {
-        service("/projects", json("action" to "download", "fileId" to file.str("id"))) { response ->
-            val source = response.obj("file")
-            val name = source.str("name", file.str("name", "document"))
-            val target =
-                File(
-                    getApplication<Application>().filesDir,
-                    "attachments/" +
-                        UUID.randomUUID().toString() +
-                        "-" +
-                        name.replace(Regex("[^\\p{L}\\p{N}._-]"), "_"),
+        val s = mutable.value
+        viewModelScope.launch {
+            try {
+                val target =
+                    File(
+                        getApplication<Application>().filesDir,
+                        "attachments/" +
+                            UUID.randomUUID().toString() +
+                            "-" +
+                            file.str("name", "document").replace(Regex("[^\\p{L}\\p{N}._-]"), "_"),
+                    )
+                target.parentFile?.mkdirs()
+                val mime =
+                    api.download(
+                        "/projects",
+                        projectPayload(s).put("action", "download").put("fileId", file.str("id")),
+                        target,
+                    )
+                if (account() == s.session?.accountId)
+                    export(target, mime, file.str("name", target.name))
+            } catch (error: Exception) {
+                error(error)
+            }
+        }
+    }
+
+    fun refreshTasks() {
+        val s = mutable.value
+        viewModelScope.launch {
+            try {
+                val result = api.call("/schedules", projectPayload(s).put("action", "list"))
+                if (
+                    mutable.value.page == Page.TASKS &&
+                        account() == s.session?.accountId &&
+                        scope() == scope(s)
                 )
-            target.parentFile?.mkdirs()
-            target.writeBytes(Base64.decode(source.str("data"), Base64.DEFAULT))
-            export(target, source.str("type", "application/octet-stream"), name)
+                    mutable.update { it.copy(data = result) }
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+            }
         }
     }
 
@@ -930,7 +978,22 @@ class AssistantViewModel(application: Application, val api: NativeApi = NativeAp
         }
     }
 
-    fun fork(message: JSONObject, edited: String? = null) {
+    private suspend fun replayUserInput(user: JSONObject) =
+        withContext(Dispatchers.IO) {
+            nativeImageItems(user).map { reference ->
+                val mime = reference.str("mime", "image/png")
+                val file = files.image(reference.str("data"), mime)
+                NativeAttachment(
+                    UUID.randomUUID().toString(),
+                    "参考图片." + file.extension,
+                    mime,
+                    file.path,
+                    file.length(),
+                )
+            } + user.arr("pastedTexts").strings().map { files.replayText(it) }
+        }
+
+    fun fork(message: JSONObject, edited: String? = null, restoreAttachments: Boolean = true) {
         val all = mutable.value.messages
         val index = all.indexOfFirst { it.optLong("uid") == message.optLong("uid") }
         val user =
@@ -943,7 +1006,103 @@ class AssistantViewModel(application: Application, val api: NativeApi = NativeAp
                 messages = before,
                 draft = edited ?: user.str("topicText", user.str("text")),
                 title = "分支 · " + user.str("text").take(36),
+                needsHistorySync = before.isNotEmpty(),
+                quote = user.optJSONObject("_quote"),
             )
+        }
+        if (
+            restoreAttachments &&
+                (nativeImageItems(user).isNotEmpty() || user.arr("pastedTexts").length() > 0)
+        ) {
+            val branch = mutable.value
+            mutable.update { it.copy(loading = true) }
+            viewModelScope.launch {
+                try {
+                    val attachments = replayUserInput(user)
+                    if (
+                        mutable.value.chatId == branch.chatId &&
+                            account() == branch.session?.accountId
+                    )
+                        mutable.update { it.copy(attachments = attachments, loading = false) }
+                } catch (failure: Exception) {
+                    if (mutable.value.chatId == branch.chatId) {
+                        mutable.update { it.copy(loading = false) }
+                        error(failure)
+                    }
+                }
+            }
+        }
+    }
+
+    fun regenerate(message: JSONObject) {
+        val original = mutable.value
+        if (original.busy) return
+        viewModelScope.launch {
+            try {
+                val turn = message.optJSONObject("imageTurn")
+                val index =
+                    original.messages.indexOfFirst { it.optLong("uid") == message.optLong("uid") }
+                val user =
+                    original.messages.take(index).lastOrNull { it.optBoolean("isUser") }
+                        ?: return@launch
+                val references =
+                    withContext(Dispatchers.IO) {
+                        turn?.arr("references")?.objects().orEmpty().map { reference ->
+                            val mime = reference.str("mime", "image/png")
+                            val file = files.image(reference.str("data"), mime)
+                            NativeAttachment(
+                                UUID.randomUUID().toString(),
+                                "参考图片." + file.extension,
+                                mime,
+                                file.path,
+                                file.length(),
+                            )
+                        }
+                    }
+                val inputs = if (turn == null) replayUserInput(user) else references
+                if (
+                    mutable.value.chatId != original.chatId ||
+                        account() != original.session?.accountId
+                )
+                    return@launch
+                fork(message, restoreAttachments = false)
+                if (turn == null) mutable.update { it.copy(attachments = inputs) }
+                if (turn != null) {
+                    val mask =
+                        withContext(Dispatchers.IO) {
+                            turn.optJSONObject("mask")?.let { value ->
+                                val file = files.image(value.str("data"), "image/png")
+                                NativeAttachment(
+                                    UUID.randomUUID().toString(),
+                                    "修改区域.png",
+                                    "image/png",
+                                    file.path,
+                                    file.length(),
+                                )
+                            }
+                        }
+                    mutable.update {
+                        it.copy(
+                            mode = "image",
+                            imageModel = message.str("submodel", it.imageModel),
+                            imageSettings = message.obj("imageSettings").copyJson(),
+                            imageTask =
+                                turn.str(
+                                    "task",
+                                    if (references.isEmpty()) "generation"
+                                    else if (references.size == 1) "edit" else "multi-edit",
+                                ),
+                            attachments = references,
+                            imageMask = mask,
+                            imageParent = turn.optLong("parentUid").takeIf { id -> id != 0L },
+                            draft = turn.str("prompt", it.draft),
+                        )
+                    }
+                }
+                send()
+            } catch (error: Exception) {
+                error(error)
+            }
         }
     }
 
@@ -954,6 +1113,16 @@ class AssistantViewModel(application: Application, val api: NativeApi = NativeAp
         rememberView()
         viewModelScope.launch {
             try {
+                if (s.needsHistorySync) {
+                    saveChat(s)
+                    mutable.update { it.copy(needsHistorySync = false) }
+                }
+                if (
+                    mutable.value.chatId != s.chatId ||
+                        scope() != scope(s) ||
+                        account() != s.session?.accountId
+                )
+                    return@launch
                 when (s.mode) {
                     "image" -> sendImage(s)
                     "debate" -> sendDebate(s)
@@ -969,23 +1138,42 @@ class AssistantViewModel(application: Application, val api: NativeApi = NativeAp
     private fun userMessage(s: AssistantState, uid: Long): JSONObject {
         val text = (s.quote?.let { "引用 ${it.str("author")}：${it.str("text")}\n\n" } ?: "") + s.draft
         return json(
-            "uid" to uid,
-            "isUser" to true,
-            "brand" to "user",
-            "name" to s.session?.profile?.str("displayName", "用户"),
-            "text" to text,
-            "topicText" to s.draft,
-            "chatMode" to s.mode,
-            "_quote" to s.quote,
-            "pastedTexts" to
-                JSONArray(
-                    s.attachments.filterNot { it.image }.map { "[文件: ${it.name}]\n" + it.text }
-                ),
-        )
+                "uid" to uid,
+                "isUser" to true,
+                "brand" to "user",
+                "name" to s.session?.profile?.str("displayName", "用户"),
+                "text" to text,
+                "topicText" to s.draft,
+                "chatMode" to s.mode,
+                "_quote" to s.quote,
+                "pastedTexts" to
+                    JSONArray(
+                        s.attachments.filterNot { it.image }.map { "[文件: ${it.name}]\n" + it.text }
+                    ),
+            )
+            .apply {
+                if (s.mode == "chat")
+                    put(
+                        "imgSrcs",
+                        JSONArray(
+                            s.attachments
+                                .filter { it.image }
+                                .map {
+                                    "data:" +
+                                        it.mime +
+                                        ";base64," +
+                                        Base64.encodeToString(it.bytes(), Base64.NO_WRAP)
+                                }
+                        ),
+                    )
+            }
     }
 
     private suspend fun sendChat(s: AssistantState) {
-        require(s.draft.length + s.attachments.sumOf { it.text.length } <= 50000) {
+        require(
+            s.draft.length + s.attachments.sumOf { it.text.length } <=
+                s.catalog.optInt("maxTextChars", 8 * 1024 * 1024)
+        ) {
             "内容较长，请先加入项目资料再提问"
         }
         val uid = System.currentTimeMillis()
@@ -1010,7 +1198,16 @@ class AssistantViewModel(application: Application, val api: NativeApi = NativeAp
                         "projectId" to s.project?.str("id"),
                     ),
             )
-        val history = JSONArray(s.messages.takeLast(16))
+        val history =
+            JSONArray(
+                s.messages.takeLast(3000).map {
+                    json(
+                        "uid" to it.optLong("uid"),
+                        "role" to if (it.optBoolean("isUser")) "user" else "assistant",
+                        "text" to it.str("text"),
+                    )
+                }
+            )
         val question =
             user.str("text") +
                 (s.attachments
@@ -1028,6 +1225,23 @@ class AssistantViewModel(application: Application, val api: NativeApi = NativeAp
                 "historyEndUid" to s.messages.lastOrNull()?.optLong("uid"),
                 "skills" to s.skills,
                 "files" to JSONArray(docs.map { it.skillFile() }),
+                "skillSession" to
+                    s.messages
+                        .lastOrNull { it.str("skillSession").isNotBlank() }
+                        ?.str("skillSession"),
+                "artifactInputs" to
+                    JSONArray(
+                        s.messages
+                            .flatMap { it.arr("artifacts").objects() }
+                            .filter {
+                                !it.optBoolean("deleted") &&
+                                    !it.optBoolean("expired") &&
+                                    (!it.has("expiresAt") ||
+                                        it.optLong("expiresAt") > System.currentTimeMillis())
+                            }
+                            .distinctBy { it.str("token") }
+                            .takeLast(5)
+                    ),
                 "incognito" to s.incognito,
             )
         val payload =
@@ -1060,7 +1274,7 @@ class AssistantViewModel(application: Application, val api: NativeApi = NativeAp
         activeRun = ref
         try {
             startRun("/chat-runs", ref, "payload", payload)
-            watchChat(ref)
+            if (mutable.value.chatId == s.chatId && scope() == scope(s)) watchChat(ref)
         } catch (e: Exception) {
             updateMessage(replyUid) { it.put("isError", true).put("text", e.message) }
             mutable.update { it.copy(busy = false) }
@@ -1193,6 +1407,7 @@ class AssistantViewModel(application: Application, val api: NativeApi = NativeAp
                     mutable.update {
                         it.copy(busy = false, connection = if (completed) "已连接" else "任务已保留，可重新连接")
                     }
+                    if (completed) updateMemoryAfterChat()
                     runCatching { saveChat() }.onFailure { error(it) }
                     loadHistory()
                 }
@@ -1202,7 +1417,12 @@ class AssistantViewModel(application: Application, val api: NativeApi = NativeAp
     private fun updateMemoryAfterChat() {
         val s = mutable.value
         val last = s.messages.lastOrNull { !it.optBoolean("isUser") } ?: return
-        if (s.incognito || last.optBoolean("isError") || last.optBoolean("nativeMemoryHandled"))
+        if (
+            s.incognito ||
+                last.optBoolean("isError") ||
+                last.obj("run").str("status") != "completed" ||
+                last.optBoolean("nativeMemoryHandled")
+        )
             return
         updateMessage(last.optLong("uid")) { it.put("nativeMemoryHandled", true) }
         val countKey = "memory-turn:" + account() + ":" + scope(s)
@@ -1326,6 +1546,8 @@ class AssistantViewModel(application: Application, val api: NativeApi = NativeAp
                 "imageTurn" to
                     json(
                         "prompt" to s.draft,
+                        "task" to task,
+                        "mask" to s.imageMask?.reference(),
                         "parentUid" to s.imageParent,
                         "references" to JSONArray(references.map { it.reference() }),
                     ),
@@ -1432,12 +1654,7 @@ class AssistantViewModel(application: Application, val api: NativeApi = NativeAp
     fun editImage(message: JSONObject, index: Int) {
         viewModelScope.launch {
             try {
-                val item =
-                    message.arr("imgItems").optJSONObject(index)
-                        ?: json(
-                            "data" to message.str("imgData"),
-                            "mime" to message.str("imgMime", "image/png"),
-                        )
+                val item = nativeImageItems(message).getOrNull(index) ?: return@launch
                 val file =
                     withContext(Dispatchers.IO) {
                         if (
@@ -1496,6 +1713,12 @@ class AssistantViewModel(application: Application, val api: NativeApi = NativeAp
                 )
                 .put("contractVersion", "studio-v3")
         val plan = api.route("debate-plan", config).obj("plan")
+        if (
+            mutable.value.chatId != s.chatId ||
+                scope() != scope(s) ||
+                account() != s.session?.accountId
+        )
+            return
         val ids = (0 until plan.arr("turns").length()).map { uid + it + 1 }
         val input =
             json(
@@ -1524,7 +1747,7 @@ class AssistantViewModel(application: Application, val api: NativeApi = NativeAp
         val ref = projectPayload(s).put("runId", runId).put("chatId", s.chatId)
         activeRun = ref
         startRun("/debate-runs", ref, "input", input)
-        watchDebate(ref)
+        if (mutable.value.chatId == s.chatId && scope() == scope(s)) watchDebate(ref)
     }
 
     private fun watchDebate(ref: JSONObject) {
@@ -1650,12 +1873,7 @@ class AssistantViewModel(application: Application, val api: NativeApi = NativeAp
     fun imageFile(message: JSONObject, index: Int, onFile: (File, String) -> Unit) {
         viewModelScope.launch {
             try {
-                val item =
-                    message.arr("imgItems").optJSONObject(index)
-                        ?: json(
-                            "data" to message.str("imgData"),
-                            "mime" to message.str("imgMime", "image/png"),
-                        )
+                val item = nativeImageItems(message).getOrNull(index) ?: return@launch
                 val file =
                     withContext(Dispatchers.IO) {
                         if (

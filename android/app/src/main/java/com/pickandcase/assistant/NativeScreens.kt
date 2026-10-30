@@ -35,6 +35,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.repeatOnLifecycle
 import java.io.ByteArrayOutputStream
 import java.text.DateFormat
 import java.time.Instant
@@ -114,6 +115,31 @@ fun dateLabel(value: Any?): String =
 
 @Composable
 fun SettingsScreen(s: AssistantState, vm: AssistantViewModel, onLogout: () -> Unit) {
+    var licenses by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    if (licenses) {
+        val notice = remember {
+            listOf(
+                    "open-source-notices.txt",
+                    "licenses/Apache-2.0.txt",
+                    "licenses/GPL-2.0.txt",
+                    "licenses/JLaTeXMath-exception.txt",
+                )
+                .joinToString("\n\n") {
+                    context.assets.open(it).bufferedReader().use { reader -> reader.readText() }
+                }
+        }
+        AlertDialog(
+            onDismissRequest = { licenses = false },
+            title = { Text("开源许可") },
+            text = {
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    Text(notice, style = MaterialTheme.typography.bodySmall)
+                }
+            },
+            confirmButton = { TextButton(onClick = { licenses = false }) { Text("关闭") } },
+        )
+    }
     NativePage {
         Text(
             s.session?.profile?.str("displayName", "我的账号").orEmpty(),
@@ -149,6 +175,7 @@ fun SettingsScreen(s: AssistantState, vm: AssistantViewModel, onLogout: () -> Un
         ChoiceField("外观", s.theme, listOf("system" to "跟随系统", "light" to "浅色", "dark" to "深色")) {
             vm.theme(it)
         }
+        OutlinedCard { SettingRow("开源许可", Icons.Outlined.Info) { licenses = true } }
         if (s.session?.canManage == true)
             OutlinedCard {
                 SettingRow(
@@ -752,12 +779,41 @@ fun ProjectScreen(s: AssistantState, vm: AssistantViewModel) {
         rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
             vm.importProjectFiles(uris)
         }
+    var replacement by rememberSaveable { mutableStateOf("") }
+    val updatePicker =
+        rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+            if (uri != null) vm.importProjectFiles(listOf(uri), replacement)
+        }
+    val folderPicker =
+        rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+            if (uri != null) vm.importProjectFolder(uri)
+        }
     NativePage {
         Text(project.str("name"), style = MaterialTheme.typography.headlineMedium)
         Text(
             project.str("instructions").ifBlank { "项目内的对话、记忆和资料独立保存。" },
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        ChoiceField(
+            "资料阅读方式",
+            project.str("readingMode", "retrieve"),
+            listOf("retrieve" to "按需检索", "full" to "整份阅读"),
+        ) { mode ->
+            vm.projectAction("update", project.str("id"), json("readingMode" to mode)) {
+                vm.openProject(project)
+            }
+        }
+        Text(
+            if (project.str("readingMode", "retrieve") == "full")
+                "每次提问逐段阅读全部资料。未完成会明确提示，不会把部分阅读当作全文。"
+            else "根据问题检索相关片段，适合日常提问。",
+            style = MaterialTheme.typography.bodySmall,
+        )
+        TextButton(onClick = { folderPicker.launch(null) }) {
+            Icon(Icons.Outlined.CreateNewFolder, null)
+            Spacer(Modifier.width(8.dp))
+            Text("导入文件夹")
+        }
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = { vm.newChat() }) {
                 Icon(Icons.Outlined.Add, null)
@@ -789,7 +845,12 @@ fun ProjectScreen(s: AssistantState, vm: AssistantViewModel) {
         project.arr("files").objects().forEach { file ->
             OutlinedCard {
                 Column(Modifier.padding(14.dp)) {
-                    Text(file.str("relativePath", file.str("name")), fontWeight = FontWeight.Medium)
+                    Text(
+                        listOf(file.str("folder"), file.str("relativePath", file.str("name")))
+                            .filter { it.isNotBlank() }
+                            .joinToString("/"),
+                        fontWeight = FontWeight.Medium,
+                    )
                     Text(
                         "${file.optLong("characters")} 字 · ${file.optLong("size")/1024} KB",
                         style = MaterialTheme.typography.bodySmall,
@@ -805,13 +866,34 @@ fun ProjectScreen(s: AssistantState, vm: AssistantViewModel) {
                                         "fileId" to file.str("id"),
                                     ),
                                 ) {
-                                    preview = it.obj("file")
+                                    preview =
+                                        it.obj("file").copyJson().apply {
+                                            if (it.has("segments"))
+                                                put(
+                                                    "text",
+                                                    it.arr("segments").objects().joinToString(
+                                                        "\n\n"
+                                                    ) { segment ->
+                                                        segment.str("location") +
+                                                            "\n" +
+                                                            segment.str("text")
+                                                    },
+                                                )
+                                        }
                                 }
                             }
                         ) {
                             Text("预览")
                         }
                         TextButton(onClick = { vm.downloadProjectFile(file) }) { Text("下载原文件") }
+                        TextButton(
+                            onClick = {
+                                replacement = file.str("id")
+                                updatePicker.launch(arrayOf("*/*"))
+                            }
+                        ) {
+                            Text("更新")
+                        }
                         TextButton(
                             onClick = {
                                 vm.projectAction(
@@ -906,9 +988,28 @@ fun ProjectScreen(s: AssistantState, vm: AssistantViewModel) {
 
 @Composable
 fun TasksScreen(s: AssistantState, vm: AssistantViewModel) {
+    val lifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    LaunchedEffect(Unit) {
+        lifecycle.lifecycle.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
+            while (true) {
+                kotlinx.coroutines.delay(2000)
+                val tasks = vm.state.value.data.arr("tasks").objects()
+                if (
+                    tasks.any {
+                        it.str("status") == "running" ||
+                            (it.optBoolean("enabled") &&
+                                it.optLong("nextRunAt") > 0 &&
+                                it.optLong("nextRunAt") <= System.currentTimeMillis() + 5000)
+                    }
+                )
+                    vm.refreshTasks()
+            }
+        }
+    }
     var editing by remember { mutableStateOf<JSONObject?>(null) }
     var create by remember { mutableStateOf(false) }
     var history by remember { mutableStateOf<JSONObject?>(null) }
+    var deleting by remember { mutableStateOf<JSONObject?>(null) }
     LazyColumn(
         Modifier.fillMaxSize(),
         contentPadding = PaddingValues(20.dp),
@@ -959,13 +1060,30 @@ fun TasksScreen(s: AssistantState, vm: AssistantViewModel) {
                         TextButton(onClick = { editing = task }) { Text("编辑") }
                         TextButton(onClick = { vm.taskAction("run", task) }) { Text("立即执行") }
                         TextButton(onClick = { history = task }) { Text("执行记录") }
-                        TextButton(onClick = { vm.taskAction("delete", task) }) { Text("删除") }
+                        TextButton(onClick = { deleting = task }) { Text("删除") }
                     }
                 }
             }
         }
         if (s.data.arr("tasks").length() == 0) item { EmptyState("创建任务，在指定时间自动处理问题。") }
     }
+    if (deleting != null)
+        AlertDialog(
+            onDismissRequest = { deleting = null },
+            title = { Text("删除定时任务？") },
+            text = { Text("删除后不再自动执行此任务。") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        vm.taskAction("delete", deleting!!)
+                        deleting = null
+                    }
+                ) {
+                    Text("删除")
+                }
+            },
+            dismissButton = { TextButton(onClick = { deleting = null }) { Text("取消") } },
+        )
     if (create || editing != null)
         TaskEditor(
             editing,
@@ -1017,11 +1135,34 @@ private fun TaskEditor(
     var zone by rememberSaveable {
         mutableStateOf(task?.obj("schedule")?.str("timeZone") ?: ZoneId.systemDefault().id)
     }
-    var time by rememberSaveable { mutableStateOf(task?.obj("schedule")?.str("time") ?: "09:00") }
+    val originalOnce =
+        remember(task?.str("id")) {
+            runCatching {
+                    java.time.Instant.parse(task?.obj("schedule")?.str("at"))
+                        .atZone(ZoneId.of(zone))
+                }
+                .getOrNull()
+        }
+    var time by rememberSaveable {
+        mutableStateOf(
+            originalOnce
+                ?.toLocalTime()
+                ?.format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))
+                ?: task?.obj("schedule")?.str("time")?.ifBlank { null }
+                ?: "09:00"
+        )
+    }
     var day by rememberSaveable { mutableStateOf(task?.obj("schedule")?.optInt("day", 1) ?: 1) }
-    var date by rememberSaveable { mutableStateOf(LocalDate.now().plusDays(1).toString()) }
+    var date by rememberSaveable {
+        mutableStateOf(
+            originalOnce?.toLocalDate()?.toString() ?: LocalDate.now().plusDays(1).toString()
+        )
+    }
     var search by rememberSaveable { mutableStateOf(task?.optBoolean("search") ?: false) }
     val id = remember { task?.str("id") ?: UUID.randomUUID().toString() }
+    var effort by rememberSaveable {
+        mutableStateOf(task?.str("effort")?.ifBlank { null } ?: vm.savedEffort(model))
+    }
     val context = LocalContext.current
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
@@ -1057,6 +1198,22 @@ private fun TaskEditor(
             ) {
                 model = it
             }
+            val levels =
+                s.catalog
+                    .arr("models")
+                    .objects()
+                    .find { it.str("id") == model }
+                    ?.arr("levels")
+                    ?.strings()
+                    .orEmpty()
+            if (levels.isNotEmpty())
+                OrderedSlider(
+                    "思考深度",
+                    levels.map { it to effortLabel(it) },
+                    effort.takeIf { it in levels } ?: levels.first(),
+                ) {
+                    effort = it
+                }
             ChoiceField(
                 "重复",
                 frequency,
@@ -1148,6 +1305,7 @@ private fun TaskEditor(
                                     "name" to name,
                                     "prompt" to prompt,
                                     "model" to model,
+                                    "effort" to effort.takeIf { it in levels },
                                     "schedule" to schedule,
                                     "search" to search,
                                     "enabled" to true,
@@ -1349,21 +1507,5 @@ fun UsageScreen(s: AssistantState, vm: AssistantViewModel) {
         )
         OutlinedButton(onClick = { vm.loadUsage(all) }) { Text("刷新用量") }
     }
-    if (receipt != null)
-        AlertDialog(
-            onDismissRequest = { receipt = null },
-            title = { Text("请求明细") },
-            text = {
-                Column(Modifier.verticalScroll(rememberScrollState())) {
-                    Text(vm.modelName(receipt!!.str("model")))
-                    Text(dateLabel(receipt!!.opt("at")))
-                    Text(receipt!!.str("status"))
-                    val tokens = receipt!!.obj("tokens")
-                    Text("输入：" + tokens.str("input", "官方未提供"))
-                    Text("输出：" + tokens.str("output", "官方未提供"))
-                    Text("金额：" + receipt!!.obj("cost").str("usd", "以官方账单为准"))
-                }
-            },
-            confirmButton = { TextButton(onClick = { receipt = null }) { Text("关闭") } },
-        )
+    if (receipt != null) NativeUsageReceipt(receipt!!) { receipt = null }
 }
