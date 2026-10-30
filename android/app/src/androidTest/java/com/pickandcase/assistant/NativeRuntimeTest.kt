@@ -35,7 +35,7 @@ class NativeRuntimeTest : NativeHarness() {
     fun management_creates_a_web_compatible_account_and_other_accounts_cannot_manage() {
         login()
         model { it.navigate(Page.SETTINGS) }
-        ui.onNodeWithTag("admin-menu").assertExists().performClick()
+        ui.onNodeWithTag("admin-menu").performScrollTo().assertIsDisplayed().performClick()
         waitFor("admin-username")
         val username = "qa-native-" + System.currentTimeMillis()
         ui.onNodeWithTag("admin-username").performTextInput(username)
@@ -55,7 +55,7 @@ class NativeRuntimeTest : NativeHarness() {
         assertFalse(NativeSession(app).load()!!.canManage)
         val api = NativeApi(base).apply { token = NativeSession(app).load()!!.token }
         val denied = runBlocking { runCatching { api.route("users") }.exceptionOrNull() }
-        assertTrue(denied is ApiFailure && (denied as ApiFailure).status == 403)
+        assertTrue("Expected403, got=" + denied?.javaClass?.simpleName + ":" + (denied as? ApiFailure)?.status, denied is ApiFailure && (denied as ApiFailure).status == 403)
         screenshot("native-ordinary-settings")
     }
 

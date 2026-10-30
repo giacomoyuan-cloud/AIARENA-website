@@ -93,7 +93,7 @@ data class AssistantState(
     val quote: JSONObject? = null,
     val imageParent: Long? = null,
     val imageMask: NativeAttachment? = null,
-    val search: Boolean = false,
+    val search: Boolean = true,
     val incognito: Boolean = false,
     val busy: Boolean = false,
     val loading: Boolean = false,
@@ -107,13 +107,21 @@ data class AssistantState(
 
 class AssistantViewModel(application: Application, val api: NativeApi = NativeApi()) :
     AndroidViewModel(application) {
+    val updates = NativeUpdates(application, viewModelScope)
+    val clientContract = NativeClientContract(application)
     val files = NativeFiles(application)
     private val sessions = NativeSession(application)
     private val cache = NativeCache(application)
     private val preferences = application.getSharedPreferences("native_preferences_v2", 0)
     private val mutable =
         MutableStateFlow(
-            AssistantState(theme = preferences.getString("theme", "system") ?: "system")
+            AssistantState(
+                model = clientContract.defaultModel,
+                effort = clientContract.defaultEffort(clientContract.defaultModel),
+                imageModel = clientContract.defaultImageModel,
+                search = clientContract.searchDefault,
+                theme = preferences.getString("theme", "system") ?: "system"
+            )
         )
     val state = mutable.asStateFlow()
     private val pendingExport = MutableStateFlow<NativeExport?>(null)
@@ -171,6 +179,7 @@ class AssistantViewModel(application: Application, val api: NativeApi = NativeAp
     }
 
     init {
+        updates.automaticCheck()
         runCatching { sessions.load() }
             .onSuccess { saved ->
                 if (saved != null) {
@@ -264,12 +273,12 @@ class AssistantViewModel(application: Application, val api: NativeApi = NativeAp
                 .getOrDefault(JSONObject())
         mutable.update {
             it.copy(
-                model = saved.str("model", "gpt-6.1-sol"),
-                effort = saved.str("effort", "low"),
-                imageModel = saved.str("imageModel", "gpt-image-2.5-sunburst"),
+                model = clientContract.chat(saved.str("model")),
+                effort = clientContract.effort(clientContract.chat(saved.str("model")), saved.str("effort")),
+                imageModel = clientContract.image(saved.str("imageModel")),
                 skills = saved.optJSONObject("skills") ?: it.skills,
                 debate =
-                    (saved.optJSONObject("debate") ?: it.debate).copyJson().apply {
+                    clientContract.debate(saved.optJSONObject("debate") ?: it.debate).apply {
                         remove("priorRunId")
                     },
                 imageSettings = saved.optJSONObject("imageSettings") ?: it.imageSettings,
@@ -277,7 +286,8 @@ class AssistantViewModel(application: Application, val api: NativeApi = NativeAp
         }
         runCatching { cache.get(account(), "general", "catalog") }
             .getOrNull()
-            ?.let { value -> mutable.update { it.copy(catalog = value) } }
+            ?.let { value -> mutable.update { it.copy(catalog = clientContract.catalog(value)) } }
+        savePreferences()
     }
 
     private fun restoreLastView() {
@@ -339,10 +349,10 @@ class AssistantViewModel(application: Application, val api: NativeApi = NativeAp
                     SavedSession(old.token, result.obj("profile"), result.optBoolean("canManage"))
                 withContext(Dispatchers.IO) {
                     sessions.save(saved)
-                    cache.put(saved.accountId, "general", "catalog", result)
+                    cache.put(saved.accountId, "general", "catalog", clientContract.catalog(result))
                 }
                 mutable.update {
-                    it.copy(session = saved, catalog = result, connection = "已连接", error = "")
+                    it.copy(session = saved, catalog = clientContract.catalog(result), connection = "已连接", error = "")
                 }
                 loadHistory()
             } catch (e: Exception) {
@@ -382,13 +392,15 @@ class AssistantViewModel(application: Application, val api: NativeApi = NativeAp
     }
 
     fun model(id: String, effort: String) {
-        mutable.update { it.copy(model = id, effort = effort) }
-        preferences.edit().putString("effort:" + account() + ":" + id, effort).apply()
+        val selected = clientContract.chat(id)
+        val depth = clientContract.effort(selected, effort)
+        mutable.update { it.copy(model = selected, effort = depth) }
+        preferences.edit().putString("effort:" + account() + ":" + selected, depth).apply()
         savePreferences()
     }
 
     fun savedEffort(id: String) =
-        preferences.getString("effort:" + account() + ":" + id, "low") ?: "low"
+        clientContract.effort(id, preferences.getString("effort:" + account() + ":" + id, null).orEmpty())
 
     fun search(value: Boolean) {
         mutable.update { it.copy(search = value) }
@@ -406,7 +418,7 @@ class AssistantViewModel(application: Application, val api: NativeApi = NativeAp
 
     fun imageConfig(model: String, task: String, settings: JSONObject) {
         mutable.update {
-            it.copy(imageModel = model, imageTask = task, imageSettings = settings.copyJson())
+            it.copy(imageModel = clientContract.image(model), imageTask = task, imageSettings = settings.copyJson())
         }
         preferences
             .edit()
@@ -425,7 +437,7 @@ class AssistantViewModel(application: Application, val api: NativeApi = NativeAp
     }
 
     fun debateConfig(value: JSONObject) {
-        mutable.update { it.copy(debate = value.copyJson()) }
+        mutable.update { it.copy(debate = clientContract.debate(value)) }
         savePreferences()
     }
 
@@ -436,7 +448,7 @@ class AssistantViewModel(application: Application, val api: NativeApi = NativeAp
                 value.arr("ids").strings().any { id ->
                     catalog.arr("skills").objects().any {
                         it.str("id") == id &&
-                            (it.optBoolean("official") || it.str("kind") == "compute")
+                            it.requiresHostedSkill()
                     }
                 }
         mutable.update { it.copy(skills = value.copyJson()) }
@@ -829,6 +841,43 @@ class AssistantViewModel(application: Application, val api: NativeApi = NativeAp
         }
     }
 
+    fun taskHistory(task: JSONObject, after: String? = null, onDone: (JSONObject?) -> Unit) {
+        val session = mutable.value.session
+        viewModelScope.launch {
+            try {
+                val payload = json("action" to "history", "id" to task.str("id"), "projectId" to task.opt("projectId"))
+                if (after != null) payload.put("after", after)
+                val result = api.call("/schedules", payload)
+                if (mutable.value.session?.token == session?.token) onDone(result)
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                if (mutable.value.session?.token == session?.token) {
+                    if (after == null && e is ApiFailure && e.status == 400 && e.message.orEmpty().contains("未知任务操作"))
+                        onDone(json("runs" to task.arr("history"), "next" to JSONObject.NULL))
+                    else { error(e); onDone(null) }
+                }
+            }
+        }
+    }
+
+    fun observeTaskRun(task: JSONObject, run: JSONObject, onUpdate: (JSONObject) -> Unit): Job {
+        val session = mutable.value.session
+        return viewModelScope.launch {
+            try {
+                while (isActive) {
+                    val result = api.call("/chat-runs", json("action" to "status", "runId" to run.str("runId"), "chatId" to run.str("chatId"), "projectId" to if (run.has("projectId")) run.opt("projectId") else task.opt("projectId")))
+                    if (mutable.value.session?.token != session?.token) return@launch
+                    onUpdate(result)
+                    if (result.str("status") != "running") break
+                    delay(1500)
+                }
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                if (mutable.value.session?.token == session?.token) onUpdate(json("error" to (e.message ?: "读取执行记录失败")))
+            }
+        }
+    }
+
     fun openTaskChat(task: JSONObject, chatId: String) {
         if (chatId.isBlank()) {
             notice("该次任务还没有生成对话")
@@ -1084,7 +1133,7 @@ class AssistantViewModel(application: Application, val api: NativeApi = NativeAp
                     mutable.update {
                         it.copy(
                             mode = "image",
-                            imageModel = message.str("submodel", it.imageModel),
+                            imageModel = clientContract.image(message.str("submodel", it.imageModel)),
                             imageSettings = message.obj("imageSettings").copyJson(),
                             imageTask =
                                 turn.str(
@@ -1675,7 +1724,7 @@ class AssistantViewModel(application: Application, val api: NativeApi = NativeAp
                 mutable.update {
                     it.copy(
                         mode = "image",
-                        imageModel = message.str("submodel", it.imageModel),
+                        imageModel = clientContract.image(message.str("submodel", it.imageModel)),
                         imageTask = "edit",
                         attachments = listOf(attachment),
                         imageParent =
@@ -1934,4 +1983,9 @@ class AssistantViewModel(application: Application, val api: NativeApi = NativeAp
             }
         }
     }
+    override fun onCleared() {
+        updates.close()
+        super.onCleared()
+    }
+
 }

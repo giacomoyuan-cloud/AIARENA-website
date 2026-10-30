@@ -26,16 +26,22 @@
 
 ## 验收
 
-`NativeRuntimeTest` / `NativeFeatureRuntimeTest` 在专用模拟器连接隔离合成后端，测试加密会话、管理权限、对话/分支/附件、思考滑块、历史、三种讨论、失败恢复、图片生成/单图/多图编辑、原图保存、蒙版、私有资料上传/版本/下载、Office/ZIP 解析、定时任务、Skills/提示词/记忆/用量页面。隔离服务拒绝真实供应商网络调用；合成文本执行器仅接受 Sol 6.1 Low。
+原生测试在专用模拟器连接完整 Worker、ChatRun、项目与调度实现。供应商响应在进程内模拟，外部模型网络封闭。覆盖加密会话、管理权限、对话/分支/附件、滑块、历史、三种讨论、失败恢复、全部图片供应商协议、蒙版/原图保存、私有资料/版本/下载、PDF/Office/ZIP 解析、定时任务、完整执行历史、独立日志回放、Skills 文件下载/删除、提示词/记忆/用量与主题。
 
 ```sh
-node scripts/native-qa-server.mjs
+NATIVE_QA_FULL_WORKER=1 node scripts/native-qa-server.mjs
 # 在专用模拟器安装 debug 与 androidTest APK 后，显式指定设备：
 adb -s emulator-5562 shell am instrument -w \
-  -e class com.pickandcase.assistant.NativeRuntimeTest,com.pickandcase.assistant.NativeFeatureRuntimeTest \
+  -e class com.pickandcase.assistant.NativeRuntimeTest,com.pickandcase.assistant.NativeFeatureRuntimeTest,com.pickandcase.assistant.NativeParityRuntimeTest,com.pickandcase.assistant.NativeAdvancedRuntimeTest,com.pickandcase.assistant.NativeTaskJournalRuntimeTest,com.pickandcase.assistant.NativeArtifactRuntimeTest \
   com.pickandcase.assistant.debug.test/androidx.test.runner.AndroidJUnitRunner
 ```
 
 测试后端地址覆盖仅在 DEBUG 构建生效。Release 使用固定 HTTPS API；真实供应商验收只用 Sol 6.1 Low。模拟器结果不等同于真机摄像头、语音服务或所有厂商 ROM 的验收。
+
+若模拟器的 `10.0.2.2` NAT 出现间歇性连接超时，可先运行 `adb -s emulator-5562 reverse tcp:4197 tcp:4197`，再给 instrumentation 加上 `-e nativeFixtureBase http://127.0.0.1:4197/native/`。功能请求仍经过同一完整本地后台。冷启动测试需分别执行 `NativeColdStartRuntimeTest#prepare_local_persistent_session` 与 `NativeColdStartRuntimeTest#restore_after_real_process_death_without_login`，中间运行 `adb -s emulator-5562 shell am force-stop com.pickandcase.assistant.debug`。
+
+真实测试账号由管理员创建，再由运维在该账号的服务端记录设置 `_solLowQA: true`。仅 `nativeqa-` 账号且 `createdBy` 为既有管理员时生效；HTTP 请求不能开启该标志。服务端强制生成、Skills 自动选择与记忆提取使用 Sol 6.1 Low，并在发出前写入不含提示词和凭据的审计。QA 辅助调用复用主对话的美国后台传输通道，不回退其他模型。普通账号沿用现有策略。
+
+当前调度器约每 30 秒检查并回写任务状态。原生执行日志直接读取该次 ChatRun；查看日志不重新生成回答，也不恢复已删除的普通历史对话。当前网页隐藏且服务端已停用的旧视频、换脸和 Midjourney 入口不作为功能对齐目标。
 
 `node scripts/stage-site.mjs` 只发布公共网页、下载包与素材，排除 Android 源码、测试、构建目录、签名材料与 node_modules。数学渲染组件的许可和带独立模块链接例外的授权随 APK 附带，原始源码镜像位于 downloads/open-source。

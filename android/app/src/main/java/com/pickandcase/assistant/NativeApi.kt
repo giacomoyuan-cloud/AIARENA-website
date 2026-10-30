@@ -39,6 +39,13 @@ fun JSONArray.strings(): List<String> = (0 until length()).map { optString(it) }
 
 fun JSONObject.copyJson() = JSONObject(toString())
 
+fun JSONObject.requiresHostedSkill(): Boolean = str("kind") == "compute" || when (val official = opt("official")) {
+    is Boolean -> official
+    is String -> official.isNotBlank()
+    else -> false
+}
+
+
 fun nativeImageItems(message: JSONObject): List<JSONObject> {
     val items = message.arr("imgItems").objects()
     if (items.isNotEmpty()) return items
