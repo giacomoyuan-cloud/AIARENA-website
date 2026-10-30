@@ -78,8 +78,11 @@ export async function handleNativeRequest(request, env, context) {
       if (!context.validLoginName(username)) throw fault('账号需为 2–40 位中文、字母、数字、点、下划线或短横线', 400);
       const passwordHash = typeof body.passwordHash === 'string' ? body.passwordHash : typeof body.password === 'string' && body.password.length > 0 && body.password.length <= 256 ? await context.hashText(body.password) : '';
       if (!/^[a-f0-9]{64}$/.test(passwordHash)) throw fault('请输入有效密码', 400);
-      const id = username.toLowerCase(), reserved = await context.storageAccountName(username,env);
-      if(reserved!==id||await env.MEMORY_KV.get('login:'+id))throw fault('这个账号已存在，请使用其他名称',409);
+      const id = username.toLowerCase();
+      // Do not negatively cache user:<new-name> in the requesting region before
+      // the durable actor writes it elsewhere. Alias checks do not read that key.
+      const ownerAlias = context.publicAccountName(context.ownerAccountId || '').toLowerCase();
+      if((id === ownerAlias && id !== context.ownerAccountId) || await env.MEMORY_KV.get('login:'+id))throw fault('这个账号已存在，请使用其他名称',409);
       if(!env.NATIVE_ACCOUNTS)throw fault('账号管理服务尚未部署',503);
       // One durable actor serializes every creation of this login name, across devices/regions.
       return env.NATIVE_ACCOUNTS.get(env.NATIVE_ACCOUNTS.idFromName('account:'+id)).fetch(new Request('https://native-account.internal/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,username,hash:passwordHash,createdBy:account.accountId})}));

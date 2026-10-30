@@ -25,6 +25,18 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class NativeFeatureRuntimeTest : NativeHarness() {
     @Test
+    fun automatic_image_quality_selects_max_with_one_gesture() {
+        login()
+        model { it.mode("image") }
+        ui.onNodeWithText("图像设置").performClick()
+        ui.onNodeWithTag("ordered-slider-画质").performScrollTo().performTouchInput {
+            click(Offset(width * 0.95f, height / 2f))
+        }
+        await { it.imageSettings.str("quality") == "max" }
+        screenshot("native-image-settings")
+    }
+
+    @Test
     fun regenerating_and_editing_preserve_document_and_vision_inputs() {
         login()
         val picture =
@@ -66,15 +78,26 @@ class NativeFeatureRuntimeTest : NativeHarness() {
     fun reasoning_slider_reaches_both_endpoints_without_calling_a_model() {
         login()
         ui.onNodeWithText("GPT-6.1 Sol · Low").performClick()
+        ui.onNodeWithText("模型与思考深度").assertExists()
         val slider =
             ui.onNode(
                 SemanticsMatcher.keyIsDefined(
                     androidx.compose.ui.semantics.SemanticsProperties.ProgressBarRangeInfo
                 )
             )
-        slider.performTouchInput { click(Offset(width - 1f, height / 2f)) }
+        slider.performTouchInput { click(Offset(width * 0.95f, height / 2f)) }
+        ui.waitForIdle()
+        println(
+            "Native slider effort=" +
+                current().effort +
+                " range=" +
+                slider
+                    .fetchSemanticsNode()
+                    .config[androidx.compose.ui.semantics.SemanticsProperties.ProgressBarRangeInfo]
+        )
+        screenshot("native-slider-endpoint")
         await { it.effort == "max" }
-        slider.performTouchInput { click(Offset(1f, height / 2f)) }
+        slider.performTouchInput { click(Offset(width * 0.05f, height / 2f)) }
         await { it.effort == "low" }
     }
 

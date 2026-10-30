@@ -84,6 +84,14 @@ fun AssistantApp(vm: AssistantViewModel) {
                 onSurfaceVariant = Color(0xFFC6C2B8),
                 background = Color(0xFF20201D),
                 surface = Color(0xFF272723),
+                surfaceTint = Color(0xFFE5A18B),
+                surfaceContainerLowest = Color(0xFF1B1B18),
+                surfaceContainerLow = Color(0xFF242420),
+                surfaceContainer = Color(0xFF2B2B26),
+                surfaceContainerHigh = Color(0xFF33332D),
+                surfaceContainerHighest = Color(0xFF3B3B34),
+                surfaceBright = Color(0xFF3B3B34),
+                surfaceDim = Color(0xFF20201D),
                 secondaryContainer = Color(0xFF393930),
                 outlineVariant = Color(0xFF49483F),
             )
@@ -101,6 +109,14 @@ fun AssistantApp(vm: AssistantViewModel) {
                 outline = Color(0xFFB6B0A3),
                 background = Color(0xFFFAF9F5),
                 surface = Color(0xFFFFFEFB),
+                surfaceTint = WarmAccent,
+                surfaceContainerLowest = Color(0xFFFFFFFF),
+                surfaceContainerLow = Color(0xFFFAF8F3),
+                surfaceContainer = Color(0xFFF4F1EB),
+                surfaceContainerHigh = Color(0xFFEEEAE2),
+                surfaceContainerHighest = Color(0xFFE9E5DC),
+                surfaceBright = Color(0xFFFFFEFB),
+                surfaceDim = Color(0xFFE1DED7),
                 secondaryContainer = Color(0xFFF0EDE4),
                 outlineVariant = Color(0xFFE1DED4),
             )
@@ -115,7 +131,7 @@ fun AssistantApp(vm: AssistantViewModel) {
 @Composable
 private fun LoginScreen(s: AssistantState, vm: AssistantViewModel) {
     var username by rememberSaveable { mutableStateOf("") }
-    var password by rememberSaveable { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
     var show by remember { mutableStateOf(false) }
     Box(
         Modifier.fillMaxSize().safeDrawingPadding().imePadding().padding(28.dp),

@@ -40,8 +40,10 @@ class NativeRuntimeTest : NativeHarness() {
         val username = "qa-native-" + System.currentTimeMillis()
         ui.onNodeWithTag("admin-username").performTextInput(username)
         ui.onNodeWithTag("admin-password").performTextInput("def")
-        ui.onNodeWithTag("admin-create").performClick()
-        ui.waitUntil(15000) { ui.onAllNodesWithText(username).fetchSemanticsNodes().size >= 2 }
+        ui.onNodeWithTag("admin-create").performScrollTo().performClick()
+        ui.waitUntil(15000) {
+            ui.onAllNodesWithText("账号已创建，对方现在可以使用它登录").fetchSemanticsNodes().isNotEmpty()
+        }
         screenshot("native-management")
         model { it.navigate(Page.SETTINGS) }
         ui.onNodeWithTag("settings-logout").performClick()

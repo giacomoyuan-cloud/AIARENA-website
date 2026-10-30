@@ -25,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
@@ -154,6 +155,7 @@ fun OrderedSlider(
 ) {
     if (options.isEmpty()) return
     val auto = automatic && value == "auto"
+    var interactionChanged by remember { mutableStateOf(false) }
     val index =
         options
             .indexOfFirst { it.first == value }
@@ -171,7 +173,10 @@ fun OrderedSlider(
             if (!auto) Text(options[index].second, style = MaterialTheme.typography.labelLarge)
             if (automatic)
                 TextButton(
-                    onClick = { onPick("auto") },
+                    onClick = {
+                        interactionChanged = false
+                        onPick("auto")
+                    },
                     contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
                 ) {
                     Text(
@@ -183,12 +188,16 @@ fun OrderedSlider(
         Slider(
             value = index.toFloat(),
             onValueChange = {
+                interactionChanged = true
                 onPick(options[it.roundToInt().coerceIn(0, options.lastIndex)].first)
             },
-            onValueChangeFinished = { if (auto) onPick(options[index].first) },
+            onValueChangeFinished = {
+                if (auto && !interactionChanged) onPick(options[index].first)
+                interactionChanged = false
+            },
             valueRange = 0f..maxOf(1, options.lastIndex).toFloat(),
             steps = maxOf(0, options.size - 2),
-            modifier = Modifier.fillMaxWidth().height(34.dp),
+            modifier = Modifier.fillMaxWidth().height(34.dp).testTag("ordered-slider-$title"),
             thumb = {
                 Surface(
                     Modifier.size(18.dp).alpha(if (auto) 0f else 1f),

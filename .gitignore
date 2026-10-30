@@ -14,3 +14,4 @@ android/signing/
 dist-site/
 
 .wrangler/
+/node_modules

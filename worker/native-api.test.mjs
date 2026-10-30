@@ -79,3 +79,14 @@ test('a transient KV failure can resume account creation with its original passw
   assert.equal((await f.call('/native/users',{username:'retry-user',password:'original'},owner.token)).status,200);
   assert.equal((await f.call('/native/login',{username:'retry-user',password:'original'})).status,200);
 });
+
+
+test('a newly created account can log in immediately despite regional negative KV caching',async()=>{
+  const f=fixture(),origin=f.env.MEMORY_KV,misses=new Set(),records=new Map();
+  f.env.MEMORY_KV={...origin,get:async key=>{if(misses.has(key))return null;const value=await origin.get(key);if(!value)misses.add(key);return value;}};
+  const actor=new NativeAccountRegistry({storage:{get:async key=>records.get(key),put:async(key,value)=>records.set(key,structuredClone(value)),setAlarm:async()=>{}}},{...f.env,MEMORY_KV:origin});
+  f.env.NATIVE_ACCOUNTS={idFromName:name=>name,get:()=>({fetch:request=>actor.fetch(request)})};
+  const owner=await f.login('Oakley');
+  assert.equal((await f.call('/native/users',{username:'fresh-region-account',password:'native-password'},owner.token)).status,200);
+  assert.equal((await f.call('/native/login',{username:'fresh-region-account',password:'native-password'})).status,200);
+});

@@ -53,7 +53,12 @@ abstract class NativeHarness {
         waitFor("login-submit")
         ui.onNodeWithTag("login-username").performTextInput(name)
         ui.onNodeWithTag("login-password").performTextInput(password)
-        ui.onNodeWithTag("login-submit").performClick()
+        ui.waitUntil(15000) {
+            ui.onAllNodes(hasTestTag("login-submit") and isEnabled())
+                .fetchSemanticsNodes()
+                .isNotEmpty()
+        }
+        ui.onNodeWithTag("login-submit").performScrollTo().performClick()
         ui.waitUntil(15000) { ui.onAllNodesWithTag("login-submit").fetchSemanticsNodes().isEmpty() }
         ui.waitForIdle()
     }
