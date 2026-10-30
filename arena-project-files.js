@@ -22,7 +22,7 @@
       var sample=new Uint8Array(await file.slice(0,8192).arrayBuffer()),encoding=sample[0]===255&&sample[1]===254?'utf-16le':sample[0]===254&&sample[1]===255?'utf-16be':'utf-8';
       if(encoding==='utf-8')try{new TextDecoder('utf-8',{fatal:true}).decode(sample,{stream:true});}catch{encoding='gb18030';}
       var reader=file.stream().getReader(),decoder=new TextDecoder(encoding,{fatal:true}),buffer='',position=0;
-      try{for(;;){var part=await reader.read();buffer+=decoder.decode(part.value||new Uint8Array(),{stream:!part.done});
+      try{for(;;){var part=await reader.read(),decoded=decoder.decode(part.value||new Uint8Array(),{stream:!part.done});if(/[\u0000-\u0008\u000e-\u001f\u007f]/.test(decoded))throw Error('文件含二进制内容，无法作为文本读取');buffer+=decoded;
         while(buffer.length>=2400){var end=boundary(buffer,2400),text=buffer.slice(0,end);buffer=buffer.slice(end);if(text.trim())yield {text:text,location:'正文 · 字符 '+(position+1)+'–'+(position+text.length)};position+=text.length;}
         if(part.done)break;
       }if(buffer.trim())yield {text:buffer,location:'正文 · 字符 '+(position+1)+'–'+(position+buffer.length)};
@@ -75,7 +75,7 @@
   function parseInWorker(file,onBatch,signal){
     if(typeof Worker==='undefined')return (async function(){var coverage={},batch=[],ordinal=0;for await(var segment of parse(file,coverage)){batch.push(Object.assign({ordinal:ordinal++},segment));if(batch.length===24){await onBatch(batch);batch=[];}}if(batch.length)await onBatch(batch);return {coverage:coverage,segments:ordinal};})();
     return new Promise(function(resolve,reject){
-      var worker=new Worker('/arena-project-parser-worker.js?v=20261030-materials1'),finished=false;
+      var worker=new Worker('/arena-project-parser-worker.js?v=20261030-deepaudit4'),finished=false;
       function stop(error,result){if(finished)return;finished=true;worker.terminate();if(signal)signal.removeEventListener('abort',abort);error?reject(error):resolve(result);}
       function abort(){stop(Object.assign(Error('上传已暂停，重新选择原文件可继续'),{name:'AbortError'}));}
       if(signal){if(signal.aborted)return abort();signal.addEventListener('abort',abort,{once:true});}
@@ -101,13 +101,19 @@
     }return result;
   }
   async function upload(options){
-    var file=options.file,credentials=options.credentials,key=credentials.username.toLowerCase()+'|'+(options.resumeNamespace||options.projectId)+'|'+file.name+'|'+file.size+'|'+file.lastModified+'|'+await fingerprint(file),saved=await session('get',key)||{id:crypto.randomUUID(),parts:[]};
+    var file=options.file,credentials=options.credentials,stamp=await fingerprint(file),key=JSON.stringify([credentials.username.toLowerCase(),(options.resumeNamespace||options.projectId),options.folder||'',options.relativePath||'',options.replaceFileId||'',file.name,file.size,file.lastModified,stamp]),legacyKey=credentials.username.toLowerCase()+'|'+options.projectId+'|'+file.name+'|'+file.size+'|'+file.lastModified+'|'+stamp,saved=await session('get',key),legacy=false;
+    if(!saved&&!options.resumeNamespace){saved=await session('get',legacyKey);legacy=!!saved;}if(!saved)saved={id:crypto.randomUUID(),parts:[]};
     var auth=Object.assign({},credentials),id=saved.id;
     function api(action,extra){if(options.signal?.aborted||options.isCurrent&& !options.isCurrent())throw Object.assign(Error('账号已切换，上传已暂停'),{name:'AbortError'});return options.api('library_'+action,Object.assign({projectId:options.projectId,fileId:id},extra||{},auth));}
     function progress(phase,done,total){if(options.progress)options.progress({phase:phase,done:done,total:total,name:file.name});}
     var descriptor={id:id,name:file.name,size:file.size,type:file.type};if(options.folder){descriptor.folder=options.folder;descriptor.relativePath=options.relativePath;}
-    await session('put',key,saved);
-    var started=await api('start',{file:descriptor,replaceFileId:options.replaceFileId});
+    if(!legacy)await session('put',key,saved);
+    var started;
+    try{started=await api('start',{file:descriptor,replaceFileId:options.replaceFileId});}
+    catch(error){if(!legacy||error.status!==409)throw error;legacy=false;saved={id:crypto.randomUUID(),parts:[]};id=saved.id;descriptor.id=id;await session('put',key,saved);started=await api('start',{file:descriptor,replaceFileId:options.replaceFileId});}
+    // Only migrate an older browser's state after the server confirms its path.
+    // A colliding path keeps the old state available to its original document.
+    if(legacy){await session('put',key,saved);await session('delete',legacyKey);}
     if(started.file.status==='ready'||started.file.status==='partial'){await session('delete',key);return started.file;}
     saved.partSize=started.partSize;await session('put',key,saved);
     if(started.file.status==='uploading'){
@@ -124,8 +130,9 @@
       var result=await parseInWorker(file,async function(segments){await api('segments',{segments:segments});indexed+=segments.length;progress('解析并建立索引',indexed,0);},options.signal);
       if(!result.segments)throw Error('没有可读文字；扫描 PDF 或图片页需要先进行 OCR，原文件已保留');
       var completed=await api('commit',{segments:result.segments,coverage:result.coverage});await session('delete',key);progress('已可供 AI 查阅',result.segments,result.segments);return completed.file;
-    }catch(error){var result=await options.api('library_parse_failed',Object.assign({projectId:options.projectId,fileId:id,error:error.message},auth)).catch(()=>null);if(result?.file?.status==='ready')return result.file;throw error;}
+    }catch(error){var result=await options.api('library_parse_failed',Object.assign({projectId:options.projectId,fileId:id,error:error.message},auth)).catch(()=>null);if(['ready','partial'].includes(result?.file?.status)){await session('delete',key);return result.file;}throw error;}
   }
   function status(file){return file.status==='uploading'?'原文件待续传':file.status==='indexing'?'正在建立索引':file.status==='unreadable'?'尚不可供 AI 查阅 · '+(file.parseError||'需重新解析'):file.status==='partial'?'部分页面无文字，需 OCR':'已建立检索索引';}
-  return {parse:parse,parseInWorker:parseInWorker,upload:upload,status:status,split:split,expandFiles:expandFiles};
+  function name(file){return (file.folder?file.folder+'/':'')+(file.relativePath||file.name);}
+  return {parse:parse,parseInWorker:parseInWorker,upload:upload,status:status,name:name,split:split,expandFiles:expandFiles};
 });

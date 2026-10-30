@@ -1,6 +1,11 @@
 import Context from '../arena-context.js';
 import {readProject,ReadingPaused} from './project-reading.js';
+import {materialName} from '../web/file-types.mjs';
 const fail=message=>{throw Object.assign(Error(message),{status:400});};
+export function namedFiles(files,query){
+  const q=String(query).toLowerCase(),specific=files.filter(f=>f.relativePath&&q.includes(materialName(f).toLowerCase())),relative=files.filter(f=>f.relativePath&&q.includes(f.relativePath.toLowerCase()));
+  return new Set(specific.length?specific:relative.length?relative:files.filter(f=>{const name=f.name.toLowerCase(),stem=name.replace(/\.[^.]+$/,'');return q.includes(name)||(stem.length>1&&q.includes(stem));}));
+}
 export function inlineSource(input){
   if(!input||!Array.isArray(input.files)||input.files.length>100)fail('无痕文件信息无效');
   const files=[],segments=[];let chars=0;
@@ -25,7 +30,7 @@ export function inlineSource(input){
 export async function retrieveLibrary(source,query){
   if(!source.files.length||/^\s*(你好|您好|谢谢|hi|hello|thanks|ok)[!！。.\s]*$/i.test(query))return {text:'',files:[],fragments:0,mode:'retrieve'};
   const result=await source.library('search',{query}),items=result.hits.slice(0,3).map(h=>({text:h.text.slice(0,1600),file:{id:h.file.id,name:h.file.name,location:h.location,source:source.kind||'conversation'},score:h.score}));
-  return materialItems(items,source.files);
+  return materialItems(items,source.files.map(f=>({...f,name:materialName(f)})));
 }
 export function materialItems(items,available=[]){
   const chosen=items.slice(0,3),files=[];for(const x of chosen)if(!files.some(f=>f.id===x.file.id))files.push(x.file);

@@ -218,6 +218,7 @@ export function createChatRunClass(execute, DebateRun, { deferStart = () => fals
         chat.title = meta.title || chat.title || '新对话';
         chat.updatedAt = Date.now();
         chat.mode = 'chat';
+        if (meta.scheduleId) chat.scheduleId = meta.scheduleId;
         if (terminal(meta.status)) chat.lastReplyAt = reply.completedAt;
         list.sort((a, b) => b.updatedAt - a.updatedAt);
         await put(listKey, JSON.stringify(list));
@@ -257,6 +258,7 @@ export function createChatRunClass(execute, DebateRun, { deferStart = () => fals
           if (part.done) break;
         }
         if (!done && this.meta.status === 'running' && !this.meta.error) this.meta.error = '上游连接中断，已保留收到的内容。请重新回答以继续。';
+        if (done && this.meta.scheduleId && !this.meta.reply.text.trim() && !this.meta.reply.artifacts?.length && !this.meta.error) this.meta.error = '模型未返回正文，已保留收到的内容。';
         if (this.meta.status === 'running') this.meta.status = this.meta.error ? 'failed' : 'completed';
         await reader.cancel().catch(() => {});
       } catch (error) {
@@ -352,7 +354,9 @@ export function createChatRunClass(execute, DebateRun, { deferStart = () => fals
         this.archiveCurrent();
         this.privateEvents = [];
         this.meta = { ...body.recovery, runId: body.runId, fingerprint: body.fingerprint, status: 'running', sequence: 0, createdAt: Date.now(), updatedAt: Date.now(), logBytes: 0 };
-        const deferred = deferStart(body.payload);
+        // Scheduled jobs arrive through an internal HTTP request. Do not put
+        // their long generation back into an alarm's 15-minute invocation.
+        const deferred = body.directStart !== true && deferStart(body.payload);
         if (deferred) this.meta.alarmRetainUntil = Date.now() + RETENTION_MS;
         this.persistMeta();
         if (deferred) {

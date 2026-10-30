@@ -7,6 +7,7 @@ import { validateSkillFiles, serveSkillFile, runOfficialDocuments, rescopeSkillA
 import { createDebateRunClass } from './debate-runs.js';
 import { OpenAITransport, openAIBackgroundFetch } from './openai-transport.js';
 import { createProjectScheduler } from './project-schedules.js';
+import { createScheduledChatClient } from './scheduled-chat.js';
 import { isOpenAIImage, validateOpenAIImage, buildImagePayload, readImageStream, IMAGE_ORCHESTRATOR } from './openai-images.js';
 import DebateCore from '../arena-debate.js';
 import SkillModels from '../arena-skill-models.js';
@@ -17,7 +18,7 @@ import Reading from '../arena-reading.js';
 import {conversationLibrary,handleConversationFiles,moveConversationFiles} from './conversation-files.js';
 import {inlineSource,retrieveLibrary,mergeMaterials,readSources} from './document-reading.js';
 const internalReadingRequests=new WeakMap();
-import { isDocument } from '../web/file-types.mjs';
+import { isDocument, materialName } from '../web/file-types.mjs';
 import { handleNativeRequest, NativeAccountRegistry } from './native-api.js';
 import ImageCore from '../arena-image.js';
 import { UPLOAD_LIMITS, uploadDataInfo } from '../web/upload-limits.mjs';
@@ -432,7 +433,13 @@ async function handleProjectRequest(request,env){
       const operation=action.slice(8),extra={fileId:body.fileId,parts:body.parts,segments:body.segments,coverage:body.coverage,error:body.error};
       if(operation==='start'){
         extra.file=body.file;
-        if(body.replaceFileId){extra.replaced=(await projectFiles(env,user,project.id)).find(f=>f.id===body.replaceFileId);if(!extra.replaced)return projectReply({error:'待更新资料不存在'},404);}
+        if(body.replaceFileId){
+          const files=await projectFiles(env,user,project.id);extra.replaced=files.find(f=>f.id===body.replaceFileId);
+          // A completed replacement has already retired the old source. Let its
+          // existing actor session validate the original replacement ID on retry.
+          if(!extra.replaced&&files.some(f=>f.storage==='r2'&&f.id===body.file?.id))extra.replaced={id:body.replaceFileId};
+          if(!extra.replaced)return projectReply({error:'待更新资料不存在'},404);
+        }
       }
       if(!['start','original_complete','segments','commit','parse_failed','abort'].includes(operation))return projectReply({error:'未知资料操作'},400);
       return projectReply(await projectLibrary(env,user,project.id,operation,extra));
@@ -548,9 +555,9 @@ async function retrieveProjectMaterials(env,user,project,query){
     const value=await env.BIZ_KV.get(prefix+":file:"+file.id+":index");
     if(!value)continue;
     const index=JSON.parse(value);
-    for(const hit of ArenaContext.rankIndex(index,query,file.name).slice(0,3))ranked.push({...hit,file});
+    for(const hit of ArenaContext.rankIndex(index,query,materialName(file)).slice(0,3))ranked.push({...hit,file:{...file,name:materialName(file)}});
   }
-  if(env.PROJECT_DOCUMENTS){const library=await projectLibrary(env,user,project.id,'search',{query});for(const hit of library.hits)ranked.push({file:hit.file,index:hit.ordinal,text:hit.text,location:hit.location,score:hit.score});}
+  if(env.PROJECT_DOCUMENTS){const library=await projectLibrary(env,user,project.id,'search',{query});for(const hit of library.hits){const source=files.find(f=>f.id===hit.file.id);if(source)ranked.push({file:{...hit.file,name:materialName(source)},index:hit.ordinal,text:hit.text,location:hit.location,score:hit.score});}}
   const namedQuery=String(query).toLowerCase();
   for(const hit of ranked){const name=hit.file.name.toLowerCase(),stem=name.replace(/\.[^.]+$/,'');if(namedQuery.includes(name)||(stem.length>1&&namedQuery.includes(stem)))hit.score+=1000;}
   ranked.sort((a,b)=>b.score-a.score);
@@ -563,7 +570,7 @@ async function retrieveProjectMaterials(env,user,project,query){
     snippets.push("资料："+hit.file.name+"，"+(hit.location||"片段 "+(hit.index+1))+"\n"+fragment);
     if(!selected.some(f=>f.id===hit.file.id))selected.push({id:hit.file.id,name:hit.file.name,location:hit.location||'片段 '+(hit.index+1)});
   }
-  return {text:snippets.join("\n\n"),files:selected,fragments:snippets.length,mode:'retrieve',items,available:files.slice(0,12).map(f=>({id:f.id,name:f.name,status:f.status||'ready'}))};
+  return {text:snippets.join("\n\n"),files:selected,fragments:snippets.length,mode:'retrieve',items,available:files.slice(0,12).map(f=>({id:f.id,name:materialName(f),status:f.status||'ready'}))};
 }
 
 async function handleDebateRunRequest(request, env) {
@@ -1585,16 +1592,15 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
         if(!env.PROJECT_DOCUMENTS)throw Error('全文阅读服务尚未就绪，请暂用按需检索');
         const prefix=projectKey(authUser,projectId),files=await projectFiles(env,authUser,projectId);
         for(const file of files.filter(f=>f.storage!=='r2')){const index=JSON.parse(await env.BIZ_KV.get(prefix+':file:'+file.id+':index')||'null');if(!index?.count)throw Error('资料「'+file.name+'」索引不完整，请重新上传');file.chunks=index.count;}
-        async function* batchLegacy(file){let batch=[],chars=0;for(let ordinal=0;ordinal<file.chunks;ordinal++){const text=await env.BIZ_KV.get(prefix+':file:'+file.id+':chunk:'+ordinal);if(!text)throw Error('资料「'+file.name+'」缺少片段，请重新上传');if(chars+text.length>24000&&batch.length){yield batch;batch=[];chars=0;}batch.push({fileId:file.id,name:file.name,ordinal,text});chars+=text.length;}if(batch.length)yield batch;}
+        async function* batchLegacy(file){let batch=[],chars=0;for(let ordinal=0;ordinal<file.chunks;ordinal++){const text=await env.BIZ_KV.get(prefix+':file:'+file.id+':chunk:'+ordinal);if(!text)throw Error('资料「'+file.name+'」缺少片段，请重新上传');if(chars+text.length>24000&&batch.length){yield batch;batch=[];chars=0;}batch.push({fileId:file.id,name:materialName(file),ordinal,text});chars+=text.length;}if(batch.length)yield batch;}
         projectSource={files,library:(action,extra)=>projectLibrary(env,authUser,projectId,action,extra),batchLegacy};sources.push(projectSource);
       }
       let materials;
       if(policy.mode==='full'&&sources.some(source=>source.files.length)){
         let readingSources=sources;
         if(policy.explicit){
-          const named=f=>{const name=f.name.toLowerCase(),stem=name.replace(/\.[^.]+$/,'');return query.toLowerCase().includes(name)||(stem.length>1&&query.toLowerCase().includes(stem));};
-          const hasNamed=sources.some(source=>source.files.some(named)),currentIds=input.documents?.currentFileIds||[];
-          if(hasNamed)readingSources=sources.map(source=>({...source,files:source.files.filter(named)}));
+          const named=namedFiles(sources.flatMap(source=>source.files),query),currentIds=input.documents?.currentFileIds||[];
+          if(named.size)readingSources=sources.map(source=>({...source,files:source.files.filter(f=>named.has(f))}));
           else if(conversation?.files.length&&!/(?:项目|资料库|所有资料)/.test(query))readingSources=[{...conversation,files:currentIds.length?conversation.files.filter(f=>currentIds.includes(f.id)):conversation.files}];
         }
         try{
@@ -1949,9 +1955,10 @@ const ChatRun = createChatRunClass(executeRun, DebateRun, {
     if(id)await cancelGoogleInteraction(id,env);
   }
 });
-const ProjectScheduler = createProjectScheduler({execute:executeRun,project:ownedProject,efforts:MODEL_EFFORT_LEVELS,models:Object.keys(OFFICIAL_MODELS).filter(id=>!OFFICIAL_MODELS[id].image),credentials:async(env,user)=>{
+const scheduledChats = createScheduledChatClient({models:OFFICIAL_MODELS,credentials:async(env,user)=>{
   const record=JSON.parse(await env.MEMORY_KV.get('user:'+user)||'null');
   if(!record?.hash)throw new Error('账号已不可用');
   return {user,username:user,password:record.hash};
 }});
+const ProjectScheduler = createProjectScheduler({runs:scheduledChats,project:ownedProject,efforts:MODEL_EFFORT_LEVELS,models:Object.keys(OFFICIAL_MODELS).filter(id=>!OFFICIAL_MODELS[id].image)});
 export { NativeAccountRegistry, worker_default as default, ChatRun, ProjectScheduler };
