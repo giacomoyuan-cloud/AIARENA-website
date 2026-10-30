@@ -3,6 +3,7 @@
   "name": "ai",
   "main": "worker.js",
   "compatibility_date": "2026-02-28",
+  "compatibility_flags": ["durable_object_io_tasks_prevent_eviction"],
   "keep_vars": true,
   "keep_names": true,
   "durable_objects": {
