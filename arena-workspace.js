@@ -100,21 +100,30 @@
         var loadedProject=(await app.api('get',{projectId:current.id})).project;
         var files=removed?(await app.api('removed_files',{projectId:loadedProject.id})).files:loadedProject.files;
         if(epoch!==navigationEpoch)return;project=loadedProject;
-        setContent((removed?'已移除资料 · ':'项目资料 · ')+project.name,'<div class="arena-workspace-intro"><p>可选按需检索或全文阅读；上传完成后建立索引，只有模型实际查阅时才产生阅读用量。</p>'+(!removed?'<button class="arena-workspace-primary" data-file-upload>上传资料</button>':'')+'</div><p class="arena-workspace-muted">PDF、Word（DOCX）、Excel（XLSX/XLS）、PPT 和文本。大文件分片上传，大小受设备和存储服务实际能力影响；扫描件需 OCR。</p><div class="arena-project-file-list">'+(files.map(function(file){return '<div class="arena-project-file-row"><button data-file-preview="'+e(file.id)+'"><strong>'+e(file.name)+'</strong><span>'+Math.ceil(file.size/1024)+' KB · '+Number(file.characters||0).toLocaleString()+' 字符 · '+e(root.ArenaProjectFiles.status(file))+'</span></button><button '+(removed?'data-file-restore':'data-file-remove')+'="'+e(file.id)+'">'+(removed?'恢复':'移除')+'</button></div>';}).join('')||'<div class="arena-workspace-empty">暂无'+(removed?'已移除':'')+'资料</div>')+'</div><p data-w-error role="alert"></p><div class="arena-workspace-footer"><button data-file-removed-toggle>'+(removed?'返回资料':'查看已移除资料')+'</button><button data-project-settings="'+e(project.id)+'">项目设置</button></div>');show();
+        setContent((removed?'已移除资料 · ':'项目资料 · ')+project.name,'<div class="arena-workspace-intro"><p>可选按需检索或全文阅读；上传完成后建立索引，只有模型实际查阅时才产生阅读用量。</p>'+(!removed?'<button class="arena-workspace-primary" data-file-upload>上传资料</button>':'')+'</div><p class="arena-workspace-muted">PDF、Word（DOCX）、Excel（XLSX/XLS）、PPT 和文本。大文件分片上传，大小受设备和存储服务实际能力影响；扫描件需 OCR。</p><div class="arena-project-file-list">'+(files.map(function(file){return '<div class="arena-project-file-row"><button data-file-preview="'+e(file.id)+'"><strong>'+e(root.ArenaProjectFiles.name(file))+'</strong><span>'+Math.ceil(file.size/1024)+' KB · '+Number(file.characters||0).toLocaleString()+' 字符 · '+e(root.ArenaProjectFiles.status(file))+'</span></button><button '+(removed?'data-file-restore':'data-file-remove')+'="'+e(file.id)+'">'+(removed?'恢复':'移除')+'</button></div>';}).join('')||'<div class="arena-workspace-empty">暂无'+(removed?'已移除':'')+'资料</div>')+'</div><p data-w-error role="alert"></p><div class="arena-workspace-footer"><button data-file-removed-toggle>'+(removed?'返回资料':'查看已移除资料')+'</button><button data-project-settings="'+e(project.id)+'">项目设置</button></div>');show();
       }catch(err){if(epoch===navigationEpoch)error(err.message);}
     }
-    var viewedFile=null,viewedProject=null;
+    var viewedFile=null,viewedProject=null,previewEpoch=0,previewFocus=null;
+    function closeFile(restoreFocus){
+      previewEpoch++;viewedFile=null;viewedProject=null;pane.hidden=true;host.classList.remove('arena-file-open');
+      pane.querySelector('#aaFileName').textContent='';pane.querySelector('#aaFileMeta').textContent='';pane.querySelector('#aaFilePreview').textContent='';
+      if(restoreFocus&&previewFocus?.isConnected)previewFocus.focus();previewFocus=null;
+    }
     async function preview(id,projectId){
+      var revision=++previewEpoch,owner=accountKey(),scope=app.currentScope?app.currentScope():app.currentProject()?.id;
+      function valid(){return revision===previewEpoch&&owner===accountKey()&&scope===(app.currentScope?app.currentScope():app.currentProject()?.id);}
       try{
         var currentId=projectId||(project&&project.id)||(app.currentProject()||{}).id;
+        previewFocus=document.activeElement;
         var data=await app.api('preview',{projectId:currentId,fileId:id});
+        if(!valid())return;
         viewedFile=data.file;viewedProject=currentId;
-        pane.querySelector('#aaFileName').textContent=data.file.name;
+        pane.querySelector('#aaFileName').textContent=root.ArenaProjectFiles.name(data.file);
         pane.querySelector('#aaFileMeta').textContent=data.file.previewTruncated?'预览前 6 万字符，可下载完整原文件':'项目资料 · '+Number(data.file.characters||0).toLocaleString()+' 字符 · '+root.ArenaProjectFiles.status(data.file);
         pane.querySelector('#aaFilePreview').textContent=data.file.text;
         pane.hidden=false;host.classList.add('arena-file-open');close();
         pane.querySelector('[data-file-close]').focus();
-      }catch(err){error(err.message);}
+      }catch(err){if(valid())error(err.message);}
     }
     dialog.querySelector('[data-w-close]').addEventListener('click',close);
     dialog.addEventListener('click',async function(event){
@@ -176,12 +185,12 @@
         await materials();notify('资料已保存到本项目'+(expanded.skipped.length?'；'+expanded.skipped.map(function(item){return item.name+'：'+item.reason;}).join('；'):''));
       }catch(err){error(err.message);if(upload)upload.disabled=false;}
     });
-    pane.querySelector('[data-file-close]').addEventListener('click',function(){pane.hidden=true;host.classList.remove('arena-file-open');});
+    pane.querySelector('[data-file-close]').addEventListener('click',function(){closeFile(true);});
     pane.querySelector('[data-file-download]').addEventListener('click',async function(){
       if(!viewedFile)return;
       try{var file=viewedFile,blob;if(file.storage==='r2'){var response=await app.binary('/project-original',{method:'POST',body:{projectId:viewedProject,fileId:file.id}});blob=await response.blob();}else{var result=await app.api('download',{projectId:viewedProject,fileId:file.id});file=result.file;var bytes=root.ArenaFiles.decodeBase64(file.data);blob=new Blob([bytes],{type:file.type||'application/octet-stream'});}var url=URL.createObjectURL(blob),anchor=document.createElement('a');anchor.href=url;anchor.download=file.name;anchor.click();setTimeout(function(){URL.revokeObjectURL(url);},30000);}catch(err){notify(err.message);}
     });
-    return {list:list,preload:preload,materials:function(){removed=false;return materials();},settings:function(){var current=app.currentProject();return current?edit(current.id):list();},preview:preview,closeFile:function(){pane.hidden=true;host.classList.remove('arena-file-open');},enter:enter};
+    return {list:list,preload:preload,materials:function(){removed=false;return materials();},settings:function(){var current=app.currentProject();return current?edit(current.id):list();},preview:preview,closeFile:closeFile,enter:enter};
   }
   root.ArenaWorkspace={mount:mount,readFile:readFile};
 })(window);

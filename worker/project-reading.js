@@ -45,7 +45,7 @@ export async function readProject({files,question,history,context,model,scope,li
     current=next;level++;
   }
   const coverage={done,total,complete:true};await progress({mode:'full',...coverage,label:'已分批读入全文 · '+files.length+' 份资料 · '+done+' 个片段'});
-  return {text:current.join('\n\n'),files:files.map(f=>({id:f.id,name:f.name})),fragments:done,mode:'full',coverage,usage};
+  return {text:current.join('\n\n'),files:files.map(f=>({id:f.id,name:materialName(f)})),fragments:done,mode:'full',coverage,usage};
 }
 
 export async function consumeReadingStream(response,onUsage){
@@ -55,3 +55,4 @@ export async function consumeReadingStream(response,onUsage){
   try{for(;;){const chunk=await reader.read();if(chunk.done)break;pending+=decoder.decode(chunk.value,{stream:true});const lines=pending.split('\n');pending=lines.pop()||'';for(const value of lines)line(value);}pending+=decoder.decode();if(pending)line(pending);}finally{reader.releaseLock();}
   if(error)throw Error(error);if(!done)throw Error('全文阅读连接中断，请重试继续已保存的进度');return {text,usage};
 }
+import {materialName} from '../web/file-types.mjs';

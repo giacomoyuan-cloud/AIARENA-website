@@ -873,7 +873,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&family=Noto+Serif+SC:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="/arena-claude.css?v=20261030-stablemodes1">
-<link rel="stylesheet" href="/arena-project-page.css?v=20261030-projectactions1">
+<link rel="stylesheet" href="/arena-project-page.css?v=20261030-deepaudit4">
 <link rel="stylesheet" href="/arena-project-files.css?v=20261030-materials1">
 <link rel="stylesheet" href="/arena-debate-ui.css?v=20261030-stablemodes1">
 <link rel="preload" as="image" href="/assets/kitten/motion/knead-14b49069b5fd.png">
@@ -1271,7 +1271,7 @@
 <script src="/arena-chat-mode.js?v=20261030-historymodes2"></script>
 <script src="/arena-skills-catalog.js?v=20261030-skills1"></script>
 <script src="/arena-skill-models.js?v=20261030-skillmodels1"></script>
-<script src="/arena-files.js?v=20261030-upload20m1"></script>
+<script src="/arena-files.js?v=20261030-deepaudit4"></script>
 <script src="/arena-skills.js?v=20261030-upload20m1"></script>
 <script src="/arena-chat-runs.js?v=20261029-typingclock1"></script>
 <script src="/arena-controls.js?v=20261029-debateresume1"></script>
@@ -1279,10 +1279,10 @@
 <script src="/arena-debate.js?v=20261030-debatestudio3"></script>
 <script src="/arena-debate-studio.js?v=20261030-debatecontrols1"></script>
 <script src="/arena-debate-runs.js?v=20261030-debatestudio3"></script>
-<script src="/arena-project-files.js?v=20261030-materials1"></script>
-<script src="/arena-workspace.js?v=20261030-materials1"></script>
+<script src="/arena-project-files.js?v=20261030-deepaudit4"></script>
+<script src="/arena-workspace.js?v=20261030-deepaudit4"></script>
 <script src="/arena-project-state.js?v=20261030-projectactions2"></script>
-<script src="/arena-project-page.js?v=20261030-materials1"></script>
+<script src="/arena-project-page.js?v=20261030-schedulejournal1"></script>
 <script src="/arena-account.js?v=20261027-account2"></script>
 <script src="/arena-pet-catalog.js?v=20261029-petcycle1"></script>
 <script src="/arena-pet.js?v=20261029-petnoghost1"></script>
@@ -6552,7 +6552,7 @@ if(imageMode){
     var timer=controller?setTimeout(function(){controller.abort();},12000):null;
     try{
       var response=await fetch(WORKER+'/projects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload),signal:controller?controller.signal:undefined});
-      var data=await response.json();if(!response.ok)throw new Error(data.error||'项目请求失败');return data;
+      var data=await response.json();if(!response.ok)throw Object.assign(new Error(data.error||'项目请求失败'),{status:response.status});return data;
     }catch(error){if(error.name==='AbortError')throw new Error(action==='pin'?'置顶保存超时，请重试':'项目加载超时，请检查网络后重试');throw error;}
     finally{if(timer)clearTimeout(timer);}
   }
@@ -6661,6 +6661,11 @@ if(imageMode){
     scheduleApi:async function(action,extra){
       var payload=Object.assign({action:action,username:loginName($('aaUsername').value),password:getPass()},extra||{});
       var response=await fetch(WORKER+'/schedules',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}),data=await response.json();if(!response.ok)throw Error(data.error||'任务请求失败');return data;
+    },
+    scheduleLog:async function(extra){
+      var payload=Object.assign({action:'events',username:loginName($('aaUsername').value),password:getPass()},extra);
+      var response=await fetch(WORKER+'/schedules',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+      if(!response.ok){var data=await response.json();throw Error(data.error||'日志读取失败');}return response.text();
     },
     models:function(){return AVAILABLE_CHAT_MODELS.map(function(id){return {id:id,name:SUBS[id].name};});},currentModel:function(){return getActiveSubmodels()[0];},syncLayout:syncArenaLayout,
     flushChat:async function(){var saved=await flushScopeChat(true);if(!saved?.ok)throw Error(saved?.error||'当前对话保存失败，请重试');},

@@ -80,6 +80,23 @@ test('one unreadable member does not hide other useful content or its own error'
   const result = await prepareChatFile(await archive({ 'bad.pdf': 'not a PDF', 'good.md': 'usable source' }), { extract: async file => { if (file.name === 'bad.pdf') throw Error('PDF 已损坏'); return extractText(file); } });
   assert.equal(result.count, 1); assert.match(result.text, /usable source/); assert(result.skipped.some(item => /PDF 已损坏/.test(item.reason)));
 });
+test('valid empty ZIP members are reported as empty while other documents remain importable', async () => {
+  for(const compression of ['STORE','DEFLATE']){
+    const file=await archive({'empty.txt':'','设计/说明.txt':'design','财务/说明.txt':'finance'},{compression});
+    const result=await expandFiles([file]);assert.equal(result.files.length,2);assert.equal(result.skipped.length,1);assert.equal(result.skipped[0].reason,'文件为空');
+  }
+});
+test('an Office ZIP containing a valid empty member passes validation; a forged empty checksum fails',async()=>{
+  const source=await archive({'empty.xml':'','word/document.xml':'<text>document</text>'});
+  const doc=new File([await source.arrayBuffer()],'valid.docx');
+  assert.equal(await extractText(doc,{load:async()=>({extractRawText:async()=>({value:'office text'})})}),'office text');
+  const corrupt=await changed(source,(_bytes,view,central)=>view.setUint32(central+16,123,true));
+  const result=await expandFiles([corrupt]);assert.equal(result.files.length,1);assert.ok(!result.files.some(item=>item.path.endsWith('/empty.xml')));assert.ok(result.skipped.some(item=>/校验/.test(item.reason)));
+});
+test('Unicode ZIP filename extra fields remain valid even when legacy name bytes are not decodable',async()=>{
+  const file=await archive({'é.txt':'Unicode source'},{encodeFileName:name=>new Uint8Array(Array.from(name,c=>c.charCodeAt(0)&255))});
+  const result=await expandFiles([file]);assert.equal(result.skipped.length,0);assert.ok(result.files[0].path.endsWith('/é.txt'));
+});
 test('scanned PDFs remain an explicit error and the parser is always released', async () => {
   let destroyed = 0;
   const load = async () => ({ GlobalWorkerOptions: {}, getDocument: () => ({ promise: Promise.resolve({ numPages: 1, getPage: async () => ({ getTextContent: async () => ({ items: [] }) }), destroy: async () => { destroyed++; } }) }) });
