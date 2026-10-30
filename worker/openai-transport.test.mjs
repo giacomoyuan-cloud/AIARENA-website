@@ -30,12 +30,61 @@ test('enqueue makes no provider call; the alarm forwards exact bytes once withou
   assert.equal(f.actor.job.body,null);
   assert.ok(!JSON.stringify(await(await f.actor.fetch(req('/status'))).json()).includes(f.env.OPENAI_API_KEY));
 });
-test('provider region failures preserve their HTTP status and are never automatically retried',async t=>{
+test('each private object preserves a region rejection without replaying its provider call',async t=>{
   const f=fixture();let calls=0;
   t.mock.method(globalThis,'fetch',async()=>{calls++;return Response.json({error:{code:'unsupported_country_region_territory'}},{status:403})});
   await f.actor.fetch(req('/start',{body}));await f.actor.alarm();await f.actor.alarm();
   const response=await f.actor.fetch(req('/stream'));assert.equal(response.status,403);
   assert.equal((await response.json()).error.code,'unsupported_country_region_territory');assert.equal(calls,1);
+});
+
+function regionalFixture(){
+  const hints=[],ids=[],alarms=[];
+  const namespace={jurisdiction(region){assert.equal(region,'us');return {
+    idFromName:name=>name,
+    get(id,options){
+      ids.push(id);hints.push(options.locationHint);const f=fixture();
+      return {async fetch(request){const response=await f.actor.fetch(request);if(new URL(request.url).pathname==='/start')alarms.push(f.actor.alarm());return response;}};
+    }
+  }}};
+  return {namespace,hints,ids,alarms};
+}
+test('an explicit pre-generation region rejection gets one fresh US location with the identical request',async t=>{
+  const f=regionalFixture();let calls=0;
+  t.mock.method(globalThis,'fetch',async(url,options)=>{
+    assert.equal(options.body,body);assert.equal(options.headers.Authorization,'Bearer synthetic-provider-key');
+    return ++calls===1?Response.json({error:{code:'unsupported_country_region_territory'}},{status:403}):new Response('data: verified\n\n');
+  });
+  const response=await openAIBackgroundFetch(f.namespace,body,new AbortController().signal);
+  assert.equal(await response.text(),'data: verified\n\n');await Promise.all(f.alarms);
+  assert.equal(calls,2);assert.deepEqual(f.hints,['enam','wnam']);assert.equal(new Set(f.ids).size,2);
+});
+test('repeated country rejections stop after two fresh objects and preserve the final rejection',async t=>{
+  const f=regionalFixture();let calls=0;
+  t.mock.method(globalThis,'fetch',async()=>{calls++;return Response.json({error:{code:'unsupported_country_region_territory'}},{status:403});});
+  const response=await openAIBackgroundFetch(f.namespace,body,new AbortController().signal);
+  assert.equal(response.status,403);assert.equal((await response.json()).error.code,'unsupported_country_region_territory');
+  await Promise.all(f.alarms);assert.equal(calls,2);
+});
+test('regional recovery of token counting never invokes paid Responses generation',async t=>{
+  const f=regionalFixture();let calls=0;
+  t.mock.method(globalThis,'fetch',async(url)=>{
+    assert.equal(url,'https://api.openai.com/v1/responses/input_tokens');
+    return ++calls===1?Response.json({error:{code:'unsupported_country_region_territory'}},{status:403}):Response.json({input_tokens:246});
+  });
+  const response=await openAIBackgroundFetch(f.namespace,body,new AbortController().signal,{countOnly:true});
+  assert.equal((await response.json()).input_tokens,246);await Promise.all(f.alarms);assert.equal(calls,2);
+});
+test('other permission failures and any reported usage are returned without another generation',async t=>{
+  const f=regionalFixture();let calls=0;
+  t.mock.method(globalThis,'fetch',async()=>{
+    calls++;return Response.json(calls===1?{error:{code:'permission_denied'}}:{error:{code:'unsupported_country_region_territory'},usage:{input_tokens:1}},{status:403});
+  });
+  for(let index=0;index<2;index++){
+    const response=await openAIBackgroundFetch(f.namespace,body,new AbortController().signal);
+    assert.equal(response.status,403);await response.text();assert.equal(calls,index+1);
+  }
+  await Promise.all(f.alarms);assert.deepEqual(f.hints,['enam','enam']);
 });
 test('stop before alarm prevents any provider call and releases the prepared prompt',async t=>{
   const f=fixture();t.mock.method(globalThis,'fetch',async()=>{throw Error('unexpected paid call')});
