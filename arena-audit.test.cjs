@@ -135,11 +135,13 @@ test('another tab cannot silently replace the current composer Skill choice thro
   assert.equal(f.runtime.settings().mode,'off');
   f.runtime.migrateAccount('alias','stable');f.user('stable');assert.equal(f.runtime.settings().mode,'off');
 });
-test('image and video composers hide the text-only Skill pill and ordinary chat can restore it',()=>{
-  const pill={hidden:false},c=vm.createContext({$:()=>pill,skillsRuntime:{update(){pill.hidden=false;}},imageMode:true,videoMode:false});
-  vm.runInContext(fn('updateSkillsBtn'),c);c.updateSkillsBtn();assert.equal(pill.hidden,true);
-  c.imageMode=false;c.videoMode=true;c.updateSkillsBtn();assert.equal(pill.hidden,true);
-  c.videoMode=false;c.updateSkillsBtn();assert.equal(pill.hidden,false);
+test('image and video keep the sidebar Skills row, close its menu and restore availability in chat',()=>{
+  const pill={hidden:false},button={},drop={classList:new Set(['open'])};drop.classList.remove=drop.classList.delete.bind(drop.classList);
+  const elements={aaSkillPill:pill,aaSkillsBtn:button,aaSkillsDrop:drop};
+  const c=vm.createContext({$:id=>elements[id],skillsRuntime:{update(){pill.hidden=false;}},imageMode:true,videoMode:false});
+  vm.runInContext(fn('updateSkillsBtn'),c);c.updateSkillsBtn();assert.equal(pill.hidden,true);assert.equal(button.disabled,true);assert.equal(drop.classList.has('open'),false);
+  c.imageMode=false;c.videoMode=true;c.updateSkillsBtn();assert.equal(pill.hidden,true);assert.equal(button.disabled,true);
+  c.videoMode=false;c.updateSkillsBtn();assert.equal(pill.hidden,false);assert.equal(button.disabled,false);assert.equal(button.title,'');
 });
 test('an attachment still being read during account canonicalization remains available and can still be cleared',async()=>{
   for(const clear of [false,true]){
