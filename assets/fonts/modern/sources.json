@@ -541,5 +541,23 @@
       "bytes": 9664,
       "sha256": "3d483f5a29464e66102be7eccbecc5789cc413aefcdbd2b411fff907c54012f6"
     }
-  }
+  },
+  "supplements": [
+    {
+      "family": "Inter",
+      "file": "1eaa260908863cbb812d.woff2",
+      "glyphCodepoints": 1227,
+      "bytes": 168832,
+      "sha256": "1eaa260908863cbb812d47e8bc61985d4b5407bab44a4c8988abf45fccff682b",
+      "fullSourceSHA256": "29160a80ff49ddcab2c97711247e08b1fab27a484a329ce8b813d820dc559031"
+    },
+    {
+      "family": "Noto Sans SC",
+      "file": "afcf1b94d35ff8274ec5.woff2",
+      "glyphCodepoints": 17255,
+      "bytes": 4705876,
+      "sha256": "afcf1b94d35ff8274ec5d54d6317af3d7d6ec87152794ae2ddc6203c96a7ce7a",
+      "fullSourceSHA256": "a3041811a78c361b1de50f953c805e0244951c21c5bd412f7232ef0d899af0da"
+    }
+  ]
 }

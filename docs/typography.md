@@ -9,7 +9,7 @@
 
 ## 网页
 
-`arena-fonts.css` 是唯一字体策略入口，三个发布页面全部引入。字体变量统一为 `--arena-ui-font`，全局覆盖动态生成的控件、Markdown 与伪元素。`assets/fonts/modern` 保存官方 Google Fonts 的 Unicode 分片、来源和 OFL 许可，构建时复制到发布目录。不再请求 Google Fonts 服务。
+`arena-fonts.css` 是唯一字体策略入口，三个发布页面全部引入。字体变量统一为 `--arena-ui-font`，全局覆盖动态生成的控件、Markdown 与伪元素。`assets/fonts/modern` 保存官方 Google Fonts 的 Unicode 分片、来源和 OFL 许可，以及从同一原始变量字体生成的少用字补充分片，构建时复制到发布目录。不再请求 Google Fonts 服务。
 
 ## Android
 
