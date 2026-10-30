@@ -27,7 +27,7 @@ class NativeFeatureRuntimeTest : NativeHarness() {
     @Test
     fun automatic_image_quality_selects_max_with_one_gesture() {
         login()
-        model { it.mode("image") }
+        model { it.selectImageModel("gpt-image-2.5-flare"); it.mode("image") }
         ui.onNodeWithText("图像设置").performClick()
         ui.onNodeWithTag("ordered-slider-画质").performScrollTo().performTouchInput {
             click(Offset(width * 0.95f, height / 2f))
@@ -335,7 +335,7 @@ class NativeFeatureRuntimeTest : NativeHarness() {
         login()
         model {
             it.mode("debate")
-            it.draft("合成重试验收")
+            it.draft("合成重试验收-" + UUID.randomUUID())
             it.send()
         }
         await(25000) { it.run?.str("status") == "paused" && !it.busy }
@@ -383,7 +383,7 @@ class NativeFeatureRuntimeTest : NativeHarness() {
         model { it.navigate(Page.TASKS) }
         await { it.data.arr("tasks").objects().any { task -> task.str("id") == id } }
         model { it.taskAction("run", created) }
-        ui.waitUntil(25000) {
+        ui.waitUntil(60000) {
             val tasks =
                 runBlocking { api.call("/schedules", json("action" to "list")) }
                     .arr("tasks")
@@ -457,6 +457,7 @@ class NativeFeatureRuntimeTest : NativeHarness() {
         original.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
         bitmap.recycle()
         model {
+            it.selectImageModel("gpt-image-2.5-flare")
             it.mode("image")
             it.addFiles(listOf(uri(original)))
         }

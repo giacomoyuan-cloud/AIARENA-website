@@ -23,7 +23,8 @@ abstract class NativeHarness {
     protected val app
         get() = ApplicationProvider.getApplicationContext<Application>()
 
-    protected val base = "http://10.0.2.2:4197/native/"
+    protected val base = InstrumentationRegistry.getArguments().getString("nativeFixtureBase")
+        ?: "http://10.0.2.2:4197/native/"
 
     @Before
     fun start() {
@@ -43,6 +44,7 @@ abstract class NativeHarness {
     fun finish() {
         scene.close()
         NativeTestHooks.baseUrl = null
+        NativeTestHooks.updateManifestUrl = null
     }
 
     protected fun waitFor(tag: String) {
@@ -58,9 +60,16 @@ abstract class NativeHarness {
                 .fetchSemanticsNodes()
                 .isNotEmpty()
         }
-        ui.onNodeWithTag("login-submit").performScrollTo().performClick()
+        scene.onActivity {
+            it.currentFocus?.clearFocus()
+            androidx.core.view.WindowCompat.getInsetsController(it.window, it.window.decorView)
+                .hide(androidx.core.view.WindowInsetsCompat.Type.ime())
+        }
+        ui.waitForIdle()
+        ui.onNodeWithTag("login-submit").performScrollTo().assertIsDisplayed().performClick()
         ui.waitUntil(15000) { ui.onAllNodesWithTag("login-submit").fetchSemanticsNodes().isEmpty() }
         ui.waitForIdle()
+        model { it.model("gpt-6.1-sol", "low") }
     }
 
     protected fun model(action: (AssistantViewModel) -> Unit) {
@@ -69,6 +78,10 @@ abstract class NativeHarness {
     }
 
     protected fun screenshot(name: String) {
+        ui.waitForIdle()
+        InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+        // Android window and system-bar transitions are outside Compose's clock.
+        Thread.sleep(500)
         InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot().let { bitmap ->
             File(app.getExternalFilesDir(null), "$name.png").outputStream().use {
                 bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)

@@ -11,7 +11,7 @@ await mkdir(target,{recursive:true});
 // Only public website assets go to Pages; Android sources, build outputs and keys stay local.
 const publicFiles=(await readdir(root)).filter(name => /^(index|android|pitch-analyzer)\.html$/.test(name)
   || /^arena[^/]*\.(css|js)$/.test(name) || /^icon-\d+\.png$/.test(name)
-  || ['manifest.json','sw.js','app-version.json','_headers','THIRD_PARTY_LICENSES.txt'].includes(name))
+  || ['native-client-contract.json','manifest.json','sw.js','app-version.json','_headers','THIRD_PARTY_LICENSES.txt'].includes(name))
   .filter(name=>petEnabled||!/^arena-pet(?:-catalog)?\.(css|js)$/.test(name));
 for(const name of await readdir(target)) await rm(resolve(target,name),{recursive:true,force:true});
 for(const name of [...publicFiles,'songs','downloads','welcome-media'])await cp(resolve(root,name),resolve(target,name),{recursive:true});

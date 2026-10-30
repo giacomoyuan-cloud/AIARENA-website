@@ -12,6 +12,14 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        if (BuildConfig.DEBUG) {
+            intent.getStringExtra("nativeFixtureBase")?.takeIf { value ->
+                runCatching { java.net.URI(value).let { it.scheme == "http" && it.host in setOf("127.0.0.1", "10.0.2.2") && it.path == "/native/" } }.getOrDefault(false)
+            }?.let { NativeTestHooks.baseUrl = it }
+            intent.getStringExtra("nativeUpdateManifest")?.takeIf { value ->
+                runCatching { java.net.URI(value).let { it.scheme == "http" && it.host in setOf("127.0.0.1", "10.0.2.2") && it.path == "/downloads/app-release.json" } }.getOrDefault(false)
+            }?.let { NativeTestHooks.updateManifestUrl = it }
+        }
         val model =
             ViewModelProvider(
                 this,
@@ -35,4 +43,5 @@ class MainActivity : ComponentActivity() {
 // Instrumentation may inject a synthetic server in debug builds; release always uses API_URL.
 object NativeTestHooks {
     @Volatile var baseUrl: String? = null
+    @Volatile var updateManifestUrl: String? = null
 }

@@ -260,7 +260,7 @@ fun ModelSheet(s: AssistantState, vm: AssistantViewModel, onDismiss: () -> Unit)
         s.skills.str("mode") == "manual" &&
             s.skills.arr("ids").strings().any { id ->
                 s.catalog.arr("skills").objects().any {
-                    it.str("id") == id && (it.optBoolean("official") || it.str("kind") == "compute")
+                    it.str("id") == id && it.requiresHostedSkill()
                 }
             }
     val models =
