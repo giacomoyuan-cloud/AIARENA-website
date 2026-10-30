@@ -46,11 +46,14 @@ test('retired browser Skills cannot replace server-owned workflows or system pro
   assert.equal(c.chatSystemMode('claude-sonnet-5-5'),'default');
 });
 test('project requests carry only skill IDs and preserve project scope',()=>{
-  const c=vm.createContext({activeProjectId:null,currentChatId:'test-chat-123',msgs:[{uid:1,isUser:true,text:'question'}],_incognitoMode:false,getActiveSubmodels:()=>['claude-sonnet-5-5'],skillsRuntime:{settings:()=>({mode:'auto',ids:[]})},ArenaContext:require('./arena-context.js')});
+  const c=vm.createContext({activeProjectId:null,activeProject:null,currentChatId:'test-chat-123',msgs:[{uid:1,isUser:true,text:'question'}],_incognitoMode:false,getActiveSubmodels:()=>['claude-sonnet-5-5'],skillsRuntime:{settings:()=>({mode:'auto',ids:[]})},ArenaContext:require('./arena-context.js')});
   vm.runInContext(fn('chatSystemMode')+'\n'+fn('scopedChatInput'),c);
   assert.equal(c.scopedChatInput('question','GENERAL_PROMPT').skills.mode,'auto');
+  assert.equal(c.scopedChatInput('question','GENERAL_PROMPT').readingMode,'retrieve');
   c.activeProjectId='project-123';
+  c.activeProject={id:'project-123',readingMode:'full'};
   const request=c.scopedChatInput('question','GENERAL_PROMPT');
   assert.equal(request.system,'');assert.equal(request.systemMode,'project');assert.equal(request.scope,'project-123');
   assert.equal(request.skills.mode,'auto');assert.deepEqual(Array.from(request.skills.ids),[]);
+  assert.equal(request.readingMode,'full');c.activeProject.readingMode='retrieve';assert.equal(request.readingMode,'full','pending requests retain the selected mode');
 });

@@ -90,7 +90,7 @@ test('browser carries all original text in incognito instead of only eight clipp
   const source=readFileSync(new URL('../index.html',import.meta.url),'utf8');
   const code=source.match(/  function scopedChatInput\([^]*?\n  }/)[0];
   const messages=Array.from({length:30},(_,i)=>({uid:i+1,isUser:i%2===0,text:'record '+i+' '+('x'.repeat(5000))}));messages.push({uid:31,isUser:true,text:'current'});
-  const sandbox={ArenaContext:Context,msgs:messages,skillsRuntime:{settings:()=>({mode:'off',ids:[]})},activeProjectId:null,currentChatId:'private-123',_incognitoMode:true,chatSystemMode:()=>'',getActiveSubmodels:()=>['claude-opus-5-5']};
+  const sandbox={ArenaContext:Context,msgs:messages,skillsRuntime:{settings:()=>({mode:'off',ids:[]})},activeProjectId:null,activeProject:null,currentChatId:'private-123',_incognitoMode:true,chatSystemMode:()=>'',getActiveSubmodels:()=>['claude-opus-5-5']};
   vm.runInNewContext(code+';result=scopedChatInput("current","","");',sandbox);
   assert.equal(sandbox.result.history.length,30);assert.ok(sandbox.result.history[0].text.endsWith('x'.repeat(5000)));assert.equal(sandbox.result.notes,'');
 });
