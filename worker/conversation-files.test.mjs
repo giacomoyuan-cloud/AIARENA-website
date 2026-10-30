@@ -140,3 +140,11 @@ test('moving an upload in progress fails before copying the destination conversa
  assert.deepEqual([...s.data.entries()],[...before.entries()]);
  await docs(s,c,'library_abort',{fileId:id});const moved=await chat(s,'move',{chatId:c.chatId,targetProjectId:p.id});assert.equal(moved.projectId,p.id);
 });
+
+test('ordinary PDF recognition uses scoped OCR and caches each completed page',async t=>{
+ const s=setup(t),c={chatId:'ocr-general-chat'},f=await upload(s,c,{name:'scan.pdf',text:'native footer',coverage:{units:2,emptyUnits:1}});s.env.OPENAI_API_KEY='synthetic-ocr-key';let calls=0;
+ t.mock.method(globalThis,'fetch',async(url,options)=>{assert.equal(url,'https://api.openai.com/v1/responses');const body=JSON.parse(options.body);assert.equal(body.model,'gpt-6.1-sol');assert.equal(body.reasoning.effort,'low');calls++;return Response.json({status:'completed',usage:{input_tokens:71,output_tokens:32},output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({kind:'text',text:'CONVERSATION_SCAN_ONLY budget 73921.50',warning:''})}]}]});});
+ const repair=await docs(s,c,'reparse',{fileId:f.id}),input={fileId:f.id,generation:repair.generation,page:2,total:2,data:Buffer.from('%PDF-1.7\nsynthetic page').toString('base64'),mime:'application/pdf'};
+ const first=await docs(s,c,'ocr_page',input),cached=await docs(s,c,'ocr_page',input);assert.equal(first.model,'gpt-6.1-sol');assert.match(first.text,/CONVERSATION_SCAN_ONLY/);assert.equal(cached.cached,true);assert.equal(calls,1);
+ await assert.rejects(docs(s,{chatId:'other-ocr-chat'},'ocr_page',input),e=>e.status===404);assert.equal(calls,1);
+});

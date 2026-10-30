@@ -118,7 +118,7 @@ export async function handleProjectLibrary(ctx,env,request){
     if(action==='restore_legacy'){ctx.storage.sql.exec('DELETE FROM library_retired WHERE id=?',body.fileId);return json({ok:true});}
     if(action==='purge_conversation'&&body.conversation){
       for(const row of rows(ctx,'SELECT meta,state FROM library_files')){const f=JSON.parse(row.meta);if(f.objectKey)await env.PROJECT_DOCUMENTS.delete(f.objectKey);if(f.uploadId&&!f.originalComplete)await env.PROJECT_DOCUMENTS.resumeMultipartUpload(f.objectKey,f.uploadId).abort().catch(()=>{});}
-      transact(ctx,()=>{for(const table of ['library_search','library_segments','library_files','library_readings','library_scope_files'])ctx.storage.sql.exec('DELETE FROM '+table);});return json({ok:true});
+      transact(ctx,()=>{for(const table of ['library_search','library_segments','library_pending_segments','library_ocr_pages','library_retired','library_files','library_readings','library_scope_files'])ctx.storage.sql.exec('DELETE FROM '+table);});return json({ok:true});
     }
     const value=file(ctx,body.fileId);
     if(action==='reparse'){
@@ -142,7 +142,7 @@ export async function handleProjectLibrary(ctx,env,request){
       ctx.storage.sql.exec('INSERT INTO library_ocr_pages(file_id,page,state,result,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(file_id,page) DO UPDATE SET state=excluded.state,result=NULL,updated_at=excluded.updated_at',value.id,body.page,'running',null,Date.now());
       const job=(async()=>{
         try{
-          const result=await recognizeProjectPage(env,body.owner,body.projectId,body.page,body.data,body.mime,body.hasNativeText===true);
+          const result=await recognizeProjectPage(env,body.owner,body.conversation?body.channel:body.projectId,body.page,body.data,body.mime,body.hasNativeText===true);
           ctx.storage.sql.exec('UPDATE library_ocr_pages SET state=?,result=?,updated_at=? WHERE file_id=? AND page=?','done',JSON.stringify(result),Date.now(),value.id,body.page);
           return result;
         }catch(error){

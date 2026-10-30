@@ -41,10 +41,12 @@ export async function handleConversationFiles(request,env,{authorize,checkScope,
       const target=new URL('https://project-library.internal/__library');target.searchParams.set('file',url.searchParams.get('file')||'');target.searchParams.set('part',url.searchParams.get('part')||'');
       return actor.fetch(new Request(target,{method:'PUT',headers,body:request.body,duplex:'half'}));
     }
-    const allowed=new Set(['list','settings','start','original_complete','segments','commit','parse_failed','abort','preview','download','remove','restore']);
+    const allowed=new Set(['list','settings','start','original_complete','segments','commit','parse_failed','abort','reparse','ocr_page','preview','download','remove','restore']);
     const action=url.pathname==='/conversation-original'?'download':String(body.action||'').replace(/^library_/,'').replace(/_file$/,'');
     if(!allowed.has(action))invalid('不支持此文件操作');
-    const result=await conversationLibrary(env,user,body.chatId,body.projectId,action,body);
+    const extra={};for(const key of ['fileId','parts','segments','coverage','error','generation','mode','page','total','data','mime','retry','hasNativeText'])if(body[key]!==undefined)extra[key]=body[key];
+    if(action==='start'&&body.file){extra.file={};for(const key of ['id','name','size','type','folder','relativePath'])if(body.file[key]!==undefined)extra.file[key]=body.file[key];}
+    const result=await conversationLibrary(env,user,body.chatId,body.projectId,action,extra);
     const linked=result.file||result.files?.[0];if(linked&&['start','commit','list'].includes(action)&&link)await link(user,body.projectId||null,body.chatId,linked.name);
     return result instanceof Response?result:Response.json(result,{headers:{'Cache-Control':'no-store','Access-Control-Allow-Origin':'*'}});
   }catch(error){return Response.json({error:error.status?error.message:error instanceof SyntaxError?'文件请求格式无效':'对话文件处理失败，请重试'},{status:error.status||400,headers:{'Cache-Control':'no-store','Access-Control-Allow-Origin':'*'}});}
