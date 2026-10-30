@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>AI 助手</title>
-<meta name="app-version" content="20261030-nocat1">
+<meta name="app-version" content="20261030-deepaudit6">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -6644,7 +6644,7 @@ if(imageMode){
     if(context.fileFragments)labels.push(context.readingMode==='full'?'全文阅读 '+context.fileFragments+' 段':'检索资料 '+context.fileFragments+' 段');
     var explanation=context.historyPolicy==='full'?'已携带当前分支的完整文字历史，未进行摘要或截取。':context.historyPolicy==='compacted'?'已接近模型容量；较早文字用摘记和相关原文片段补充，细节可能省略，原聊天记录完整保留。':'原聊天记录完整保留。较早内容通过摘要和按问题检索的原文补充，摘要可能省略细节。';
     var materialText=context.scope!=='general'?(context.readingMode==='full'?'已逐批读入全部可读文字，最终回答使用阅读笔记，笔记可能省略细节。':context.fileFragments?'仅发送检索命中的片段，没有逐页通读整份资料。':context.availableFiles?.length?'本轮没有检索到相关片段，尚未向模型提供文件正文。':'本轮未提供项目资料。'):'';
-    return '<details class="arena-context-info"><summary>本轮上下文 · '+esc(labels.join(' · '))+'</summary><p>'+explanation+(context.scope!=='general'?'记忆和资料仅限当前项目。':'')+esc(materialText)+'</p>'+(context.files||[]).map(function(file){return '<button data-context-file="'+esc(file.id)+'" data-project="'+esc(context.scope)+'">'+esc(file.name)+(file.location?' · '+esc(file.location):'')+'</button>';}).join('')+'</details>';
+    return '<details class="arena-context-info"><summary>本轮上下文 · '+esc(labels.join(' · '))+'</summary><p>'+explanation+(context.scope!=='general'?'记忆和资料仅限当前项目。':'')+esc(materialText)+'</p>'+(context.files||[]).map(function(file){var source=activeProject&&activeProject.id===context.scope&&(activeProject.files||[]).find(function(item){return item.id===file.id;});var name=source?ArenaProjectFiles.name(source):file.name;return '<button data-context-file="'+esc(file.id)+'" data-project="'+esc(context.scope)+'">'+esc(name)+(file.location?' · '+esc(file.location):'')+'</button>';}).join('')+'</details>';
   }
   workspaceController=ArenaWorkspace.mount({
     host:$('ai-arena-app'),api:projectApi,binary:projectBinary,setReadingMode:setProjectReadingMode,busy:function(){return aaRunning||scopeSwitchPending||chatNavigationPending||privacySwitchPending;},notice:arenaNotice,currentProject:function(){return activeProject;},currentScope:function(){return activeProjectId;},
