@@ -47,7 +47,7 @@ const blobs=new Map(),uploads=new Map();
   const bucket={async createMultipartUpload(key){const uploadId=crypto.randomUUID();uploads.set(uploadId,{key,parts:new Map()});return {uploadId};},resumeMultipartUpload(key,id){return {
     async uploadPart(n,body){const bytes=new Uint8Array(await new Response(body).arrayBuffer());uploads.get(id).parts.set(n,bytes);return {partNumber:n,etag:'part-'+n+'-'+bytes.length};},
     async complete(parts){const value=uploads.get(id),size=parts.reduce((n,p)=>n+value.parts.get(p.partNumber).length,0),bytes=new Uint8Array(size);let offset=0;for(const p of parts){const b=value.parts.get(p.partNumber);bytes.set(b,offset);offset+=b.length;}blobs.set(key,bytes);uploads.delete(id);return {size};},async abort(){uploads.delete(id);}
-  };},async head(key){return blobs.has(key)?{size:blobs.get(key).length}:null;},async get(key){return blobs.has(key)?{body:blobs.get(key),size:blobs.get(key).length}:null;},async delete(key){blobs.delete(key);}};
+  };},async head(key){return blobs.has(key)?{size:blobs.get(key).length}:null;},async get(key){return blobs.has(key)?{body:blobs.get(key),size:blobs.get(key).length}:null;},async put(key,value){blobs.set(key,new Uint8Array(await new Response(value).arrayBuffer()));},async delete(key){blobs.delete(key);}};
 const Run=createChatRunClass(executor,Debate),env={MEMORY_KV:kv,BIZ_KV:kv,PASSWORD:'synthetic-only',NATIVE_OWNER_ACCOUNT:'qa-reader',PROJECT_DOCUMENTS:bucket,OPENAI_API_KEY:'synthetic-only',GROK_API_KEY:'synthetic-only',GEMINI_API_KEY:'synthetic-only',ANTHROPIC_API_KEY:'synthetic-only',SKILL_FILE_SIGNING_KEY:'synthetic-signing-only'};
 const scheduleCredentials=async(_env,user)=>({user,password:JSON.parse(data.get('user:'+user)).hash});
 let scheduledRuns;

@@ -14,7 +14,7 @@ export async function conversationLibrary(env,owner,chatId,projectId,action,extr
   const target=await address(env,owner,chatId,projectId),actor=env.CHAT_RUNS.get(env.CHAT_RUNS.idFromName(target.name));
   const response=await actor.fetch(new Request('https://project-library.internal/__library',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...extra,owner,projectId:target.id,conversation:true,channel:projectId||'general',action})}));
   if(!response.ok){const data=await response.json().catch(()=>({}));invalid(data.error||'对话文件请求失败',response.status);}
-  return action==='download'?response:response.json();
+  return ['download','media_download'].includes(action)?response:response.json();
 }
 export async function moveConversationFiles(env,owner,chatId,fromProject,targetId,toProject){
   const target=await address(env,owner,chatId,fromProject);
@@ -41,7 +41,7 @@ export async function handleConversationFiles(request,env,{authorize,checkScope,
       const target=new URL('https://project-library.internal/__library');target.searchParams.set('file',url.searchParams.get('file')||'');target.searchParams.set('part',url.searchParams.get('part')||'');
       return actor.fetch(new Request(target,{method:'PUT',headers,body:request.body,duplex:'half'}));
     }
-    const allowed=new Set(['list','settings','start','original_complete','segments','commit','parse_failed','abort','reparse','ocr_page','preview','download','remove','restore']);
+    const allowed=new Set(['list','settings','start','original_complete','segments','commit','parse_failed','abort','reparse','ocr_page','media','preview','download','remove','restore']);
     const action=url.pathname==='/conversation-original'?'download':String(body.action||'').replace(/^library_/,'').replace(/_file$/,'');
     if(!allowed.has(action))invalid('不支持此文件操作');
     const extra={};for(const key of ['fileId','parts','segments','coverage','error','generation','mode','page','total','data','mime','retry','retryUncertain','location','hasNativeText'])if(body[key]!==undefined)extra[key]=body[key];

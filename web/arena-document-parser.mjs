@@ -99,11 +99,11 @@ export async function* parse(file,coverage,options={}){
  for(const [i,item] of native.entries()){for(const part of chunks(item.text,item.location))yield part;if(options.progress)options.progress({phase:'读取文字与表格',done:i+1,total:coverage.units});}
  for(const [i,asset] of assets.entries()){
   const unit=i+1;
-  try{if(options.progress)options.progress({phase:'Sol 读取图片',done:native.length+i,total:coverage.units});
+  try{if(options.progress)options.progress({phase:'准备原始图片（不调用模型）',done:native.length+i,total:coverage.units});
    if(asset.unsupported)throw Error('此内嵌图片格式需转换为 PNG/JPEG 或 PDF');
    if(!options.ocr)throw Error('图片尚未进行视觉识别');const result=await options.ocr({location:asset.location,mime:asset.mime,data:asset.load?await asset.load():asset.data,page:unit,total:Math.max(1,coverage.units)});
-   for(const part of chunks(result.text||'',asset.location+' · Sol 视觉识别'))yield part;
-   coverage.emptyUnits--;coverage.ocrPages++;if(result.kind==='blank')coverage.blankUnits++;if(result.uncertain)coverage.uncertainUnits++;
+   if(result.media)yield {text:'',location:asset.location,media:result.media};else for(const part of chunks(result.text||'',asset.location+' · 视觉文字'))yield part;
+   coverage.emptyUnits--;if(result.media)coverage.preparedVisuals=(coverage.preparedVisuals||0)+1;else coverage.ocrPages++;if(result.kind==='blank')coverage.blankUnits++;if(result.uncertain)coverage.uncertainUnits++;
    if(result.warning&&coverage.warnings.length<100)coverage.warnings.push({page:unit,location:asset.location,text:result.warning});
   }catch(e){if(e.name==='AbortError')throw e;coverage.ocrError=String(e.message).slice(0,250);coverage.visualComplete=false;break;}
  }

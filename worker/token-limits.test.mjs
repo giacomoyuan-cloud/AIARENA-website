@@ -138,3 +138,14 @@ test('long decode retains cached-input and thinking counters in exactly one rich
   const usages=wire.split('\n').filter(l=>l.startsWith('data: ')&&!l.endsWith('[DONE]')).map(l=>JSON.parse(l.slice(6))).filter(e=>e.usage).map(e=>e.usage);
   assert.equal(usages.length,1);assert.equal(usages[0].schemaVersion,2);assert.equal(usages[0].input,1000);assert.equal(usages[0].output,7);assert.equal(usages[0].details.cachedInput,400);
 });
+
+test('small PDF input uses provider token counting instead of a compressed-byte estimate',async()=>{
+ let calls=0;const payload={model:'gpt-6.1-sol',input:[{role:'user',content:[{type:'input_file',filename:'small.pdf',file_data:'data:application/pdf;base64,JVBERi0='}]}]};
+ const result=await fitTokenBudget({provider:'openai',model:payload.model,payload,outputTokens:1000,exactMedia:true,env:{},fetcher:async(url,options)=>{calls++;assert.match(url,/input_tokens$/);assert.equal(JSON.parse(options.body).input[0].content[0].filename,'small.pdf');return Response.json({input_tokens:12000});}});
+ assert.equal(calls,1);assert.equal(result.inputTokens,12000);assert.equal(result.countMethod,'provider');
+});
+test('Grok image allowance excludes base64 from the text tokenizer',async()=>{
+ const payload={input:[{role:'user',content:[{type:'input_image',image_url:'data:image/jpeg;base64,PRIVATE_VISUAL_BYTES'}]}]};
+ const total=await countInputTokens({provider:'xai',model:'grok-4.7',payload,env:{},fetcher:async(url,options)=>{assert.ok(!options.body.includes('PRIVATE_VISUAL_BYTES'));return Response.json({token_ids:[1,2,3]});}});
+ assert.equal(total,65536+1024+3);
+});

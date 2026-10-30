@@ -48,7 +48,7 @@
     coverage=coverage||{};coverage.units=0;coverage.emptyUnits=0;
     var ext=file.name.split('.').pop().toLowerCase();
     if(['docx','xlsx','xls','xlsm','xlsb','ods','pptx','odt','odp','rtf','epub','png','jpg','jpeg','webp','gif','svg'].includes(ext)){
-      var parser=await load('ArenaDocumentParser','/arena-document-parser.js?v=20261030-filequeue1');
+      var parser=await load('ArenaDocumentParser','/arena-document-parser.js?v=20261031-directfiles1');
       for await(var segment of parser.parse(file,coverage,options))yield segment;return;
     }
     var office=['pdf','docx','xlsx','xls','xlsm','xlsb','ods','pptx','odt','odp'];
@@ -62,49 +62,37 @@
       }if(buffer.trim())yield {text:buffer,location:'正文 · 字符 '+(position+1)+'–'+(position+buffer.length)};
       }finally{reader.releaseLock();}coverage.units=1;if(!position&&!buffer.trim())coverage.emptyUnits=1;return;
     }
-    var buffer=await file.arrayBuffer();
     if(ext==='pdf'){
       var pdfjs=await load('pdfjsLib','https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');
       pdfjs.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-      // pdf.js cannot inject a script element from inside our parsing worker.
-      // Preload its handler so its local worker path needs no document/window.
       if(typeof importScripts==='function'&&!root.pdfjsWorker)importScripts(pdfjs.GlobalWorkerOptions.workerSrc);
-      var pdf=await pdfjs.getDocument({data:new Uint8Array(buffer),isEvalSupported:false}).promise,candidates=[];
-      try{coverage.units=pdf.numPages;for(var pageNumber=1;pageNumber<=pdf.numPages;pageNumber++){
-        var page=await pdf.getPage(pageNumber),content=await page.getTextContent(),text=content.items.map(function(x){return x.str+(x.hasEOL?'\n':' ');}).join('');
-        var needsOCR=!!options.fullVision||!text.trim();
-        // Scans can contain a selectable footer while the actual page is an image.
-        if(options.ocr&&!needsOCR&&text.replace(/\s/g,'').length<80&&page.getOperatorList&&pdfjs.OPS){
-          var ops=await page.getOperatorList(),imageOps=[pdfjs.OPS.paintImageXObject,pdfjs.OPS.paintInlineImageXObject,pdfjs.OPS.paintImageMaskXObject].filter(function(x){return x!==undefined;});
-          needsOCR=ops.fnArray.some(function(code){return imageOps.includes(code);});
-        }
-        if(needsOCR){coverage.emptyUnits++;candidates.push({page:pageNumber,nativeText:text});}for(var segment of split(text,'第 '+pageNumber+' 页'))yield segment;page.cleanup();
-      }}finally{await pdf.destroy();}
-      if(!options.ocr||!candidates.length)return;
-      coverage.visualComplete=!!options.fullVision;coverage.nativeEmptyUnits=coverage.emptyUnits;coverage.ocrPages=0;coverage.blankUnits=0;coverage.uncertainUnits=0;
-      var PDFLib,source;
-      try{PDFLib=await load('PDFLib','https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js');source=await PDFLib.PDFDocument.load(await file.arrayBuffer(),{updateMetadata:false});if(source.getPageCount()!==coverage.units)source=null;}
-      catch(error){source=null;} // PDF.js may read an original whose object table cannot be copied.
-      for(var candidate of candidates){var number=candidate.page;
-        try{
-          if(options.progress)options.progress({phase:'Sol 识别扫描页',done:coverage.ocrPages,total:candidates.length,page:number});
-          var input;
-          if(source){
-            try{var single=await PDFLib.PDFDocument.create({updateMetadata:false}),copied=await single.copyPages(source,[number-1]);single.addPage(copied[0]);
-              var bytes=await single.save({useObjectStreams:true});input=bytes.length>8*1024*1024?await rasterPage(file,number):{data:base64(bytes),mime:'application/pdf'};
-            }catch(error){input=await rasterPage(file,number);}
-          }else input=await rasterPage(file,number);
-          var result=await options.ocr(Object.assign({page:number,total:coverage.units,hasNativeText:!!candidate.nativeText.trim()},input));
-          if(!result||!['text','blank'].includes(result.kind)||typeof result.text!=='string'||result.kind==='text'&&!result.text.trim())throw Error('本页未能识别，请继续识别未完成页');
-          if(result.kind==='blank'&&candidate.nativeText.trim())throw Error('本页包含文字，但识别结果为空白；请继续识别确认');
-          for(var segment of split(result.text,'第 '+number+' 页 · Sol 视觉识别'))yield segment;
-          coverage.emptyUnits--;coverage.ocrPages++;if(options.progress)options.progress({phase:'Sol 图文读取',done:coverage.ocrPages,total:candidates.length,page:number});if(result.kind==='blank')coverage.blankUnits++;
-          if(result.uncertain)coverage.uncertainUnits++;
-          if(result.warning){coverage.warnings=coverage.warnings||[];if(coverage.warnings.length<20)coverage.warnings.push({page:number,text:String(result.warning).slice(0,500)});}
-        }catch(error){if(error.name==='AbortError')throw error;coverage.ocrError=String(error.message||'识别中断').slice(0,250);break;}
-      }
+      var settings={isEvalSupported:false,disableFontFace:true},pdf,canvas;
+      function create(w,h){var c=typeof OffscreenCanvas!=='undefined'?new OffscreenCanvas(w,h):document.createElement('canvas');c.width=w;c.height=h;return {canvas:c,context:c.getContext('2d')};}
+      var factory={create:create,reset:function(v,w,h){v.canvas.width=w;v.canvas.height=h;},destroy:function(v){v.canvas.width=0;v.canvas.height=0;}};settings.canvasFactory=factory;
+      if(file.size>16*1024*1024&&pdfjs.PDFDataRangeTransport){
+        var initial=new Uint8Array(await file.slice(0,65536).arrayBuffer()),transport=new pdfjs.PDFDataRangeTransport(file.size,initial);
+        transport.requestDataRange=function(begin,end){file.slice(begin,end).arrayBuffer().then(function(bytes){transport.onDataRange(begin,new Uint8Array(bytes));});};
+        settings.range=transport;settings.length=file.size;settings.rangeChunkSize=65536;settings.disableAutoFetch=true;settings.disableStream=true;
+      }else settings.data=new Uint8Array(await file.arrayBuffer());
+      pdf=await pdfjs.getDocument(settings).promise;coverage.units=pdf.numPages;coverage.preparedVisuals=0;coverage.uncertainUnits=0;coverage.visualComplete=!!options.fullVision;
+      try{for(var number=1;number<=pdf.numPages;number++){
+        var page=await pdf.getPage(number),content=await page.getTextContent(),text=content.items.map(function(x){return x.str+(x.hasEOL?'\n':' ');}).join('');
+        for(var segment of split(text,'第 '+number+' 页'))yield segment;
+        if(options.ocr&&(options.fullVision||!text.trim())){
+          if(options.progress)options.progress({phase:'准备页面原图（不调用模型）',done:number-1,total:pdf.numPages,page:number});
+          var unit=page.getViewport({scale:1}),viewport=page.getViewport({scale:Math.min(4,3000/Math.max(unit.width,unit.height))}),target=create(Math.ceil(viewport.width),Math.ceil(viewport.height));canvas=target.canvas;
+          await page.render({canvasContext:target.context,viewport:viewport,canvasFactory:factory,background:'#ffffff'}).promise;
+          var blob=canvas.convertToBlob?await canvas.convertToBlob({type:'image/jpeg',quality:.9}):await new Promise(function(resolve,reject){canvas.toBlob(function(v){v?resolve(v):reject(Error('页面准备失败'));},'image/jpeg',.9);});
+          var result=await options.ocr({page:number,total:pdf.numPages,location:'第 '+number+' 页',mime:'image/jpeg',data:base64(new Uint8Array(await blob.arrayBuffer()))});
+          if(result.media){yield {text:'',location:'第 '+number+' 页',media:result.media};coverage.preparedVisuals++;}
+          else for(var part of split(result.text||'','第 '+number+' 页 · 视觉文字'))yield part;
+          canvas.width=0;canvas.height=0;canvas=null;
+        }else if(!text.trim())coverage.emptyUnits++;
+        page.cleanup();if(options.progress)options.progress({phase:'页面准备完成',done:number,total:pdf.numPages,page:number});
+      }}finally{if(canvas){canvas.width=0;canvas.height=0;}await pdf.destroy();}
       return;
     }
+    var buffer=await file.arrayBuffer();
     if(ext==='docx'){
       var mammoth=await load('mammoth','https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js'),text=(await mammoth.extractRawText({arrayBuffer:buffer})).value;
       coverage.units=1;coverage.emptyUnits=text.trim()?0:1;for(var segment of split(text,'Word 正文'))yield segment;return;
@@ -146,7 +134,7 @@
       await flush();return {coverage:coverage,segments:ordinal};
     })();
     return new Promise(function(resolve,reject){
-      var worker=new Worker('/arena-project-parser-worker.js?v=20261030-filequeue1'),finished=false;
+      var worker=new Worker('/arena-project-parser-worker.js?v=20261031-directfiles1'),finished=false;
       function stop(error,result){if(finished)return;finished=true;worker.terminate();if(signal)signal.removeEventListener('abort',abort);error?reject(error):resolve(result);}
       function abort(){stop(Object.assign(Error('上传已暂停，重新选择原文件可继续'),{name:'AbortError'}));}
       if(signal){if(signal.aborted)return abort();signal.addEventListener('abort',abort,{once:true});}
@@ -189,11 +177,11 @@
         await api('segments',{segments:segments});indexed+=segments.length;progress('解析并建立索引',indexed,0);
       },options.signal,{
         fullVision:true,
-        ocr:async function(task){task=await normalizeVisual(task);var value=await api('ocr_page',Object.assign({retry:!!options.retry,retryUncertain:!!options.retryUncertain},task));if(options.shouldPause?.())throw Object.assign(Error('识别已暂停，已完成内容已保存'),{name:'AbortError'});if(task.notice)value=Object.assign({},value,{uncertain:true,warning:[value.warning,task.notice].filter(Boolean).join('；')});return value;},
+        ocr:async function(task){task=await normalizeVisual(task);var value=await api('media',Object.assign({retry:!!options.retry,retryUncertain:!!options.retryUncertain},task));if(options.shouldPause?.())throw Object.assign(Error('识别已暂停，已完成内容已保存'),{name:'AbortError'});if(task.notice)value=Object.assign({},value,{uncertain:true,warning:[value.warning,task.notice].filter(Boolean).join('；')});return value;},
         progress:function(p){progress(p.phase+(p.page?' · 第 '+p.page+' 页':''),p.done,p.total);}
       });
       if(!result.segments)throw Error(result.coverage.ocrError||(result.coverage.blankUnits===result.coverage.units?'这份文件没有可查阅内容，原文件已保留':'未识别到可读内容，原文件已保留，可继续识别'));
-      result.coverage.sourceVersion='20261030-filequeue1';
+      result.coverage.sourceVersion='20261031-directfiles1';
       var completed=await api('commit',{segments:result.segments,coverage:result.coverage});
       progress(completed.file.status==='partial'?'已保存可读内容，仍有页面待识别或确认':'已可供 AI 查阅',result.segments,result.segments);return completed.file;
     }catch(error){
@@ -250,8 +238,9 @@
   function status(file){
     if(file.status==='uploading')return '原文件待续传';
     if(file.status==='indexing')return '正在解析或识别，可继续处理';
-    if(file.status==='unreadable')return '尚不可供 AI 查阅 · '+(file.parseError||'可用 Sol 继续识别');
-    var recognized=file.ocrPages?'Sol 已识别 '+file.ocrPages+' '+(file.coverage?.unitLabel||'页'):'';
+    if(file.coverage?.sourceVersion==='20261031-directfiles1')return file.coverage?.emptyUnits?'部分图文尚未准备完成':'图文已准备，发送后由当前模型读取';
+    if(file.status==='unreadable')return '尚不可供 AI 查阅 · '+(file.parseError||'可继续准备图文');
+    var recognized=file.ocrPages?'已有文字索引 '+file.ocrPages+' '+(file.coverage?.unitLabel||'页'):'';
     if(warningsOnly(file))return (recognized||'已处理全部页面')+' · '+file.coverage.uncertainUnits+' '+(file.coverage?.unitLabel||'页')+'有不清晰内容，可查阅';
     if(file.status==='partial')return (recognized?recognized+' · ':'')+(file.coverage?.emptyUnits?'还有 '+file.coverage.emptyUnits+' 页待识别':'部分页面待识别')+(file.coverage?.ocrError?' · '+file.coverage.ocrError:'');
     return '已建立检索索引'+(recognized?' · '+recognized:'');

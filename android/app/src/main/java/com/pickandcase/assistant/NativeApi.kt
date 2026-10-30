@@ -144,6 +144,8 @@ class NativeApi(
         file: File,
         offset: Long,
         length: Long,
+        chatId: String? = null,
+        conversationProjectId: String? = null,
     ): JSONObject {
         val authorization = token
         return withContext(Dispatchers.IO) {
@@ -174,8 +176,7 @@ class NativeApi(
                 }
             val url =
                 baseUrl +
-                    "project-upload?project=" +
-                    java.net.URLEncoder.encode(projectId, "UTF-8") +
+                    (if(chatId == null) "project-upload?project=" + java.net.URLEncoder.encode(projectId, "UTF-8") else "conversation-upload?chat=" + java.net.URLEncoder.encode(chatId,"UTF-8") + "&project=" + java.net.URLEncoder.encode(conversationProjectId.orEmpty(),"UTF-8")) +
                     "&file=" +
                     java.net.URLEncoder.encode(fileId, "UTF-8") +
                     "&part=" +

@@ -1,11 +1,11 @@
 {
-  "version": "2.0.4",
-  "versionCode": 204,
+  "version": "2.0.5",
+  "versionCode": 205,
   "package": "com.pickandcase.assistant",
   "minAndroid": "8.0",
-  "url": "/downloads/AI-Assistant-2.0.4.apk",
+  "url": "/downloads/AI-Assistant-2.0.5.apk",
   "bytes": 23030917,
-  "sha256": "c556a193cc923cb4e3affdca72e4d668ef054c7703b7332502b842eeff163473",
+  "sha256": "f5025e8c667f7aa1d6d159ffe65f81893852f498b84e6967c216f43c11211f70",
   "native": true,
-  "notes": "管理员可删除其他账号，App 与网页同步失效；宽表格逐项阅读；移除猫咪，启用黑底银色 A 图标；优化连续使用稳定性。"
+  "notes": "文件由当前所选模型读取；PDF 原件直传，Word/Excel 完整图文传递；大文件按当前模型分批阅读，不再固定调用 Sol 识别。"
 }
