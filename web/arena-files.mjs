@@ -1,7 +1,8 @@
 import JSZip from 'jszip';
+import { UPLOAD_LIMITS } from './upload-limits.mjs';
 import { CHAT_ACCEPT, DOCUMENT_ACCEPT, extension, isArchive, isDocument, isImage, isText, mimeFor } from './file-types.mjs';
 
-export const LIMITS = Object.freeze({ fileBytes: 8 * 1024 * 1024, expandedBytes: 40 * 1024 * 1024, archiveEntries: 100, characters: 400000, chatCharacters: 40000, pages: 200 });
+export const LIMITS = Object.freeze({ ...UPLOAD_LIMITS, archiveEntries: 100, characters: 400000, chatCharacters: 40000, pages: 200 });
 const loaded = new Map();
 export function library(name, url) {
   if (globalThis[name]) return Promise.resolve(globalThis[name]);
@@ -57,7 +58,7 @@ export function preflightZip(buffer, maxEntries = LIMITS.archiveEntries) {
     if (view.getUint16(offset + 8, true) & 1) throw Error('ZIP 已加密，请去掉密码后上传');
     const length = view.getUint32(offset + 24, true);
     expanded += length;
-    if (length === 0xffffffff || expanded > LIMITS.expandedBytes) throw Error('ZIP 解压后总量不能超过 40MB');
+    if (length === 0xffffffff || expanded > LIMITS.expandedBytes) throw Error('ZIP 解压后总量不能超过 100MB');
     offset += 46 + view.getUint16(offset + 28, true) + view.getUint16(offset + 30, true) + view.getUint16(offset + 32, true);
     if (offset > start + size) throw zipError();
   }
@@ -109,7 +110,7 @@ export async function expandFiles(sources, { images = false, progress = () => {}
   const files = [], skipped = [], budget = { remaining: LIMITS.expandedBytes };
   for (const source of sources) {
     const sourcePath = source.webkitRelativePath || source.name;
-    if (!source.size || source.size > LIMITS.fileBytes) { skipped.push({ name: sourcePath, reason: '文件为空或超过 8MB' }); continue; }
+    if (!source.size || source.size > LIMITS.fileBytes) { skipped.push({ name: sourcePath, reason: '文件为空或超过 20MB' }); continue; }
     if (!isArchive(source.name)) {
       if (hiddenPath(sourcePath) || (!isDocument(source.name) && !(images && isImage(source.name)))) skipped.push({ name: sourcePath, reason: '不支持的文件类型或依赖目录' });
       else files.push({ file: source, path: sourcePath, source });
@@ -149,7 +150,7 @@ function xmlDocument(xml) {
   return doc;
 }
 export async function extractText(file, { load = library } = {}) {
-  if (!file.size || file.size > LIMITS.fileBytes) throw Error('单个文件必须大于 0 且不超过 8MB');
+  if (!file.size || file.size > LIMITS.fileBytes) throw Error('单个文件必须大于 0 且不超过 20MB');
   const ext = extension(file.name), buffer = await file.arrayBuffer();
   let text = '';
   if (isText(file.name)) text = decodeText(new Uint8Array(buffer));
@@ -200,6 +201,13 @@ export function base64(buffer) {
   for (let i = 0; i < bytes.length; i += 32768) binary += String.fromCharCode.apply(null, bytes.subarray(i, i + 32768));
   return btoa(binary);
 }
+export function decodeBase64(data) {
+  const padding=data.endsWith('==')?2:data.endsWith('=')?1:0;
+  const bytes=new Uint8Array(Math.floor(data.length*3/4)-padding);
+  let offset=0;
+  for(let i=0;i<data.length;i+=65536){const part=atob(data.slice(i,i+65536));for(let j=0;j<part.length;j++)bytes[offset++]=part.charCodeAt(j);}
+  return bytes;
+}
 export async function readFile(file) {
   const text = await extractText(file);
   return { name: file.name, size: file.size, type: file.type || mimeFor(file.name), text, data: base64(await file.arrayBuffer()) };
@@ -220,5 +228,5 @@ export async function prepareChatFile(source, { progress = () => {}, extract = e
   const text = parts.length || (isArchive(source.name) && images.length) ? '[文件: ' + source.name + ']\n' + summary + parts.join('\n\n') : '';
   return { source, text, images, skipped: result.skipped, count: parts.length + images.length };
 }
-export const api = { CHAT_ACCEPT, DOCUMENT_ACCEPT, LIMITS, isArchive, isDocument, isImage, expandFiles, extractText, readFile, prepareChatFile };
+export const api = { CHAT_ACCEPT, DOCUMENT_ACCEPT, LIMITS, isArchive, isDocument, isImage, expandFiles, extractText, readFile, prepareChatFile, decodeBase64 };
 if (typeof window !== 'undefined') window.ArenaFiles = api;

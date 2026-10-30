@@ -12,6 +12,8 @@ import DebateCore from '../arena-debate.js';
 import SkillModels from '../arena-skill-models.js';
 import ChatMode from '../arena-chat-mode.js';
 import { isDocument } from '../web/file-types.mjs';
+import { UPLOAD_LIMITS, uploadDataInfo } from '../web/upload-limits.mjs';
+import { storeProjectOriginal, readProjectOriginal, downloadProjectOriginal } from './project-files.js';
 import TokenLimits from '../arena-token-limits.js';
 import { fitTokenBudget } from './token-budget.js';
 import { runGoogleLongDecode, cancelGoogleInteraction } from './google-long-decode.js';
@@ -459,9 +461,10 @@ async function handleProjectRequest(request,env){
       if(!file||typeof file.name!=="string"||typeof file.text!=="string"||!file.text.trim()||file.text.length>400000)return projectReply({error:"资料为空或提取文字超过 40 万字"},400);
       if(!/^[\s\S]{1,180}$/.test(file.name)||/[\u0000-\u001f]/.test(file.name))return projectReply({error:"文件名无效"},400);
       if(!isDocument(file.name))return projectReply({error:"暂不支持此资料格式；ZIP 请先在上传入口自动展开"},400);
-      if(typeof file.data!=="string"||file.data.length>12*1024*1024||!/^[A-Za-z0-9+/]*={0,2}$/.test(file.data))return projectReply({error:"文件过大，单份资料上限 8 MB"},413);
-      if(!Number.isInteger(file.size)||file.size<0||file.size>8*1024*1024)return projectReply({error:"单份资料上限 8 MB"},413);
-      if(files.reduce((n,f)=>n+f.size,0)+file.size>40*1024*1024)return projectReply({error:"每个项目资料总量上限 40 MB"},413);
+      let original;
+      try{original=uploadDataInfo(file.data);}catch(error){return projectReply({error:error.message},413);}
+      if(!Number.isInteger(file.size)||file.size!==original.size)return projectReply({error:"文件大小与原件不符"},400);
+      if(files.reduce((n,f)=>n+f.size,0)+file.size>UPLOAD_LIMITS.projectBytes)return projectReply({error:"每个项目资料总量上限 100 MB"},413);
       const id=crypto.randomUUID(),record={id,name:file.name,size:file.size,type:String(file.type||"application/octet-stream").slice(0,120),createdAt:Date.now(),characters:file.text.length};
       if(file.folder!==undefined){
         if(typeof file.folder!=="string"||!file.folder.trim()||file.folder.length>180||/[\u0000-\u001f/\\]/.test(file.folder))return projectReply({error:"文件夹名称无效"},400);
@@ -469,7 +472,7 @@ async function handleProjectRequest(request,env){
         record.folder=file.folder;record.relativePath=file.relativePath;
       }
       const index=ArenaContext.indexDocument(file.text);
-      await putProjectKV(env.BIZ_KV,prefix+":file:"+id+":original",JSON.stringify({...record,data:file.data,text:file.text}));
+      await storeProjectOriginal(env.BIZ_KV,prefix+":file:"+id+":original",{...record,data:original.data,text:file.text},(key,value)=>putProjectKV(env.BIZ_KV,key,value));
       for(let offset=0;offset<index.parts.length;offset+=16){
         await Promise.all(index.parts.slice(offset,offset+16).map((part,n)=>putProjectKV(env.BIZ_KV,prefix+":file:"+id+":chunk:"+(offset+n),part.text)));
       }
@@ -483,7 +486,7 @@ async function handleProjectRequest(request,env){
       const removed=JSON.parse(await env.BIZ_KV.get(prefix+":removed-files")||"[]"),file=removed.find(f=>f.id===body.fileId),files=await projectFiles(env,user,project.id);
       if(!file)return projectReply({error:"资料不存在"},404);
       if(files.length>=15)return projectReply({error:"每个项目最多保存 15 份资料"},400);
-      if(files.reduce((total,item)=>total+item.size,0)+file.size>40*1024*1024)return projectReply({error:"项目资料总大小不能超过 40 MB"},400);
+      if(files.reduce((total,item)=>total+item.size,0)+file.size>UPLOAD_LIMITS.projectBytes)return projectReply({error:"项目资料总大小不能超过 100 MB"},400);
       if(!files.some(f=>f.id===file.id))files.push(file);
       await putProjectKV(env.BIZ_KV,prefix+":files",JSON.stringify(files));
       await putProjectKV(env.BIZ_KV,prefix+":removed-files",JSON.stringify(removed.filter(f=>f.id!==file.id)));
@@ -498,10 +501,10 @@ async function handleProjectRequest(request,env){
         await putProjectKV(env.BIZ_KV,prefix+":removed-files",JSON.stringify(removed));
         return projectReply({files:files.filter(f=>f.id!==body.fileId)});
       }
-      const raw=await env.BIZ_KV.get(prefix+":file:"+file.id+":original");
-      if(!raw)return projectReply({error:"资料暂不可用，请稍后重试"},503);
-      const full=JSON.parse(raw);
-      return projectReply({file:action==="download"?full:{...file,text:full.text.slice(0,60000),previewTruncated:full.text.length>60000}});
+      const originalKey=prefix+":file:"+file.id+":original";
+      if(action==="download")return await downloadProjectOriginal(env.BIZ_KV,originalKey);
+      const full=await readProjectOriginal(env.BIZ_KV,originalKey);
+      return projectReply({file:{...file,text:full.text.slice(0,60000),previewTruncated:full.text.length>60000}});
     }
     return projectReply({error:"未知项目操作"},400);
   }catch(error){return projectReply({error:error instanceof SyntaxError?"无效的项目请求":error.status?error.message:"项目操作失败，请稍后重试"},error instanceof SyntaxError?400:error.status||500);}
@@ -638,7 +641,7 @@ async function handleSkillFileRequest(request,env){
 }
 
 var worker_default = {
-  async fetch(request, env) {
+  async fetch(request, env, ctx, internalPayload) {
     if (request.method === "OPTIONS") {
       return new Response(null, {
         headers: {
@@ -1029,7 +1032,7 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
     }
     let body;
     try {
-      body = await accountRequestBody(await request.json(), env);
+      body = await accountRequestBody(internalPayload??await request.json(), env);
     } catch {
       return new Response("Invalid JSON", { status: 400 });
     }
@@ -1491,8 +1494,11 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
         const files=validateSkillFiles(body.chat.files);
         if(project&&!files.length&&!body.chat.skillSession){
           for(const reference of scoped.materialFiles||[]){
-            const raw=await env.BIZ_KV.get(projectKey(authUser,projectId)+':file:'+reference.id);
-            if(raw){const file=JSON.parse(raw);if(file.data)files.push({name:file.name,data:file.data,mime:file.type||'application/octet-stream',size:file.size});}
+            const key=projectKey(authUser,projectId)+':file:'+reference.id+':original';
+            const meta=await readProjectOriginal(env.BIZ_KV,key);
+            if(files.reduce((total,file)=>total+file.size,0)+meta.size>UPLOAD_LIMITS.roundBytes)throw Object.assign(Error('本次项目原件合计超过 20MB，请分批处理'),{status:400});
+            const file=await readProjectOriginal(env.BIZ_KV,key,{withData:true});
+            files.push({name:file.name,data:file.data,mime:file.type||'application/octet-stream',size:file.size});
           }
         }
         const documentUsage=[];
@@ -1758,6 +1764,9 @@ const DebateRun = createDebateRunClass(executeRun, async (job, env) => {
   return { user: job.user, username: job.user, password: record.hash, passwordHash: record.hash };
 }, DebateCore);
 const ChatRun = createChatRunClass(executeRun, DebateRun, {
+  // Keep large originals as shared strings inside the actor, instead of
+  // serializing a second full HTTP body for its in-process execution.
+  executePayload:(payload,env,signal)=>worker_default.fetch(new Request('https://internal.invalid/',{method:'POST',headers:{'Content-Type':'application/json'},signal}),env,undefined,payload),
   deferStart: payload => OFFICIAL_MODELS[payload.model]?.provider === 'openai',
   createTransport: (ctx, env) => new OpenAITransport(ctx, env),
   onInterrupt: async(meta,env)=>{

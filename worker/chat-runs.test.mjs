@@ -3,8 +3,21 @@ import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { setImmediate } from 'node:timers/promises';
 import worker, { ChatRun } from './worker.js';
+import { createChatRunClass } from './chat-runs.js';
 
 const pass = 'synthetic-account-hash';
+test('in-process execution retains a large payload without another JSON body copy',async()=>{
+  const payload={marker:'original',toJSON(){throw Error('must not serialize the payload again');}};
+  let calls=0;
+  const Run=createChatRunClass(()=>assert.fail('must use direct payload execution'),null,{executePayload:async(value,env,signal)=>{
+    assert.equal(value,payload);assert.equal(signal.aborted,false);calls++;
+    return new Response('data: {"t":"complete"}\n\ndata: [DONE]\n\n');
+  }});
+  const actor=new Run({storage:storage(),waitUntil:()=>{}},{});
+  actor.meta={runId:'large-file',status:'running',sequence:0,createdAt:Date.now(),reply:{text:''},incognito:true};
+  await actor.generate(payload);
+  assert.equal(calls,1);assert.equal(actor.meta.status,'completed');assert.equal(actor.meta.reply.text,'complete');
+});
 test('multi-megabyte Unicode replies persist and archive in bounded SQLite rows without retry replacement',()=>{
   const store=storage(),ctx={storage:store,waitUntil:()=>{}},actor=new ChatRun(ctx,{});
   const text='x'.repeat(63980)+'😀'+('长正文😀'.repeat(300000));
