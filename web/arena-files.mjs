@@ -4,6 +4,7 @@ import { CHAT_ACCEPT, DOCUMENT_ACCEPT, extension, isArchive, isDocument, isImage
 
 export const LIMITS = Object.freeze({ ...UPLOAD_LIMITS, archiveEntries: 100, characters: 400000, chatCharacters: 40000, pages: 200 });
 const loaded = new Map();
+const zipMetadata = new WeakMap();
 export function library(name, url) {
   if (globalThis[name]) return Promise.resolve(globalThis[name]);
   if (loaded.has(name)) return loaded.get(name);
@@ -40,7 +41,7 @@ function hiddenPath(name) { return name.split('/').some(part => part === '__MACO
 function zipError() { return Error('ZIP 无法读取：文件可能损坏、已加密或使用了不支持的压缩方式'); }
 
 // Check directory counts and declared sizes before JSZip allocates its entries.
-export function preflightZip(buffer, maxEntries = LIMITS.archiveEntries) {
+export function preflightZip(buffer, maxEntries = LIMITS.archiveEntries, entries) {
   const bytes = new Uint8Array(buffer), view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   let end = -1;
   for (let i = bytes.length - 22; i >= Math.max(0, bytes.length - 65557); i--) {
@@ -59,7 +60,20 @@ export function preflightZip(buffer, maxEntries = LIMITS.archiveEntries) {
     const length = view.getUint32(offset + 24, true);
     expanded += length;
     if (length === 0xffffffff || expanded > LIMITS.expandedBytes) throw Error('ZIP 解压后总量不能超过 100MB');
-    offset += 46 + view.getUint16(offset + 28, true) + view.getUint16(offset + 30, true) + view.getUint16(offset + 32, true);
+    const next = offset + 46 + view.getUint16(offset + 28, true) + view.getUint16(offset + 30, true) + view.getUint16(offset + 32, true);
+    if (entries && next <= start + size) {
+      const nameBytes = bytes.subarray(offset + 46, offset + 46 + view.getUint16(offset + 28, true));
+      let name;
+      // Match JSZip's Unicode-path extra field, including its filename CRC check.
+      for (let extra = offset + 46 + nameBytes.length, end = extra + view.getUint16(offset + 30, true); extra + 4 <= end;) {
+        const kind = view.getUint16(extra, true), size = view.getUint16(extra + 2, true), value = extra + 4;
+        if (value + size > end) throw zipError();
+        if (!(view.getUint16(offset + 8, true) & 0x800) && kind === 0x7075 && size >= 5 && bytes[value] === 1 && view.getUint32(value + 1, true) === crc32(nameBytes)) name = decodeText(bytes.subarray(value + 5, value + size));
+        extra = value + size;
+      }
+      entries.push({ name: name ?? decodeText(nameBytes), size: length, crc32: view.getUint32(offset + 16, true) });
+    }
+    offset = next;
     if (offset > start + size) throw zipError();
   }
   if (offset !== start + size) throw zipError();
@@ -67,11 +81,17 @@ export function preflightZip(buffer, maxEntries = LIMITS.archiveEntries) {
 }
 
 export async function openZip(buffer, maxEntries) {
-  const count = preflightZip(buffer, maxEntries);
+  const entries = [], count = preflightZip(buffer, maxEntries, entries);
   let zip;
   try { zip = await JSZip.loadAsync(buffer, { createFolders: false, decodeFileName: bytes => decodeText(new Uint8Array(bytes)) }); }
   catch { throw zipError(); }
   if (Object.keys(zip.files).length !== count) throw Error('ZIP 包含重复文件名，请整理后上传');
+  const metadata = new Map(entries.map(entry => [entry.name, entry]));
+  for (const entry of Object.values(zip.files)) {
+    const info = metadata.get(entry.unsafeOriginalName || entry.name);
+    if (!info) throw zipError();
+    zipMetadata.set(entry, info);
+  }
   return zip;
 }
 async function verifyOfficeZip(buffer) {
@@ -84,8 +104,11 @@ const crcTable = Array.from({ length: 256 }, (_, index) => {
   for (let bit = 0; bit < 8; bit++) value = value & 1 ? 0xedb88320 ^ (value >>> 1) : value >>> 1;
   return value >>> 0;
 });
+function crc32(bytes) { let crc = -1; for (const byte of bytes) crc = (crc >>> 8) ^ crcTable[(crc ^ byte) & 255]; return (crc ^ -1) >>> 0; }
 export function readZipEntry(entry, maxBytes, budget = { remaining: LIMITS.expandedBytes }) {
-  if (entry._data.uncompressedSize > maxBytes || entry._data.uncompressedSize > budget.remaining) return Promise.reject(Error('解压后的文件超过大小上限'));
+  const info = zipMetadata.get(entry) || { size: entry._data.uncompressedSize, crc32: entry._data.crc32 };
+  if (!Number.isSafeInteger(info.size) || info.size < 0) return Promise.reject(zipError());
+  if (info.size > maxBytes || info.size > budget.remaining) return Promise.reject(Error('解压后的文件超过大小上限'));
   return new Promise((resolve, reject) => {
     let chunks = [], size = 0, crc = -1, failed = false;
     const stream = entry.internalStream('uint8array');
@@ -98,7 +121,7 @@ export function readZipEntry(entry, maxBytes, budget = { remaining: LIMITS.expan
       chunks.push(chunk);
     }).on('error', () => fail(zipError())).on('end', () => {
       if (failed) return;
-      if (size !== entry._data.uncompressedSize || ((crc ^ -1) >>> 0) !== (entry._data.crc32 >>> 0)) { fail(Error('ZIP 文件校验失败，请重新压缩后上传')); return; }
+      if (size !== info.size || ((crc ^ -1) >>> 0) !== (info.crc32 >>> 0)) { fail(Error('ZIP 文件校验失败，请重新压缩后上传')); return; }
       const bytes = new Uint8Array(size);
       let offset = 0; for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length; }
       chunks = []; resolve(bytes);
