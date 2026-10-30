@@ -43,6 +43,22 @@ function storage() {
     return { toArray: () => rows };
   } }, setAlarm: async () => {} };
 }
+test('usage repair reads normal receipts without generation, private content or state writes',async()=>{
+  const store=storage(),Run=createChatRunClass(()=>assert.fail('usage repair must never call a model'));
+  const actor=new Run({storage:store,waitUntil:()=>{}},{}),receipt={schemaVersion:2,id:'receipt-normal',model:'gpt-6.1-sol',input:10,output:2};
+  actor.meta={runId:'normal-run',status:'completed',createdAt:Date.now(),updatedAt:Date.now(),userMessage:{text:'PROMPT_MUST_NOT_LEAVE'},reply:{uid:2,text:'ANSWER_MUST_NOT_LEAVE',usage:receipt}};
+  actor.persistMeta();actor.archiveCurrent();
+  actor.meta={runId:'private-run',status:'completed',incognito:true,reply:{uid:4,usage:{...receipt,id:'PRIVATE_RECEIPT'}}};
+  const changes=()=>store.db.prepare('SELECT total_changes() AS n').get().n,before=changes();
+  const read=runIds=>actor.fetch(new Request('https://chat-run.internal/',{method:'POST',body:JSON.stringify({action:'usage',runIds})}));
+  const raw=await(await read(['normal-run','private-run','unknown-run'])).text();
+  assert.deepEqual(JSON.parse(raw),{usages:[{runId:'normal-run',uid:2,usage:receipt}]});
+  assert.ok(!/PROMPT_MUST_NOT_LEAVE|ANSWER_MUST_NOT_LEAVE|PRIVATE_RECEIPT/.test(raw));assert.equal(changes(),before);
+  assert.equal((await read(Array(9).fill('normal-run'))).status,400);
+  assert.equal((await actor.fetch(post({action:'usage',runIds:['normal-run']}))).status,400);
+  store.db.prepare('UPDATE run_history SET expires_at = ? WHERE run_id = ?').run(Date.now()-1,'normal-run');
+  assert.deepEqual(await(await read(['normal-run'])).json(),{usages:[]});
+});
 function setup(t, model = 'claude-opus-5-5') {
   const data = new Map([['user:tester', JSON.stringify({ hash: pass })], ['user:other', JSON.stringify({ hash: pass })]]);
   const kv = { get: async key => data.get(key) || null, put: async (key,value) => data.set(key,value), delete: async key => data.delete(key) };

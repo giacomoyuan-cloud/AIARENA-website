@@ -13,6 +13,47 @@ const post=(path,body)=>new Request('https://api.pickandcase.com'+path,{method:'
 async function project(env,action,fields={}){const response=await worker.fetch(post('/projects',{username:'tester',password:pass,action,...fields}),env);return {status:response.status,...await response.json()};}
 async function create(env,name){return (await project(env,'create',{name})).project;}
 const root=(projectId,question,fields={})=>post('/',{user:'tester',password:pass,model:'claude-sonnet-5-5',prompt:'LEGACY_PROMPT_MUST_NOT_BE_USED',projectId,chat:{scope:projectId||'general',chatId:'test-chat-123',question,query:question,history:[],...fields}});
+test('legacy saves retain receipts only for the same generation and malformed messages cannot replace an archive',async()=>{
+  const {env,data}=setup(),key='chats:tester:billing-chat-123';
+  const receipt={schemaVersion:2,id:'billing-receipt-1',model:'gpt-6.1-sol',input:10,output:2};
+  const original={uid:2,text:'saved answer',run:{id:'billing-run-1',status:'completed'},usage:receipt};
+  data.set(key,JSON.stringify([original]));
+  const save=messages=>worker.fetch(post('/chats',{username:'tester',password:pass,action:'save',chatId:'billing-chat-123',messages}),env);
+  const {usage,...legacy}=original;
+  assert.equal((await save([legacy])).status,200);assert.deepEqual(JSON.parse(data.get(key))[0].usage,receipt);
+  const before=data.get(key);
+  for(const malformed of ['not an array',{},[null],[[]]]){assert.equal((await save(malformed)).status,400);assert.equal(data.get(key),before);}
+  assert.equal((await save([{...legacy,run:{id:'another-run',status:'running'}}])).status,200);
+  assert.equal(JSON.parse(data.get(key))[0].usage,undefined,'a new generation never inherits an old charge');
+});
+test('history load recovers available official receipts in their own scope without rewriting the archive',async()=>{
+  const {env,data}=setup(),a=await create(env,'Receipt repair'),requests=[];
+  const receipt={schemaVersion:2,id:'official-receipt',model:'gpt-6.1-sol',input:4553,output:7};
+  const message={uid:2,text:'saved answer',run:{id:'saved-run-123',status:'completed'}};
+  const key='project:tester:'+a.id+':chats:billing-chat-123';data.set(key,JSON.stringify([message]));const before=data.get(key);
+  env.CHAT_RUNS={idFromName:name=>name,get:name=>({fetch:async request=>{
+    requests.push({name,body:await request.json()});
+    return Response.json({usages:[{runId:'saved-run-123',uid:2,usage:receipt},{runId:'wrong-run',uid:3,usage:receipt}]});
+  }})};
+  const load=fields=>worker.fetch(post('/chats',{username:'tester',password:pass,projectId:a.id,action:'load',chatId:'billing-chat-123',...fields}),env);
+  assert.deepEqual((await(await load()).json()).messages,[{...message,usage:receipt}]);assert.equal(data.get(key),before,'loading never overwrites a concurrent archive');
+  assert.deepEqual(requests,[{name:'tester:'+a.id+':billing-chat-123',body:{action:'usage',runIds:['saved-run-123']}}]);
+  assert.equal((await load({username:'another'})).status,404);assert.equal(requests.length,1);
+  const publicRead=await worker.fetch(post('/chat-runs',{username:'tester',password:pass,action:'usage',runId:'saved-run-123',chatId:'billing-chat-123'}),env);
+  assert.equal(publicRead.status,400);assert.equal(requests.length,1);
+  env.CHAT_RUNS.get=()=>({fetch:async()=>{throw Error('temporarily unavailable');}});
+  assert.deepEqual((await(await load()).json()).messages,[message]);assert.equal(data.get(key),before);
+  const broken='{"unexpected":"format"}';data.set(key,broken);assert.equal((await load()).status,503);assert.equal(data.get(key),broken);
+});
+test('receipt repair is bounded and refuses metadata for a different reply',async()=>{
+  const {env,data}=setup(),messages=Array.from({length:10},(_,i)=>({uid:i+1,text:'answer '+i,run:{id:'missing-run-'+i,status:'completed'}})),calls=[];
+  data.set('chats:tester:bounded-chat-123',JSON.stringify(messages));
+  env.CHAT_RUNS={idFromName:name=>name,get:()=>({fetch:async request=>{
+    const body=await request.json();calls.push(body);return Response.json({usages:[{runId:'missing-run-9',uid:999,usage:{schemaVersion:2,id:'not-this-reply'}}]});
+  }})};
+  const response=await worker.fetch(post('/chats',{username:'tester',password:pass,action:'load',chatId:'bounded-chat-123'}),env);
+  assert.deepEqual((await response.json()).messages,messages);assert.equal(calls.length,1);assert.deepEqual(calls[0].runIds,messages.slice(-8).map(m=>m.run.id));
+});
 test('expanded ZIP members and new text formats retain original bytes and paths inside their own project',async()=>{
   const {env}=setup(),a=await create(env,'ZIP A'),b=await create(env,'ZIP B');
   for(const [name,text] of [['helper.py','print("source")'],['config.yaml','price: 42'],['notes.jsonl','{"value":42}'],['Dockerfile','FROM scratch']]){
