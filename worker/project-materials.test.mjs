@@ -71,6 +71,19 @@ test('full reading visits the last segment, saves progress and never repeats a c
   await s.api('remove_file',{projectId:p.id,fileId:file.id});await assert.rejects(library('batch',{scope:revision,offset:0}),e=>e.status===409);
   await assert.rejects(library('batch',{scope:'forged-scope',offset:0}),/阅读范围无效/);
 });
+test('naming a new source keeps it in retrieval when legacy scores use a different scale',async t=>{
+  const s=setup(t),p=(await s.api('create',{name:'Mixed storage'})).project;
+  const text=('预算 budget reference information LEGACY_SOURCE '+'.'.repeat(900)+'\n').repeat(8);
+  await s.api('upload',{projectId:p.id,file:{name:'old.txt',text,size:Buffer.byteLength(text),data:Buffer.from(text).toString('base64')}});
+  await material(s,p.id,{name:'current-reference.txt',text:'预算为 73921.50。NAMED_SOURCE_CANARY'});
+  const calls=[];
+  t.mock.method(globalThis,'fetch',async(url,options)=>{
+    assert.equal(new URL(url).hostname,'api.anthropic.com');calls.push(JSON.parse(options.body));
+    return new Response('data: '+JSON.stringify({type:'content_block_delta',delta:{type:'text_delta',text:'Answer'}})+'\n\ndata: '+JSON.stringify({type:'message_stop'})+'\n\n');
+  });
+  const request=new Request('https://api.pickandcase.com/',{method:'POST',body:JSON.stringify({user:'tester',password:pass,model:'claude-sonnet-5-5',projectId:p.id,effort:'low',maxOutputTokens:100,chat:{scope:p.id,question:'current-reference.txt 的预算是多少？',history:[],incognito:true,readingMode:'retrieve',skills:{mode:'off',ids:[]}}})});
+  const output=await(await worker.fetch(request,s.env)).text();assert.ok(output.includes('Answer'));assert.equal(calls.length,1);assert.ok(JSON.stringify(calls[0]).includes('NAMED_SOURCE_CANARY'));
+});
 test('upload client streams text beyond 400000 characters in acknowledged bounded batches without base64',async()=>{
   const text='汉字 and emoji 😺\n'.repeat(40000),file=new File([text],'large.txt'),all=[];let max=0;
   const result=await Files.parseInWorker(file,async batch=>{max=Math.max(max,batch.length);all.push(...batch);});

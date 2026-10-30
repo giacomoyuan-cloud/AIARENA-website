@@ -545,6 +545,8 @@ async function retrieveProjectMaterials(env,user,project,query){
     for(const hit of ArenaContext.rankIndex(index,query,file.name).slice(0,3))ranked.push({...hit,file});
   }
   if(env.PROJECT_DOCUMENTS){const library=await projectLibrary(env,user,project.id,'search',{query});for(const hit of library.hits)ranked.push({file:hit.file,index:hit.ordinal,text:hit.text,location:hit.location,score:hit.score});}
+  const namedQuery=String(query).toLowerCase();
+  for(const hit of ranked){const name=hit.file.name.toLowerCase(),stem=name.replace(/\.[^.]+$/,'');if(namedQuery.includes(name)||(stem.length>1&&namedQuery.includes(stem)))hit.score+=1000;}
   ranked.sort((a,b)=>b.score-a.score);
   let used=0;const snippets=[],selected=[];
   for(const hit of ranked.slice(0,3)){
