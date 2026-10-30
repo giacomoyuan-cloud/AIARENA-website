@@ -53,7 +53,6 @@
 /* ---------- 侧边栏 ---------- */
 #ai-arena-app.arena-shell .aa-history-panel { background: var(--arena-sidebar); border-right: .5px solid var(--claude-line); }
 #ai-arena-app.arena-shell .arena-wordmark { display: inline-flex; align-items: center; gap: 9px; font: 500 20px/1 var(--claude-serif); letter-spacing: -.01em; }
-#ai-arena-app.arena-shell .arena-wordmark::before { content: ""; width: 30px; height: 30px; flex: none; border-radius: 50%; background: var(--arena-user) url(/assets/kitten/motion/portrait.png) center / cover no-repeat; }
 #ai-arena-app.arena-shell .arena-nav-item { font-size: 14.5px; color: var(--claude-text-2); border-radius: 8px; }
 #ai-arena-app.arena-shell .arena-nav-item svg { color: var(--arena-muted); }
 #ai-arena-app.arena-shell .arena-nav-item.active,
@@ -246,9 +245,7 @@
 #ai-arena-app.arena-shell.arena-project-scope .aa-chat.empty-state { padding-top: max(64px, clamp(36px, calc((100dvh - 560px) / 2), 220px)); }
 #ai-arena-app.arena-shell .aa-chat.empty-state .arena-project-bar { position: absolute; inset: 0 0 auto; }
 #ai-arena-app.arena-shell .aa-chat.empty-state .aa-messages { flex: 0 0 auto; height: 0; min-height: 0; padding: 0; overflow: hidden; }
-#ai-arena-app.arena-shell .aa-chat.empty-state .aa-welcome { position: static; inset: auto; transform: none; display: grid; grid-template-columns: 60px minmax(0, 1fr); align-items: center; gap: 12px; width: calc(100% - 32px); max-width: var(--arena-reading-width); height: 72px; min-height: 72px; flex: 0 0 72px; margin: 0 auto 24px; text-align: left; pointer-events: auto; }
-#ai-arena-app.arena-shell .aa-chat.empty-state .arena-kitten-greeting { width: 60px; height: 60px; transform: none; }
-#ai-arena-app.arena-shell .aa-chat.empty-state .aa-kitten--welcome { width: 60px; height: 60px; }
+#ai-arena-app.arena-shell .aa-chat.empty-state .aa-welcome { position: static; inset: auto; transform: none; display: grid; grid-template-columns: minmax(0, 1fr); align-items: center; width: calc(100% - 32px); max-width: var(--arena-reading-width); height: 72px; min-height: 72px; flex: 0 0 72px; margin: 0 auto 24px; text-align: left; pointer-events: auto; }
 #ai-arena-app.arena-shell .aa-chat.empty-state .aa-welcome h1 { align-self: start; margin: 12px 0 0; text-align: left; font: 400 clamp(24px, 3.3vw, 34px)/1.25 var(--claude-serif); }
 @media (max-height: 600px) {
   #ai-arena-app.arena-shell .aa-chat.empty-state,
@@ -288,15 +285,12 @@
 #ai-arena-app.arena-shell .arena-skill-pill button svg { width: 14px; height: 14px; }
 #ai-arena-app.arena-shell .arena-skill-pill button:hover { background: var(--claude-accent-soft); }
 
-/* 回复：不放头像，模型名放到操作按钮那一行的右边；生成中的状态小猫保留但缩小 */
+/* 回复不放头像，模型名放到操作按钮那一行的右边。 */
 #ai-arena-app.arena-shell .aa-msg:not(.user-msg) { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; }
 #ai-arena-app.arena-shell .aa-msg:not(.user-msg) > * { grid-column: 1 / -1; min-width: 0; }
 #ai-arena-app.arena-shell .aa-msg:not(.user-msg) > .aa-msg-head { display: contents; }
-#ai-arena-app.arena-shell .aa-msg .aa-kitten--reply { display: none; }
 #ai-arena-app.arena-shell .aa-msg:not(.user-msg) > .arena-message-actions { grid-column: 1; order: 9; margin-top: 8px; }
 #ai-arena-app.arena-shell .aa-msg:not(.user-msg) .aa-msg-name { grid-column: 2; order: 10; align-self: end; margin: 8px 0 4px; color: var(--arena-muted) !important; font-size: 12.5px; font-weight: 400; }
-#ai-arena-app.arena-shell .aa-kitten--progress { width: 40px; height: 40px; }
-#ai-arena-app.arena-shell .arena-progress:has(.aa-kitten) { min-height: 40px; gap: 8px; }
 #ai-arena-app.arena-shell .aa-msg.user-msg .arena-user-actions { opacity: 0; transition: opacity .15s; }
 #ai-arena-app.arena-shell .aa-msg.user-msg:hover .arena-user-actions,
 #ai-arena-app.arena-shell .aa-msg.user-msg:focus-within .arena-user-actions { opacity: 1; }
@@ -305,9 +299,7 @@
 @media (max-width: 600px) {
   #ai-arena-app.arena-shell .aa-input-area,
   #ai-arena-app.arena-shell .aa-chat.empty-state.image-composer-state .aa-input-area { width: calc(100% - 20px); margin-bottom: max(10px, env(safe-area-inset-bottom)); max-height: 63%; }
-  #ai-arena-app.arena-shell .aa-chat.empty-state .aa-welcome { width: calc(100% - 20px); grid-template-columns: 44px minmax(0, 1fr); gap: 10px; }
-  #ai-arena-app.arena-shell .aa-chat.empty-state .arena-kitten-greeting,
-  #ai-arena-app.arena-shell .aa-chat.empty-state .aa-kitten--welcome { width: 44px; height: 44px; }
+  #ai-arena-app.arena-shell .aa-chat.empty-state .aa-welcome { width: calc(100% - 20px); }
   #ai-arena-app.arena-shell .aa-chat.empty-state .aa-input-area,
   #ai-arena-app.arena-shell .aa-chat.empty-state.image-composer-state .aa-input-area { max-height: none; margin: 0 auto; }
   #ai-arena-app.arena-shell .arena-starters { width: calc(100% - 20px); }

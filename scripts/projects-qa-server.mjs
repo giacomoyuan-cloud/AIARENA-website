@@ -25,7 +25,7 @@ env.PROJECT_DOCUMENTS={
 function binding(Class){const actors=new Map();return {jurisdiction(){return this;},idFromName:id=>id,get:id=>({fetch:async request=>{
   if(!actors.has(id)){
     const db=new DatabaseSync(':memory:'),values=new Map();let alarm;
-    const storage={transactionSync(fn){db.exec('BEGIN');try{const result=fn();db.exec('COMMIT');return result;}catch(error){db.exec('ROLLBACK');throw error;}},get:async k=>structuredClone(values.get(k)),put:async(k,v)=>values.set(k,structuredClone(v)),deleteAlarm:async()=>clearTimeout(alarm),setAlarm:async time=>{clearTimeout(alarm);alarm=setTimeout(()=>actors.get(id).alarm().catch(console.error),Math.max(10,time-Date.now()));alarm.unref();},sql:{exec(query,...args){const s=db.prepare(query),rows=s.columns().length?s.all(...args):(s.run(...args),[]);return {toArray:()=>rows};}}};
+    const storage={transactionSync(fn){db.exec('BEGIN');try{const result=fn();db.exec('COMMIT');return result;}catch(error){db.exec('ROLLBACK');throw error;}},get:async k=>structuredClone(values.get(k)),put:async(k,v)=>values.set(k,structuredClone(v)),deleteAlarm:async()=>clearTimeout(alarm),setAlarm:async time=>{clearTimeout(alarm);alarm=setTimeout(()=>actors.get(id).alarm().catch(console.error),Math.max(10,Math.min(2147483647,time-Date.now())));alarm.unref();},sql:{exec(query,...args){const s=db.prepare(query),rows=s.columns().length?s.all(...args):(s.run(...args),[]);return {toArray:()=>rows};}}};
     actors.set(id,new Class({storage,blockConcurrencyWhile:fn=>fn(),waitUntil:p=>p.catch(console.error)},env));
   }
   return actors.get(id).fetch(request);

@@ -24,3 +24,11 @@ Release: `20261030-deepaudit4`. Base: `4c187af` (includes the native Android rel
 ## Acceptance boundaries
 
 Production post-release checks, paid calls and Cloudflare deployment identifiers are recorded in the task's separate release evidence after deployment. Any paid call must use **GPT-6.1 Sol / Low, Skills off**. Browser-width checks are not physical iPhone/Android acceptance. This audit does not assert that every possible path or future regression is absent.
+
+## Follow-up live findings
+
+Further acceptance found that legacy index response names could still replace full source paths. Retrieval and full-reading results now resolve names through the current project manifest, including when an older index response supplies only a basename.
+
+A seventh issue was reproduced by removing and restoring a synthetic reference: the management dialog reflected the successful restoration, while the project home still showed two files instead of three. Material responses now refresh the active project's state and home. Delayed responses and errors from an earlier account or scope are ignored. Release `20261030-deepaudit5` preserves the scheduler and stable-layout changes merged meanwhile; its complete offline suite has **660 passing tests**.
+
+Saved conversations from before the path fix also display full current paths when their source IDs belong to the active project. Historical receipts remain unchanged; another project cannot provide those labels. The final `20261030-deepaudit6` suite has **662 passing tests**. This frontend-only follow-up requires no additional model calls.
