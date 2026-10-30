@@ -71,6 +71,11 @@ test('new chat waits for an autosave already on the network and refuses to disca
   const moving=c.beginNewChat();assert.equal(c.currentChatId,'original-chat');finish(null);
   assert.equal(await moving,false);assert.equal(c.currentChatId,'original-chat');assert.match(notices.at(-1),/保存失败/);
 });
+test('a failed history read explains the failure and retains the current conversation and draft',async()=>{
+  const {c,$,notices}=navigation();c.chatApiCall=async action=>action==='save'?{ok:true}:{error:'Archive temporarily unavailable'};
+  vm.runInContext(fn('loadChat'),c);assert.equal(await c.loadChat('another-chat'),false);
+  assert.equal(c.currentChatId,'original-chat');assert.equal(c.msgs[0].text,'original message');assert.equal($('aaTopic').value,'unsent draft');assert.equal(notices.at(-1),'Archive temporarily unavailable');
+});
 test('edits queued behind an older autosave are written in order before navigation commits',async()=>{
   const {c}=navigation(),snapshots=[],finished=[];let timer;
   c.setTimeout=callback=>(timer=callback,42);
@@ -89,6 +94,12 @@ test('serializing ordinary user image attachments retains their previews without
   const src='data:image/png;base64,aGVsbG8=',c=vm.createContext({msgs:[{uid:1,isUser:true,imgSrcs:[src]},{uid:2,isUser:true,imgSrc:src},{uid:3,imgItems:[{data:'aGVsbG8=',mime:'image/png'}],imgData:'aGVsbG8='}]});
   vm.runInContext(fn('serializeMsgs'),c);const saved=plain(c.serializeMsgs());
   assert.deepEqual(saved[0].imgSrcs,[src]);assert.deepEqual(saved[1].imgSrcs,[src]);assert.equal(saved[2].imgData,undefined);
+});
+test('ordinary text and image receipts and legacy usage labels survive a history round trip',()=>{
+  const receipt={schemaVersion:2,id:'receipt-audit-1',model:'gpt-6.1-sol',input:4553,output:7,billingComplete:false,knownUsd:'0.000076'};
+  const c=vm.createContext({msgs:[{uid:1,isUser:false,text:'QA_OK',usage:receipt},{uid:2,imgItems:[{data:'aGVsbG8=',mime:'image/png'}],usage:{...receipt,id:'receipt-image-2'}},{uid:3,usageStr:'Legacy generation details'}]});
+  vm.runInContext(fn('serializeMsgs'),c);const saved=plain(c.serializeMsgs());
+  assert.deepEqual(saved[0].usage,receipt);assert.equal(saved[1].usage.id,'receipt-image-2');assert.equal(saved[2].usageStr,'Legacy generation details');
 });
 test('a stale visible model or effort prevents a paid request and retains the draft',async()=>{
   for(const [actual,effort] of [['claude-sonnet-5-5','high'],['gpt-6.1-sol','medium']]){
