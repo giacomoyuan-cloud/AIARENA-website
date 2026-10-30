@@ -191,15 +191,16 @@
     return indexFile(Object.assign({},options,{file:file,retry:true}),meta.id,started.generation);
   }
   async function upload(options){
-    var file=options.file,credentials=options.credentials,stamp=await fingerprint(file),key=JSON.stringify([credentials.username.toLowerCase(),options.projectId,options.folder||'',options.relativePath||'',options.replaceFileId||'',file.name,file.size,file.lastModified,stamp]),legacyKey=credentials.username.toLowerCase()+'|'+options.projectId+'|'+file.name+'|'+file.size+'|'+file.lastModified+'|'+stamp,saved=await session('get',key),legacy=false;
-    if(!saved){saved=await session('get',legacyKey);legacy=!!saved;}if(!saved)saved={id:crypto.randomUUID(),parts:[]};
+    var file=options.file,credentials=options.credentials,stamp=await fingerprint(file),key=JSON.stringify([credentials.username.toLowerCase(),(options.resumeNamespace||options.projectId),options.folder||'',options.relativePath||'',options.replaceFileId||'',file.name,file.size,file.lastModified,stamp]),legacyKey=credentials.username.toLowerCase()+'|'+options.projectId+'|'+file.name+'|'+file.size+'|'+file.lastModified+'|'+stamp,saved=await session('get',key),legacy=false;
+    if(!saved&&!options.resumeNamespace){saved=await session('get',legacyKey);legacy=!!saved;}if(!saved)saved={id:crypto.randomUUID(),parts:[]};
     var auth=Object.assign({},credentials),id=saved.id;
     function api(action,extra){if(options.signal?.aborted||options.isCurrent&& !options.isCurrent())throw Object.assign(Error('账号已切换，上传已暂停'),{name:'AbortError'});return options.api('library_'+action,Object.assign({projectId:options.projectId,fileId:id},extra||{},auth));}
     function progress(phase,done,total){if(options.progress)options.progress({phase:phase,done:done,total:total,name:file.name});}
     var descriptor={id:id,name:file.name,size:file.size,type:file.type};if(options.folder){descriptor.folder=options.folder;descriptor.relativePath=options.relativePath;}
+    if(!legacy)await session('put',key,saved);
     var started;
     try{started=await api('start',{file:descriptor,replaceFileId:options.replaceFileId});}
-    catch(error){if(!legacy||error.status!==409)throw error;legacy=false;saved={id:crypto.randomUUID(),parts:[]};id=saved.id;descriptor.id=id;started=await api('start',{file:descriptor,replaceFileId:options.replaceFileId});}
+    catch(error){if(!legacy||error.status!==409)throw error;legacy=false;saved={id:crypto.randomUUID(),parts:[]};id=saved.id;descriptor.id=id;await session('put',key,saved);started=await api('start',{file:descriptor,replaceFileId:options.replaceFileId});}
     // Only migrate an older browser's state after the server confirms its path.
     // A colliding path keeps the old state available to its original document.
     if(legacy){await session('put',key,saved);await session('delete',legacyKey);}
