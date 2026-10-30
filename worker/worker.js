@@ -617,6 +617,28 @@ async function handleDebateRunRequest(request, env) {
   } catch (error) { return projectReply({ error: error.status ? error.message : error instanceof SyntaxError ? '讨论请求无效。' : error.message || '讨论连接暂时不可用。' }, error.status || (error instanceof SyntaxError || /请选择|请为|讨论|辩题|席位/.test(error.message) ? 400 : 503)); }
 }
 
+async function recoverSavedChatUsage(env, user, projectId, chatId, messages) {
+  const missing = messages.filter(message => !message.isUser && !message.usage && validResourceId(message.run?.id)).slice(-8);
+  if (!env.CHAT_RUNS || !missing.length) return messages;
+  const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 1500);
+  try {
+    const id = env.CHAT_RUNS.idFromName(user + ':' + (projectId || 'general') + ':' + chatId);
+    const response = await env.CHAT_RUNS.get(id, { locationHint: 'enam' }).fetch(new Request('https://chat-run.internal/', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: controller.signal,
+      body: JSON.stringify({ action: 'usage', runIds: [...new Set(missing.map(message => message.run.id))] })
+    }));
+    if (!response.ok) return messages;
+    const data = await response.json();
+    if (!Array.isArray(data.usages)) return messages;
+    return messages.map(message => {
+      if (message.isUser || message.usage || !validResourceId(message.run?.id)) return message;
+      const saved = data.usages.find(item => item?.runId === message.run?.id && String(item.uid) === String(message.uid) && item.usage?.schemaVersion === 2);
+      return saved ? { ...message, usage: saved.usage } : message;
+    });
+  } catch { return messages; }
+  finally { clearTimeout(timer); }
+}
+
 async function handleChatRunRequest(request, env) {
   try {
     const body = await accountRequestBody(await request.json(), env);
@@ -856,10 +878,17 @@ var worker_default = {
       if (action === "load") {
         if (!chatId) return new Response(JSON.stringify({ error: "Missing chatId" }), { status: 400, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
         const data = await env.BIZ_KV.get(scopePrefix + ":" + chatId);
-        return new Response(JSON.stringify({ messages: data ? JSON.parse(data) : [] }), { headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
+        let saved;
+        try { saved = data ? JSON.parse(data) : []; } catch { return projectReply({ error: '会话记录格式异常，原记录已保留。' }, 503); }
+        if (!Array.isArray(saved) || saved.some(message => !message || typeof message !== 'object' || Array.isArray(message))) return projectReply({ error: '会话记录格式异常，原记录已保留。' }, 503);
+        // Do not rewrite a whole chat during this read: a concurrent client may
+        // already be saving a newer revision. The next normal save keeps usage.
+        const restored = await recoverSavedChatUsage(env, normalizedUsername, projectId, chatId, saved);
+        return new Response(JSON.stringify({ messages: restored }), { headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
       }
       if (action === "save") {
         if (!chatId || !messages) return new Response(JSON.stringify({ error: "Missing chatId or messages" }), { status: 400, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
+        if (!Array.isArray(messages) || messages.some(message => !message || typeof message !== 'object' || Array.isArray(message))) return projectReply({ error: '会话消息格式无效，原记录已保留。' }, 400);
         if(await env.BIZ_KV.get(scopePrefix+':moved:'+chatId))return projectReply({error:'对话已移动，请从目标项目打开'},409);
         let safeMessages = messages;
         if (Array.isArray(messages) && messages.some(message => message.run?.id)) {
@@ -869,7 +898,9 @@ var worker_default = {
             const saved = previous.find(item => String(item.uid) === String(message.uid) && item.run?.id === message.run.id);
             // A stopped display queue or a late mobile save must not truncate server-owned output.
             if (saved && saved.run.status !== 'running' && typeof saved.text === 'string' && typeof message.text === 'string' && saved.text.length > message.text.length && saved.text.startsWith(message.text)) return { ...message, ...saved };
-            return message;
+            // Older tabs omit usage entirely; they must not erase an already
+            // stored receipt belonging to this exact generation.
+            return saved?.usage && !message.usage ? { ...message, usage: saved.usage } : message;
           });
         }
         await env.BIZ_KV.put(scopePrefix + ":" + chatId, JSON.stringify(safeMessages));

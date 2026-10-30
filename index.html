@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>AI 助手</title>
-<meta name="app-version" content="20261030-materials1">
+<meta name="app-version" content="20261030-deepaudit3">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1690,8 +1690,10 @@ var TEAM_COLORS = {
   function serializeMsgs(){
     return msgs.map(function(m){
       var obj = {uid:m.uid, chatMode:m.chatMode, brand:m.brand, name:m.name, text:m.text, color:m.color, isUser:m.isUser, isError:m.isError,generationError:m.generationError, round:m.round, _team:m._team, _liked:m._liked, _comment:m._comment, topicText:m.topicText, pastedTexts:m.pastedTexts, _quote:m._quote, context:m.context, reasoning:m.reasoning, activity:m.activity, citations:m.citations, _feedback:m._feedback, effort:m.effort, submodel:m.submodel, completedAt:m.completedAt, moderationHelp:m.moderationHelp, suggestedPrompt:m.suggestedPrompt, moderationTask:m.moderationTask, imageTurn:m.imageTurn, imageResponse:m.imageResponse, imageDetails:m.imageDetails, imageSettings:m.imageSettings, imageUsage:m.imageUsage, grounding:m.grounding,skills:m.skills,artifacts:m.artifacts,skillSession:m.skillSession,executionModel:m.executionModel,participantId:m.participantId,debateSessionId:m.debateSessionId,debateStage:m.debateStage};
+      if(m.usage!==undefined) obj.usage=m.usage;
+      if(m.usageStr!==undefined) obj.usageStr=m.usageStr;
       if(m.run) obj.run = m.run;
-      if(m.debateRun) { obj.debateRun=m.debateRun;obj.debateTurn=m.debateTurn;obj.debateAttempt=m.debateAttempt;obj.debateStatus=m.debateStatus;obj.debateError=m.debateError;obj.debateOutdated=m.debateOutdated;obj.usage=m.usage; }
+      if(m.debateRun) { obj.debateRun=m.debateRun;obj.debateTurn=m.debateTurn;obj.debateAttempt=m.debateAttempt;obj.debateStatus=m.debateStatus;obj.debateError=m.debateError;obj.debateOutdated=m.debateOutdated; }
       if(m.imgSrcs && (m.isUser || m.debateRun)) obj.imgSrcs=m.imgSrcs;
       else if(m.isUser && m.imgSrc) obj.imgSrcs=[m.imgSrc];
       if(m.imgItems && m.imgItems.length){ obj.imgItems = m.imgItems; }
@@ -1814,7 +1816,8 @@ var TEAM_COLORS = {
       if(epoch!==scopeEpoch||loadEpoch!==chatLoadEpoch||loadScope!==activeProjectId||aaRunning)return false;
       if(!saved?.ok){arenaNotice('当前对话保存失败，已保留原对话，请重试');return false;}
       return chatApiCall('load', { chatId: chatId }).then(function(data){
-        if(epoch!==scopeEpoch||loadEpoch!==chatLoadEpoch||loadScope!==activeProjectId||!data||data.error) return false;
+        if(epoch!==scopeEpoch||loadEpoch!==chatLoadEpoch||loadScope!==activeProjectId) return false;
+        if(!data||data.error){arenaNotice(data&&data.error||'会话读取失败，已保留当前对话，请重试');return false;}
         var switched=String(currentChatId)!==String(chatId),wasImageMode=imageMode;
         var hadAutomaticReference=switched&&sentImgs.some(function(image){return image.autoFollowup||image.generatedReference;});
         if(hadAutomaticReference){

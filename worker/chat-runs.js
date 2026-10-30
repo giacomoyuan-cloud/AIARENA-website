@@ -321,6 +321,18 @@ export function createChatRunClass(execute, DebateRun, { deferStart = () => fals
       if (this.transport?.matches(request)) return this.transport.fetch(request);
       const body = await request.json();
       if (body.kind === 'debate' && this.debate) return this.debate.fetchBody(body);
+      // Internal, read-only repair for archives saved by older clients. Never
+      // start/reconnect a model, return private runs, or expose prompt contents.
+      if (body.action === 'usage') {
+        if (target.hostname !== 'chat-run.internal') return json({ error: 'Internal usage lookup only' }, 400);
+        if (!Array.isArray(body.runIds) || body.runIds.length > 8 || body.runIds.some(id => typeof id !== 'string' || !id || id.length > 160)) return json({ error: 'Invalid usage references' }, 400);
+        const usages = [];
+        for (const runId of new Set(body.runIds)) {
+          const meta = this.meta?.runId === runId ? this.meta : this.archived(runId);
+          if (!meta?.incognito && meta?.reply?.usage?.schemaVersion === 2) usages.push({ runId, uid: meta.reply.uid, usage: meta.reply.usage });
+        }
+        return json({ usages });
+      }
       const archived = this.meta?.runId === body.runId ? null : this.archived(body.runId);
       if (archived) {
         if (body.action === 'start' && archived.fingerprint && archived.fingerprint !== body.fingerprint) return json({ error: '请求编号已存在，请勿修改后重复发送。' }, 409);
