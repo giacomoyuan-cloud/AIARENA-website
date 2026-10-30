@@ -19,6 +19,8 @@ import org.junit.runner.RunWith
 class NativeUpdateRuntimeTest : NativeHarness() {
     private lateinit var server: MockWebServer
     private lateinit var updates: NativeUpdates
+    private val candidateCode get() = BuildConfig.VERSION_CODE + 1
+    private val candidateVersion get() = BuildConfig.VERSION_NAME.substringBefore("-").split(".").let { p -> p.dropLast(1).joinToString(".") + "." + (p.last().toInt() + 1) + "-qa-debug" }
     private val packageName get() = app.packageName
     private val folder get() = File(app.filesDir, "updates")
     @Before fun startUpdates() {
@@ -31,7 +33,7 @@ class NativeUpdateRuntimeTest : NativeHarness() {
     private fun await(phase: UpdatePhase) { ui.waitUntil(25000) { updates.state.value.phase == phase } }
     private fun bytes(name: String) = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().context.assets.open(name).use { it.readBytes() }
     private fun sha(data: ByteArray) = MessageDigest.getInstance("SHA-256").digest(data).joinToString("") { "%02x".format(it) }
-    private fun manifest(data: ByteArray, code: Int = 203, version: String = "2.0.3-qa-debug") = json("version" to version, "versionCode" to code, "package" to packageName, "url" to "/downloads/AI-Assistant-local.apk", "bytes" to data.size, "sha256" to sha(data), "native" to true, "notes" to "本地更新流程验收")
+    private fun manifest(data: ByteArray, code: Int = candidateCode, version: String = candidateVersion) = json("version" to version, "versionCode" to code, "package" to packageName, "url" to "/downloads/AI-Assistant-local.apk", "bytes" to data.size, "sha256" to sha(data), "native" to true, "notes" to "本地更新流程验收")
     private fun metadata(value: JSONObject) { server.enqueue(MockResponse().setHeader("Content-Type", "application/json").setBody(value.toString())) }
     private fun offer(data: ByteArray, value: JSONObject = manifest(data)) { metadata(value); updates.check(); await(UpdatePhase.AVAILABLE) }
     private fun apk(data: ByteArray): MockResponse = MockResponse().setBody(Buffer().write(data))
@@ -100,7 +102,7 @@ class NativeUpdateRuntimeTest : NativeHarness() {
         server.enqueue(apk(data)); updates.download(); await(UpdatePhase.READY)
         assertEquals(token, NativeSession(app).load()!!.token)
         assertEquals(data.size.toLong(), updates.state.value.received)
-        val file = File(folder, "assistant-203.apk")
+        val file = File(folder, "assistant-${candidateCode}.apk")
         assertTrue(file.isFile)
         val intent = updates.installIntent(file)
         assertEquals(Intent.ACTION_VIEW, intent.action)

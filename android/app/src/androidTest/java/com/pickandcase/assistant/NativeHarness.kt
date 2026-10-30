@@ -34,6 +34,8 @@ abstract class NativeHarness {
         ) {
             "Acceptance only runs on the isolated emulator"
         }
+        // Network fault injection belongs to one case, never the next case.
+        kotlinx.coroutines.runBlocking { NativeApi(java.net.URI(base).resolve("/").toString()).route("__offline?ms=0") }
         NativeSession(app).logout()
         app.getSharedPreferences("native_preferences_v2", 0).edit().clear().commit()
         NativeTestHooks.baseUrl = base
@@ -42,7 +44,7 @@ abstract class NativeHarness {
 
     @After
     fun finish() {
-        scene.close()
+        if (::scene.isInitialized) scene.close()
         NativeTestHooks.baseUrl = null
         NativeTestHooks.updateManifestUrl = null
     }

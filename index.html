@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>AI 助手</title>
-<meta name="app-version" content="20261030-deepaudit6">
+<meta name="app-version" content="20261030-accounts204-filequeue">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -955,7 +955,9 @@
     <div class="arena-appearance"><span>外观</span><button id="aaLightModeBtn" type="button">浅色</button></div>
     <div class="arena-account-actions">
       <button id="aaAccountSettingsBtn" class="arena-account-action" type="button">账号设置<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
+      <button id="aaAdminAccountsBtn" class="arena-account-action" type="button" hidden>账号管理<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
       <button id="aaUsageSettingsBtn" class="arena-account-action" type="button">用量与费用<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
+      <button id="aaLogoutBtn" class="arena-account-action" type="button">退出登录<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4H4v16h5M14 8l4 4-4 4M8 12h10"/></svg></button>
       <button id="aaPromptInfoBtn" class="arena-account-action" type="button">提示词与记忆<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
     </div>
     <div hidden><input type="text" id="aaUsername" autocomplete="off"><input type="password" id="aaPassword" autocomplete="off"></div>
@@ -1254,7 +1256,7 @@
 </div>
 </div>
 
-<script src="/arena-markdown.js?v=20261027-account1"></script>
+<script src="/arena-markdown.js?v=20261030-readable1"></script>
 <link rel="stylesheet" href="/arena-image-editor.css?v=20261030-modernfont2">
 <script src="/arena-slider.js?v=20261030-imagesliders1"></script>
 <script src="/arena-image.js?v=20261030-imagesliders1"></script>
@@ -1283,7 +1285,11 @@
 <script src="/arena-project-upload-view.js?v=20261030-filequeue1"></script>
 <script src="/arena-project-upload-queue.js?v=20261030-filequeue1"></script>
 <script src="/arena-project-page.js?v=20261030-filequeue1"></script>
-<script src="/arena-account.js?v=20261027-account2"></script>
+
+<link rel="stylesheet" href="/arena-table.css?v=20261030-readable1">
+<link rel="stylesheet" href="/arena-admin.css?v=20261030-admin1">
+<script src="/arena-admin.js?v=20261030-admin1"></script>
+<script src="/arena-account.js?v=20261030-admin1"></script>
 <script src="/arena-stream.js?v=20261030-typing50-1"></script>
 <script src="/arena-billing.js?v=20261030-billing-haiku55"></script>
 <script src="/arena-billing-ui.js?v=20261030-materials1"></script>
@@ -2724,7 +2730,7 @@ var TEAM_COLORS = {
   }
   function applyAccountProfile(profile,newHash){
     if(skillsRuntime)skillsRuntime.migrateAccount($('aaUsername').value,profile.accountId);
-    _accountProfile=profile;$('aaUsername').value=profile.accountId;
+    _accountProfile=profile;$('aaUsername').value=profile.accountId;$('aaAdminAccountsBtn').hidden=profile.canManage!==true;
     if(newHash){_passHash=newHash;sessionStorage.setItem('ai-arena-hash',newHash);}
     $('aaPassword').value='••••••••';
     sessionStorage.setItem('ai-arena-user',profile.accountId);
@@ -5525,8 +5531,8 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
     _passHash = hash;
     sessionStorage.setItem('ai-arena-hash', hash);
     sessionStorage.setItem('ai-arena-user', user);
-    _accountProfile=null;_accountLoginEpoch++;
-    if(data.profile)applyAccountProfile(data.profile);
+    _accountProfile=null;$('aaAdminAccountsBtn').hidden=true;if(adminController)adminController.close();_accountLoginEpoch++;
+    if(data.profile)applyAccountProfile(Object.assign({},data.profile,{canManage:data.canManage===true}));
     else sessionStorage.removeItem('ai-arena-profile');
     updateGearBtn();
     $('aaLoginBtn').textContent = '进入'; $('aaLoginBtn').disabled = false;
@@ -6762,11 +6768,18 @@ if(imageMode){
   }
 
 
+  ArenaMarkdown.mountTables($('ai-arena-app'));
+  $('aaLogoutBtn').addEventListener('click',function(){
+    ['ai-arena-hash','ai-arena-user','ai-arena-profile'].forEach(function(key){sessionStorage.removeItem(key);});
+    _passHash='';_accountProfile=null;location.replace(location.pathname);
+  });
   accountController=ArenaAccount.mount({
     host:$('ai-arena-app'),worker:WORKER,auth:function(){return {user:$('aaUsername').value.trim(),password:getPass()};},
     commit:applyAccountProfile,hash:hashText,busy:function(){return aaRunning;},notice:arenaNotice,
     focus:function(){$('aaGearBtn').focus();},hidePanel:function(){$('aaSidebar').classList.add('hidden');$('aaGearBtn').setAttribute('aria-expanded','false');}
   });
+  var adminController=ArenaAdmin.mount({host:$('ai-arena-app'),worker:WORKER,auth:function(){return {user:$('aaUsername').value.trim(),password:getPass()};},busy:function(){return aaRunning;},notice:arenaNotice,focus:function(){$('aaGearBtn').focus();},hidePanel:function(){$('aaSidebar').classList.add('hidden');}});
+  $('aaAdminAccountsBtn').addEventListener('click',adminController.open);
   $('aaAccountSettingsBtn').addEventListener('click',accountController.open);
   accountController.refresh();
 

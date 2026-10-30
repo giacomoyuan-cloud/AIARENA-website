@@ -1,0 +1,24 @@
+#ai-arena-app .arena-admin-dialog{width:min(640px,calc(100vw - 32px));max-height:86dvh;padding:0}
+#ai-arena-app .arena-admin-content{padding:20px 24px;max-height:calc(86dvh - 76px);overflow-y:auto;overscroll-behavior:contain}
+#ai-arena-app .arena-admin-content h3{margin:0 0 16px;font-size:16px;font-weight:600}
+#ai-arena-app .arena-admin-fields{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+#ai-arena-app .arena-admin-fields label{display:flex;flex-direction:column;gap:8px;font-size:13px;color:var(--arena-muted)}
+#ai-arena-app .arena-admin-fields input{width:100%;box-sizing:border-box;min-height:44px;padding:10px 12px;border:1px solid var(--arena-border);border-radius:10px;background:var(--arena-bg);color:var(--arena-text);font:inherit;font-size:16px}
+#ai-arena-app .arena-admin-fields>button{justify-self:start;grid-column:1/-1}
+#ai-arena-app .arena-admin-content button{min-height:40px;padding:8px 14px;border:1px solid var(--arena-border);border-radius:10px;background:var(--arena-surface);color:var(--arena-text);font:inherit;font-size:14px;cursor:pointer}
+#ai-arena-app .arena-admin-content button:disabled{opacity:.55;cursor:wait}
+#ai-arena-app .arena-admin-status{min-height:1.5em;margin:14px 0;font-size:13px;color:var(--arena-muted)}
+#ai-arena-app .arena-admin-status[data-error]{color:#a93d37}
+#ai-arena-app .arena-admin-list-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;border-top:1px solid var(--arena-border);padding-top:20px}
+#ai-arena-app .arena-admin-list-heading h3{margin:0}
+#ai-arena-app .arena-admin-user{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:68px;border-bottom:1px solid var(--arena-border)}
+#ai-arena-app .arena-admin-user>div{min-width:0;display:flex;flex-direction:column;gap:5px}
+#ai-arena-app .arena-admin-user strong{font-size:15px;font-weight:550;overflow-wrap:anywhere}
+#ai-arena-app .arena-admin-user span{color:var(--arena-muted);font-size:12px}
+#ai-arena-app .arena-admin-user [data-admin-delete]{border:0;color:#a93d37;background:transparent;flex:none}
+#ai-arena-app .arena-admin-confirm{width:min(420px,calc(100vw - 32px));padding:0}
+#ai-arena-app .arena-admin-confirm-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:24px}
+#ai-arena-app .arena-admin-confirm [data-delete-confirm]{background:#a93d37;color:white;border-color:#a93d37}
+@media(max-width:600px){#ai-arena-app .arena-admin-content{padding:18px}#ai-arena-app .arena-admin-fields{grid-template-columns:1fr}}
+#ai-arena-app .arena-admin-fields>.arena-workspace-primary{background:var(--arena-accent,#c47758);color:#fff;border-color:transparent}
+#ai-arena-app #aaAdminAccountsBtn[hidden]{display:none!important}

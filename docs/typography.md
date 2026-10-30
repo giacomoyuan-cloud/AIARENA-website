@@ -15,6 +15,8 @@
 
 `NativeTypography` 统一 Material 3 全部 15 级文字样式。Android 10+ 使用 Inter 优先、Noto Sans SC 后备的原生字体链；Android 8/9 使用批准体系内的 Noto Sans SC 同时绘制中文、西文和数字，避免回到系统默认字体。`modern_font.xml` 指定常用字重及变量轴。Markdown 的 TextView、标题、行内代码和代码块显式使用同一字体。
 
+中文字库在 Android 10+ 仅解压到一份共享 DirectByteBuffer，各字重共用字库数据。窗口主题保持轻量系统兜底，Compose 与 Markdown 显式应用 NativeTypography，避免窗口主题额外解压四份 CJK 字库；可见字体保持不变。
+
 字体资源来自 Google Fonts 官方 Inter / Noto Sans SC 原始变量 TTF；OFL 许可同时放入 App。系统文件选择器、键盘及原始 PDF/图片等内容由系统或原文件绘制，不修改原始资料。
 
 ## 验证

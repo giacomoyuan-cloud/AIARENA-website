@@ -463,8 +463,8 @@ class NativeFeatureRuntimeTest : NativeHarness() {
         }
         await { it.attachments.size == 1 && !it.loading }
         ui.onNodeWithText("图像设置").performClick()
-        ui.onNodeWithText("涂抹修改区域").performScrollTo().performClick()
-        waitFor("mask-canvas")
+        ui.onNodeWithText("涂抹修改区域").performScrollTo().assertIsDisplayed().assertIsEnabled().performClick()
+        try { waitFor("mask-canvas") } catch (e: Exception) { screenshot("native-mask-dialog-missing");ui.onRoot().printToLog("NativeMaskMissingDialog");throw e }
         ui.onNodeWithTag("mask-canvas").performTouchInput {
             swipe(Offset(width * .2f, height * .5f), Offset(width * .8f, height * .5f), 500)
         }

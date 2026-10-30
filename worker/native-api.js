@@ -1,3 +1,4 @@
+import { accountDeleted } from './account-access.js';
 // Native clients share the website's account identities and business handlers.
 // Tokens are opaque, revocable and have no automatic expiry. Passwords stay off-device after login.
 const sessions = 'native-session:';
@@ -20,7 +21,9 @@ async function identity(request, env, context) {
   const key = sessions + await context.hashText(token);
   const stored = await env.MEMORY_KV.get(key);
   if (!stored) throw fault('登录会话不可用，请在设置中退出后重新登录', 401);
-  const session = JSON.parse(stored), raw = await env.MEMORY_KV.get('user:' + session.accountId);
+  const session = JSON.parse(stored);
+  if(await accountDeleted(env,session.accountId))throw fault('账号已被管理员删除',401);
+  const raw = await env.MEMORY_KV.get('user:' + session.accountId);
   if (!raw) throw fault('账号不可用', 401);
   const record = JSON.parse(raw);
   if (record.disabled) throw fault('账号已停用', 403);
@@ -63,30 +66,8 @@ export async function handleNativeRequest(request, env, context) {
     }
     if (route === '/native/session' && request.method === 'GET') return reply(publicIdentity(account));
     if (route === '/native/catalog' && request.method === 'GET') return reply({version:'native-v2', models:Object.entries(context.models).map(([id,model]) => ({id,name:model.name,provider:model.provider,image:!!model.image,levels:context.efforts[id] || []})), imageCapabilities:context.imageCore.capabilities, skillModels:context.skillModels, defaultSkillModel:context.defaultSkillModel, uploads:context.uploadLimits, tokenLimits:context.tokenLimits,maxTextChars:context.maxTextChars, skills:context.skillCatalog.map(({instructions,...skill})=>skill), ...publicIdentity(account)});
-    if (route === '/native/users') {
-      if (!account.canManage) throw fault('仅管理员可使用账号管理', 403);
-      if (request.method === 'GET') {
-        const page = await env.MEMORY_KV.list({prefix:'user:',limit:20,...(url.searchParams.get('cursor')?{cursor:url.searchParams.get('cursor')}:{})});
-        const users = await Promise.all(page.keys.map(async ({name}) => {
-          const value = JSON.parse(await env.MEMORY_KV.get(name) || '{}'), id = name.slice(5);
-          return {accountId:id,username:value.loginName || context.publicAccountName(id),createdAt:value.created || null,disabled:!!value.disabled};
-        }));
-        return reply({users,cursor:page.list_complete ? null : page.cursor});
-      }
-      if (request.method !== 'POST') throw fault('请求方式无效', 405);
-      const body = await request.json(), username = String(body.username || '').trim();
-      if (!context.validLoginName(username)) throw fault('账号需为 2–40 位中文、字母、数字、点、下划线或短横线', 400);
-      const passwordHash = typeof body.passwordHash === 'string' ? body.passwordHash : typeof body.password === 'string' && body.password.length > 0 && body.password.length <= 256 ? await context.hashText(body.password) : '';
-      if (!/^[a-f0-9]{64}$/.test(passwordHash)) throw fault('请输入有效密码', 400);
-      const id = username.toLowerCase();
-      // Do not negatively cache user:<new-name> in the requesting region before
-      // the durable actor writes it elsewhere. Alias checks do not read that key.
-      const ownerAlias = context.publicAccountName(context.ownerAccountId || '').toLowerCase();
-      if((id === ownerAlias && id !== context.ownerAccountId) || await env.MEMORY_KV.get('login:'+id))throw fault('这个账号已存在，请使用其他名称',409);
-      if(!env.NATIVE_ACCOUNTS)throw fault('账号管理服务尚未部署',503);
-      // One durable actor serializes every creation of this login name, across devices/regions.
-      return env.NATIVE_ACCOUNTS.get(env.NATIVE_ACCOUNTS.idFromName('account:'+id)).fetch(new Request('https://native-account.internal/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,username,hash:passwordHash,createdBy:account.accountId})}));
-    }
+    if (route === '/native/users') return await handleAccountManagement(request,env,context,account);
+
     if (request.method !== 'POST') throw fault('请求方式无效', 405);
     const body = await boundedJson(request,40*1024*1024);
     if (route === '/native/debate-plan') {
@@ -135,6 +116,37 @@ export async function handleNativeRequest(request, env, context) {
   } catch (error) { return reply({error:error.status ? error.message : error instanceof SyntaxError ? '请求格式无效' : '请求暂时不可用，请稍后重试'},error.status || (error instanceof SyntaxError ? 400 : 503)); }
 }
 
+export async function handleAccountManagement(request,env,context,principal,provided) {
+  if(!context.ownerAccountId || principal.accountId !== context.ownerAccountId)throw fault('仅管理员可管理账号',403);
+  const body=provided || (request.method==='GET'?{action:'list',cursor:new URL(request.url).searchParams.get('cursor')}:await boundedJson(request,8192));
+  const action=body.action || 'create';
+  if(action==='list') {
+    const page=await env.MEMORY_KV.list({prefix:'user:',limit:20,...(body.cursor?{cursor:body.cursor}:{})});
+    const rows=await Promise.all(page.keys.map(async({name})=>{
+      const raw=await env.MEMORY_KV.get(name);if(!raw)return null;
+      const value=JSON.parse(raw),id=name.slice(5);if(value.deletedAt)return null;
+      return {accountId:id,username:value.loginName||context.publicAccountName(id),createdAt:value.created||null,disabled:!!value.disabled,isOwner:id===context.ownerAccountId};
+    }));
+    return reply({users:rows.filter(Boolean),cursor:page.list_complete?null:page.cursor});
+  }
+  if(action==='delete') {
+    const id=String(body.accountId||'').trim().toLowerCase();
+    if(!id||id.length>120||/[\s:\u0000-\u001f]/.test(id))throw fault('请选择有效账号',400);
+    if(id===principal.accountId||id===context.ownerAccountId)throw fault('不能删除管理员本人',403);
+    if(!env.NATIVE_ACCOUNTS)throw fault('账号管理服务尚未部署',503);
+    return env.NATIVE_ACCOUNTS.get(env.NATIVE_ACCOUNTS.idFromName('account:'+id)).fetch(new Request('https://native-account.internal/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'delete',id,deletedBy:principal.accountId})}));
+  }
+  if(action!=='create')throw fault('账号管理操作无效',400);
+  const username=String(body.username||'').trim();
+  if(!context.validLoginName(username))throw fault('账号需为 2–40 位中文、字母、数字、点、下划线或短横线',400);
+  const passwordHash=typeof body.passwordHash==='string'?body.passwordHash:typeof body.initialPassword==='string'&&body.initialPassword.length>0&&body.initialPassword.length<=256?await context.hashText(body.initialPassword):typeof body.password==='string'&&body.password.length>0&&body.password.length<=256?await context.hashText(body.password):'';
+  if(!/^[a-f0-9]{64}$/.test(passwordHash))throw fault('请输入有效密码',400);
+  const id=username.toLowerCase(),ownerAlias=context.publicAccountName(context.ownerAccountId).toLowerCase();
+  if((id===ownerAlias&&id!==context.ownerAccountId)||await env.MEMORY_KV.get('login:'+id))throw fault('这个账号已存在，请使用其他名称',409);
+  if(!env.NATIVE_ACCOUNTS)throw fault('账号管理服务尚未部署',503);
+  return env.NATIVE_ACCOUNTS.get(env.NATIVE_ACCOUNTS.idFromName('account:'+id)).fetch(new Request('https://native-account.internal/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,username,hash:passwordHash,createdBy:principal.accountId})}));
+}
+
 export class NativeAccountRegistry {
   constructor(state,env){this.state=state;this.env=env;this.queue=Promise.resolve();}
   async commit(entry){
@@ -143,11 +155,27 @@ export class NativeAccountRegistry {
     if(!existing)await this.env.MEMORY_KV.put(key,JSON.stringify(entry.record));
     entry.status='ready';await this.state.storage.put('account',entry);
   }
-  async alarm(){const entry=await this.state.storage.get('account');if(entry?.status==='pending'){try{await this.commit(entry)}catch(error){if(error.status!==409)await this.state.storage.setAlarm(Date.now()+30000)}}}
+  async alarm(){const entry=await this.state.storage.get('account');if(entry?.status==='deleted'){try{await this.env.MEMORY_KV.put('user:'+entry.id,JSON.stringify(entry.record))}catch{await this.state.storage.setAlarm(Date.now()+30000)}return;}if(entry?.status==='pending'){try{await this.commit(entry)}catch(error){if(error.status!==409)await this.state.storage.setAlarm(Date.now()+30000)}}}
   fetch(request){
     const result=this.queue.then(async()=>{
       try{
-        const body=await request.json();let entry=await this.state.storage.get('account');
+        let entry=await this.state.storage.get('account');
+        if(request.method==='GET')return reply({deleted:entry?.status==='deleted'});
+        const body=await request.json();
+        if(body.action==='delete') {
+          if(!body.id||body.id===this.env.NATIVE_OWNER_ACCOUNT||body.deletedBy!==this.env.NATIVE_OWNER_ACCOUNT)throw fault('不能删除管理员本人或无权操作',403);
+          if(entry?.status==='deleted')return reply({ok:true,accountId:body.id,deleted:true});
+          const raw=await this.env.MEMORY_KV.get('user:'+body.id);
+          if(!raw)throw fault('账号不存在',404);
+          const record=JSON.parse(raw);
+          record.hash=hex(crypto.getRandomValues(new Uint8Array(32)));record.disabled=true;record.deletedAt=Date.now();record.deletedBy=body.deletedBy;
+          entry={id:body.id,status:'deleted',record};
+          await this.state.storage.put('account',entry);
+          // Authorization is revoked once the durable tombstone commits, even if KV is delayed.
+          try{await this.env.MEMORY_KV.put('user:'+body.id,JSON.stringify(record))}catch{await this.state.storage.setAlarm(Date.now()+5000)}
+          return reply({ok:true,accountId:body.id,deleted:true});
+        }
+        if(entry?.status==='deleted')throw fault('该账号已删除，请使用其他名称',409);
         if(entry?.status==='ready')throw fault('这个账号已存在，请使用其他名称',409);
         if(entry&&(entry.id!==body.id||entry.record.hash!==body.hash||entry.record.createdBy!==body.createdBy))throw fault('该账号正在创建，请使用原密码重试',409);
         if(!entry){

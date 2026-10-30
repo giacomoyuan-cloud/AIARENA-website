@@ -1,0 +1,56 @@
+{
+  "generation": "built-in image_gen",
+  "concepts": [
+    {
+      "id": "01",
+      "name": "暖陶折页",
+      "prompt": "Minimal editorial flat icon. Warm ivory full-bleed background. One bold terracotta angular folded speech-bubble glyph, built from two interlocking planes and a clear negative-space opening. Asymmetric but balanced; exceptionally restrained, crisp geometry, absolutely no gradients or tiny decoration.",
+      "file": "01.png"
+    },
+    {
+      "id": "02",
+      "name": "黑白回环",
+      "prompt": "Swiss modernist black-and-white icon. Porcelain white background, one thick matte-black continuous open loop that subtly suggests a conversational comma. Graphic black silhouette with generous negative space; two-color flat vector aesthetic, no shadows, no ornamental details.",
+      "file": "02.png"
+    },
+    {
+      "id": "03",
+      "name": "深蓝轨道",
+      "prompt": "Cobalt blue precision-tech icon. Saturated deep cobalt full-bleed square; a single clean white elliptical orbit ring with one bold small satellite disc, tilted 35 degrees. Minimal three-dimensional depth only on the orbit edge, high contrast and refined optical balance; no galaxy, no stars.",
+      "file": "03.png"
+    },
+    {
+      "id": "04",
+      "name": "青玉之门",
+      "prompt": "Contemporary East Asian geometric brand icon. Muted dark-jade background, an elegant luminous pale-jade gateway made of two broad curved arch pillars with a centered negative-space passage. Flat architectural, calming, very simple and strong. No literal building scene, no lettering.",
+      "file": "04.png"
+    },
+    {
+      "id": "05",
+      "name": "银色棱镜",
+      "prompt": "Luxury industrial-material icon. Near-black charcoal full-bleed background. One substantial brushed-silver faceted prism, a sculptural folded diamond with three clean planes, subtle chrome highlights, tiny controlled specular accents, no lens flare. A powerful solid silhouette at thumbnail size.",
+      "file": "05.png"
+    },
+    {
+      "id": "06",
+      "name": "琥珀字标",
+      "prompt": "Warm modern typographic brand icon. Rich amber-orange full-bleed background. One original cream abstract capital A constructed from a broad folded ribbon, a striking triangular counter and one subtle cut in the crossbar. The A is the only character; flat geometric poster aesthetics, no words or other symbols.",
+      "file": "06.png"
+    },
+    {
+      "id": "07",
+      "name": "紫电像素",
+      "prompt": "Refined retro-digital icon, not a game screenshot. Deep violet full-bleed square, one sharply pixelated pale-lilac speech bubble formed on a deliberate 8-bit grid, with a tiny contrasting electric-lime square cursor in the center. Flat, minimal, strong blocky silhouette; no glow, no gradients, no letters.",
+      "file": "07.png"
+    },
+    {
+      "id": "08",
+      "name": "珊瑚瓷语",
+      "prompt": "Soft sculptural product icon. Very light warm stone full-bleed background, two interlocking chunky coral-red porcelain speech forms with rounded sculptural edges, one continuous complementary negative-space opening. Subtle physical ceramic shading and contact shadow, sophisticated warm material, no toy face, no glossy plastic.",
+      "file": "08.png"
+    }
+  ],
+  "selected": "05",
+  "selectedName": "银色棱镜",
+  "selectionNote": "以用户随后附上的黑底银色金属 A 图片为最终选择"
+}

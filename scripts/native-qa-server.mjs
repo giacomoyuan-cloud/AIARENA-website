@@ -3,7 +3,7 @@ import {createProjectScheduler} from '../worker/project-schedules.js';
 import {NativeAccountRegistry} from '../worker/native-api.js';
 // Local acceptance fixture: real request validation/storage, synthetic providers only.
 import http from 'node:http';
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, writeFile, stat } from 'node:fs/promises';
 import { DatabaseSync } from 'node:sqlite';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
@@ -15,7 +15,7 @@ import core from '../arena-debate.js';
 const updateApk=process.env.NATIVE_QA_UPDATE_APK?await readFile(process.env.NATIVE_QA_UPDATE_APK):null;
 const root=path.resolve(process.env.AI_DEBATE_QA_ROOT || path.resolve(import.meta.dirname,'../dist-site')),hash=text=>createHash('sha256').update(text).digest('hex');
 const data=new Map([['user:qa-reader',JSON.stringify({hash:hash('offline-fixture')})],['user:qa-regular',JSON.stringify({hash:hash('offline-fixture')})]]);
-const kv={get:async k=>data.get(k)||null,put:async(k,v)=>data.set(k,v),delete:async k=>data.delete(k),list:async({prefix})=>({keys:[...data.keys()].filter(k=>k.startsWith(prefix)).map(name=>({name})),list_complete:true})};
+const kv={get:async k=>data.get(k)||null,put:async(k,v)=>data.set(k,v),delete:async k=>data.delete(k),list:async({prefix,cursor,limit=1000})=>{const keys=[...data.keys()].filter(k=>k.startsWith(prefix)).sort(),start=Number(cursor)||0,end=start+limit;return {keys:keys.slice(start,end).map(name=>({name})),list_complete:end>=keys.length,cursor:end<keys.length?String(end):undefined}}};
 const events=[],actors=new Map(),attempts=new Map();let offlineUntil=0;
 let evidenceWrites=Promise.resolve();
 const evidence=()=>{const report=JSON.stringify({synthetic:true,externalModelCalls:0,events},null,2);evidenceWrites=evidenceWrites.catch(()=>{}).then(()=>writeFile(process.env.AI_DEBATE_QA_REPORT || '/private/tmp/aiarena-debate-events.json',report));return evidenceWrites;};
@@ -81,11 +81,23 @@ globalThis.fetch=async(url,options={})=>{
  if(process.env.NATIVE_QA_FULL_WORKER==='1')return fullProvider(url,options);
  throw new Error('External network is disabled in native acceptance');
 };
-http.createServer(async(req,res)=>{
+http.createServer({keepAliveTimeout:60000,headersTimeout:65000},async(req,res)=>{
  try{
   const chunks=[];for await(const part of req)chunks.push(part);
   const route=new URL(req.url,'http://localhost');
-  if(updateApk&&route.pathname==='/downloads/app-release.json'){res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify({version:'2.0.3-qa-debug',versionCode:203,package:'com.pickandcase.assistant.debug',url:'/downloads/AI-Assistant-native-qa.apk',bytes:updateApk.length,sha256:hash(updateApk),native:true,notes:'本地合成更新验收'}));return;}
+  if(req.method==='GET'&&!route.pathname.startsWith('/native/')&&!route.pathname.startsWith('/__')&&!route.pathname.startsWith('/downloads/AI-Assistant-native-qa')&&route.pathname!=='/downloads/app-release.json') {
+   const name=route.pathname==='/'?'index.html':decodeURIComponent(route.pathname).replace(/^\//,'');
+   const file=path.resolve(root,name);
+   if(file.startsWith(root+path.sep)&&!name.includes('..')&&name!=='sw.js') {
+    try { if((await stat(file)).isFile()) {
+     let bytes=await readFile(file);const ext=path.extname(file);
+     if(ext==='.html'){const html=bytes.toString();const old="var WORKER = 'https://api.pickandcase.com'";if(html.includes(old))bytes=Buffer.from(html.replace(old,'var WORKER = \"http://127.0.0.1:'+Number(process.env.PORT||4197)+'\"'));}
+     res.writeHead(200,{'Content-Type':ext==='.html'?'text/html; charset=utf-8':ext==='.js'?'text/javascript; charset=utf-8':ext==='.css'?'text/css; charset=utf-8':ext==='.png'?'image/png':'application/octet-stream','Cache-Control':'no-store','Content-Security-Policy':"connect-src 'self'"});res.end(bytes);return;
+    }}catch{}
+   }
+  }
+
+  if(updateApk&&route.pathname==='/downloads/app-release.json'){res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify({version:process.env.NATIVE_QA_UPDATE_VERSION||'2.0.5-qa-debug',versionCode:Number(process.env.NATIVE_QA_UPDATE_CODE||205),package:'com.pickandcase.assistant.debug',url:'/downloads/AI-Assistant-native-qa.apk',bytes:updateApk.length,sha256:hash(updateApk),native:true,notes:'本地合成更新验收'}));return;}
   if(updateApk&&route.pathname==='/downloads/AI-Assistant-native-qa.apk'){res.writeHead(200,{'Content-Type':'application/vnd.android.package-archive','Content-Length':updateApk.length});res.end(updateApk);return;}
 
   if(route.pathname==='/__evidence'){res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify({synthetic:true,externalModelCalls:0,events}));return;}

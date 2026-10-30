@@ -6,6 +6,7 @@ import android.graphics.fonts.Font
 import android.graphics.fonts.FontFamily
 import android.graphics.fonts.FontStyle
 import android.os.Build
+import java.nio.ByteBuffer
 import androidx.annotation.RequiresApi
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.font.FontFamily as ComposeFontFamily
@@ -22,7 +23,19 @@ object NativeTypography {
     @RequiresApi(29)
     private fun variableFamily(context: Context): Typeface {
         fun family(resource: Int, optical: Boolean): FontFamily {
-            fun font(weight: Int): Font = Font.Builder(context.resources, resource)
+            // Share one compressed-resource buffer across every weight (API 29+).
+            val source = context.resources.openRawResource(resource).use { input ->
+                ByteBuffer.allocateDirect(input.available()).apply {
+                    val chunk = ByteArray(8192)
+                    while (true) {
+                        val count = input.read(chunk)
+                        if (count < 0) break
+                        put(chunk, 0, count)
+                    }
+                    rewind()
+                }
+            }
+            fun font(weight: Int): Font = Font.Builder(source)
                 .setWeight(weight)
                 .setSlant(FontStyle.FONT_SLANT_UPRIGHT)
                 .setFontVariationSettings("'wght' $weight" + if (optical) ", 'opsz' 14" else "")
