@@ -1,0 +1,16 @@
+AI 助手 Android 原生客户端 · 开源组件许可
+
+AndroidX / Jetpack Compose — The Android Open Source Project
+Kotlin / kotlinx.coroutines — JetBrains
+OkHttp / Okio — Square
+Markwon — Dimitry Ivanov
+PDFBox Android — Tom Roush / The Apache Software Foundation
+Apache POI / XMLBeans / Commons / Log4j — The Apache Software Foundation
+上述组件采用 Apache License 2.0。完整许可随安装包附带。
+
+JLaTeXMath Android 0.2.0 — Calixte Denizet, Kris Coolsaet, Nico Van Cleemput, Dimitry Ivanov and contributors.
+GNU GPL version 2, with the independent modules linking exception included below. The library is used without modification.
+项目：https://github.com/noties/jlatexmath-android
+对应版本源码：https://repo.maven.apache.org/maven2/ru/noties/jlatexmath-android/0.2.0/jlatexmath-android-0.2.0-sources.jar
+本网站源码镜像：https://ai.pickandcase.com/downloads/open-source/jlatexmath-android-0.2.0-sources.jar
+

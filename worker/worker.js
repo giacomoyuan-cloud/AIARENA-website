@@ -15,6 +15,8 @@ import { projectLibrary } from './project-library.js';
 import { readProject, consumeReadingStream } from './project-reading.js';
 const internalReadingRequests=new WeakMap();
 import { isDocument } from '../web/file-types.mjs';
+import { handleNativeRequest, NativeAccountRegistry } from './native-api.js';
+import ImageCore from '../arena-image.js';
 import { UPLOAD_LIMITS, uploadDataInfo } from '../web/upload-limits.mjs';
 import { storeProjectOriginal, readProjectOriginal, downloadProjectOriginal } from './project-files.js';
 import TokenLimits from '../arena-token-limits.js';
@@ -718,12 +720,14 @@ var worker_default = {
       return new Response(null, {
         headers: {
           "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
           "Access-Control-Allow-Methods": "POST, GET, PUT, OPTIONS",
           "Access-Control-Allow-Headers": "Content-Type, Authorization"
         }
       });
     }
     const url = new URL(request.url);
+    if(url.pathname.startsWith('/native/'))return handleNativeRequest(request,env,{storageAccountName,accountProfile,publicAccountName,validLoginName,hashText,ownedProject,chatStoragePrefix,validResourceId,models:OFFICIAL_MODELS,efforts:MODEL_EFFORT_LEVELS,skillCatalog,uploadLimits:UPLOAD_LIMITS,tokenLimits:TokenLimits.models,maxTextChars:TokenLimits.maxTextChars,skillModels:SkillModels.names,defaultSkillModel:SkillModels.defaultModel,imageCore:ImageCore,debateCore:DebateCore,ownerAccountId:env.NATIVE_OWNER_ACCOUNT||'',forward:(inner,parsed)=>worker_default.fetch(inner,env,undefined,parsed)});
     if((url.pathname==='/project-upload'&&request.method==='PUT')||(url.pathname==='/project-original'&&request.method==='POST'))return handleProjectTransfer(request,env);
     if(url.pathname==='/model-limits'&&request.method==='GET')return Response.json({checkedAt:'2026-10-30',historyPolicy:'full-history-first',models:TokenLimits.models},{headers:{'Access-Control-Allow-Origin':'*','Cache-Control':'no-store'}});
     if (url.pathname === '/skill-files' && request.method === 'POST') return handleSkillFileRequest(request,env);
@@ -935,7 +939,7 @@ var worker_default = {
         return new Response("Invalid JSON", { status: 400 });
       }
       const { adminKey, username, password: password2 } = body2;
-      if (adminKey !== env.ADMIN_KEY) return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
+      if (!env.ADMIN_KEY || adminKey !== env.ADMIN_KEY) return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
       if (!username || !password2 || password2.length < 8) return new Response(JSON.stringify({ error: "username and password (8+ chars) required" }), { status: 400, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
       if(!validLoginName(username.trim()))return projectReply({error:"Invalid login name"},400);
       const reservedOwner=await storageAccountName(username,env);
@@ -1886,9 +1890,9 @@ const ChatRun = createChatRunClass(executeRun, DebateRun, {
     if(id)await cancelGoogleInteraction(id,env);
   }
 });
-const ProjectScheduler = createProjectScheduler({execute:executeRun,project:ownedProject,models:Object.keys(OFFICIAL_MODELS).filter(id=>!OFFICIAL_MODELS[id].image),credentials:async(env,user)=>{
+const ProjectScheduler = createProjectScheduler({execute:executeRun,project:ownedProject,efforts:MODEL_EFFORT_LEVELS,models:Object.keys(OFFICIAL_MODELS).filter(id=>!OFFICIAL_MODELS[id].image),credentials:async(env,user)=>{
   const record=JSON.parse(await env.MEMORY_KV.get('user:'+user)||'null');
   if(!record?.hash)throw new Error('账号已不可用');
   return {user,username:user,password:record.hash};
 }});
-export { worker_default as default, ChatRun, ProjectScheduler };
+export { NativeAccountRegistry, worker_default as default, ChatRun, ProjectScheduler };

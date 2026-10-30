@@ -12,3 +12,6 @@ android/signing/
 *.jks
 
 dist-site/
+
+.wrangler/
+/node_modules
