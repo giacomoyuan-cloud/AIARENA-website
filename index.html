@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>AI 助手</title>
-<meta name="app-version" content="20261030-schedulejournal1">
+<meta name="app-version" content="20261030-stablemodes1">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -867,15 +867,15 @@
 </style>
 <link rel="stylesheet" href="/arena.css?v=20261030-tokenlimits1">
 <link rel="stylesheet" href="/arena-workspace.css?v=20261029-debateresume1">
-<link rel="stylesheet" href="/arena-controls.css?v=20261029-debateresume1">
+<link rel="stylesheet" href="/arena-controls.css?v=20261030-stablemodes1">
 <link rel="stylesheet" href="/arena-pet.css?v=20261029-petnoghost1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&family=Noto+Serif+SC:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="/arena-claude.css?v=20261030-skilldownload1">
+<link rel="stylesheet" href="/arena-claude.css?v=20261030-stablemodes1">
 <link rel="stylesheet" href="/arena-project-page.css?v=20261030-deepaudit4">
 <link rel="stylesheet" href="/arena-project-files.css?v=20261030-materials1">
-<link rel="stylesheet" href="/arena-debate-ui.css?v=20261030-sliderends1">
+<link rel="stylesheet" href="/arena-debate-ui.css?v=20261030-stablemodes1">
 <link rel="preload" as="image" href="/assets/kitten/motion/knead-14b49069b5fd.png">
 
 <!-- Login overlay -->
@@ -1804,7 +1804,6 @@ var TEAM_COLORS = {
     }
     $('aaDebateModeBar').style.display=debate?'flex':'none';
     $('aaRoundsBar').style.display='none';
-    if($('aaSkillsWrap'))$('aaSkillsWrap').style.display=imageMode||videoMode?'none':'';
     syncImageCards();syncBrandUI();sync2v2UI();updateModeBadge();saveState();
   }
   function loadChat(chatId){
@@ -4198,6 +4197,7 @@ var TEAM_COLORS = {
       if(!saved||!saved.ok){arenaNotice('当前对话保存失败，已保留原对话，请重试');return false;}
       if(await beginNewChat()===false)return false;
     }
+    if(current!==target&&!msgs.length){var chat=$('aaMessages').parentElement;if(chat)chat.scrollTop=0;}
     return true;
   }
    $('aaBarDebateBtn').addEventListener('click', async function(){
@@ -4226,7 +4226,6 @@ var TEAM_COLORS = {
     });
     syncImageCards();
     syncBrandUI(); sync2v2UI(); updateModeBadge(); saveState();
-    if($('aaSkillsWrap')) $('aaSkillsWrap').style.display = imageMode||videoMode?'none':'';
     if($('aaDebateModeBar')) $('aaDebateModeBar').style.display = 'flex';
   });
   $('aaBarChatBtn').addEventListener('click', async function(){
@@ -4253,7 +4252,6 @@ var TEAM_COLORS = {
     $('aaBrandBar').style.display = '';
     $('aaBrandBarCollapsed').style.display = 'none';
     syncBrandUI(); sync2v2UI(); syncNbOptions(); updateModeBadge(); saveState();
-    if($('aaSkillsWrap')) $('aaSkillsWrap').style.display = '';
     if($('aaDebateModeBar')) $('aaDebateModeBar').style.display = 'none';
     if($('aaRoundsBar')) $('aaRoundsBar').style.display = 'none';
   });
@@ -4276,7 +4274,6 @@ var TEAM_COLORS = {
     $('aaBrandBar').style.display = 'none';
     $('aaBrandBarCollapsed').style.display = 'none';
     syncBrandUI(); updateModeBadge(); saveState();
-    if($('aaSkillsWrap')) $('aaSkillsWrap').style.display = imageMode||videoMode?'none':'';
     if($('aaDebateModeBar')) $('aaDebateModeBar').style.display = 'none';
     if($('aaRoundsBar')) $('aaRoundsBar').style.display = 'none';
     $('aaSeatsArea').style.display = 'none';
@@ -4302,7 +4299,6 @@ var TEAM_COLORS = {
     syncImageCards();
     syncBrandUI(); sync2v2UI(); syncNbOptions(); updateModeBadge(); saveState();
     syncImageCards();
-    if($('aaSkillsWrap')) $('aaSkillsWrap').style.display = imageMode||videoMode?'none':'';
     if($('aaDebateModeBar')) $('aaDebateModeBar').style.display = 'none';
     if($('aaRoundsBar')) $('aaRoundsBar').style.display = 'none';
   });
@@ -4320,7 +4316,7 @@ var TEAM_COLORS = {
       b.style.color = isActive ? '#e8e8ee' : '#6b6b88';
     });
     sync2v2UI(); syncArenaLayout(); saveState();
-    if(!msgs.length)document.querySelector('#ai-arena-app .aa-input-area').scrollTop=0;
+    if(!msgs.length){document.querySelector('#ai-arena-app .aa-input-area').scrollTop=0;$('aaMessages').parentElement.scrollTop=0;}
   });
 
   // 2v2 seat state: {pro: ['xai','anthropic'], con: ['openai','google']}
@@ -4590,7 +4586,6 @@ var TEAM_COLORS = {
     if($('aaBarVideoBtn')){ $('aaBarVideoBtn').style.background='transparent'; $('aaBarVideoBtn').style.color='#6b6b88'; }
     $('aaRoundsBar').style.display = 'none';
     $('aaDebateModeBar').style.display = 'none';
-    if($('aaSkillsWrap')) $('aaSkillsWrap').style.display = imageMode||videoMode?'none':'';
 
     renderImgPreviews();
     renderTextPreviews();
@@ -5424,6 +5419,10 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
   // === Skills dropdown ===
   function updateSkillsBtn(){
     if(skillsRuntime){skillsRuntime.update();if(imageMode||videoMode)$('aaSkillPill').hidden=true;}
+    var unavailable=imageMode||videoMode;
+    $('aaSkillsBtn').disabled=unavailable;
+    $('aaSkillsBtn').title=unavailable?'Skills 用于对话和多 AI 辩论':'';
+    if(unavailable)$('aaSkillsDrop').classList.remove('open');
   }
   function activateSkillById(id){ skillsRuntime.activate(id); }
   function renderSkillsDrop(){skillsRuntime.render();}
@@ -6247,7 +6246,6 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
   syncImageCards();
   updateModeBadge();
   updateSkillsBtn();
-  if($('aaSkillsWrap')) $('aaSkillsWrap').style.display = imageMode||videoMode?'none':'';
  // 图像模式初始化
 if(imageMode){
   $('aaBarImageBtn').classList.add('active');
@@ -6257,7 +6255,6 @@ if(imageMode){
   $('aaBarChatBtn').style.background='transparent'; $('aaBarChatBtn').style.color='#6b6b88';
   $('aaBarDebateBtn').style.background='transparent'; $('aaBarDebateBtn').style.color='#6b6b88';
   brandSelection['mj'] = 'mj_imagine';
-  if($('aaSkillsWrap')) $('aaSkillsWrap').style.display = imageMode||videoMode?'none':'';
   syncBrandUI();
   syncImageCards();
     }
@@ -6585,7 +6582,7 @@ if(imageMode){
     $('aaReadFull').setAttribute('aria-pressed',!!(activeProject&&activeProject.readingMode==='full'));
     $('aaHistoryLabel').textContent=activeProjectId?'项目对话':'对话和任务';
     $('aaProjectsBtn').classList.toggle('active',$('ai-arena-app').classList.contains('arena-workspace-visible')?$('ai-arena-app').dataset.workspaceView!=='tasks':!!activeProjectId);
-    $('aaSkillsWrap').style.display=imageMode||videoMode?'none':'';updateSkillsBtn();
+    updateSkillsBtn();
     if(workspaceController&&workspaceController.syncScope)workspaceController.syncScope();
   }
   async function switchProject(project){
