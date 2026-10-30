@@ -1,3 +1,4 @@
+import { openAIFetch, redactOpenAISecrets } from './openai-keys.js';
 const ORIGIN='https://openai-dispatch.internal';
 const encoder=new TextEncoder();
 const MODELS=new Set(['gpt-6-astra','gpt-6.1-sol','gpt-5.6-sol']);
@@ -58,17 +59,17 @@ export class OpenAITransport {
     if(!job||job.started||job.cancelled)return;
     job.started=true;job.phase='fetching';
     try{
-      const response=await fetch('https://api.openai.com/v1/responses'+(job.countOnly?'/input_tokens':''),{
+      const response=await openAIFetch(this.env,'https://api.openai.com/v1/responses'+(job.countOnly?'/input_tokens':''),{
         method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+this.env.OPENAI_API_KEY},
         body:job.body,signal:job.abort.signal,redirect:'manual'
-      });
+      },{store:this.env.BIZ_KV});
       job.status=response.status;job.headers={};
       for(const name of ['content-type','x-request-id','cf-ray','retry-after']){const value=response.headers.get(name);if(value)job.headers[name]=value;}
       job.phase='ready';job.readyWake?.();
       const reader=response.body?.getReader();
       if(reader){try{while(!job.cancelled){const part=await reader.read();if(part.done)break;await this.append(part.value)}}finally{await reader.cancel().catch(()=>{})}}
     }catch(error){
-      const message=String(error?.message||'后台连接失败').replaceAll(this.env.OPENAI_API_KEY||'NEVER_MATCH_EMPTY','[redacted]').slice(0,300);
+      const message=redactOpenAISecrets(error?.message||'后台连接失败',this.env).slice(0,300);
       if(job.phase!=='ready'){
         job.transportError=true;
         job.status=502;job.headers={'content-type':'application/json'};job.phase='ready';

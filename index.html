@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>AI 助手</title>
-<meta name="app-version" content="20261030-stablemodes1">
+<meta name="app-version" content="20261030-deepaudit6">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -868,20 +868,17 @@
 <link rel="stylesheet" href="/arena.css?v=20261030-tokenlimits1">
 <link rel="stylesheet" href="/arena-workspace.css?v=20261029-debateresume1">
 <link rel="stylesheet" href="/arena-controls.css?v=20261030-stablemodes1">
-<link rel="stylesheet" href="/arena-pet.css?v=20261029-petnoghost1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&family=Noto+Serif+SC:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="/arena-claude.css?v=20261030-stablemodes1">
-<link rel="stylesheet" href="/arena-project-page.css?v=20261030-deepaudit4">
-<link rel="stylesheet" href="/arena-project-files.css?v=20261030-materials1">
+<link rel="stylesheet" href="/arena-claude.css?v=20261030-nocat1">
+<link rel="stylesheet" href="/arena-project-page.css?v=20261030-pdfocr1">
+<link rel="stylesheet" href="/arena-project-files.css?v=20261030-pdfocr1">
 <link rel="stylesheet" href="/arena-debate-ui.css?v=20261030-stablemodes1">
-<link rel="preload" as="image" href="/assets/kitten/motion/knead-14b49069b5fd.png">
 
 <!-- Login overlay -->
 <div id="aaLoginOverlay" role="dialog" aria-modal="true" aria-label="登录 AI 助手" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:999999;background:linear-gradient(160deg,#0c1222 0%,#151d35 40%,#1a1030 100%);flex-direction:column;align-items:center;justify-content:center;padding:32px;">
   <div style="width:100%;max-width:280px;">
-    <div style="text-align:center"><button type="button" class="arena-kitten-greeting" data-aa-kitten-greet aria-label="和袁啾啾打招呼"><span class="aa-kitten aa-kitten--login" data-aa-kitten="live" data-state="welcome" aria-hidden="true"></span></button></div>
     <h2 style="font-size:20px;font-weight:700;letter-spacing:-0.03em;margin-bottom:4px;background:linear-gradient(135deg,#e8e8ee,#818cf8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;text-align:center;">AI 助手</h2>
     <p style="font-size:11px;color:#6b6b88;text-align:center;margin-bottom:36px;font-weight:400;"></p>
     <div style="background:rgba(20,25,45,0.92);backdrop-filter:blur(28px) saturate(1.3);-webkit-backdrop-filter:blur(28px) saturate(1.3);border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:16px;box-shadow:inset 0 1px 0 rgba(255,255,255,0.06),0 8px 32px rgba(0,0,0,0.4);">
@@ -971,7 +968,6 @@
     <div id="aaProjectBar" class="arena-project-bar" hidden><div><span>项目</span><strong id="aaProjectName"></strong><span class="arena-scope-note">记忆独立</span></div><div><div class="arena-reading-switch" role="group" aria-label="项目资料阅读方式"><button id="aaReadRetrieve" aria-pressed="true" title="只发送与本轮问题相关的资料片段，节省 Token">按需检索</button><button id="aaReadFull" aria-pressed="false" title="下一条消息将分批阅读全部可读资料，会增加模型用量">全文阅读</button></div><button id="aaProjectMaterials">资料</button><button id="aaProjectSettings" aria-label="项目设置">•••</button><button id="aaProjectExit">普通聊天</button></div></div>
     <button id="aaScrollBottomBtn" class="arena-jump-latest" aria-label="回到最下面" title="回到最下面" style="display:none"><span class="arena-jump-dots" aria-hidden="true"><i></i><i></i><i></i></span><svg class="arena-jump-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v15M6 13l6 6 6-6"/></svg><span class="arena-jump-hint">回到最下面</span></button>
     <div id="aaWelcome" class="aa-welcome">
-      <button type="button" class="arena-kitten-greeting" data-aa-kitten-greet aria-label="和袁啾啾打招呼"><span class="aa-kitten aa-kitten--welcome" data-aa-kitten="live" data-state="welcome" aria-hidden="true"></span></button>
       <h1 id="aaWelcomeTitle">今天，想聊点什么？</h1>
       <p id="aaDebateWelcomeCopy" class="arena-debate-welcome-copy" hidden>设置独立席位，先表达观点，再相互质询。</p>
     </div>
@@ -1286,10 +1282,8 @@
 <link rel="stylesheet" href="/arena-conversation-files.css?v=20261030-chatfiles1">
 <script src="/arena-workspace.js?v=20261030-deepaudit5"></script>
 <script src="/arena-project-state.js?v=20261030-projectactions2"></script>
-<script src="/arena-project-page.js?v=20261030-schedulejournal1"></script>
+<script src="/arena-project-page.js?v=20261030-pdfocr1"></script>
 <script src="/arena-account.js?v=20261027-account2"></script>
-<script src="/arena-pet-catalog.js?v=20261029-petcycle1"></script>
-<script src="/arena-pet.js?v=20261029-petnoghost1"></script>
 <script src="/arena-stream.js?v=20261030-typing50-1"></script>
 <script src="/arena-billing.js?v=20261030-billing-haiku55"></script>
 <script src="/arena-billing-ui.js?v=20261030-materials1"></script>
@@ -6700,7 +6694,7 @@ if(imageMode){
     if(context.fileFragments)labels.push(context.readingMode==='full'?'全文阅读 '+context.fileFragments+' 段':'检索资料 '+context.fileFragments+' 段');
     var explanation=context.historyPolicy==='full'?'已携带当前分支的完整文字历史，未进行摘要或截取。':context.historyPolicy==='compacted'?'已接近模型容量；较早文字用摘记和相关原文片段补充，细节可能省略，原聊天记录完整保留。':'原聊天记录完整保留。较早内容通过摘要和按问题检索的原文补充，摘要可能省略细节。';
     var materialText=(context.readingMode==='full'?'已逐批读入全部可读文字，最终回答使用阅读笔记，笔记可能省略细节。':context.fileFragments?'仅发送检索命中的片段，没有逐页通读整份资料。':context.availableFiles?.length?'本轮没有检索到相关片段，尚未向模型提供文件正文。':'本轮未提供文件资料。');
-    return '<details class="arena-context-info"><summary>本轮上下文 · '+esc(labels.join(' · '))+'</summary><p>'+explanation+(context.scope!=='general'?'记忆和资料仅限当前项目。':'')+esc(materialText)+'</p>'+(context.files||[]).map(function(file){return '<button data-context-file="'+esc(file.id)+'"'+(file.source==='conversation'?' data-conversation-file="true"':'')+' data-project="'+esc(context.scope)+'">'+esc(file.name)+(file.location?' · '+esc(file.location):'')+'</button>';}).join('')+'</details>';
+    return '<details class="arena-context-info"><summary>本轮上下文 · '+esc(labels.join(' · '))+'</summary><p>'+explanation+(context.scope!=='general'?'记忆和资料仅限当前项目。':'')+esc(materialText)+'</p>'+(context.files||[]).map(function(file){var source=file.source!=='conversation'&&activeProject&&activeProject.id===context.scope&&(activeProject.files||[]).find(function(item){return item.id===file.id;});var name=source?ArenaProjectFiles.name(source):file.name;return '<button data-context-file="'+esc(file.id)+'"'+(file.source==='conversation'?' data-conversation-file="true"':'')+' data-project="'+esc(context.scope)+'">'+esc(name)+(file.location?' · '+esc(file.location):'')+'</button>';}).join('')+'</details>';
   }
   workspaceController=ArenaWorkspace.mount({
     host:$('ai-arena-app'),api:projectApi,binary:projectBinary,setReadingMode:setProjectReadingMode,busy:function(){return aaRunning||scopeSwitchPending||chatNavigationPending||privacySwitchPending;},notice:arenaNotice,currentProject:function(){return activeProject;},currentScope:function(){return activeProjectId;},

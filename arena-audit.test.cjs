@@ -4,6 +4,18 @@ const fs=require('node:fs');
 const vm=require('node:vm');
 const html=fs.readFileSync(__dirname+'/index.html','utf8');
 const plain=value=>JSON.parse(JSON.stringify(value));
+test('older saved context labels use current same-scope file paths without rewriting the receipt',()=>{
+  const message={context:{scope:'project-a',historyPolicy:'full',historyCount:0,files:[{id:'design',name:'说明.txt'},{id:'finance',name:'说明.txt'}]}},before=plain(message);
+  const c=vm.createContext({message,activeProject:{id:'project-a',files:[{id:'design',name:'说明.txt',folder:'QA.zip',relativePath:'设计/说明.txt'},{id:'finance',name:'说明.txt',folder:'QA.zip',relativePath:'财务/说明.txt'}]},ArenaProjectFiles:require('./arena-project-files.js'),esc:String});
+  vm.runInContext(fn('renderContextInfo')+';rendered=renderContextInfo(message);',c);
+  assert.ok(c.rendered.includes('QA.zip/设计/说明.txt'));assert.ok(c.rendered.includes('QA.zip/财务/说明.txt'));assert.deepEqual(message,before);
+});
+test('history source names never come from another project or overwrite an unavailable historical source',()=>{
+  const c=vm.createContext({message:{context:{scope:'old-project',historyCount:0,files:[{id:'same-id',name:'历史资料/说明.txt'}]}},activeProject:{id:'other-project',files:[{id:'same-id',name:'wrong.txt',folder:'PRIVATE_OTHER_SCOPE',relativePath:'wrong.txt'}]},ArenaProjectFiles:require('./arena-project-files.js'),esc:String});
+  vm.runInContext(fn('renderContextInfo')+';rendered=renderContextInfo(message);',c);
+  assert.ok(c.rendered.includes('历史资料/说明.txt'));assert.ok(!c.rendered.includes('PRIVATE_OTHER_SCOPE'));
+  c.activeProject=null;vm.runInContext('rendered=renderContextInfo(message)',c);assert.ok(c.rendered.includes('历史资料/说明.txt'));
+});
 function fn(name){const found=html.match(new RegExp('  (?:async )?function '+name+'\\([^]*?\\n  }'));assert.ok(found,name);return found[0];}
 function element(){return {value:'',dataset:{},style:{},textContent:'',hidden:false,scrollTop:0,focus(){},setAttribute(){},classList:{add(){},remove(){},toggle(){},contains(){return false;}}};}
 function navigation(){

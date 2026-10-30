@@ -3,6 +3,6 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node sync-shared-context.mjs --check && node --test billing-ledger.test.mjs worker.test.mjs skills.test.mjs projects.test.mjs project-management.test.mjs project-materials.test.mjs conversation-files.test.mjs project-schedules.test.mjs prompts.test.mjs account.test.mjs model-contract.test.mjs chat-runs.test.mjs debate-runs.test.mjs openai-transport.test.mjs openai-images.test.mjs ../arena-context.test.cjs ../arena-markdown.test.cjs ../arena-models.test.cjs ../arena-input.test.cjs ../arena-chat-runs.test.cjs ../arena-debate-runs.test.cjs"
+    "test": "node sync-shared-context.mjs --check && node --test billing-ledger.test.mjs worker.test.mjs skills.test.mjs projects.test.mjs project-management.test.mjs project-materials.test.mjs conversation-files.test.mjs project-schedules.test.mjs prompts.test.mjs account.test.mjs model-contract.test.mjs chat-runs.test.mjs debate-runs.test.mjs openai-transport.test.mjs openai-keys.test.mjs openai-failover.test.mjs openai-images.test.mjs ../arena-context.test.cjs ../arena-markdown.test.cjs ../arena-models.test.cjs ../arena-input.test.cjs ../arena-chat-runs.test.cjs ../arena-debate-runs.test.cjs"
   }
 }
