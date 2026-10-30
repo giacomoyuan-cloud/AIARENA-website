@@ -30,7 +30,10 @@ export function inlineSource(input){
 export async function retrieveLibrary(source,query,currentFileIds=[]){
   if(!source.files.length||/^\s*(你好|您好|谢谢|hi|hello|thanks|ok)[!！。.\s]*$/i.test(query))return {text:'',files:[],fragments:0,mode:'retrieve'};
   const names=source.files.filter(f=>currentFileIds.includes(f.id)).slice(0,3).map(materialName),searchQuery=query+(names.length?'\n'+names.join('\n'):'');
-  const result=await source.library('search',{query:searchQuery}),items=result.hits.slice(0,3).map(h=>({text:h.text.slice(0,1600),file:{id:h.file.id,name:h.file.name,location:h.location,source:source.kind||'conversation'},score:h.score}));
+  const result=await source.library('search',{query:searchQuery}),preferred=[...currentFileIds,...namedFiles(source.files,query)].map(f=>typeof f==='string'?f:f.id),hits=[];
+  for(const id of preferred){const hit=result.hits.find(h=>h.file.id===id);if(hit&&!hits.includes(hit))hits.push(hit);}
+  for(const hit of result.hits)if(!hits.includes(hit))hits.push(hit);
+  const items=hits.slice(0,3).map(h=>({text:h.text.slice(0,1600),file:{id:h.file.id,name:h.file.name,location:h.location,source:source.kind||'conversation'},score:h.score}));
   return materialItems(items,source.files.map(f=>({...f,name:materialName(f)})));
 }
 export function materialItems(items,available=[]){
