@@ -188,7 +188,7 @@ test('the authenticated Worker passes an entire long original to the file execut
   let uploaded = '', payload;
   t.mock.method(globalThis, 'fetch', async (url, options) => {
     assert.equal(new URL(url).hostname, 'api.anthropic.com');
-    if (url.endsWith('/files') && options.method === 'POST') { uploaded = await options.body.get('file').text(); return Response.json({ id: 'file_input123' }); }
+    if (url.endsWith('/files') && options.method === 'POST') { const form=await new Request(url,options).formData(); uploaded = await form.get('file').text(); return Response.json({ id: 'file_input123' }); }
     if (url.endsWith('/messages')) { payload = JSON.parse(options.body); return Response.json(executionResult()); }
     if (url.endsWith('/files/file_input123') && options.method === 'DELETE') return Response.json({ deleted: true });
     throw Error('Unexpected provider request: ' + url);

@@ -43,7 +43,7 @@
       var task=file.arrayBuffer().then(function(buffer){
         var scope=entry.scope;
         if((epochs[scope]||0)!==entry.epoch)return;
-        if(buffer.byteLength>8*1024*1024)throw Error('官方文档处理单个文件最多 8MB');
+        if(buffer.byteLength>(root.ArenaFiles&&root.ArenaFiles.LIMITS?root.ArenaFiles.LIMITS.fileBytes:20*1024*1024))throw Error('官方文档处理单个文件最多 20MB');
         var bytes=new Uint8Array(buffer),binary='';for(var i=0;i<bytes.length;i+=32768)binary+=String.fromCharCode.apply(null,bytes.subarray(i,i+32768));
         if(files.some(function(f){return f.scope===scope&&f.name===file.name&&f.order>order;}))return;
         files=files.filter(function(f){return f.scope!==scope||f.name!==file.name;});files.push({scope:scope,order:order,name:file.name,mime:file.type||'application/octet-stream',size:bytes.length,data:btoa(binary)});

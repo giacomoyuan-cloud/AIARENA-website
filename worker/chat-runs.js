@@ -8,7 +8,7 @@ const cors = { 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' }
 const json = (value, status = 200) => Response.json(value, { status, headers: cors });
 const terminal = status => status && status !== 'running';
 
-export function createChatRunClass(execute, DebateRun, { deferStart = () => false, createTransport, onInterrupt } = {}) {
+export function createChatRunClass(execute, DebateRun, { deferStart = () => false, createTransport, onInterrupt, executePayload } = {}) {
   return class ChatRun {
     constructor(ctx, env) {
       this.ctx = ctx;
@@ -227,7 +227,7 @@ export function createChatRunClass(execute, DebateRun, { deferStart = () => fals
         this.abort = new AbortController();
         // Let a slow thinking stream finish. Only Stop, upstream failure or
         // the existing output-size bound cancels it; elapsed time does not.
-        const response = await execute(new Request('https://internal.invalid/', {
+        const response = executePayload ? await executePayload(payload,this.env,this.abort.signal) : await execute(new Request('https://internal.invalid/', {
           method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), signal: this.abort.signal
         }), this.env);
         if (!response.ok) {

@@ -152,7 +152,7 @@ test('project requests ignore general memory and unrelated client instructions',
 });
 test('project files are retrieved by relevant chunks, and not read on small talk',async t=>{
   const {env,data,reads}=setup(),a=await create(env,'A'),b=await create(env,'B'),calls=[];upstream(t,calls);
-  const file={name:'售后规则.txt',size:100,type:'text/plain',text:'退款窗口为 37 天。品牌代号 AURORA-Z9。\n'+('无关背景。\n'.repeat(1000)),data:Buffer.from('test file').toString('base64')};
+  const file={name:'售后规则.txt',size:9,type:'text/plain',text:'退款窗口为 37 天。品牌代号 AURORA-Z9。\n'+('无关背景。\n'.repeat(1000)),data:Buffer.from('test file').toString('base64')};
   const uploaded=await project(env,'upload',{projectId:a.id,file});assert.equal(uploaded.status,200);
   await project(env,'upload',{projectId:b.id,file:{...file,text:'退款窗口为 99 天。OTHER_PROJECT_CANARY'}});
   reads.length=0;await(await worker.fetch(root(a.id,'你好'),env)).text();

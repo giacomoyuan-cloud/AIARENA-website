@@ -172,7 +172,7 @@
             var folderName=isFolder||entry.archive?path.split('/')[0]:null,relativePath=folderName?path.split('/').slice(1).join('/'):null;
             var replace=folderName?currentFiles.find(function(f){return f.folder===folderName&&f.relativePath===relativePath;}):null;
             if(!replace&&currentFiles.length>=15)throw Error('每个项目最多保存 15 份资料');
-            if(currentFiles.reduce(function(n,f){return n+(replace&&replace.id===f.id?0:f.size);},0)+source.size>40*1024*1024)throw Error('项目资料总量超过 40MB');
+            if(currentFiles.reduce(function(n,f){return n+(replace&&replace.id===f.id?0:f.size);},0)+source.size>root.ArenaFiles.LIMITS.projectBytes)throw Error('项目资料总量超过 100MB');
             var data=await root.ArenaWorkspace.readFile(source);
             if(a!==key()||p.id!==(app.currentProject()||{}).id)break;
             if(folderName){data.folder=folderName;data.relativePath=relativePath;}
