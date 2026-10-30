@@ -23,13 +23,14 @@ export function inlineSource(input){
   return {files,kind:'conversation',async library(action,extra){
     if(action==='scope'){selected=new Set(extra.ids);return {ok:true};}
     if(action==='batch'){const all=segments.filter(s=>selected.has(s.fileId)),batch=[];let chars=0;for(const s of all.slice(extra.offset)){if(batch.length&&chars+s.text.length>24000)break;batch.push(s);chars+=s.text.length;}return {segments:batch,next:extra.offset+batch.length,done:!batch.length};}
-    if(action==='search')return {hits:segments.map(s=>{const terms=Context.terms(extra.query),textTerms=new Set(Context.terms(s.text)),score=terms.filter(t=>textTerms.has(t)).length;return {...s,text:s.text,file:files.find(f=>f.id===s.fileId),score};}).filter(h=>h.score>0).sort((a,b)=>b.score-a.score).slice(0,12)};
+    if(action==='search')return {hits:segments.map(s=>{const terms=Context.terms(extra.query),textTerms=new Set(Context.terms(s.text)),score=terms.filter(t=>textTerms.has(t)).length+(s.ordinal===0&&String(extra.query).toLowerCase().includes(s.name.toLowerCase())?1000:0);return {...s,text:s.text,file:files.find(f=>f.id===s.fileId),score};}).filter(h=>h.score>0).sort((a,b)=>b.score-a.score).slice(0,12)};
     fail('无痕文件操作无效');
   },batchLegacy:async function*(){}};
 }
-export async function retrieveLibrary(source,query){
+export async function retrieveLibrary(source,query,currentFileIds=[]){
   if(!source.files.length||/^\s*(你好|您好|谢谢|hi|hello|thanks|ok)[!！。.\s]*$/i.test(query))return {text:'',files:[],fragments:0,mode:'retrieve'};
-  const result=await source.library('search',{query}),items=result.hits.slice(0,3).map(h=>({text:h.text.slice(0,1600),file:{id:h.file.id,name:h.file.name,location:h.location,source:source.kind||'conversation'},score:h.score}));
+  const names=source.files.filter(f=>currentFileIds.includes(f.id)).slice(0,3).map(materialName),searchQuery=query+(names.length?'\n'+names.join('\n'):'');
+  const result=await source.library('search',{query:searchQuery}),items=result.hits.slice(0,3).map(h=>({text:h.text.slice(0,1600),file:{id:h.file.id,name:h.file.name,location:h.location,source:source.kind||'conversation'},score:h.score}));
   return materialItems(items,source.files.map(f=>({...f,name:materialName(f)})));
 }
 export function materialItems(items,available=[]){

@@ -148,3 +148,9 @@ test('ordinary PDF recognition uses scoped OCR and caches each completed page',a
  const first=await docs(s,c,'ocr_page',input),cached=await docs(s,c,'ocr_page',input);assert.equal(first.model,'gpt-6.1-sol');assert.match(first.text,/CONVERSATION_SCAN_ONLY/);assert.equal(cached.cached,true);assert.equal(calls,1);
  await assert.rejects(docs(s,{chatId:'other-ocr-chat'},'ocr_page',input),e=>e.status===404);assert.equal(calls,1);
 });
+
+test('a newly attached file supplies a bounded first excerpt for a generic question, only for that turn',async t=>{
+ const s=setup(t),c={chatId:'generic-attachment-chat'},f=await upload(s,c,{text:'NEW_FILE_EXCERPT budget 73921.50'}),calls=mockProvider(t);
+ await ask(s,c,'概括这个新附件',{documents:{enabled:true,currentFileIds:[f.id]}});assert.equal(calls.length,1);assert.match(JSON.stringify(calls[0]),/NEW_FILE_EXCERPT/);
+ await ask(s,c,'概括这个新附件');assert.equal(calls.length,2);assert.doesNotMatch(JSON.stringify(calls[1]),/NEW_FILE_EXCERPT/);
+});

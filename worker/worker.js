@@ -1622,7 +1622,7 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
         }catch(error){const first=auxiliaryUsage[0];if(first)await writer.write(encoder.encode('data: '+JSON.stringify({usage:Billing.combine(first,auxiliaryUsage)})+'\n\n'));throw error;}
       }else{
         const projectMaterials=await retrieveProjectMaterials(env,authUser,project,query);
-        materials=conversation?mergeMaterials(await retrieveLibrary(conversation,query),projectMaterials,query):projectMaterials;
+        materials=conversation?mergeMaterials(await retrieveLibrary(conversation,query,input.documents?.currentFileIds||[]),projectMaterials,query):projectMaterials;
         if(policy.mode==='full'&&policy.explicit)throw Error('本轮没有可全文阅读的文件，请先上传文件');
       }
       if(materials.fragments)await sendActivity({kind:"project_files",label:"查阅文件资料",files:materials.files,fragments:materials.fragments});

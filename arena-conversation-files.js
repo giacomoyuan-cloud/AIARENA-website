@@ -25,7 +25,7 @@
       s.loading=api(s,'list').then(function(data){s.files=data.files;s.mode=data.readingMode||'retrieve';s.loaded=true;s.checkedKnown=true;s.error=null;return s;}).catch(function(error){s.error=error;throw error;}).finally(function(){s.loading=null;if(current(s))render();});return s.loading;
     }
     function displayName(f){return root.ArenaProjectFiles.name?root.ArenaProjectFiles.name(f):f.name;}
-    function preferred(s){return app.projectMode()||s.mode;}
+    function preferred(s){return s.pendingMode||app.projectMode()||s.mode;}
     function render(){
       if(!controls)return;var s=state(),count=s.files.length,visible=!app.imageOrDebate()&&(count||known()||app.hasProject()&&!app.projectHome());
       controls.hidden=!visible;if(!visible)return;
@@ -36,9 +36,9 @@
       note.textContent=s.error?'文件暂未加载，请点文件列表重试':policy.mode==='full'?(policy.explicit?'本轮指令：全文阅读，显示进度并增加用量':'分批阅读全部可读文字，会增加模型用量'):'仅发送相关片段，附文件名和位置';
     }
     async function choose(mode){
-      if(app.busy()||modePending)return;var s=state();modePending=true;render();
-      try{if(app.hasProject())await app.setProjectMode(mode);else if(s.ctx.incognito)s.mode=mode;else{await api(s,'settings',{mode:mode});if(current(s))s.mode=mode;}}
-      catch(error){if(current(s))app.notice(error.message);}finally{modePending=false;if(current(s))render();}
+      if(app.busy()||modePending)return;var s=state();s.pendingMode=mode;modePending=true;render();
+      try{if(app.hasProject())await app.setProjectMode(mode);else if(s.ctx.incognito)s.mode=mode;else{await api(s,'settings',{mode:mode});s.mode=mode;}}
+      catch(error){if(current(s))app.notice(error.message);}finally{delete s.pendingMode;modePending=false;if(current(s))render();}
     }
     retrieve.addEventListener('click',function(){choose('retrieve');});full.addEventListener('click',function(){choose('full');});
     manage.addEventListener('click',function(){openList().catch(e=>app.notice(e.message));});
@@ -78,7 +78,7 @@
           if(mode==='full'&&segments.length>192)throw Error('这份文件需要分批保存全文阅读进度。请使用普通模式；当前无痕内容尚未发送。');
           if(mode==='retrieve'){
             var terms=root.ArenaContext.terms(question),scored=segments.map(function(segment){var words=new Set(root.ArenaContext.terms(segment.text));return {segment:segment,score:terms.filter(t=>words.has(t)).length};});
-            segments=scored.filter(x=>x.score>0).sort((a,b)=>b.score-a.score).slice(0,3).map(x=>x.segment);
+            segments=scored.filter(x=>x.score>0).sort((a,b)=>b.score-a.score).slice(0,3).map(x=>x.segment);if(!segments.length&&ids.includes(item.meta.id))segments=item.segments.slice(0,1);
           }
           files.push({id:item.meta.id,name:item.meta.name,status:item.meta.status,indexedAt:item.meta.indexedAt,segments:segments.map(x=>({text:x.text,location:x.location||'正文'}))});
         }out.inline={files:files};
