@@ -874,6 +874,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&family=Noto+Serif+SC:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="/arena-claude.css?v=20261030-skilldownload1">
 <link rel="stylesheet" href="/arena-project-page.css?v=20261030-projectactions1">
+<link rel="stylesheet" href="/arena-project-files.css?v=20261030-materials1">
 <link rel="stylesheet" href="/arena-debate-ui.css?v=20261030-sliderends1">
 <link rel="preload" as="image" href="/assets/kitten/motion/knead-14b49069b5fd.png">
 
@@ -967,7 +968,7 @@
 
 <div class="aa-main">
   <div class="aa-chat">
-    <div id="aaProjectBar" class="arena-project-bar" hidden><div><span>项目</span><strong id="aaProjectName"></strong><span class="arena-scope-note">记忆独立</span></div><div><button id="aaProjectMaterials">资料</button><button id="aaProjectSettings" aria-label="项目设置">•••</button><button id="aaProjectExit">普通聊天</button></div></div>
+    <div id="aaProjectBar" class="arena-project-bar" hidden><div><span>项目</span><strong id="aaProjectName"></strong><span class="arena-scope-note">记忆独立</span></div><div><div class="arena-reading-switch" role="group" aria-label="项目资料阅读方式"><button id="aaReadRetrieve" aria-pressed="true" title="只发送与本轮问题相关的资料片段，节省 Token">按需检索</button><button id="aaReadFull" aria-pressed="false" title="下一条消息将分批阅读全部可读资料，会增加模型用量">全文阅读</button></div><button id="aaProjectMaterials">资料</button><button id="aaProjectSettings" aria-label="项目设置">•••</button><button id="aaProjectExit">普通聊天</button></div></div>
     <button id="aaScrollBottomBtn" class="arena-jump-latest" aria-label="回到最下面" title="回到最下面" style="display:none"><span class="arena-jump-dots" aria-hidden="true"><i></i><i></i><i></i></span><svg class="arena-jump-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v15M6 13l6 6 6-6"/></svg><span class="arena-jump-hint">回到最下面</span></button>
     <div id="aaWelcome" class="aa-welcome">
       <button type="button" class="arena-kitten-greeting" data-aa-kitten-greet aria-label="和袁啾啾打招呼"><span class="aa-kitten aa-kitten--welcome" data-aa-kitten="live" data-state="welcome" aria-hidden="true"></span></button>
@@ -1275,9 +1276,10 @@
 <script src="/arena-debate.js?v=20261030-debatestudio3"></script>
 <script src="/arena-debate-studio.js?v=20261030-debatecontrols1"></script>
 <script src="/arena-debate-runs.js?v=20261030-debatestudio3"></script>
-<script src="/arena-workspace.js?v=20261029-debateresume1"></script>
+<script src="/arena-project-files.js?v=20261030-materials1"></script>
+<script src="/arena-workspace.js?v=20261030-materials1"></script>
 <script src="/arena-project-state.js?v=20261030-projectactions2"></script>
-<script src="/arena-project-page.js?v=20261030-projectactions1"></script>
+<script src="/arena-project-page.js?v=20261030-materials1"></script>
 <script src="/arena-account.js?v=20261027-account2"></script>
 <script src="/arena-pet-catalog.js?v=20261029-petcycle1"></script>
 <script src="/arena-pet.js?v=20261029-petnoghost1"></script>
@@ -3328,8 +3330,8 @@ var TEAM_COLORS = {
     var searchLabel = (reasoning?'已思考，':'')+(imageSearch?(webSearch?'已搜索网页与图片':'已搜索图片'):'已搜索网页');
     var usedFiles=entries.some(function(item){return item.kind==='project_files';});
     var attempted = entries.some(function(item){return /search/.test(item.kind);});
-    var expanded=msg._activityOpen;
-    var h = '<details class="arena-operation-details"'+(msg._activityStage==='interrupted'?' data-incomplete="true"':'')+(expanded?' open':'')+'><summary>'+ (msg._activityStage==='interrupted'?'已收到的思考摘要':usedFiles?'已查阅项目资料':searched?searchLabel:attempted?'搜索记录':reasoning?(msg._activityStage==='thinking'?'思考摘要':'已思考'):'处理记录')+'</summary><div class="arena-operation-card">';
+    var expanded=msg._activityOpen,reading=entries.filter(function(item){return item.kind==='project_reading';}).at(-1);
+    var h = '<details class="arena-operation-details"'+(msg._activityStage==='interrupted'?' data-incomplete="true"':'')+(expanded?' open':'')+'><summary>'+ (reading&&!reading.complete?esc(reading.label):msg._activityStage==='interrupted'?'已收到的思考摘要':usedFiles?'已查阅项目资料':searched?searchLabel:attempted?'搜索记录':reasoning?(msg._activityStage==='thinking'?'思考摘要':'已思考'):'处理记录')+'</summary><div class="arena-operation-card">';
     entries.forEach(function(item){
       if(item.kind==='project_files'){
         h+='<div class="arena-operation-row">已查阅项目资料 · '+Number(item.fragments||0)+' 个片段 '+(item.files||[]).map(function(file){return '<button data-context-file="'+esc(file.id)+'" data-project="'+esc((msg.context||{}).scope||activeProjectId||'')+'">'+esc(file.name)+'</button>';}).join(' ')+'</div>';return;
@@ -5326,7 +5328,7 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
             if(meta.skillSession)msgObj.skillSession=meta.skillSession;
             if(meta.executionModel)adoptSkillExecutionModel(meta.executionModel,msgObj);
             if(meta.artifacts)msgObj.artifacts=(msgObj.artifacts||[]).concat(meta.artifacts);
-            if((meta.executionModel||meta.artifacts)&&firstChunk){firstChunk=false;beginStreamedReply(sub,msgObj);}
+            if((meta.executionModel||meta.artifacts||meta.activity?.kind==='project_reading')&&firstChunk){firstChunk=false;beginStreamedReply(sub,msgObj);}
             if(meta.citation){
               var source = meta.citation;
               var index = msgObj.citations.findIndex(function(item){return item.url===source.url;});
@@ -5334,7 +5336,7 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
               else if(source.title) msgObj.citations[index].title=source.title;
               if(meta.citationInline !== false) msgObj.text += ' [[aa-citation:'+(index+1)+']] ';
             }
-            if(meta.activity){ if(msgObj.activity.length<80) msgObj.activity.push(meta.activity); }
+            if(meta.activity){if(meta.activity.kind==='project_reading'){var progressIndex=msgObj.activity.findIndex(function(a){return a.kind==='project_reading';});if(progressIndex>=0)msgObj.activity[progressIndex]=meta.activity;else if(msgObj.activity.length<80)msgObj.activity.push(meta.activity);}else if(msgObj.activity.length<80)msgObj.activity.push(meta.activity);}
             else if(meta.status && meta.status!=='responding'){
               var previous = msgObj.activity[msgObj.activity.length-1];
               if(!previous || previous.kind!==meta.status) msgObj.activity.push({kind:meta.status,label:meta.status==='searching'?'搜索网页':'模型思考'});
@@ -6580,10 +6582,30 @@ if(imageMode){
     }catch(error){if(error.name==='AbortError')throw new Error(action==='pin'?'置顶保存超时，请重试':'项目加载超时，请检查网络后重试');throw error;}
     finally{if(timer)clearTimeout(timer);}
   }
+  async function projectBinary(path,options){
+    var auth=options.credentials||{username:loginName($('aaUsername').value),password:getPass()},headers={},body=options.body;
+    if(options.method==='PUT'){headers.Authorization='Bearer '+btoa(Array.from(new TextEncoder().encode(JSON.stringify(auth)),function(n){return String.fromCharCode(n);}).join(''));}
+    else{headers['Content-Type']='application/json';body=JSON.stringify(Object.assign({},body,auth));}
+    var response=await fetch(WORKER+path,{method:options.method,headers:headers,body:body,signal:options.signal});
+    if(!response.ok){var data=await response.json().catch(function(){return {};});throw Error(data.error||'文件传输失败，请重试');}return response;
+  }
+  var projectReadingModePending=false;
+  async function setProjectReadingMode(mode){
+    if(projectReadingModePending)return false;
+    if(!activeProject||aaRunning){arenaNotice('回答完成后可以切换资料阅读方式');return false;}
+    var original=activeProject,owner=scopeViewKey(original.id),credentials={username:loginName($('aaUsername').value),password:getPass()};
+    projectReadingModePending=true;
+    try{var data=await projectApi('update',Object.assign({projectId:original.id,readingMode:mode},credentials));
+      if(owner!==scopeViewKey(activeProjectId)||activeProjectId!==original.id)return false;
+      activeProject=Object.assign({},original,data.project);updateProjectBar();arenaNotice(mode==='full'?'已开启全文阅读：下一条消息会分批读入全部可读资料，增加模型用量':'已开启按需检索：只发送本轮相关片段');return true;
+    }finally{projectReadingModePending=false;}
+  }
   function updateProjectBar(){
     $('aaProjectBar').hidden=!activeProjectId;
     $('ai-arena-app').classList.toggle('arena-project-scope',!!activeProjectId);
     $('aaProjectName').textContent=activeProject?activeProject.name:'项目';
+    $('aaReadRetrieve').setAttribute('aria-pressed',!(activeProject&&activeProject.readingMode==='full'));
+    $('aaReadFull').setAttribute('aria-pressed',!!(activeProject&&activeProject.readingMode==='full'));
     $('aaHistoryLabel').textContent=activeProjectId?'项目对话':'对话和任务';
     $('aaProjectsBtn').classList.toggle('active',$('ai-arena-app').classList.contains('arena-workspace-visible')?$('ai-arena-app').dataset.workspaceView!=='tasks':!!activeProjectId);
     $('aaSkillsWrap').style.display=imageMode||videoMode?'none':'';updateSkillsBtn();
@@ -6640,6 +6662,7 @@ if(imageMode){
     var previous=msgs.slice(0,-1),recent=ArenaContext.selectRecent(previous);
     var previousSkillMessage=previous.filter(function(m){return !m.isUser&&(m.skills||m.skillSession);}).slice(-1)[0];
     return {skills:skillsRuntime.settings(),artifactInputs:previousSkillMessage&&previousSkillMessage.artifacts?previousSkillMessage.artifacts.filter(function(f){return !f.deleted&&!f.unavailable&&f.token;}).slice(-5).map(function(f){return f.token;}):[],previousSkillIds:previousSkillMessage&&previousSkillMessage.skills?previousSkillMessage.skills.map(function(s){return s.id;}):[],skillSession:previousSkillMessage&&previousSkillMessage.skillSession||null,scope:activeProjectId||'general',chatId:currentChatId,question:question,query:query||question,system:activeProjectId?'':system,systemMode:activeProjectId?'project':chatSystemMode(getActiveSubmodels()[0]),history:recent.messages,historyLength:previous.length,historyEndUid:previous.length?String(previous[previous.length-1].uid):null,incognito:!!_incognitoMode,
+      readingMode:activeProject&&activeProject.readingMode==='full'?'full':'retrieve',
       notes:_incognitoMode?ArenaContext.notes(recent.earlier,1400):'',
       excerpts:_incognitoMode?ArenaContext.excerpts(recent.earlier,query||question,{maxChars:1800}):[]};
   }
@@ -6648,11 +6671,12 @@ if(imageMode){
     var labels=['最近 '+context.historyCount+' 条'];
     if(context.olderSummary)labels.push('较早'+context.summaryKind);
     if(context.retrievedMessages)labels.push('旧原文 '+context.retrievedMessages+' 段');
-    if(context.fileFragments)labels.push('资料 '+context.fileFragments+' 段');
-    return '<details class="arena-context-info"><summary>本轮上下文 · '+esc(labels.join(' · '))+'</summary><p>原聊天记录完整保留。较早内容通过摘要和按问题检索的原文补充，摘要可能省略细节。'+(context.scope!=='general'?'记忆和资料仅限当前项目。':'')+'</p>'+(context.files||[]).map(function(file){return '<button data-context-file="'+esc(file.id)+'" data-project="'+esc(context.scope)+'">'+esc(file.name)+'</button>';}).join('')+'</details>';
+    if(context.fileFragments)labels.push(context.readingMode==='full'?'全文阅读 '+context.fileFragments+' 段':'检索资料 '+context.fileFragments+' 段');
+    var materialText=context.scope!=='general'?(context.readingMode==='full'?'已逐批读入全部可读文字，最终回答使用阅读笔记，笔记可能省略细节。':context.fileFragments?'仅发送检索命中的片段，没有逐页通读整份资料。':context.availableFiles?.length?'本轮没有检索到相关片段，尚未向模型提供文件正文。':'本轮未提供项目资料。'):'';
+    return '<details class="arena-context-info"><summary>本轮上下文 · '+esc(labels.join(' · '))+'</summary><p>原聊天记录完整保留。较早内容通过摘要和按问题检索的原文补充，摘要可能省略细节。'+(context.scope!=='general'?'记忆和资料仅限当前项目。':'')+esc(materialText)+'</p>'+(context.files||[]).map(function(file){return '<button data-context-file="'+esc(file.id)+'" data-project="'+esc(context.scope)+'">'+esc(file.name)+(file.location?' · '+esc(file.location):'')+'</button>';}).join('')+'</details>';
   }
   workspaceController=ArenaWorkspace.mount({
-    host:$('ai-arena-app'),api:projectApi,busy:function(){return aaRunning;},notice:arenaNotice,currentProject:function(){return activeProject;},currentScope:function(){return activeProjectId;},
+    host:$('ai-arena-app'),api:projectApi,binary:projectBinary,setReadingMode:setProjectReadingMode,busy:function(){return aaRunning;},notice:arenaNotice,currentProject:function(){return activeProject;},currentScope:function(){return activeProjectId;},
     accountKey:function(){return getPass()?loginName($('aaUsername').value).toLowerCase():'';},
     pinContext:function(){return {username:loginName($('aaUsername').value),password:getPass()};},
     switchScope:switchProject,refreshProject:function(project){activeProject=project;_memoryLoaded=false;_cachedMemory=null;updateProjectBar();},
@@ -6669,6 +6693,8 @@ if(imageMode){
     openChat:async function(scope,id){if(!await switchProject(scope||null))return false;var opened=await loadChat(id);if(opened)loadChatList();return opened;},
   });
   if(getPass())workspaceController.preload();
+  $('aaReadRetrieve').addEventListener('click',function(){setProjectReadingMode('retrieve').catch(function(error){arenaNotice(error.message);});});
+  $('aaReadFull').addEventListener('click',function(){setProjectReadingMode('full').catch(function(error){arenaNotice(error.message);});});
   $('aaProjectsBtn').addEventListener('click',workspaceController.list);
   $('aaSchedulesBtn').addEventListener('click',workspaceController.schedules);
   $('aaProjectName').setAttribute('role','button');$('aaProjectName').tabIndex=0;

@@ -7,6 +7,7 @@
   "durable_objects": { "bindings": [{ "name": "CHAT_RUNS", "class_name": "ChatRun" }, { "name": "PROJECT_SCHEDULES", "class_name": "ProjectScheduler" }] },
   "migrations": [{ "tag": "chat-runs-v1", "new_sqlite_classes": ["ChatRun"] }, { "tag": "project-schedules-v1", "new_sqlite_classes": ["ProjectScheduler"] }],
   "workers_dev": true,
+  "r2_buckets": [{ "binding": "PROJECT_DOCUMENTS", "bucket_name": "ai-assistant-project-files" }],
   "placement": { "region": "aws:us-east-1" },
   "routes": [{ "pattern": "api.pickandcase.com", "custom_domain": true }],
   "kv_namespaces": [

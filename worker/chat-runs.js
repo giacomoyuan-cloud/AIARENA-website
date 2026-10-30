@@ -1,4 +1,5 @@
 import { handleBillingLedger } from './billing-ledger.js';
+import { handleProjectLibrary } from './project-library.js';
 // A generation belongs to its chat, not to a phone's HTTP connection.
 // Credentials and provider keys are never written to Durable Object storage.
 const encoder = new TextEncoder();
@@ -136,7 +137,10 @@ export function createChatRunClass(execute, DebateRun, { deferStart = () => fals
         else if (item.citation.title) reply.citations[index].title = item.citation.title;
         if (item.citationInline !== false) reply.text += ' [[aa-citation:' + (index < 0 ? reply.citations.length : index + 1) + ']] ';
       }
-      if (item.activity && reply.activity.length < 80) reply.activity.push(item.activity);
+      if(item.activity?.kind==='project_reading'){
+        const index=reply.activity.findIndex(a=>a.kind==='project_reading');
+        if(index>=0)reply.activity[index]=item.activity;else if(reply.activity.length<80)reply.activity.push(item.activity);
+      }else if (item.activity && reply.activity.length < 80) reply.activity.push(item.activity);
       else if (item.status && item.status !== 'responding' && reply.activity.at(-1)?.kind !== item.status) {
         reply.activity.push({ kind: item.status, label: item.status === 'searching' ? '搜索网页' : '模型思考' });
       }
@@ -283,6 +287,7 @@ export function createChatRunClass(execute, DebateRun, { deferStart = () => fals
     async fetch(request) {
       const target=new URL(request.url);
       if(target.hostname==='usage-ledger.internal'&&target.pathname==='/__billing')return handleBillingLedger(this.ctx,request);
+      if(target.hostname==='project-library.internal')return handleProjectLibrary(this.ctx,this.env,request);
       if (this.transport?.matches(request)) return this.transport.fetch(request);
       const body = await request.json();
       if (body.kind === 'debate' && this.debate) return this.debate.fetchBody(body);
