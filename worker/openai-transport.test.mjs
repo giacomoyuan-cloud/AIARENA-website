@@ -50,7 +50,8 @@ test('stop during an active private response aborts the provider and preserves t
     options.signal.addEventListener('abort',()=>{aborted=true;controller.error(new DOMException('stopped','AbortError'))},{once:true});
   }})));
   await f.actor.fetch(req('/start',{body}));const execution=f.actor.alarm();
-  await Promise.resolve();
+  // Key health hashing/storage can complete after the enqueue microtask.
+  for(let count=0;count<100&&f.actor.job.phase!=='ready';count++)await new Promise(resolve=>setImmediate(resolve));
   const response=await f.actor.fetch(req('/stream')),reader=response.body.getReader();
   assert.equal(new TextDecoder().decode((await reader.read()).value),'first-part');
   await f.actor.fetch(req('/stop'));await execution;assert.equal(aborted,true);

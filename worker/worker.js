@@ -7,6 +7,7 @@ import { AUXILIARY_MODEL, AUXILIARY_SETTINGS, auxiliaryText } from './auxiliary-
 import { validateSkillFiles, serveSkillFile, runOfficialDocuments, rescopeSkillArtifacts } from './skill-files.js';
 import { createDebateRunClass } from './debate-runs.js';
 import { OpenAITransport, openAIBackgroundFetch } from './openai-transport.js';
+import { hasOpenAIKey, openAIFetch } from './openai-keys.js';
 import { createProjectScheduler } from './project-schedules.js';
 import { createScheduledChatClient } from './scheduled-chat.js';
 import { isOpenAIImage, validateOpenAIImage, buildImagePayload, readImageStream, IMAGE_ORCHESTRATOR } from './openai-images.js';
@@ -1116,7 +1117,7 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
       return new Response(JSON.stringify(result), { headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
     }
     if (request.method === "GET" && url.pathname !== "/memory") {
-      return new Response(JSON.stringify({ mode: "official", materialsVersion:env.PROJECT_DOCUMENTS?"20261030-materials1":null,projectOcrModel:env.PROJECT_DOCUMENTS&&env.OPENAI_API_KEY?OCR_MODEL:null, debate:DebateCore.version==='studio-v3'&&DebateRun.contractVersion==='studio-v3'?'studio-v3':null, skillsVersion:"20261030-skillmodels1", chatModesVersion:"20261030-chatmodes1", projectsVersion:"20261030-projectactions1", xai: !!env.GROK_API_KEY, openai: !!env.OPENAI_API_KEY, anthropic: !!env.ANTHROPIC_API_KEY, google: !!env.GEMINI_API_KEY, mj: false }), {
+      return new Response(JSON.stringify({ mode: "official", openaiKeyFailoverVersion:"20261030-keyfallback1", materialsVersion:env.PROJECT_DOCUMENTS?"20261030-materials1":null,projectOcrModel:env.PROJECT_DOCUMENTS&&hasOpenAIKey(env)?OCR_MODEL:null, debate:DebateCore.version==='studio-v3'&&DebateRun.contractVersion==='studio-v3'?'studio-v3':null, skillsVersion:"20261030-skillmodels1", chatModesVersion:"20261030-chatmodes1", projectsVersion:"20261030-projectactions1", xai: !!env.GROK_API_KEY, openai: hasOpenAIKey(env), anthropic: !!env.ANTHROPIC_API_KEY, google: !!env.GEMINI_API_KEY, mj: false }), {
         status: 200,
         headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*", "Cache-Control":"no-store" }
       });
@@ -1199,7 +1200,7 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
     if (!modelConfig.image && (!Number.isInteger(outputLimit) || outputLimit < 32 || outputLimit > outputCeiling)) {
       return new Response(JSON.stringify({ error: "maxOutputTokens must be an integer between 32 and the model output limit" }), {status:400,headers:{"Content-Type":"application/json","Access-Control-Allow-Origin":"*"}});
     }
-    if (!env[modelConfig.binding]) {
+    if (modelConfig.provider === 'openai' ? !hasOpenAIKey(env) : !env[modelConfig.binding]) {
       return new Response(JSON.stringify({ error: modelConfig.provider + " 官方密钥尚未配置：" + modelConfig.binding }), { status: 503, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
     }
     const { readable, writable } = new TransformStream();
@@ -1474,19 +1475,22 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
         headers.set("cf-aig-no-wholesale", "true");
         headers.set("cf-aig-max-attempts", "1");
         // Cloudflare's native binding preserves the provider's response stream and multipart uploads.
-        return env.AI.fetch("https://workers-binding.ai/ai-gateway/gateways/" + encodeURIComponent(gatewayId) + "/openai" + target.pathname + target.search,
-          { ...options, headers, redirect: "manual" });
+        return openAIFetch(env, url, { ...options, headers }, {
+          store: env.BIZ_KV,
+          dispatch: (_url, init) => env.AI.fetch("https://workers-binding.ai/ai-gateway/gateways/" + encodeURIComponent(gatewayId) + "/openai" + target.pathname + target.search, init)
+        });
       }
-      if (target.hostname === "api.openai.com" && target.pathname === "/v1/responses" && typeof env.CHAT_RUNS?.jurisdiction === "function") {
-        return openAIBackgroundFetch(env.CHAT_RUNS, options.body, options.signal);
+      if (target.hostname === "api.openai.com" && ["/v1/responses", "/v1/responses/input_tokens"].includes(target.pathname) && typeof env.CHAT_RUNS?.jurisdiction === "function") {
+        return openAIBackgroundFetch(env.CHAT_RUNS, options.body, options.signal, { countOnly: target.pathname.endsWith('/input_tokens') });
       }
+      if (target.hostname === "api.openai.com") return openAIFetch(env, url, options, { store: env.BIZ_KV });
       return fetch(url, { ...options, redirect: "manual" });
     }
     async function fetchRetry(url, options) {
       let response;
       for (let attempt = 0; attempt < 2; attempt++) {
         response = await fetchOfficial(url, options);
-        if (body.noAutomaticRetry || response.ok || ![429, 500, 502, 503, 504].includes(response.status)) return response;
+        if (new URL(url).hostname === "api.openai.com" || body.noAutomaticRetry || response.ok || ![429, 500, 502, 503, 504].includes(response.status)) return response;
         if (attempt === 0) {
           let attemptedModel=model,attemptPayload={};
           try{attemptPayload=JSON.parse(options.body);attemptedModel=attemptPayload.model||model;}catch{}
@@ -1677,8 +1681,7 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
         if (search) payload.tools = [{ type: "web_search" }];
       }
       const fitted=await fitTokenBudget({provider:config.provider,model,payload,env,signal:upstreamAbort.signal,outputTokens:outputLimit,
-        compact:scoped?.compact,fetcher:(url,options)=>url==='https://api.openai.com/v1/responses/input_tokens'&&env.CHAT_RUNS
-          ?openAIBackgroundFetch(env.CHAT_RUNS,options.body,options.signal,{countOnly:true}):fetch(url,options)});
+        compact:scoped?.compact,fetcher:fetchOfficial});
       payload=fitted.payload;
       if(scoped){
         Object.assign(scoped.context,{contextTokens:fitted.contextTokens,inputBudget:fitted.inputBudget,inputTokens:fitted.inputTokens,
@@ -1857,7 +1860,7 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
         else await callOfficialChat(modelConfig);
       } catch (error) {
         let message = String(error?.message || error || "官方接口请求失败");
-        for (const binding of ["ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GROK_API_KEY", "GEMINI_API_KEY"]) {
+        for (const binding of ["ANTHROPIC_API_KEY", "OPENAI_API_KEY", "OPENAI_API_KEY_BACKUP", "GROK_API_KEY", "GEMINI_API_KEY"]) {
           if (env[binding]) message = message.split(env[binding]).join("[redacted]");
         }
         if(!upstreamAbort.signal.aborted){try{await writer.write(encoder.encode('data: '+JSON.stringify({error:message})+'\n\n'));}catch{}}
