@@ -1,5 +1,6 @@
 import Billing from '../arena-billing.js';
 import { recordProviderUsage, usageSummary, usageReceipt } from './billing-ledger.js';
+import { OCR_MODEL } from './project-ocr.js';
 import { createChatRunClass } from './chat-runs.js';
 import { skillCatalog, normalizeSettings, selectSkills, selectionInstructions } from './skills.js';
 import { AUXILIARY_MODEL, AUXILIARY_SETTINGS, auxiliaryText } from './auxiliary-model.js';
@@ -427,7 +428,8 @@ async function handleProjectRequest(request,env){
     const project=await ownedProject(env,user,body.projectId,["archive","delete","restore"].includes(action),["delete","restore"].includes(action));
     const prefix=projectKey(user,project.id);
     if(action.startsWith('library_')){
-      const operation=action.slice(8),extra={fileId:body.fileId,parts:body.parts,segments:body.segments,coverage:body.coverage,error:body.error};
+      const operation=action.slice(8),extra={fileId:body.fileId,parts:body.parts,segments:body.segments,coverage:body.coverage,error:body.error,generation:body.generation};
+      if(operation==='ocr_page')Object.assign(extra,{page:body.page,total:body.total,data:body.data,mime:body.mime,retry:body.retry===true,hasNativeText:body.hasNativeText===true});
       if(operation==='start'){
         extra.file=body.file;
         if(body.replaceFileId){
@@ -438,7 +440,7 @@ async function handleProjectRequest(request,env){
           if(!extra.replaced)return projectReply({error:'待更新资料不存在'},404);
         }
       }
-      if(!['start','original_complete','segments','commit','parse_failed','abort'].includes(operation))return projectReply({error:'未知资料操作'},400);
+      if(!['start','original_complete','segments','commit','parse_failed','abort','reparse','ocr_page'].includes(operation))return projectReply({error:'未知资料操作'},400);
       return projectReply(await projectLibrary(env,user,project.id,operation,extra));
     }
     if(action==="delete"||action==="restore"){
@@ -728,7 +730,6 @@ var worker_default = {
       return new Response(null, {
         headers: {
           "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
           "Access-Control-Allow-Methods": "POST, GET, PUT, OPTIONS",
           "Access-Control-Allow-Headers": "Content-Type, Authorization"
         }
@@ -1116,7 +1117,7 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
       return new Response(JSON.stringify(result), { headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
     }
     if (request.method === "GET" && url.pathname !== "/memory") {
-      return new Response(JSON.stringify({ mode: "official", openaiKeyFailoverVersion:"20261030-keyfallback1", materialsVersion:env.PROJECT_DOCUMENTS?"20261030-materials1":null, debate:DebateCore.version==='studio-v3'&&DebateRun.contractVersion==='studio-v3'?'studio-v3':null, skillsVersion:"20261030-skillmodels1", chatModesVersion:"20261030-chatmodes1", projectsVersion:"20261030-projectactions1", xai: !!env.GROK_API_KEY, openai: hasOpenAIKey(env), anthropic: !!env.ANTHROPIC_API_KEY, google: !!env.GEMINI_API_KEY, mj: false }), {
+      return new Response(JSON.stringify({ mode: "official", openaiKeyFailoverVersion:"20261030-keyfallback1", materialsVersion:env.PROJECT_DOCUMENTS?"20261030-materials1":null,projectOcrModel:env.PROJECT_DOCUMENTS&&hasOpenAIKey(env)?OCR_MODEL:null, debate:DebateCore.version==='studio-v3'&&DebateRun.contractVersion==='studio-v3'?'studio-v3':null, skillsVersion:"20261030-skillmodels1", chatModesVersion:"20261030-chatmodes1", projectsVersion:"20261030-projectactions1", xai: !!env.GROK_API_KEY, openai: hasOpenAIKey(env), anthropic: !!env.ANTHROPIC_API_KEY, google: !!env.GEMINI_API_KEY, mj: false }), {
         status: 200,
         headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*", "Cache-Control":"no-store" }
       });

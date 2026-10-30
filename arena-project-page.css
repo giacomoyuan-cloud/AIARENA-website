@@ -51,9 +51,9 @@
 #ai-arena-app.arena-shell .arena-project-context-empty > svg { width:42px;height:42px;color:var(--arena-faint); }
 #ai-arena-app.arena-shell .arena-project-context-empty button { font-size:12px; }
 #ai-arena-app.arena-shell .arena-project-resource { display:flex;align-items:center;min-width:0;gap:4px; }
-#ai-arena-app.arena-shell .arena-project-resource button:first-child { flex:1;justify-content:flex-start;min-width:0;border:0;font-size:12px;padding:8px 0; }
-#ai-arena-app.arena-shell .arena-project-resource button:first-child span { overflow:hidden;white-space:nowrap;text-overflow:ellipsis; }
-#ai-arena-app.arena-shell .arena-project-resource button:last-child { flex:none;min-height:28px;width:28px;padding:0;border:0;color:var(--arena-muted); }
+#ai-arena-app.arena-shell .arena-project-resource>button:first-child { flex:1;justify-content:flex-start;min-width:0;border:0;font-size:12px;padding:8px 0; }
+#ai-arena-app.arena-shell .arena-project-resource>button:first-child span { overflow:hidden;white-space:nowrap;text-overflow:ellipsis; }
+#ai-arena-app.arena-shell .arena-project-resource>button:last-child,#ai-arena-app.arena-shell .arena-project-resource-actions>button:not(.arena-project-ocr-action) { flex:none;min-height:28px;width:28px;padding:0;border:0;color:var(--arena-muted); }
 #ai-arena-app.arena-shell .arena-project-page .arena-project-link { min-height:30px;padding:5px 0;border:0;color:var(--arena-muted);font-size:12px;justify-content:flex-start; }
 #ai-arena-app.arena-shell .arena-project-folder { margin-top:12px;font-size:12px; }
 #ai-arena-app.arena-shell .arena-project-folder summary { display:flex;align-items:center;gap:8px;cursor:pointer;overflow-wrap:anywhere; }

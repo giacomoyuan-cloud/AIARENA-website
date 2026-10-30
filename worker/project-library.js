@@ -1,7 +1,9 @@
 import Context from '../arena-context.js';
 import {isDocument,materialName} from '../web/file-types.mjs';
+import {recognizeProjectPage, ocrPayload, OCR_MODEL} from './project-ocr.js';
 
 const initialized=new WeakSet();
+const activeOCR=new WeakMap();
 const idOK=id=>typeof id==='string'&&/^[a-zA-Z0-9_-]{6,80}$/.test(id);
 const json=(data,status=200)=>Response.json(data,{status,headers:{'Cache-Control':'no-store','Access-Control-Allow-Origin':'*'}});
 const fail=(message,status=400)=>{throw Object.assign(Error(message),{status});};
@@ -15,6 +17,8 @@ function init(ctx){
   ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS library_retired (id TEXT PRIMARY KEY, meta TEXT NOT NULL)');
   ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS library_readings (key TEXT PRIMARY KEY, value TEXT NOT NULL)');
   ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS library_scope_files (scope TEXT NOT NULL, file_id TEXT NOT NULL, PRIMARY KEY(scope,file_id))');
+  ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS library_ocr_pages (file_id TEXT NOT NULL, page INTEGER NOT NULL, state TEXT NOT NULL, result TEXT, updated_at INTEGER NOT NULL, PRIMARY KEY(file_id,page))');
+  ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS library_pending_segments (file_id TEXT NOT NULL, ordinal INTEGER NOT NULL, location TEXT NOT NULL, text TEXT NOT NULL, digest TEXT NOT NULL, words TEXT NOT NULL, PRIMARY KEY(file_id,ordinal))');
   initialized.add(ctx);
 }
 const digest=async value=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value))),b=>b.toString(16).padStart(2,'0')).join('');
@@ -25,7 +29,7 @@ function file(ctx,id){
   return {...JSON.parse(row.meta),state:row.state,removed:!!row.removed};
 }
 function publicFile(value){
-  const {objectKey,uploadId,replaced,originalComplete,...rest}=value;
+  const {objectKey,uploadId,replaced,originalComplete,previousParseState,pendingGeneration,indexGeneration,...rest}=value;
   return {...rest,storage:'r2',status:value.state};
 }
 function save(ctx,value){
@@ -100,6 +104,36 @@ export async function handleProjectLibrary(ctx,env,request){
     }
     if(action==='restore_legacy'){ctx.storage.sql.exec('DELETE FROM library_retired WHERE id=?',body.fileId);return json({ok:true});}
     const value=file(ctx,body.fileId);
+    if(action==='reparse'){
+      if(value.removed||!value.originalComplete||!/\.pdf$/i.test(value.name))fail('此资料暂不能继续识别',409);
+      if(value.state!=='indexing')value.previousParseState=value.state;
+      value.state='indexing';value.pendingGeneration=crypto.randomUUID();
+      transact(ctx,()=>{ctx.storage.sql.exec('DELETE FROM library_pending_segments WHERE file_id=?',value.id);save(ctx,value);});
+      return json({file:publicFile(value),generation:value.pendingGeneration});
+    }
+    if(action==='ocr_page'){
+      if(value.removed||!value.originalComplete||value.state!=='indexing'||!/\.pdf$/i.test(value.name))fail('文件当前不能识别扫描页',409);
+      if(value.pendingGeneration&&body.generation!==value.pendingGeneration)fail('识别任务已更新，请刷新资料状态',409);
+      if(!Number.isSafeInteger(body.total)||body.total<1||!Number.isSafeInteger(body.page)||body.page<1||body.page>body.total)fail('识别页码无效');
+      const cached=rows(ctx,'SELECT state,result FROM library_ocr_pages WHERE file_id=? AND page=?',value.id,body.page)[0];
+      if(cached?.state==='done'&&!(body.retry===true&&JSON.parse(cached.result).uncertain)&&!(body.hasNativeText&&JSON.parse(cached.result).kind==='blank'))return json({...JSON.parse(cached.result),cached:true});
+      let jobs=activeOCR.get(ctx);if(!jobs){jobs=new Map();activeOCR.set(ctx,jobs);}
+      const key=value.id+':'+body.page;
+      if(jobs.has(key))return json(await jobs.get(key));
+      if(cached?.state==='running'&&body.retry!==true)fail('上次识别连接已中断；点击“继续识别”后仅重试未完成页',409);
+      ocrPayload(body.page,body.data,body.mime);
+      ctx.storage.sql.exec('INSERT INTO library_ocr_pages(file_id,page,state,result,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(file_id,page) DO UPDATE SET state=excluded.state,result=NULL,updated_at=excluded.updated_at',value.id,body.page,'running',null,Date.now());
+      const job=(async()=>{
+        try{
+          const result=await recognizeProjectPage(env,body.owner,body.projectId,body.page,body.data,body.mime,body.hasNativeText===true);
+          ctx.storage.sql.exec('UPDATE library_ocr_pages SET state=?,result=?,updated_at=? WHERE file_id=? AND page=?','done',JSON.stringify(result),Date.now(),value.id,body.page);
+          return result;
+        }catch(error){
+          ctx.storage.sql.exec('UPDATE library_ocr_pages SET state=?,updated_at=? WHERE file_id=? AND page=?','failed',Date.now(),value.id,body.page);throw error;
+        }finally{jobs.delete(key);}
+      })();
+      jobs.set(key,job);return json(await job);
+    }
     if(action==='part'){
       if(value.state!=='uploading'||value.removed)fail('上传会话已结束',409);
       const count=Math.max(1,Math.ceil(value.size/value.partSize));
@@ -119,28 +153,53 @@ export async function handleProjectLibrary(ctx,env,request){
     }
     if(action==='segments'){
       if(!value.originalComplete||value.removed||!['indexing','unreadable'].includes(value.state))fail('文件当前不能建立索引',409);
+      if(value.pendingGeneration&&body.generation!==value.pendingGeneration)fail('本次识别已被更新的任务替代，请刷新资料状态',409);
       if(!Array.isArray(body.segments)||body.segments.length>32)fail('索引批次无效');
       let chars=0;for(const s of body.segments){if(!Number.isSafeInteger(s.ordinal)||s.ordinal<0||typeof s.text!=='string'||!s.text.trim()||s.text.length>5000)fail('文件片段无效');chars+=s.text.length;}
       if(chars>128000)fail('单个索引批次过大');
       const prepared=await Promise.all(body.segments.map(async s=>({...s,location:location(s.location),digest:await digest(s.text)})));
+      const table=value.pendingGeneration?'library_pending_segments':'library_segments';
       transact(ctx,()=>{for(const s of prepared){
-        const prior=rows(ctx,'SELECT digest FROM library_segments WHERE file_id=? AND ordinal=?',value.id,s.ordinal)[0];
+        const prior=rows(ctx,'SELECT digest FROM '+table+' WHERE file_id=? AND ordinal=?',value.id,s.ordinal)[0];
         if(prior){if(prior.digest!==s.digest)fail('相同位置的文件片段不一致，请重新上传',409);continue;}
-        ctx.storage.sql.exec('INSERT INTO library_segments(file_id,ordinal,location,text,digest) VALUES(?,?,?,?,?)',value.id,s.ordinal,s.location,s.text,s.digest);
-        ctx.storage.sql.exec('INSERT INTO library_search(words,file_id,ordinal) VALUES(?,?,?)',Context.terms(s.text).join(' '),value.id,s.ordinal);
+        if(value.pendingGeneration)ctx.storage.sql.exec('INSERT INTO library_pending_segments(file_id,ordinal,location,text,digest,words) VALUES(?,?,?,?,?,?)',value.id,s.ordinal,s.location,s.text,s.digest,Context.terms(s.text).join(' '));
+        else{
+          ctx.storage.sql.exec('INSERT INTO library_segments(file_id,ordinal,location,text,digest) VALUES(?,?,?,?,?)',value.id,s.ordinal,s.location,s.text,s.digest);
+          ctx.storage.sql.exec('INSERT INTO library_search(words,file_id,ordinal) VALUES(?,?,?)',Context.terms(s.text).join(' '),value.id,s.ordinal);
+        }
       }});return json({ok:true});
     }
     if(action==='commit'){
+      if(value.pendingGeneration&&body.generation!==value.pendingGeneration||!value.pendingGeneration&&body.generation&&body.generation!==value.indexGeneration)fail('识别任务已更新，旧结果不会覆盖当前资料',409);
       if(['ready','partial'].includes(value.state))return json({file:publicFile(value)});
-      const stats=rows(ctx,'SELECT COUNT(*) AS n,MAX(ordinal) AS last,SUM(length(text)) AS chars FROM library_segments WHERE file_id=?',value.id)[0];
+      const table=value.pendingGeneration?'library_pending_segments':'library_segments';
+      const stats=rows(ctx,'SELECT COUNT(*) AS n,MAX(ordinal) AS last,SUM(length(text)) AS chars FROM '+table+' WHERE file_id=?',value.id)[0];
       if(!value.originalComplete||!Number.isSafeInteger(body.segments)||body.segments<1||stats.n!==body.segments||stats.last!==body.segments-1)fail('解析结果不完整，尚不能供 AI 使用',409);
       const coverage=body.coverage;
       if(coverage&&(!Number.isSafeInteger(coverage.units)||!Number.isSafeInteger(coverage.emptyUnits)||coverage.emptyUnits<0||coverage.emptyUnits>coverage.units))fail('解析覆盖范围无效');
-      value.coverage=coverage||null;value.state=coverage?.emptyUnits>0?'partial':'ready';value.characters=stats.chars;value.segments=stats.n;value.indexedAt=Date.now();delete value.parseError;
-      transact(ctx,()=>{save(ctx,value);if(value.replaced){const prior=rows(ctx,'SELECT id FROM library_files WHERE id=?',value.replaced.id)[0];if(prior){const old=file(ctx,prior.id);old.removed=true;save(ctx,old);}else ctx.storage.sql.exec('INSERT INTO library_retired(id,meta) VALUES(?,?) ON CONFLICT(id) DO NOTHING',value.replaced.id,JSON.stringify(value.replaced));}});
+      if(coverage&&['uncertainUnits','ocrPages','blankUnits','nativeEmptyUnits'].some(key=>coverage[key]!==undefined&&(!Number.isSafeInteger(coverage[key])||coverage[key]<0||coverage[key]>coverage.units)))fail('识别覆盖范围无效');
+      const ocrCount=rows(ctx,"SELECT COUNT(*) AS n FROM library_ocr_pages WHERE file_id=? AND state='done'",value.id)[0].n;
+      value.coverage=coverage||null;value.state=coverage?.emptyUnits>0||coverage?.uncertainUnits>0?'partial':'ready';value.characters=stats.chars;value.segments=stats.n;value.indexedAt=Math.max(Date.now(),Number(value.indexedAt||0)+1);if(ocrCount){value.ocrModel=OCR_MODEL;value.ocrPages=ocrCount;}delete value.parseError;delete value.previousParseState;
+      transact(ctx,()=>{
+        if(value.pendingGeneration){
+          ctx.storage.sql.exec('DELETE FROM library_search WHERE file_id=?',value.id);
+          ctx.storage.sql.exec('DELETE FROM library_segments WHERE file_id=?',value.id);
+          ctx.storage.sql.exec('INSERT INTO library_segments(file_id,ordinal,location,text,digest) SELECT file_id,ordinal,location,text,digest FROM library_pending_segments WHERE file_id=?',value.id);
+          ctx.storage.sql.exec('INSERT INTO library_search(words,file_id,ordinal) SELECT words,file_id,ordinal FROM library_pending_segments WHERE file_id=?',value.id);
+          ctx.storage.sql.exec('DELETE FROM library_pending_segments WHERE file_id=?',value.id);
+          value.indexGeneration=value.pendingGeneration;delete value.pendingGeneration;
+        }
+        save(ctx,value);if(value.replaced){const prior=rows(ctx,'SELECT id FROM library_files WHERE id=?',value.replaced.id)[0];if(prior){const old=file(ctx,prior.id);old.removed=true;save(ctx,old);}else ctx.storage.sql.exec('INSERT INTO library_retired(id,meta) VALUES(?,?) ON CONFLICT(id) DO NOTHING',value.replaced.id,JSON.stringify(value.replaced));}
+      });
       return json({file:publicFile(value)});
     }
-    if(action==='parse_failed'){if(!['ready','partial'].includes(value.state)){value.state='unreadable';value.parseError=String(body.error||'未识别到可读文字').slice(0,250);save(ctx,value);}return json({file:publicFile(value)});}
+    if(action==='parse_failed'){
+      if(value.pendingGeneration&&body.generation!==value.pendingGeneration)fail('识别任务已更新',409);
+      if(!['ready','partial'].includes(value.state)){
+        value.state=['ready','partial'].includes(value.previousParseState)?value.previousParseState:'unreadable';value.parseError=String(body.error||'未识别到可读文字').slice(0,250);delete value.previousParseState;
+        transact(ctx,()=>{ctx.storage.sql.exec('DELETE FROM library_pending_segments WHERE file_id=?',value.id);delete value.pendingGeneration;save(ctx,value);});
+      }return json({file:publicFile(value)});
+    }
     if(action==='preview'){
       if(value.removed)fail('项目资料不存在',404);
       const parts=rows(ctx,'SELECT location,text FROM library_segments WHERE file_id=? ORDER BY ordinal LIMIT 32',value.id);let text='';

@@ -12,3 +12,7 @@
   #ai-arena-app .arena-project-bar>div:last-child{width:100%;justify-content:flex-start;gap:5px}
   #ai-arena-app .arena-reading-switch button{padding:5px 8px!important}
 }
+#ai-arena-app .arena-project-resource-actions{display:flex;align-items:flex-start;gap:6px;}
+#ai-arena-app .arena-project-resource-actions .arena-project-ocr-action{font:11px/1.5 var(--arena-ui-font);white-space:nowrap;padding:4px 7px;min-height:30px;border:1px solid var(--arena-border);border-radius:7px;background:var(--arena-surface);color:var(--arena-muted);}
+#ai-arena-app .arena-project-resource-actions .arena-project-ocr-action:hover{color:var(--arena-text);background:var(--arena-user);}
+@media(pointer:coarse){#ai-arena-app .arena-project-resource-actions button{min-height:44px!important;}}
