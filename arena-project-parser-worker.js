@@ -1,4 +1,4 @@
-importScripts('/arena-project-files.js?v=20261030-pdfocr1');
+importScripts('/arena-project-files.js?v=20261030-pdfocr2');
 var acknowledge,ocrResult;
 self.onmessage=async function(event){
   if(event.data.type==='ack'){if(acknowledge)acknowledge();return;}
