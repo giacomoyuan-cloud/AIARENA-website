@@ -158,3 +158,8 @@ test('a newly attached file supplies a bounded first excerpt for a generic quest
 test('full reading preserves recognition warnings without rejecting fully processed pages',async t=>{
  const s=setup(t),c={chatId:'recognized-warning-chat'};await upload(s,c,{name:'scan.pdf',text:'Budget 73921.50 [部分文字不清晰]',coverage:{units:1,emptyUnits:0,uncertainUnits:1,warnings:[{page:1,warning:'局部不清晰'}]}});const calls=mockProvider(t),r=await ask(s,c,'请全文阅读这份文件并检查预算');assert.equal(r.status,200);assert.match(r.text,/recognitionWarnings/);assert.match(JSON.stringify(calls.at(-1)),/识别情况/);
 });
+
+test('three new attachments each receive an excerpt before one file takes another slot',async t=>{
+ const s=setup(t),c={chatId:'diverse-files-chat'},pdf=await upload(s,c,{name:'reference.pdf',segments:[{ordinal:0,location:'第 1 页',text:'PDF_FIRST budget 73921.50'},{ordinal:1,location:'第 2 页',text:'PDF_SECOND budget 73921.50'}]}),word=await upload(s,c,{name:'reference.docx',text:'WORD_BUDGET budget 73921.50'}),excel=await upload(s,c,{name:'reference.xlsx',text:'EXCEL_BUDGET 73921.50'}),calls=mockProvider(t);
+ const r=await ask(s,c,'请列出各附件 budget',{documents:{enabled:true,currentFileIds:[pdf.id,word.id,excel.id]}});assert.equal(r.status,200);const sent=JSON.stringify(calls[0]);assert.match(sent,/PDF_FIRST/);assert.match(sent,/WORD_BUDGET/);assert.match(sent,/EXCEL_BUDGET/);assert.doesNotMatch(sent,/PDF_SECOND/);assert.match(r.text,/"fileFragments":3/);
+});
