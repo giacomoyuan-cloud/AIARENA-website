@@ -79,9 +79,9 @@ export class OpenAITransport {
   }
 }
 
-export async function openAIBackgroundFetch(namespace,body,signal,{countOnly=false}={}){
+async function backgroundAttempt(namespace,body,signal,{countOnly=false,locationHint='enam'}={}){
   const regional=namespace.jurisdiction('us');
-  const stub=regional.get(regional.idFromName('openai-dispatch:'+crypto.randomUUID()));
+  const stub=regional.get(regional.idFromName('openai-dispatch:'+crypto.randomUUID()),{locationHint});
   const request=(path,value)=>new Request(ORIGIN+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(value||{})});
   const stop=()=>{stub.fetch(request('/stop')).catch(()=>{})};
   const aborted=()=>{if(signal?.aborted)throw new DOMException('已停止生成','AbortError')};
@@ -118,4 +118,18 @@ export async function openAIBackgroundFetch(namespace,body,signal,{countOnly=fal
     });
     return new Response(stream,{status:response.status,headers:response.headers});
   }catch(error){signal?.removeEventListener('abort',stop);stop();await reader?.cancel().catch(()=>{});throw error;}
+}
+
+// A machine-readable country rejection precedes generation. Retry it once via
+// another fresh US object, keeping the same model, credentials and payload.
+// Accepted streams, quota errors and ambiguous transport failures are never
+// replayed here: they may already have incurred a charge.
+export async function openAIBackgroundFetch(namespace,body,signal,{countOnly=false}={}){
+  for(const locationHint of ['enam','wnam']){
+    const response=await backgroundAttempt(namespace,body,signal,{countOnly,locationHint});
+    if(locationHint==='wnam'||response.status!==403)return response;
+    const data=await response.clone().json().catch(()=>null);
+    if(data?.usage||data?.error?.usage||data?.error?.code!=='unsupported_country_region_territory')return response;
+    await response.body?.cancel().catch(()=>{});
+  }
 }
