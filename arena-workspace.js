@@ -95,13 +95,14 @@
     }
     async function materials(){
       var current=app.currentProject();if(!current)return list();
-      var epoch=++navigationEpoch;
+      var epoch=++navigationEpoch,owner=accountKey();
       try{
         var loadedProject=(await app.api('get',{projectId:current.id})).project;
         var files=removed?(await app.api('removed_files',{projectId:loadedProject.id})).files:loadedProject.files;
-        if(epoch!==navigationEpoch)return;project=loadedProject;
+        if(epoch!==navigationEpoch||owner!==accountKey()||app.currentProject()?.id!==current.id)return;project=loadedProject;
+        if(app.refreshProject)app.refreshProject(loadedProject);
         setContent((removed?'已移除资料 · ':'项目资料 · ')+project.name,'<div class="arena-workspace-intro"><p>可选按需检索或全文阅读；上传完成后建立索引，只有模型实际查阅时才产生阅读用量。</p>'+(!removed?'<button class="arena-workspace-primary" data-file-upload>上传资料</button>':'')+'</div><p class="arena-workspace-muted">PDF、Word（DOCX）、Excel（XLSX/XLS）、PPT 和文本。大文件分片上传，大小受设备和存储服务实际能力影响；扫描件需 OCR。</p><div class="arena-project-file-list">'+(files.map(function(file){return '<div class="arena-project-file-row"><button data-file-preview="'+e(file.id)+'"><strong>'+e(root.ArenaProjectFiles.name(file))+'</strong><span>'+Math.ceil(file.size/1024)+' KB · '+Number(file.characters||0).toLocaleString()+' 字符 · '+e(root.ArenaProjectFiles.status(file))+'</span></button><button '+(removed?'data-file-restore':'data-file-remove')+'="'+e(file.id)+'">'+(removed?'恢复':'移除')+'</button></div>';}).join('')||'<div class="arena-workspace-empty">暂无'+(removed?'已移除':'')+'资料</div>')+'</div><p data-w-error role="alert"></p><div class="arena-workspace-footer"><button data-file-removed-toggle>'+(removed?'返回资料':'查看已移除资料')+'</button><button data-project-settings="'+e(project.id)+'">项目设置</button></div>');show();
-      }catch(err){if(epoch===navigationEpoch)error(err.message);}
+      }catch(err){if(epoch===navigationEpoch&&owner===accountKey()&&app.currentProject()?.id===current.id)error(err.message);}
     }
     var viewedFile=null,viewedProject=null,previewEpoch=0,previewFocus=null;
     function closeFile(restoreFocus){

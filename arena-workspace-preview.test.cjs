@@ -7,18 +7,18 @@ function node(){
   return {hidden:false,open:false,textContent:'',isConnected:true,focus(){this.focused=true;},appendChild(){},setAttribute(){},
     querySelector(selector){if(!children.has(selector))children.set(selector,node());return children.get(selector);},
     addEventListener(name,fn){listeners.set(name,fn);},listeners,
-    close(){this.open=false;listeners.get('close')?.();},
+    close(){this.open=false;listeners.get('close')?.();},showModal(){this.open=true;},
     classList:{add:n=>classes.add(n),remove:n=>classes.delete(n),contains:n=>classes.has(n)}};
 }
 function fixture(){
-  const host=node(),requests=[],notices=[],elements=[],focus=node();let account='reader-a',scope='project-a',downloads=0;
+  const host=node(),requests=[],notices=[],elements=[],focus=node(),refreshed=[];let account='reader-a',scope='project-a',downloads=0;
   const app={host,api(action,extra){return new Promise((resolve,reject)=>requests.push({action,extra,resolve,reject}));},
-    binary(){downloads++;},accountKey:()=>account,currentScope:()=>scope,currentProject:()=>({id:scope}),notice:m=>notices.push(m)};
+    binary(){downloads++;},accountKey:()=>account,currentScope:()=>scope,currentProject:()=>({id:scope}),refreshProject:p=>refreshed.push(p),notice:m=>notices.push(m)};
   const context={window:{ArenaMarkdown:{escape:String},ArenaControls:{createPinStore:()=>({})},ArenaFiles:{DOCUMENT_ACCEPT:'.txt'},ArenaProjectFiles:require('./arena-project-files.js')},document:{activeElement:focus,createElement(){const el=node();elements.push(el);return el;}}};
   vm.runInNewContext(fs.readFileSync(process.env.ARENA_WORKSPACE_SOURCE||'arena-workspace.js','utf8'),context);
   const controller=context.window.ArenaWorkspace.mount(app),pane=elements[1];
   const finish=(n,name)=>requests[n].resolve({file:{id:name,name,storage:'r2',text:'SOURCE_'+name,status:'ready'}});
-  return {controller,pane,requests,notices,finish,focus,account:value=>account=value,scope:value=>scope=value,downloads:()=>downloads};
+  return {controller,pane,requests,notices,finish,focus,refreshed,error:()=>elements[0].querySelector('#aaWorkspaceContent').querySelector('[data-w-error]').textContent,account:value=>account=value,scope:value=>scope=value,downloads:()=>downloads};
 }
 test('closing a pending preview invalidates its response and removes retained content and download state',async()=>{
   const f=fixture(),pending=f.controller.preview('old-file','project-a');f.controller.closeFile();f.finish(0,'old-file');await pending;
@@ -42,4 +42,14 @@ test('a folder preview shows its full source path and closing restores its trigg
   f.requests[0].resolve({file:{name:'说明.txt',folder:'QA.zip',relativePath:'设计/说明.txt',text:'design',status:'ready'}});await pending;
   assert.equal(f.pane.querySelector('#aaFileName').textContent,'QA.zip/设计/说明.txt');
   f.pane.querySelector('[data-file-close]').listeners.get('click')();assert.equal(f.focus.focused,true);assert.equal(f.pane.querySelector('#aaFilePreview').textContent,'');
+});
+test('material list responses refresh the active project so restored files immediately return to its home',async()=>{
+  const f=fixture(),pending=f.controller.materials(),project={id:'project-a',name:'Project A',files:[{id:'restored-file',name:'restored.txt',size:1,status:'ready'}]};
+  f.requests[0].resolve({project});await pending;assert.equal(f.refreshed.length,1);assert.equal(f.refreshed[0],project);
+});
+test('a material response from an earlier account or project cannot refresh the current project',async()=>{
+  for(const change of ['account','scope'])for(const failed of [false,true]){
+    const f=fixture(),pending=f.controller.materials();f[change]('different');
+    if(failed)f.requests[0].reject(Error('OLD_PROJECT_ERROR'));else f.requests[0].resolve({project:{id:'project-a',name:'Old project',files:[]}});await pending;assert.equal(f.refreshed.length,0);assert.equal(f.error(),'');
+  }
 });
