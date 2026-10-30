@@ -102,7 +102,7 @@
       try{
         var data=await app.api('get',Object.assign({projectId:id},credentials));if(!valid(n))return;current=data.project;
         if(!app.currentProject()||app.currentProject().id!==id){if(await app.switchScope(current)===false)throw Error('项目切换未完成，请保留当前对话后重试');if(!valid(n))return;}else app.refreshProject(current);
-        if(start){await app.flushChat();if(!valid(n))return;app.newChat({preserveDraft:true});}
+        if(start){await app.flushChat();if(!valid(n))return;if(await app.newChat({preserveDraft:true})===false)return;if(!valid(n))return;}
         var results=await Promise.allSettled([app.chatApi('list',Object.assign({projectId:id},credentials)),app.scheduleApi('list',Object.assign({projectId:id},credentials))]);
         if(!valid(n))return;
         var chatData=results[0];if(chatData.status!=='fulfilled'||!chatData.value||!Array.isArray(chatData.value.chats))throw Error('项目对话加载失败，请重试');
@@ -274,7 +274,7 @@
       if(b.dataset.removeFile){var id=b.dataset.removeFile,p=current;return openForm('移除项目资料','<p>移除后，本项目的后续消息不再使用这份资料。可以在“管理资料”中恢复。</p>',async function(){await app.api('remove_file',Object.assign({projectId:p.id,fileId:id},auth()));await refreshHome();});}
       if(b.dataset.openChat){hide();return app.openChat(current.id,b.dataset.openChat);}
       if(b.dataset.chatMenu)return chatMenu(chats.find(function(c){return c.id===b.dataset.chatMenu;}),current.id,b);
-      if(b.hasAttribute('data-new-chat')){hide();app.newChat();return;}
+      if(b.hasAttribute('data-new-chat')){hide();await app.newChat();return;}
       if(b.hasAttribute('data-schedules'))return schedules(current?.id);
       if(b.hasAttribute('data-new-task'))return taskEditor();
       if(b.dataset.task)return taskDetails(tasks.find(function(t){return t.id===b.dataset.task;}));
