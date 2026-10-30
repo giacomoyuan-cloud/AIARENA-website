@@ -135,6 +135,23 @@ test('interrupted uploads with identical bytes and names in different folders ne
     assert.equal((await s.api('removed_files',{projectId:p.id})).files.filter(f=>f.id===finance.id).length,1);
   }finally{globalThis.indexedDB=prior;}
 });
+test('legacy index response names cannot replace authoritative source paths in retrieval or full reading',async t=>{
+  const s=setup(t),p=(await s.api('create',{name:'Legacy index responses'})).project,files=[];
+  for(const path of ['设计/说明.txt','财务/说明.txt'])files.push(await Files.upload({file:new File(['Synthetic source '+path],'说明.txt'),projectId:p.id,folder:'QA.zip',relativePath:path,credentials:{username:'tester',password:pass},api:s.api,binary:s.binary}));
+  const namespace=s.env.CHAT_RUNS;
+  s.env.CHAT_RUNS={idFromName:namespace.idFromName,get(id){const actor=namespace.get(id);return {async fetch(request){
+    if(new URL(request.url).hostname!=='project-library.internal')return actor.fetch(request);
+    const body=await request.clone().json(),response=await actor.fetch(request);if(!['search','batch'].includes(body.action))return response;
+    const data=await response.json();for(const hit of data.hits||[])hit.file.name='说明.txt';for(const segment of data.segments||[])segment.name='说明.txt';
+    return Response.json(data,{status:response.status,headers:response.headers});
+  }};}};
+  s.env.OPENAI_API_KEY='synthetic-openai-key';t.mock.method(globalThis,'fetch',async()=>new Response('data: '+JSON.stringify({type:'response.output_text.delta',delta:'Synthetic answer'})+'\n\ndata: '+JSON.stringify({type:'response.completed',response:{usage:{input_tokens:8,output_tokens:3}}})+'\n\n'));
+  const response=await worker.fetch(new Request('https://api.pickandcase.com/',{method:'POST',body:JSON.stringify({user:'tester',password:pass,model:'gpt-6.1-sol',effort:'low',projectId:p.id,chat:{scope:p.id,question:'说明.txt 的内容',history:[],incognito:true,skills:{mode:'off',ids:[]}}})}),s.env);
+  const events=(await response.text()).split('\n').filter(line=>line.startsWith('data: {')).map(line=>JSON.parse(line.slice(6))),context=events.find(e=>e.context)?.context;
+  assert.deepEqual(context.files.map(f=>f.name).sort(),['QA.zip/设计/说明.txt','QA.zip/财务/说明.txt'].sort());
+  const prompts=[];await readProject({files,question:'compare',history:[],model:'synthetic-low',scope:p.id,library:(action,extra)=>projectLibrary(s.env,'tester',p.id,action,extra),batchLegacy:async function*(){},progress:async()=>{},complete:async prompt=>{prompts.push(prompt);return {text:'notes'};}});
+  assert.ok(prompts.join('').includes('QA.zip/设计/说明.txt'));assert.ok(prompts.join('').includes('QA.zip/财务/说明.txt'));
+});
 test('PDF parsing has no 200-page cutoff and empty pages cannot masquerade as readable text',async()=>{
   const prior=globalThis.pdfjsLib;globalThis.pdfjsLib={GlobalWorkerOptions:{},getDocument:()=>({promise:Promise.resolve({numPages:205,getPage:async n=>({getTextContent:async()=>({items:n===3?[]:[{str:'PAGE_'+n,hasEOL:true}]}),cleanup(){}}),destroy:async()=>{}})})};
   try{const coverage={},parts=[];for await(const s of Files.parse(new File(['synthetic'],'pages.pdf'),coverage))parts.push(s);assert.equal(coverage.units,205);assert.equal(coverage.emptyUnits,1);assert.ok(parts.at(-1).text.includes('PAGE_205'));assert.equal(parts.length,204);}finally{globalThis.pdfjsLib=prior;}
