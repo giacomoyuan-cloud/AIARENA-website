@@ -2,6 +2,16 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createOpenAIKeyRouter, hasOpenAIKey, redactOpenAISecrets } from "./openai-keys.js";
 const url = "https://api.openai.com/v1/responses";
+test("quota responses that report billable usage are preserved without replay", async () => {
+  let calls = 0;
+  const response = await createOpenAIKeyRouter().fetch(env, url, {}, {
+    dispatch: async () => { calls++; return Response.json({
+      error: { code: "insufficient_quota", type: "insufficient_quota" },
+      usage: { input_tokens: 100, output_tokens: 1 },
+    }, { status: 429 }); },
+  });
+  assert.equal(response.status, 429); assert.equal(calls, 1);
+});
 const env = { OPENAI_API_KEY: "synthetic-primary", OPENAI_API_KEY_BACKUP: "synthetic-backup" };
 const quota = code => Response.json({ error: { code, type: "insufficient_quota" } }, { status: 429 });
 const auth = options => new Headers(options.headers).get("authorization");
