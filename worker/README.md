@@ -14,6 +14,10 @@ Original bytes are downloaded only through authenticated Worker routes. R2 publi
 
 ## Provider routes
 
+OpenAI additionally accepts the encrypted Worker secret `OPENAI_API_KEY_BACKUP`, from an independently funded account with the same model/tool access. All OpenAI generation and token-count transports (direct, US Durable Object and optional native Gateway) use the primary key first, and switch at most once only after an explicit HTTP 429 quota/balance/spend-limit rejection. Model, body, abort signal and stream bytes are preserved. Ordinary rate limits, authentication/region errors, 5xx, ambiguous network failures and already accepted streams are never replayed. This also covers a rejected image request; an accepted image generation is never automatically repeated.
+
+Quota-rejected keys cool down for 15 minutes. Workers share only hashed key fingerprints and expiry timestamps in BIZ_KV; no key, prompt or conversation is written there. KV propagation can allow concurrent first rejections in different isolates. Cooldown expiry lets a replenished primary account be probed again. With both accounts exhausted, the existing error UI reports failure without repeatedly sending requests. Configure secrets through stdin/secret management, never source files or browser JavaScript.
+
 | Models | API host | Existing secret binding |
 | --- | --- | --- |
 | Grok 4.7, Grok Imagine Image 2.0 | `api.x.ai` | `GROK_API_KEY` |

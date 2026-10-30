@@ -125,14 +125,14 @@ async function authenticatedFixture(){
   f.data.set('user:tester',JSON.stringify({hash:f.hash}));return f;
 }
 const completedResponse=()=>new Response('data: '+JSON.stringify({type:'response.completed',response:{usage:raw(),service_tier:'default',output:[]}})+'\n\n');
-test('a failed attempt and the successful retry retain separate official usage and fees',async t=>{
+test('a billable OpenAI server failure is not replayed and retains its actual usage and fees',async t=>{
   const {env,hash}=await authenticatedFixture();let calls=0;
   t.mock.method(globalThis,'fetch',()=>++calls===1?Response.json({error:{message:'synthetic retry'},usage:raw()},{status:500}):completedResponse());
   const response=await worker.fetch(new Request('https://api.pickandcase.com/',{method:'POST',body:JSON.stringify({user:'tester',password:hash,model:'gpt-6.1-sol',prompt:'synthetic'})}),env);
   const events=(await response.text()).split('\n').filter(l=>l.startsWith('data: {')).map(l=>JSON.parse(l.slice(6))),value=events.find(e=>e.usage).usage;
-  assert.equal(calls,2);assert.equal(value.input,1000);assert.equal(value.output,1000);assert.equal(value.costUsd,'0.024');
-  assert.equal(value.auxiliary.length,1);assert.equal(value.auxiliary[0].purpose,'retry');
-  const stats=await usageSummary(env,'tester');assert.equal(stats.total.calls,2);assert.equal(stats.total.input,2000);assert.equal(stats.total.output,2000);assert.equal(stats.total.knownCostUsd,'0.024');
+  assert.equal(calls,1);assert.equal(value.input,1000);assert.equal(value.output,1000);assert.equal(value.costUsd,'0.012');
+  assert.equal((value.auxiliary||[]).length,0);assert.ok(events.some(event=>event.error));
+  const stats=await usageSummary(env,'tester');assert.equal(stats.total.calls,1);assert.equal(stats.total.input,1000);assert.equal(stats.total.output,1000);assert.equal(stats.total.knownCostUsd,'0.012');
 });
 test('a final failed response still records the usage the provider returned',async t=>{
   const {env,hash}=await authenticatedFixture();
