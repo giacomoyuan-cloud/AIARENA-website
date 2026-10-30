@@ -14,7 +14,7 @@ const publicFiles=(await readdir(root)).filter(name => /^(index|android|pitch-an
   || ['native-client-contract.json','manifest.json','sw.js','app-version.json','_headers','THIRD_PARTY_LICENSES.txt'].includes(name))
   .filter(name=>petEnabled||!/^arena-pet(?:-catalog)?\.(css|js)$/.test(name));
 for(const name of await readdir(target)) await rm(resolve(target,name),{recursive:true,force:true});
-for(const name of [...publicFiles,'songs','downloads','welcome-media'])await cp(resolve(root,name),resolve(target,name),{recursive:true});
+for(const name of [...publicFiles,'songs','downloads','welcome-media','assets/fonts'])await cp(resolve(root,name),resolve(target,name),{recursive:true});
 await writeFile(resolve(target,'index.html'),index);
 if(petEnabled){
   const folder='assets/kitten/motion';

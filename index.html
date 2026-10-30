@@ -12,10 +12,11 @@
 <meta name="theme-color" content="#faf9f5">
 <link rel="manifest" href="/manifest.json?v=20261027-oakley">
 <link rel="apple-touch-icon" href="/icon-192.png">
-<link rel="stylesheet" href="/arena-billing.css?v=20261030-billing2">
+<link rel="stylesheet" href="/arena-billing.css?v=20261030-modernfont1">
 </head>
 <body>
 
+<link rel="stylesheet" href="/arena-fonts.css?v=20261030-modernfont1">
 <style>
   html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #fff; }
 </style>
@@ -28,7 +29,7 @@
 
 
   #ai-arena-app {
-    font-family: 'Sora', sans-serif;
+    font-family: var(--arena-ui-font);
     background: linear-gradient(160deg, #0c1222 0%, #151d35 40%, #1a1030 100%);
     color: #e8e8ee;
     overflow: hidden;
@@ -89,7 +90,7 @@
   #ai-arena-app .aa-gear-btn {
     height: 32px; padding: 0 12px; border-radius: 8px;
     background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);
-    color: #6b6b88; font-size: 11px; font-weight: 500; font-family: 'Sora', sans-serif;
+    color: #6b6b88; font-size: 11px; font-weight: 500; font-family: var(--arena-ui-font);
     cursor: pointer; display: flex; align-items: center; justify-content: center;
     backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
     letter-spacing: 0.02em; transition: all 0.15s;
@@ -118,7 +119,7 @@
   #ai-arena-app .aa-key-input {
     width: 100%; background: rgba(255,255,255,0.06);
     border: 1px solid rgba(255,255,255,0.1); border-radius: 10px;
-    padding: 10px 12px; color: #e8e8ee; font-size: 15px; font-family: 'Sora', sans-serif;
+    padding: 10px 12px; color: #e8e8ee; font-size: 15px; font-family: var(--arena-ui-font);
   }
   #ai-arena-app .aa-key-input::placeholder { color: #9090b0; }
   #ai-arena-app .aa-key-input:focus { border-color: rgba(255,255,255,0.2); }
@@ -185,7 +186,7 @@
   #ai-arena-app .aa-moderation-use-btn {
     margin-top: 10px; min-height: 32px; padding: 6px 12px; border-radius: 9px;
     border: 1px solid rgba(245,158,11,.35); background: rgba(245,158,11,.12);
-    color: #fbbf24; font: 600 11px 'Sora', sans-serif; cursor: pointer;
+    color: #fbbf24; font: 600 11px var(--arena-ui-font); cursor: pointer;
   }
   #ai-arena-app .aa-moderation-use-btn:hover { background: rgba(245,158,11,.2); color: #fde68a; }
 
@@ -231,7 +232,7 @@
     min-height: 30px; padding: 5px 13px; border-radius: 9px;
     border: 1px solid rgba(255,255,255,0.12);
     background: rgba(255,255,255,0.06); color: #a8a8bb;
-    font: 600 11px 'Sora', sans-serif; text-decoration: none;
+    font: 600 11px var(--arena-ui-font); text-decoration: none;
     cursor: pointer; transition: background 0.15s, border-color 0.15s, color 0.15s;
   }
   #ai-arena-app .aa-generated-btn:hover {
@@ -285,7 +286,7 @@
     position: fixed; z-index: 2; pointer-events: none;
     color: rgba(255,255,255,.82); background: rgba(10,12,20,.66);
     border: 1px solid rgba(255,255,255,.12); backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px); font: 500 11px 'Sora', sans-serif;
+    -webkit-backdrop-filter: blur(16px); font: 500 11px var(--arena-ui-font);
   }
   .aa-image-lightbox-info { top: 18px; left: 18px; padding: 7px 10px; border-radius: 9px; }
   .aa-image-lightbox-hint {
@@ -295,7 +296,7 @@
   .aa-image-lightbox-close {
     position: fixed; z-index: 3; top: 16px; right: 16px; width: 36px; height: 36px;
     border-radius: 11px; border: 1px solid rgba(255,255,255,.14);
-    background: rgba(10,12,20,.66); color: #fff; font: 500 20px/1 'Sora', sans-serif;
+    background: rgba(10,12,20,.66); color: #fff; font: 500 20px/1 var(--arena-ui-font);
     cursor: pointer; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
   }
   @media (max-width: 640px) {
@@ -317,7 +318,7 @@
   }
   #ai-arena-app .aa-code-wrap pre {
     margin: 0; padding: 12px 14px; padding-right: 60px; overflow-x: auto; font-size: 12px;
-    line-height: 1.6; color: #c8c8dd; font-family: 'Courier New', monospace;
+    line-height: 1.6; color: #c8c8dd; font-family: var(--arena-ui-font);
     white-space: pre; -webkit-overflow-scrolling: touch;
     scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.12) transparent;
   }
@@ -338,14 +339,14 @@
   #ai-arena-app .aa-code-copy {
     position: absolute; top: 5px; right: 6px; padding: 3px 10px; border-radius: 6px;
     background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12);
-    color: #888; font-size: 10px; cursor: pointer; font-family: 'Sora', sans-serif;
+    color: #888; font-size: 10px; cursor: pointer; font-family: var(--arena-ui-font);
     transition: all 0.15s; z-index: 1;
   }
   #ai-arena-app .aa-code-copy:active { background: rgba(255,255,255,0.15); color: #ccc; }
   #ai-arena-app .aa-code-copy.copied { background: rgba(34,197,94,0.2); color: #86efac; border-color: rgba(34,197,94,0.3); }
   #ai-arena-app .aa-msg-body code:not(.aa-code-wrap code) {
     background: rgba(255,255,255,0.08); padding: 1px 5px; border-radius: 4px;
-    font-size: inherit; font-family: 'Courier New', monospace; color: #d4a5ff;
+    font-size: inherit; font-family: var(--arena-ui-font); color: #d4a5ff;
   }
   #ai-arena-app .aa-thinking { animation: aa-pulse 1.2s ease-in-out infinite; }
   #ai-arena-app .aa-reasoning-block {
@@ -378,7 +379,7 @@
   #ai-arena-app .aa-edit-bar button {
     padding: 6px 16px; border-radius: 10px; font-size: 12px; font-weight: 500;
     border: 1px solid rgba(255,255,255,0.1); cursor: pointer;
-    font-family: 'Sora', sans-serif; transition: all 0.15s;
+    font-family: var(--arena-ui-font); transition: all 0.15s;
   }
   #ai-arena-app .aa-edit-yes {
     background: linear-gradient(135deg, rgba(99,102,241,0.3), rgba(139,92,246,0.25));
@@ -414,7 +415,7 @@
     width: 100%; background: rgba(255,255,255,0.06);
     border: 1px solid rgba(255,255,255,0.12); border-radius: 10px;
     padding: 10px 12px; color: #e8e8ee; font-size: 13px;
-    font-family: 'Sora', sans-serif; resize: none;
+    font-family: var(--arena-ui-font); resize: none;
     line-height: 1.5; margin-top: 8px;
   }
   #ai-arena-app .aa-edit-input::placeholder { color: #6b6b88; }
@@ -459,7 +460,7 @@
     margin-top: 4px; padding: 3px 10px; border-radius: 7px;
     border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.04);
     color: #555; font-size: 10px; font-weight: 500; cursor: pointer;
-    font-family: 'Sora', sans-serif; letter-spacing: 0.02em; transition: all 0.15s;
+    font-family: var(--arena-ui-font); letter-spacing: 0.02em; transition: all 0.15s;
     display: inline-block;
   }
   #ai-arena-app .aa-msg-quote-btn:active { background: rgba(99,102,241,0.15); color: #818cf8; border-color: rgba(99,102,241,0.3); }
@@ -568,7 +569,7 @@
   #ai-arena-app .aa-expand-bar-btn {
     padding: 4px 24px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);
     background: rgba(255,255,255,0.04); color: #555; font-size: 12px; cursor: pointer;
-    font-family: 'Sora', sans-serif; transition: all 0.15s;
+    font-family: var(--arena-ui-font); transition: all 0.15s;
   }
   #ai-arena-app .aa-expand-bar-btn:active { background: rgba(255,255,255,0.08); color: #888; }
   /* === Persona Zones === */
@@ -600,7 +601,7 @@
   #ai-arena-app .aa-persona-input {
     width: 100%; margin-top: 4px; padding: 3px 6px; border-radius: 6px;
     background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);
-    color: #a78bfa; font-size: 9px; font-family: 'Sora', sans-serif;
+    color: #a78bfa; font-size: 9px; font-family: var(--arena-ui-font);
     font-weight: 500; letter-spacing: 0.02em; box-sizing: border-box;
     height: 22px; line-height: 16px;
   }
@@ -623,7 +624,7 @@
   #ai-arena-app .aa-drop-item {
     padding: 7px 12px; font-size: 13px; color: #888; cursor: pointer;
     display: flex; align-items: center; gap: 6px; white-space: nowrap;
-    font-family: 'Sora', sans-serif; transition: background 0.1s;
+    font-family: var(--arena-ui-font); transition: background 0.1s;
   }
   #ai-arena-app .aa-drop-item:active { background: rgba(255,255,255,0.06); }
   #ai-arena-app .aa-drop-item.selected { color: #e8e8ee; font-weight: 600; }
@@ -650,7 +651,7 @@
   #ai-arena-app .aa-image-tool {
     min-width: 0; height: 30px; padding: 0 10px; border-radius: 9px;
     border: 1px solid transparent; background: transparent; color: #a8a8bb;
-    font: 500 12px 'Sora', sans-serif; cursor: pointer; white-space: nowrap;
+    font: 500 12px var(--arena-ui-font); cursor: pointer; white-space: nowrap;
     display: inline-flex; align-items: center; gap: 6px; transition: all .16s;
   }
   #ai-arena-app .aa-image-tool:hover,
@@ -673,7 +674,7 @@
   #ai-arena-app .aa-image-popover::-webkit-scrollbar-thumb { background: rgba(148,163,184,.3); border-radius: 5px; }
   #ai-arena-app .aa-image-pop-item {
     width: 100%; min-height: 37px; padding: 8px 10px; border: 0; border-radius: 10px;
-    background: transparent; color: #a8a8bb; font: 500 13px 'Sora', sans-serif;
+    background: transparent; color: #a8a8bb; font: 500 13px var(--arena-ui-font);
     cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 12px;
     text-align: left;
   }
@@ -685,19 +686,19 @@
   #ai-arena-app .aa-image-setting-row + .aa-image-setting-row { margin-top: 14px; }
   #ai-arena-app .aa-image-setting-head {
     display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;
-    color: #777790; font: 500 11px 'Sora', sans-serif;
+    color: #777790; font: 500 11px var(--arena-ui-font);
   }
   #ai-arena-app .aa-image-choice-row { display: flex; flex-wrap: wrap; gap: 6px; }
   #ai-arena-app .aa-image-choice {
     height: 32px; min-width: 42px; padding: 0 10px; border-radius: 10px;
     border: 1px solid rgba(255,255,255,.07); background: rgba(255,255,255,.035);
-    color: #8989a1; font: 500 12px 'Sora', sans-serif; cursor: pointer;
+    color: #8989a1; font: 500 12px var(--arena-ui-font); cursor: pointer;
   }
   #ai-arena-app .aa-image-choice.selected {
     background: rgba(165,180,252,.16); border-color: rgba(165,180,252,.35); color: #e0e7ff;
   }
   #ai-arena-app .aa-image-choice[disabled] { opacity: .32; cursor: not-allowed; }
-  #ai-arena-app .aa-image-hint { color: #606078; font: 400 10px/1.45 'Sora', sans-serif; margin-top: 8px; }
+  #ai-arena-app .aa-image-hint { color: #606078; font: 400 10px/1.45 var(--arena-ui-font); margin-top: 8px; }
   @media (max-width: 640px) {
     #ai-arena-app .aa-image-dock { gap: 2px; }
     #ai-arena-app .aa-image-tool { padding: 0 7px; font-size: 11px; }
@@ -714,7 +715,7 @@
   }
      #ai-arena-app .aa-topic {
     flex: 1; background: transparent; border: none; padding: 6px 4px;
-    color: #e8e8ee; font-size: 17px; font-family: 'Sora', sans-serif;
+    color: #e8e8ee; font-size: 17px; font-family: var(--arena-ui-font);
     resize: none; line-height: 1.5; -webkit-appearance: none; appearance: none; overflow-y: scroll;
     min-height: 28px; max-height: 220px; height: auto; scrollbar-width: none;
   }
@@ -745,7 +746,7 @@
   #ai-arena-app .aa-bar-btn, #ai-arena-app .aa-rnd-btn {
     padding: 5px 12px; font-size: 13px; font-weight: 500;
     border: none; background: transparent; color: #6b6b88; cursor: pointer;
-    transition: all 0.15s; white-space: nowrap; font-family: 'Sora', sans-serif;
+    transition: all 0.15s; white-space: nowrap; font-family: var(--arena-ui-font);
   }
   #ai-arena-app .aa-bar-btn.active, #ai-arena-app .aa-rnd-btn.active {
     background: rgba(255,255,255,0.1); color: #e8e8ee; font-weight: 600;
@@ -771,7 +772,7 @@
   #ai-arena-app .aa-plus-item {
     padding: 10px 14px; font-size: 13px; color: #a8a8bb; cursor: pointer;
     display: flex; align-items: center; gap: 8px; justify-content: space-between;
-    font-family: 'Sora', sans-serif;
+    font-family: var(--arena-ui-font);
   }
   #ai-arena-app .aa-plus-item:active { background: rgba(255,255,255,0.05); }
 
@@ -865,16 +866,13 @@
   #ai-arena-app #aaSkillEditPrompt::placeholder { color: #888; opacity: 1; }
 
 </style>
-<link rel="stylesheet" href="/arena.css?v=20261030-tokenlimits1">
-<link rel="stylesheet" href="/arena-workspace.css?v=20261029-debateresume1">
-<link rel="stylesheet" href="/arena-controls.css?v=20261030-stablemodes1">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&family=Noto+Serif+SC:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="/arena-claude.css?v=20261030-nocat1">
-<link rel="stylesheet" href="/arena-project-page.css?v=20261030-pdfocr2">
-<link rel="stylesheet" href="/arena-project-files.css?v=20261030-pdfocr2">
-<link rel="stylesheet" href="/arena-debate-ui.css?v=20261030-stablemodes1">
+<link rel="stylesheet" href="/arena.css?v=20261030-modernfont1">
+<link rel="stylesheet" href="/arena-workspace.css?v=20261030-modernfont1">
+<link rel="stylesheet" href="/arena-controls.css?v=20261030-modernfont1">
+<link rel="stylesheet" href="/arena-claude.css?v=20261030-modernfont1">
+<link rel="stylesheet" href="/arena-project-page.css?v=20261030-modernfont1">
+<link rel="stylesheet" href="/arena-project-files.css?v=20261030-modernfont1">
+<link rel="stylesheet" href="/arena-debate-ui.css?v=20261030-modernfont1">
 
 <!-- Login overlay -->
 <div id="aaLoginOverlay" role="dialog" aria-modal="true" aria-label="登录 AI 助手" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:999999;background:linear-gradient(160deg,#0c1222 0%,#151d35 40%,#1a1030 100%);flex-direction:column;align-items:center;justify-content:center;padding:32px;">
@@ -1052,27 +1050,27 @@
       <div id="aaNbOptions" style="display:none;padding:0 0 8px;">
         <div style="display:flex;gap:6px;align-items:center;justify-content:center;flex-wrap:wrap;">
           <div style="position:relative;">
-            <span id="aaNbStyleTrigger" style="font-size:10px;color:#6b6b88;cursor:pointer;padding:3px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.04);display:inline-flex;align-items:center;gap:4px;font-family:'Sora',sans-serif;font-weight:500;">风格 <span id="aaNbStyleValLabel" style="color:#a5b4fc;font-weight:600;">无预设</span></span>
+            <span id="aaNbStyleTrigger" style="font-size:10px;color:#6b6b88;cursor:pointer;padding:3px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.04);display:inline-flex;align-items:center;gap:4px;font-family: var(--arena-ui-font);font-weight:500;">风格 <span id="aaNbStyleValLabel" style="color:#a5b4fc;font-weight:600;">无预设</span></span>
             <div class="aa-card-dropdown" id="aaNbStyleDropOuter"></div>
           </div>
           <div style="position:relative;">
-            <span id="aaNbSizeTrigger" style="font-size:10px;color:#6b6b88;cursor:pointer;padding:3px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.04);display:inline-flex;align-items:center;gap:4px;font-family:'Sora',sans-serif;font-weight:500;">分辨率 <span id="aaNbSizeValLabel" style="color:#a5b4fc;font-weight:600;">1K</span></span>
+            <span id="aaNbSizeTrigger" style="font-size:10px;color:#6b6b88;cursor:pointer;padding:3px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.04);display:inline-flex;align-items:center;gap:4px;font-family: var(--arena-ui-font);font-weight:500;">分辨率 <span id="aaNbSizeValLabel" style="color:#a5b4fc;font-weight:600;">1K</span></span>
             <div class="aa-card-dropdown" id="aaNbSizeDropOuter"></div>
           </div>
           <div style="position:relative;">
-            <span id="aaNbRatioTrigger" style="font-size:10px;color:#6b6b88;cursor:pointer;padding:3px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.04);display:inline-flex;align-items:center;gap:4px;font-family:'Sora',sans-serif;font-weight:500;">比例 <span id="aaNbRatioValLabel" style="color:#a5b4fc;font-weight:600;">1:1</span></span>
+            <span id="aaNbRatioTrigger" style="font-size:10px;color:#6b6b88;cursor:pointer;padding:3px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.04);display:inline-flex;align-items:center;gap:4px;font-family: var(--arena-ui-font);font-weight:500;">比例 <span id="aaNbRatioValLabel" style="color:#a5b4fc;font-weight:600;">1:1</span></span>
             <div class="aa-card-dropdown" id="aaNbRatioDropOuter"></div>
           </div>
           <div style="display:flex;align-items:center;gap:4px;">
             <span style="font-size:11px;color:#555;white-space:nowrap;text-align:center;">思考</span>
             <div style="display:flex;border-radius:8px;overflow:hidden;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.04);">
-              <button id="aaNbThinkMin" onclick="window._aaNbThink('minimal')" style="padding:3px 8px;font-size:10px;border:none;background:rgba(255,255,255,0.1);color:#e8e8ee;cursor:pointer;font-family:'Sora',sans-serif;">快速</button>
-              <button id="aaNbThinkHigh" onclick="window._aaNbThink('high')" style="padding:3px 8px;font-size:10px;border:none;background:transparent;color:#6b6b88;cursor:pointer;font-family:'Sora',sans-serif;">深度</button>
+              <button id="aaNbThinkMin" onclick="window._aaNbThink('minimal')" style="padding:3px 8px;font-size:10px;border:none;background:rgba(255,255,255,0.1);color:#e8e8ee;cursor:pointer;font-family: var(--arena-ui-font);">快速</button>
+              <button id="aaNbThinkHigh" onclick="window._aaNbThink('high')" style="padding:3px 8px;font-size:10px;border:none;background:transparent;color:#6b6b88;cursor:pointer;font-family: var(--arena-ui-font);">深度</button>
             </div>
           </div>
           <div style="display:flex;align-items:center;gap:4px;">
             <span style="font-size:11px;color:#555;white-space:nowrap;text-align:center;">纯图</span>
-            <button id="aaNbImgOnly" onclick="window._aaNbImgOnly()" style="padding:3px 10px;font-size:10px;border:1px solid rgba(255,255,255,0.08);border-radius:8px;background:rgba(255,255,255,0.04);color:#6b6b88;cursor:pointer;font-family:'Sora',sans-serif;">关</button>
+            <button id="aaNbImgOnly" onclick="window._aaNbImgOnly()" style="padding:3px 10px;font-size:10px;border:1px solid rgba(255,255,255,0.08);border-radius:8px;background:rgba(255,255,255,0.04);color:#6b6b88;cursor:pointer;font-family: var(--arena-ui-font);">关</button>
           </div>
         </div>
       </div>
@@ -1114,10 +1112,10 @@
           <div id="aaPptTemplateSub" style="font-size:10px;color:#555;">上传 .pptx 文件，AI 将学习其配色和字体风格</div>
         </div>
         <input type="file" id="aaPptTemplateInput" accept=".pptx" style="display:none;">
-        <button onclick="document.getElementById('aaPptTemplateInput').click()" style="flex-shrink:0;padding:4px 12px;border-radius:6px;border:1px solid rgba(245,158,11,0.4);background:rgba(245,158,11,0.15);color:#f59e0b;font-size:11px;font-weight:600;cursor:pointer;font-family:'Sora',sans-serif;">上传模板</button>
+        <button onclick="document.getElementById('aaPptTemplateInput').click()" style="flex-shrink:0;padding:4px 12px;border-radius:6px;border:1px solid rgba(245,158,11,0.4);background:rgba(245,158,11,0.15);color:#f59e0b;font-size:11px;font-weight:600;cursor:pointer;font-family: var(--arena-ui-font);">上传模板</button>
         <input type="file" id="aaPptBgInput" accept="image/jpeg,image/png,image/webp" style="display:none;">
-        <button onclick="document.getElementById('aaPptBgInput').click()" style="flex-shrink:0;padding:4px 12px;border-radius:6px;border:1px solid rgba(245,158,11,0.4);background:rgba(245,158,11,0.15);color:#f59e0b;font-size:11px;font-weight:600;cursor:pointer;font-family:'Sora',sans-serif;">背景图</button>
-        <button id="aaPptTemplateClear" style="display:none;flex-shrink:0;padding:4px 10px;border-radius:6px;border:1px solid rgba(239,68,68,0.3);background:rgba(239,68,68,0.1);color:#f87171;font-size:11px;cursor:pointer;font-family:'Sora',sans-serif;">清除</button>
+        <button onclick="document.getElementById('aaPptBgInput').click()" style="flex-shrink:0;padding:4px 12px;border-radius:6px;border:1px solid rgba(245,158,11,0.4);background:rgba(245,158,11,0.15);color:#f59e0b;font-size:11px;font-weight:600;cursor:pointer;font-family: var(--arena-ui-font);">背景图</button>
+        <button id="aaPptTemplateClear" style="display:none;flex-shrink:0;padding:4px 10px;border-radius:6px;border:1px solid rgba(239,68,68,0.3);background:rgba(239,68,68,0.1);color:#f87171;font-size:11px;cursor:pointer;font-family: var(--arena-ui-font);">清除</button>
       </div>
       <div id="aaNbEditBanner" style="display:none;align-items:center;gap:8px;padding:6px 10px 8px;background:rgba(96,165,250,0.06);border:1px solid rgba(96,165,250,0.15);border-radius:10px;margin-bottom:8px;">
         <img id="aaNbEditThumb" style="width:36px;height:36px;object-fit:cover;border-radius:6px;flex-shrink:0;">
@@ -1125,7 +1123,7 @@
           <div style="font-size:10px;color:#60a5fa;font-weight:600;margin-bottom:1px;">连续编辑模式</div>
           <div style="font-size:10px;color:#555;">直接描述修改内容，自动基于上图调整</div>
         </div>
-        <button onclick="window._aaNbClearEdit()" style="flex-shrink:0;padding:3px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:#555;font-size:10px;cursor:pointer;font-family:'Sora',sans-serif;">重新生成</button>
+        <button onclick="window._aaNbClearEdit()" style="flex-shrink:0;padding:3px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:#555;font-size:10px;cursor:pointer;font-family: var(--arena-ui-font);">重新生成</button>
       </div>
       <div id="aaImageError" class="arena-image-error" role="alert" hidden></div>
       <div id="aaImageMaskTools" class="arena-image-mask-tools" hidden><button type="button" id="aaImageMaskBtn">涂抹修改区域</button><span id="aaImageMaskHint">在第一张参考图上选择修改位置</span><button type="button" id="aaImageMaskClear" hidden>清除选区</button></div>
@@ -1257,7 +1255,7 @@
 </div>
 
 <script src="/arena-markdown.js?v=20261027-account1"></script>
-<link rel="stylesheet" href="/arena-image-editor.css?v=20261030-imagesliders1">
+<link rel="stylesheet" href="/arena-image-editor.css?v=20261030-modernfont1">
 <script src="/arena-slider.js?v=20261030-imagesliders1"></script>
 <script src="/arena-image.js?v=20261030-imagesliders1"></script>
 <script src="/arena-image-editor.js?v=20261030-openai-image1"></script>
@@ -1279,7 +1277,7 @@
 <script src="/arena-project-files.js?v=20261030-chatfiles1"></script>
 <script src="/arena-reading.js?v=20261030-chatfiles1"></script>
 <script src="/arena-conversation-files.js?v=20261030-chatfiles1"></script>
-<link rel="stylesheet" href="/arena-conversation-files.css?v=20261030-chatfiles1">
+<link rel="stylesheet" href="/arena-conversation-files.css?v=20261030-modernfont1">
 <script src="/arena-workspace.js?v=20261030-deepaudit5"></script>
 <script src="/arena-project-state.js?v=20261030-projectactions2"></script>
 <script src="/arena-project-page.js?v=20261030-pdfocr2"></script>
@@ -2326,7 +2324,7 @@ var TEAM_COLORS = {
           +'<div style="font-size:13px;font-weight:600;color:#f59e0b;margin-bottom:3px;">PPT 已就绪</div>'
           +'<div style="font-size:11px;color:#6b6b88;">点击按钮生成并下载 .pptx 文件</div>'
           +'</div>'
-          +'<button onclick="window._aaGeneratePPT(this,\''+b64+'\')" style="flex-shrink:0;padding:8px 18px;border-radius:8px;background:linear-gradient(135deg,rgba(245,158,11,0.3),rgba(245,158,11,0.2));border:1px solid rgba(245,158,11,0.5);color:#f59e0b;font-size:12px;font-weight:600;cursor:pointer;font-family:\'Sora\',sans-serif;white-space:nowrap;">下载 PPT</button>'
+          +'<button onclick="window._aaGeneratePPT(this,\''+b64+'\')" style="flex-shrink:0;padding:8px 18px;border-radius:8px;background:linear-gradient(135deg,rgba(245,158,11,0.3),rgba(245,158,11,0.2));border:1px solid rgba(245,158,11,0.5);color:#f59e0b;font-size:12px;font-weight:600;cursor:pointer;font-family: var(--arena-ui-font);white-space:nowrap;">下载 PPT</button>'
           +'</div>');
       }
       var findIdx = raw.indexOf('【查找】');
@@ -3578,10 +3576,10 @@ var TEAM_COLORS = {
     body.style.maxWidth = '85%';
     var _taColor = _lightMode ? '#2a2a35' : '#e8e8ee';
     var _taBg = _lightMode ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.08)';
-    body.innerHTML = '<textarea id="aaEditMsgTA-'+uid+'" style="width:100%;background:'+_taBg+';border:1px solid rgba(99,102,241,0.4);border-radius:8px;padding:8px 10px;color:'+_taColor+';font-size:13px;font-family:\'Sora\',sans-serif;resize:none;line-height:1.5;min-height:60px;box-sizing:border-box;"></textarea>'
+    body.innerHTML = '<textarea id="aaEditMsgTA-'+uid+'" style="width:100%;background:'+_taBg+';border:1px solid rgba(99,102,241,0.4);border-radius:8px;padding:8px 10px;color:'+_taColor+';font-size:13px;font-family: var(--arena-ui-font);resize:none;line-height:1.5;min-height:60px;box-sizing:border-box;"></textarea>'
       +'<div style="display:flex;gap:6px;margin-top:8px;justify-content:flex-end;">'
-      +'<button onclick="window._aaCancelEditMsg()" style="padding:5px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.06);color:#6b6b88;font-size:11px;cursor:pointer;font-family:\'Sora\',sans-serif;">取消</button>'
-      +'<button onclick="window._aaConfirmEditMsg(\''+uid+'\')" style="padding:5px 12px;border-radius:8px;border:1px solid rgba(99,102,241,0.4);background:linear-gradient(135deg,rgba(99,102,241,0.3),rgba(139,92,246,0.25));color:#a5b4fc;font-size:11px;font-weight:600;cursor:pointer;font-family:\'Sora\',sans-serif;">发送</button>'
+      +'<button onclick="window._aaCancelEditMsg()" style="padding:5px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.06);color:#6b6b88;font-size:11px;cursor:pointer;font-family: var(--arena-ui-font);">取消</button>'
+      +'<button onclick="window._aaConfirmEditMsg(\''+uid+'\')" style="padding:5px 12px;border-radius:8px;border:1px solid rgba(99,102,241,0.4);background:linear-gradient(135deg,rgba(99,102,241,0.3),rgba(139,92,246,0.25));color:#a5b4fc;font-size:11px;font-weight:600;cursor:pointer;font-family: var(--arena-ui-font);">发送</button>'
       +'</div>';
     var editBtn = el.querySelector('[data-edit-message]');
     if(editBtn) editBtn.style.display = 'none';
@@ -4876,7 +4874,7 @@ var MJ_HIDDEN = ['Animate (High motion)','Animate (Low motion)'];
 if(MJ_HIDDEN.indexOf(btn.label) !== -1) return;
 var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_left') !== -1 ? '← 左扩' : btn.customId.indexOf('pan_right') !== -1 ? '→ 右扩' : btn.customId.indexOf('pan_up') !== -1 ? '↑ 上扩' : btn.customId.indexOf('pan_down') !== -1 ? '↓ 下扩' : btn.customId.indexOf('reroll') !== -1 ? '↺ 重新生成' : '?');
               // 只显示常用操作：U1-U4（放大）和 V1-V4（变体）以及常见操作
-              h += '<button onclick="window._aaMjAction(\''+esc(mjTaskId)+'\',\''+esc(btn.customId)+'\')" style="padding:5px 10px;border-radius:8px;background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.25);color:#38bdf8;font-size:11px;cursor:pointer;font-family:\'Sora\',sans-serif;transition:all 0.15s;">'+esc(label)+'</button>';
+              h += '<button onclick="window._aaMjAction(\''+esc(mjTaskId)+'\',\''+esc(btn.customId)+'\')" style="padding:5px 10px;border-radius:8px;background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.25);color:#38bdf8;font-size:11px;cursor:pointer;font-family: var(--arena-ui-font);transition:all 0.15s;">'+esc(label)+'</button>';
             });
             h += '</div>';
           }
@@ -6372,7 +6370,7 @@ if(imageMode){
     if(_dragMask) return;
     _dragMask = document.createElement('div');
     _dragMask.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:99999;background:rgba(56,189,248,0.08);border:2px dashed rgba(56,189,248,0.5);box-sizing:border-box;display:flex;align-items:center;justify-content:center;pointer-events:none;';
-    _dragMask.innerHTML = '<div style="color:#38bdf8;font-size:18px;font-weight:600;font-family:\'Sora\',sans-serif;background:rgba(0,0,0,0.4);padding:16px 32px;border-radius:14px;">拖放图片上传</div>';
+    _dragMask.innerHTML = '<div style="color:#38bdf8;font-size:18px;font-weight:600;font-family: var(--arena-ui-font);background:rgba(0,0,0,0.4);padding:16px 32px;border-radius:14px;">拖放图片上传</div>';
     document.body.appendChild(_dragMask);
   });
   document.addEventListener('dragleave', function(e){

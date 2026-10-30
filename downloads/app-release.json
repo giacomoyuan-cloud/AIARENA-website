@@ -1,11 +1,11 @@
 {
-  "version": "2.0.2",
-  "versionCode": 202,
+  "version": "2.0.3",
+  "versionCode": 203,
   "package": "com.pickandcase.assistant",
   "minAndroid": "8.0",
-  "url": "/downloads/AI-Assistant-2.0.2.apk",
-  "bytes": 10092518,
-  "sha256": "845c12448558aa81f55ee7c735ad41c48ea3fbc641c67b3e2e85e7d9d2605b85",
+  "url": "/downloads/AI-Assistant-2.0.3.apk",
+  "bytes": 21848307,
+  "sha256": "efbe8c337a1fbef17fcd2a0118f61bc03289df4a88323eda983436c8c5ba87f2",
   "native": true,
-  "notes": "模型与网站同步；入口和无痕提示对齐；新增 App 内下载、校验和安装更新。"
+  "notes": "全站统一思源现代字体；原生标题、菜单、输入框、回复及代码使用随包字体。"
 }
