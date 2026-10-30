@@ -125,3 +125,105 @@ test('interrupted provider streams cannot falsely complete a full-reading stage'
   await assert.rejects(consumeReadingStream(new Response('data: {"t":"partial"}\n\n')),/连接中断/);
   await assert.rejects(consumeReadingStream(new Response('data: {"error":"provider failed"}\n\ndata: [DONE]\n\n')),/provider failed/);
 });
+
+// OCR fixtures stay offline; no paid provider is contacted by these tests.
+const ocrPDF = Buffer.from('%PDF-1.7\nsynthetic page').toString('base64');
+function ocrReply(result = {kind:'text',text:'DM6 清水箱 25 L，污水箱 28 L，电池 24 V。',warning:''}, extra = {}) {
+  return Response.json({status:'completed',service_tier:'default',usage:{input_tokens:71,output_tokens:32},output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(result)}]}],...extra});
+}
+async function ocrSource(s) {
+  const p=(await s.api('create',{name:'OCR source'})).project;
+  const f=await material(s,p.id,{name:'scan.pdf',text:'native footer',coverage:{units:2,emptyUnits:1}});
+  const repair=await s.api('library_reparse',{projectId:p.id,fileId:f.id});
+  return {projectId:p.id,fileId:f.id,generation:repair.generation,page:2,total:2,data:ocrPDF,mime:'application/pdf'};
+}
+test('Sol OCR uses the official PDF input and records usage once; completed pages are cached and private',async t=>{
+  const s=setup(t),input=await ocrSource(s);s.env.OPENAI_API_KEY='synthetic-openai-key';let calls=0;
+  t.mock.method(globalThis,'fetch',async(url,options)=>{
+    assert.equal(url,'https://api.openai.com/v1/responses');const body=JSON.parse(options.body);
+    assert.equal(body.model,'gpt-6.1-sol');assert.equal(body.store,false);assert.equal(body.reasoning.effort,'low');assert.equal(body.text.format.type,'json_schema');
+    const pdf=body.input[1].content[1];assert.equal(pdf.type,'input_file');assert.equal(pdf.detail,'high');assert.ok(pdf.file_data.startsWith('data:application/pdf;base64,'));calls++;return ocrReply();
+  });
+  const first=await s.api('library_ocr_page',input),second=await s.api('library_ocr_page',input);
+  assert.equal(first.model,'gpt-6.1-sol');assert.match(first.text,/25 L/);assert.equal(second.cached,true);assert.equal(calls,1);
+  const usage=await usageSummary(s.env,'tester');assert.equal(usage.total.calls,1);assert.equal(usage.total.input,71);assert.equal(usage.total.output,32);
+  const other=(await s.api('create',{name:'Other scope'})).project;
+  await assert.rejects(s.api('library_ocr_page',{...input,projectId:other.id}),e=>e.status===404);
+  await assert.rejects(s.api('library_ocr_page',{...input,username:'another'}),e=>e.status===404);assert.equal(calls,1);
+});
+test('concurrent requests for the same OCR page share one paid operation',async t=>{
+  const s=setup(t),input=await ocrSource(s);s.env.OPENAI_API_KEY='synthetic-openai-key';let release,entered,calls=0;
+  const started=new Promise(r=>entered=r),gate=new Promise(r=>release=r);
+  t.mock.method(globalThis,'fetch',async()=>{calls++;entered();await gate;return ocrReply();});
+  const first=s.api('library_ocr_page',input);await started;const second=s.api('library_ocr_page',input);release();
+  const result=await Promise.all([first,second]);assert.equal(calls,1);assert.equal(result[0].text,result[1].text);
+});
+test('an incomplete OCR response is never accepted as complete and can be retried without repeating other pages',async t=>{
+  const s=setup(t),input=await ocrSource(s);s.env.OPENAI_API_KEY='synthetic-openai-key';let calls=0;
+  t.mock.method(globalThis,'fetch',async()=>++calls===1?ocrReply(undefined,{status:'incomplete',incomplete_details:{reason:'max_output_tokens'}}):ocrReply());
+  await assert.rejects(s.api('library_ocr_page',input),e=>e.status===422);
+  await s.api('library_ocr_page',{...input,retry:true});await s.api('library_ocr_page',input);assert.equal(calls,2);
+});
+test('repair replaces the index atomically, preserves old text on failure, and rejects stale generations',async t=>{
+  const s=setup(t),input=await ocrSource(s),base={projectId:input.projectId,fileId:input.fileId};
+  await s.api('library_segments',{...base,generation:input.generation,segments:[{ordinal:0,text:'new text FIRST_NEW',location:'第 1 页'}]});
+  assert.match((await s.api('preview',base)).file.text,/native footer/);
+  await s.api('library_parse_failed',{...base,generation:input.generation,error:'synthetic interrupt'});
+  assert.equal((await s.api('preview',base)).file.status,'partial');assert.match((await s.api('preview',base)).file.text,/native footer/);
+  const a=await s.api('library_reparse',base),b=await s.api('library_reparse',base);
+  await assert.rejects(s.api('library_segments',{...base,generation:a.generation,segments:[{ordinal:0,text:'stale'}]}),e=>e.status===409);
+  await assert.rejects(s.api('library_commit',{...base,generation:a.generation,segments:1}),e=>e.status===409);
+  await s.api('library_segments',{...base,generation:b.generation,segments:[{ordinal:0,text:'final recognized FRESH_CANARY',location:'第 2 页 · Sol 视觉识别'}]});
+  const result=await s.api('library_commit',{...base,generation:b.generation,segments:1,coverage:{units:2,emptyUnits:0}});assert.equal(result.file.status,'ready');
+  const preview=(await s.api('preview',base)).file.text;assert.match(preview,/FRESH_CANARY/);assert.doesNotMatch(preview,/native footer|FIRST_NEW/);
+  assert.equal((await projectLibrary(s.env,'tester',base.projectId,'search',{query:'FRESH_CANARY'})).hits.length,1);
+  assert.equal((await projectLibrary(s.env,'tester',base.projectId,'search',{query:'footer'})).hits.length,0);
+  await assert.rejects(s.api('library_commit',{...base,generation:a.generation,segments:1}),e=>e.status===409);
+});
+test('invalid OCR pages and missing OpenAI configuration fail before provider access',async t=>{
+  const s=setup(t),input=await ocrSource(s);let calls=0;t.mock.method(globalThis,'fetch',async()=>{calls++;throw Error('must not reach provider');});
+  await assert.rejects(s.api('library_ocr_page',{...input,page:3}),e=>e.status===400);
+  await assert.rejects(s.api('library_ocr_page',{...input,data:'not-base64'}),e=>e.status===400);
+  await assert.rejects(s.api('library_ocr_page',input),e=>e.status===503);assert.equal(calls,0);
+});
+test('hybrid PDF extraction keeps native text, recognizes scans and image-heavy pages, and verifies blank pages',async()=>{
+  const priorPDF=globalThis.pdfjsLib,priorLib=globalThis.PDFLib;
+  globalThis.pdfjsLib={GlobalWorkerOptions:{},OPS:{paintImageXObject:8},getDocument:()=>({promise:Promise.resolve({numPages:4,getPage:async n=>({getTextContent:async()=>({items:n===1?[{str:'Native selectable body '.repeat(10)}]:n===3?[{str:'Footer'}]:[]}),getOperatorList:async()=>({fnArray:[8]}),cleanup(){}}),destroy:async()=>{}})})};
+  globalThis.PDFLib={PDFDocument:{load:async()=>({getPageCount:()=>4}),create:async()=>({copyPages:async(_,pages)=>pages,addPage(){},save:async()=>new TextEncoder().encode('%PDF-1.7 synthetic one-page PDF')})}};
+  try{
+    const calls=[],segments=[];
+    const result=await Files.parseInWorker(new File(['%PDF-original'],'hybrid.pdf'),async batch=>segments.push(...batch),null,{ocr:async task=>{calls.push(task.page);return task.page===4?{kind:'blank',text:'',warning:''}:{kind:'text',text:'Recognized page '+task.page+' DM6 25L',warning:''};}});
+    assert.deepEqual(calls,[2,3,4]);assert.equal(result.coverage.emptyUnits,0);assert.equal(result.coverage.ocrPages,3);assert.equal(result.coverage.blankUnits,1);
+    assert.ok(segments.some(s=>s.location==='第 1 页'));assert.ok(segments.some(s=>s.location==='第 2 页 · Sol 视觉识别'));assert.ok(segments.some(s=>s.location==='第 3 页 · Sol 视觉识别'));
+    assert.deepEqual(segments.map(s=>s.ordinal),segments.map((_,i)=>i));
+  }finally{globalThis.pdfjsLib=priorPDF;globalThis.PDFLib=priorLib;}
+});
+test('OCR stops at an interrupted page and retains its successfully indexed prefix for safe continuation',async()=>{
+  const priorPDF=globalThis.pdfjsLib,priorLib=globalThis.PDFLib;
+  globalThis.pdfjsLib={GlobalWorkerOptions:{},getDocument:()=>({promise:Promise.resolve({numPages:3,getPage:async()=>({getTextContent:async()=>({items:[]}),cleanup(){}}),destroy:async()=>{}})})};
+  globalThis.PDFLib={PDFDocument:{load:async()=>({getPageCount:()=>3}),create:async()=>({copyPages:async(_,pages)=>pages,addPage(){},save:async()=>new TextEncoder().encode('%PDF-1.7 synthetic page')})}};
+  try{
+    const calls=[],batches=[];const result=await Files.parseInWorker(new File(['%PDF-original'],'scan.pdf'),async b=>batches.push(...b),null,{ocr:async task=>{calls.push(task.page);if(task.page===2)throw Error('synthetic disconnect');return {kind:'text',text:'Page one OCR',warning:''};}});
+    assert.deepEqual(calls,[1,2]);assert.equal(result.coverage.emptyUnits,2);assert.match(result.coverage.ocrError,/disconnect/);assert.equal(batches.length,1);assert.equal(batches[0].ordinal,0);
+  }finally{globalThis.pdfjsLib=priorPDF;globalThis.PDFLib=priorLib;}
+});
+test('uncertain OCR results remain partial; an explicit retry can improve only the uncertain cached page',async t=>{
+  const s=setup(t),input=await ocrSource(s);s.env.OPENAI_API_KEY='synthetic-openai-key';let calls=0;
+  t.mock.method(globalThis,'fetch',async()=>++calls===1?ocrReply({kind:'text',text:'Tank [无法辨认]',warning:'表格第二列不清晰'}):ocrReply());
+  const uncertain=await s.api('library_ocr_page',input);assert.equal(uncertain.uncertain,true);await s.api('library_ocr_page',input);assert.equal(calls,1);
+  await s.api('library_segments',{...input,segments:[{ordinal:0,text:uncertain.text,location:'第 2 页'}]});
+  const partial=await s.api('library_commit',{...input,segments:1,coverage:{units:2,emptyUnits:0,uncertainUnits:1}});assert.equal(partial.file.status,'partial');
+  const repair=await s.api('library_reparse',input),fresh=await s.api('library_ocr_page',{...input,generation:repair.generation,retry:true});assert.equal(fresh.uncertain,false);assert.equal(calls,2);
+  await s.api('library_segments',{...input,generation:repair.generation,segments:[{ordinal:0,text:fresh.text,location:'第 2 页'}]});
+  const ready=await s.api('library_commit',{...input,generation:repair.generation,segments:1,coverage:{units:2,emptyUnits:0,uncertainUnits:0}});assert.equal(ready.file.status,'ready');assert.equal(ready.file.ocrModel,'gpt-6.1-sol');
+});
+test('malformed, refused and contradictory blank OCR outputs never become completed pages',async t=>{
+  const s=setup(t),input=await ocrSource(s);s.env.OPENAI_API_KEY='synthetic-openai-key';let calls=0;
+  t.mock.method(globalThis,'fetch',async()=>{
+    calls++;if(calls===1)return ocrReply({kind:'blank',text:'actual source words',warning:''});
+    if(calls===2)return ocrReply(undefined,{output:[{content:[{type:'refusal',refusal:'synthetic refusal'}]}]});
+    return ocrReply(undefined,{output:[{content:[{type:'output_text',text:'{"kind":'}]}]});
+  });
+  for(let n=0;n<3;n++)await assert.rejects(s.api('library_ocr_page',{...input,retry:true}),e=>e.status===422);
+  const preview=await s.api('preview',input);assert.equal(preview.file.status,'indexing');assert.equal(calls,3);
+});

@@ -425,12 +425,13 @@ async function handleProjectRequest(request,env){
     const project=await ownedProject(env,user,body.projectId,["archive","delete","restore"].includes(action),["delete","restore"].includes(action));
     const prefix=projectKey(user,project.id);
     if(action.startsWith('library_')){
-      const operation=action.slice(8),extra={fileId:body.fileId,parts:body.parts,segments:body.segments,coverage:body.coverage,error:body.error};
+      const operation=action.slice(8),extra={fileId:body.fileId,parts:body.parts,segments:body.segments,coverage:body.coverage,error:body.error,generation:body.generation};
+      if(operation==='ocr_page')Object.assign(extra,{page:body.page,total:body.total,data:body.data,mime:body.mime,retry:body.retry===true});
       if(operation==='start'){
         extra.file=body.file;
         if(body.replaceFileId){extra.replaced=(await projectFiles(env,user,project.id)).find(f=>f.id===body.replaceFileId);if(!extra.replaced)return projectReply({error:'待更新资料不存在'},404);}
       }
-      if(!['start','original_complete','segments','commit','parse_failed','abort'].includes(operation))return projectReply({error:'未知资料操作'},400);
+      if(!['start','original_complete','segments','commit','parse_failed','abort','reparse','ocr_page'].includes(operation))return projectReply({error:'未知资料操作'},400);
       return projectReply(await projectLibrary(env,user,project.id,operation,extra));
     }
     if(action==="delete"||action==="restore"){
