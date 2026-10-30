@@ -62,6 +62,7 @@
 #ai-arena-app.arena-shell #aaNewBtn svg { width: 26px; height: 26px; margin-left: -4px; padding: 5px; border-radius: 50%; background: var(--arena-accent); color: #fff; stroke-width: 2.2; }
 #ai-arena-app.arena-shell #aaSkillsBtn { color: var(--claude-text-2); font-size: 14.5px !important; }
 #ai-arena-app.arena-shell #aaSkillsBtn.unlocked { color: var(--claude-accent-2) !important; }
+#ai-arena-app.arena-shell #aaSkillsBtn:disabled { color: var(--arena-muted) !important; background: transparent !important; cursor: default; }
 #ai-arena-app.arena-shell .arena-skills-icon { color: var(--arena-muted); }
 #ai-arena-app.arena-shell .arena-history-label { font-size: 12px; font-weight: 400; color: var(--arena-muted); }
 #ai-arena-app.arena-shell .arena-history-search input { border: 0; border-radius: 8px; background: var(--arena-surface); box-shadow: var(--claude-shadow); }
@@ -239,18 +240,20 @@
 /* ================= 布局：按 Claude 原型 =================
    以下规则改的是摆放方式，不只是颜色：空白状态居中、整个输入区是一张卡片、回复去掉头像。 */
 
-/* 空白状态：问候语 + 输入卡片 + 快捷按钮作为一组停在视觉中心 */
-#ai-arena-app.arena-shell .aa-chat.empty-state { justify-content: safe center !important; padding-bottom: 8vh; }
-#ai-arena-app.arena-shell.arena-project-scope .aa-chat.empty-state { padding-top: 44px; }
+/* 三种模式共用起点；卡片内容向下展开，不再随内容高度重新居中。 */
+#ai-arena-app.arena-shell .aa-chat.empty-state,
+#ai-arena-app.arena-shell .aa-chat.empty-state.image-composer-state { justify-content: flex-start !important; padding-top: clamp(36px, calc((100dvh - 560px) / 2), 220px); padding-bottom: max(24px, env(safe-area-inset-bottom)); overflow-y: auto; scrollbar-gutter: stable both-edges; }
+#ai-arena-app.arena-shell.arena-project-scope .aa-chat.empty-state { padding-top: max(64px, clamp(36px, calc((100dvh - 560px) / 2), 220px)); }
 #ai-arena-app.arena-shell .aa-chat.empty-state .arena-project-bar { position: absolute; inset: 0 0 auto; }
 #ai-arena-app.arena-shell .aa-chat.empty-state .aa-messages { flex: 0 0 auto; height: 0; min-height: 0; padding: 0; overflow: hidden; }
-#ai-arena-app.arena-shell .aa-chat.empty-state .aa-welcome { position: static; inset: auto; transform: none; display: flex; align-items: center; justify-content: center; gap: 12px; margin: 0 16px 26px; pointer-events: auto; }
+#ai-arena-app.arena-shell .aa-chat.empty-state .aa-welcome { position: static; inset: auto; transform: none; display: grid; grid-template-columns: 60px minmax(0, 1fr); align-items: center; gap: 12px; width: calc(100% - 32px); max-width: var(--arena-reading-width); height: 72px; min-height: 72px; flex: 0 0 72px; margin: 0 auto 24px; text-align: left; pointer-events: auto; }
+#ai-arena-app.arena-shell .aa-chat.empty-state .arena-kitten-greeting { width: 60px; height: 60px; transform: none; }
 #ai-arena-app.arena-shell .aa-chat.empty-state .aa-kitten--welcome { width: 60px; height: 60px; }
-#ai-arena-app.arena-shell .aa-chat.empty-state .aa-welcome h1 { margin: 0; text-align: left; }
-#ai-arena-app.arena-shell.arena-debate-mode .aa-chat.empty-state .aa-welcome { display: flex !important; width: auto; column-gap: 12px; }
-#ai-arena-app.arena-shell.arena-debate-mode .aa-chat.empty-state .arena-kitten-greeting,
-#ai-arena-app.arena-shell.arena-debate-mode .aa-chat.empty-state .aa-kitten--welcome { width: 60px; height: 60px; }
-#ai-arena-app.arena-shell.arena-debate-mode .aa-chat.empty-state .aa-welcome h1 { font: 400 clamp(26px, 3.4vw, 34px)/1.2 var(--claude-serif); }
+#ai-arena-app.arena-shell .aa-chat.empty-state .aa-welcome h1 { align-self: start; margin: 12px 0 0; text-align: left; font: 400 clamp(24px, 3.3vw, 34px)/1.25 var(--claude-serif); }
+@media (max-height: 600px) {
+  #ai-arena-app.arena-shell .aa-chat.empty-state,
+  #ai-arena-app.arena-shell .aa-chat.empty-state.image-composer-state { padding-top: 12px; }
+}
 
 /* 快捷按钮：只在对话模式的空白状态出现 */
 #ai-arena-app.arena-shell .arena-starters { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; width: calc(100% - 32px); max-width: var(--arena-reading-width); margin: 14px auto 0; }
@@ -264,7 +267,8 @@
 /* 整个输入区是一张卡片：附件、引用、辩论设置、技能标签都在卡片里，输入行本身不再单独描边 */
 #ai-arena-app.arena-shell .aa-input-area,
 #ai-arena-app.arena-shell .aa-chat.empty-state.image-composer-state .aa-input-area { width: calc(100% - 32px); max-width: var(--arena-reading-width); margin: 0 auto max(16px, env(safe-area-inset-bottom)); padding: 10px; border-radius: 20px; background: var(--arena-surface); box-shadow: var(--claude-shadow); transition: box-shadow .15s; }
-#ai-arena-app.arena-shell .aa-chat.empty-state .aa-input-area { margin-bottom: 0; }
+#ai-arena-app.arena-shell .aa-chat.empty-state .aa-input-area,
+#ai-arena-app.arena-shell .aa-chat.empty-state.image-composer-state .aa-input-area { flex: 0 0 auto; max-height: none; margin: 0 auto; }
 #ai-arena-app.arena-shell .aa-input-area:focus-within { box-shadow: var(--claude-shadow-focus); }
 #ai-arena-app.arena-shell .aa-input-row,
 #ai-arena-app.arena-shell .aa-input-row.image-mode-layout,
@@ -301,9 +305,11 @@
 @media (max-width: 600px) {
   #ai-arena-app.arena-shell .aa-input-area,
   #ai-arena-app.arena-shell .aa-chat.empty-state.image-composer-state .aa-input-area { width: calc(100% - 20px); margin-bottom: max(10px, env(safe-area-inset-bottom)); max-height: 63%; }
-  #ai-arena-app.arena-shell .aa-chat.empty-state .aa-welcome { flex-direction: column; gap: 8px; }
-  #ai-arena-app.arena-shell .aa-chat.empty-state .aa-welcome h1 { text-align: center; }
-  #ai-arena-app.arena-shell .aa-chat.empty-state .aa-kitten--welcome { width: 56px; height: 56px; }
+  #ai-arena-app.arena-shell .aa-chat.empty-state .aa-welcome { width: calc(100% - 20px); grid-template-columns: 44px minmax(0, 1fr); gap: 10px; }
+  #ai-arena-app.arena-shell .aa-chat.empty-state .arena-kitten-greeting,
+  #ai-arena-app.arena-shell .aa-chat.empty-state .aa-kitten--welcome { width: 44px; height: 44px; }
+  #ai-arena-app.arena-shell .aa-chat.empty-state .aa-input-area,
+  #ai-arena-app.arena-shell .aa-chat.empty-state.image-composer-state .aa-input-area { max-height: none; margin: 0 auto; }
   #ai-arena-app.arena-shell .arena-starters { width: calc(100% - 20px); }
 }
 
