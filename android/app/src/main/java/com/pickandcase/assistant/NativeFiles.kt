@@ -38,6 +38,7 @@ data class NativeAttachment(
     val units: Int = 1,
     val emptyUnits: Int = 0,
     val parseError: String = "",
+    val indexedId: String? = null,
 ) {
     val image
         get() = mime in setOf("image/png", "image/jpeg", "image/webp", "image/gif")
@@ -104,7 +105,7 @@ class NativeFiles(private val context: Context) {
                     val n = input.read(buffer)
                     if (n < 0) break
                     total += n
-                    require(total <= 20 * 1024 * 1024) { "单个附件最多 20MB" }
+                    require(context.cacheDir.usableSpace > 32L * 1024 * 1024) { "设备空间不足，原始文件未改动" }
                     output.write(buffer, 0, n)
                 }
             }
@@ -112,6 +113,8 @@ class NativeFiles(private val context: Context) {
         return if (name.endsWith(".zip", true)) expand(file, project)
         else listOf(describeSafely(name, mime, file, name, project))
     }
+
+    fun describeSaved(file: File,name: String,mime: String): NativeAttachment = describeSafely(name,mime,file,name,true)
 
     private fun describeSafely(
         name: String,
@@ -512,6 +515,8 @@ class NativeFiles(private val context: Context) {
             .apply { writeBytes(Base64.decode(data, Base64.DEFAULT)) }
 
     fun replayText(value: String): NativeAttachment {
+        val indexed=Regex("^\\[文件: ([^\\n]+)]\\n\\[对话文件 ([a-zA-Z0-9_-]{6,80})；正文按阅读方式查阅]$").matchEntire(value)
+        if(indexed!=null)return NativeAttachment(UUID.randomUUID().toString(),indexed.groupValues[1],"text/plain",File(folder,"indexed-reference").path,0,indexedId=indexed.groupValues[2])
         val header = value.substringBefore('\n')
         val text = if (header.startsWith("[文件: ")) value.substringAfter('\n', "") else value
         val name =
@@ -596,6 +601,7 @@ class NativeFiles(private val context: Context) {
             .forEach { entry ->
                 output.append("\n[" + entry.name.substringAfterLast('/') + "]\n")
                 parse(entry.name) { p ->
+                    var cellRef = ""
                     var type = ""
                     var style = 0
                     var value = StringBuilder()
@@ -605,6 +611,7 @@ class NativeFiles(private val context: Context) {
                         if (p.eventType == XmlPullParser.START_TAG) {
                             tag = p.name
                             if (tag == "c") {
+                                cellRef = p.getAttributeValue(null,"r") ?: ""
                                 type = p.getAttributeValue(null, "t") ?: ""
                                 style = p.getAttributeValue(null, "s")?.toIntOrNull() ?: 0
                                 value = StringBuilder()
@@ -621,6 +628,7 @@ class NativeFiles(private val context: Context) {
                                     val raw = value.toString()
                                     val number = raw.toDoubleOrNull()
                                     val format = styles.getOrNull(style) ?: 0
+                                    if(cellRef.isNotEmpty())output.append("["+cellRef+"] ")
                                     output.append(
                                         when {
                                             type == "s" ->
@@ -640,6 +648,7 @@ class NativeFiles(private val context: Context) {
                                             else -> raw
                                         }
                                     )
+                                    if(raw.isNotEmpty()&&formula.isNotEmpty())output.append(" {公式 ="+formula+"}")
                                     output.append('\t')
                                 }
                                 "row" -> output.append('\n')

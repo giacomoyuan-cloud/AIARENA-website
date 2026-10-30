@@ -37,7 +37,7 @@ export function syntheticProviders({events,writeEvidence}) {
    if(body.model!=='gpt-6.1-sol'||body.reasoning?.effort!=='low')throw Error('Synthetic text executor only permits Sol 6.1 Low');
    const prompt=textInput(body),identity=(prompt.match(/你的独立席位：([^\\\n]+)/)||[])[1]||'chat',stage=prompt.includes('本轮：独立观点')?'independent':prompt.includes('你是中立的总结者')?'summary':'cross';
    const key=prompt+'|'+identity+'|'+stage,attempt=(attempts.get(key)||0)+1;attempts.set(key,attempt);
-   const event={kind:'provider',model:body.model,effort:body.reasoning.effort,identity,stage,attempt,synthetic:true,externalModelCalls:0};events.push(event);await writeEvidence();
+   const event={kind:'provider',model:body.model,effort:body.reasoning.effort,identity,stage,attempt,synthetic:true,externalModelCalls:0,originalFiles:(body.input||[]).flatMap(x=>x.content||[]).filter(x=>x.type==='input_file').length,originalImages:(body.input||[]).flatMap(x=>x.content||[]).filter(x=>x.type==='input_image').length};events.push(event);await writeEvidence();
    if(identity.startsWith('seat-2')&&stage==='independent'&&attempt===1){event.outcome='injected-failure';await writeEvidence();return Response.json({error:{message:'合成测试：第二席暂时不可用'}},{status:503});}
    const slow=prompt.includes('慢速任务验收');
    const text=slow?'原生停止任务的合成长回复。'.repeat(30):stage==='summary'?'合成总结：已完成讨论并保留全部席位。':identity.startsWith('seat-1')&&stage==='independent'?'这是第一席的合成观点，用于验证刷新和短暂断网后仍然继续读取同一条回答。已经完成的发言会保留，第二席失败后只重试当前席位。':'这是原生完整后端的合成回复。';

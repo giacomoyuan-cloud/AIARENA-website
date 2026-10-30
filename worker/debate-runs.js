@@ -139,7 +139,7 @@ export function createDebateRunClass(execute, authorize, core) {
               brand: seed.models[turn.member.model].brand, name: turn.member.label + ' · ' + seed.models[turn.member.model].name,
               color: seed.models[turn.member.model].color, round: turn.round, _team: turn.member.team,
               participantId: turn.member.id, debateSessionId: body.runId, debateStage: turn.stage, text: '', reasoning: '', citations: [], activity: [] } })) };
-        const input = { userMessage: seed.userMessage, images: seed.images, search: seed.search, skills:seed.skills, title: seed.title, historyEndUid: seed.historyEndUid };
+        const input = { documents:seed.documents,readingMode:seed.readingMode,userMessage: seed.userMessage, images: seed.images, search: seed.search, skills:seed.skills, title: seed.title, historyEndUid: seed.historyEndUid };
         this.inputs.set(job.id, input); this.jobs.set(job.id, job);
         if (!job.incognito) {
           const text = JSON.stringify(input);
@@ -207,7 +207,7 @@ export function createDebateRunClass(execute, authorize, core) {
         timer = setTimeout(() => this.abort?.abort(), TURN_LIMIT);
         const payload = { ...credentials, model: spec.member.model, effort: turn.reply.effort, prompt, images: input.images, search: input.search, noAutomaticRetry: true,
           projectId: job.projectId, chat: { scope: job.projectId || 'general', chatId: job.chatId, question: prompt,
-            query: job.plan.topic, history: [], historyEndUid: null, incognito: job.incognito, debate:true, skills:input.skills } };
+            query: job.plan.topic, history: [], historyEndUid: null, incognito: job.incognito,readingMode:input.readingMode,documents:input.documents, debate:true, skills:input.skills } };
         const response = await execute(new Request('https://internal.invalid/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), signal: this.abort.signal }), this.env);
         if (!response.ok) { const data = await response.json().catch(() => ({})); throw new Error(data.error || '模型请求失败（' + response.status + '）'); }
         reader = response.body.getReader(); const decoder = new TextDecoder(); let buffer = '', done = false;

@@ -572,6 +572,11 @@ private fun ChatScreen(s: AssistantState, vm: AssistantViewModel) {
                         )
                         IconButton(onClick = vm::clearQuote) { Icon(Icons.Outlined.Close, "移除引用") }
                     }
+                if(s.mode!="image"&&(s.attachments.any { !it.image }||s.messages.any { it.arr("pastedTexts").strings().any { text->text.contains("[对话文件 ") } }))
+                    Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                        FilterChip(selected=(s.project?.str("readingMode",s.documentReadingMode)?:s.documentReadingMode)=="full",onClick={vm.documentReadingMode("full")},enabled=!s.busy,label={Text("全文阅读")})
+                        FilterChip(selected=(s.project?.str("readingMode",s.documentReadingMode)?:s.documentReadingMode)=="retrieve",onClick={vm.documentReadingMode("retrieve")},enabled=!s.busy,label={Text("按需检索")})
+                    }
                 if (s.attachments.isNotEmpty())
                     Row(
                         Modifier.horizontalScroll(rememberScrollState()),

@@ -6,10 +6,10 @@ const jsonHeaders={'Content-Type':'application/json'};
 
 // These endpoints tokenize input only; they never start a model generation.
 export async function countInputTokens({provider,model,payload,env,signal,fetcher=fetch}){
-  let url,headers,body;
+  let url,headers,body,visionAllowance=0;
   if(provider==='anthropic'){
     url='https://api.anthropic.com/v1/messages/count_tokens';
-    headers={...jsonHeaders,'x-api-key':env.ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01'};
+    headers={...jsonHeaders,Authorization:'Bearer '+env.ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01'};
     body={model,messages:payload.messages,...(payload.system?{system:payload.system}:{}),...(payload.tools?{tools:payload.tools}:{}),...(payload.tool_choice?{tool_choice:payload.tool_choice}:{})};
   }else if(provider==='openai'){
     url='https://api.openai.com/v1/responses/input_tokens';
@@ -23,7 +23,10 @@ export async function countInputTokens({provider,model,payload,env,signal,fetche
     url='https://api.x.ai/v1/tokenize-text';
     headers={...jsonHeaders,Authorization:'Bearer '+env.GROK_API_KEY};
     // Serialize roles, tools and instructions too, rather than counting text alone.
-    body={model,text:JSON.stringify({instructions:payload.instructions,input:payload.input,tools:payload.tools})};
+    body={model,text:JSON.stringify({instructions:payload.instructions,input:payload.input,tools:payload.tools},(key,value)=>{
+      if(value?.type==='input_image'){visionAllowance+=65536;return {type:'input_text',text:'[完整图片输入，另计视觉容量]'};}
+      return value;
+    })};
   }else throw countError();
   let data;
   try{
@@ -31,7 +34,7 @@ export async function countInputTokens({provider,model,payload,env,signal,fetche
     if(!response.ok)throw countError();
     data=await response.json();
   }catch(error){if(signal?.aborted)throw error;throw countError();}
-  const tokens=provider==='google'?data.totalTokens:provider==='xai'&&Array.isArray(data.token_ids)?data.token_ids.length+1024:data.input_tokens;
+  const tokens=provider==='google'?data.totalTokens:provider==='xai'&&Array.isArray(data.token_ids)?data.token_ids.length+1024+visionAllowance:data.input_tokens;
   if(!Number.isSafeInteger(tokens)||tokens<0)throw countError();
   return tokens;
 }
@@ -42,7 +45,7 @@ function shape(provider,payload){
   return {key:'input',items:payload.input,system:payload.instructions||'',write:(p,s)=>{p.instructions=s;}};
 }
 
-export async function fitTokenBudget({provider,model,payload,env,signal,outputTokens,compact=()=>({text:''}),protectedTail=1,fetcher=fetch}){
+export async function fitTokenBudget({provider,model,payload,env,signal,outputTokens,compact=()=>({text:''}),protectedTail=1,exactMedia=false,fetcher=fetch}){
   const limits=Limits.get(model),budget=Limits.inputBudget(model,outputTokens);
   const form=shape(provider,payload),items=Array.isArray(form.items)?form.items:null;
   const history=items?items.slice(0,-protectedTail):[],current=items?.slice(-protectedTail)||[];
@@ -55,7 +58,7 @@ export async function fitTokenBudget({provider,model,payload,env,signal,outputTo
     // A byte upper bound avoids a token-count round trip for safely small text
     // requests. Large inputs and Argon's shared long-decode budget use native counts.
     const upper=encoder.encode(JSON.stringify(next)).length+8192;
-    const exact=(limits.longDecode&&outputTokens>65536)||upper>budget;
+    const exact=exactMedia||(limits.longDecode&&outputTokens>65536)||upper>budget;
     const tokens=exact?await countInputTokens({provider,model,payload:next,env,signal,fetcher}):upper;
     const value={payload:next,inputTokens:tokens,countMethod:exact?'provider':'byte-upper-bound',dropped:start,note};
     cache.set(start,value);return value;

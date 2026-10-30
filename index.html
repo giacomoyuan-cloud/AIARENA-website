@@ -870,7 +870,7 @@
 <link rel="stylesheet" href="/arena-workspace.css?v=20261030-modernfont2">
 <link rel="stylesheet" href="/arena-controls.css?v=20261030-modernfont2">
 <link rel="stylesheet" href="/arena-claude.css?v=20261030-modernfont2">
-<link rel="stylesheet" href="/arena-project-page.css?v=20261030-filequeue1">
+<link rel="stylesheet" href="/arena-project-page.css?v=20261031-directfiles1">
 <link rel="stylesheet" href="/arena-project-files.css?v=20261030-modernfont2">
 <link rel="stylesheet" href="/arena-debate-ui.css?v=20261030-modernfont2">
 
@@ -1268,7 +1268,7 @@
 <script src="/arena-chat-mode.js?v=20261030-historymodes2"></script>
 <script src="/arena-skills-catalog.js?v=20261030-skills1"></script>
 <script src="/arena-skill-models.js?v=20261030-skillmodels1"></script>
-<script src="/arena-files.js?v=20261030-filequeue1"></script>
+<script src="/arena-files.js?v=20261031-directfiles1"></script>
 <script src="/arena-skills.js?v=20261030-upload20m1"></script>
 <script src="/arena-chat-runs.js?v=20261029-typingclock1"></script>
 <script src="/arena-controls.js?v=20261029-debateresume1"></script>
@@ -1276,15 +1276,15 @@
 <script src="/arena-debate.js?v=20261030-debatestudio3"></script>
 <script src="/arena-debate-studio.js?v=20261030-debatecontrols1"></script>
 <script src="/arena-debate-runs.js?v=20261030-debatestudio3"></script>
-<script src="/arena-project-files.js?v=20261030-filequeue1"></script>
-<script src="/arena-reading.js?v=20261030-chatfiles1"></script>
-<script src="/arena-conversation-files.js?v=20261030-chatfiles1"></script>
+<script src="/arena-project-files.js?v=20261031-directfiles1"></script>
+<script src="/arena-reading.js?v=20261031-directfiles1"></script>
+<script src="/arena-conversation-files.js?v=20261031-directfiles1"></script>
 <link rel="stylesheet" href="/arena-conversation-files.css?v=20261030-modernfont2">
-<script src="/arena-workspace.js?v=20261030-filequeue1"></script>
+<script src="/arena-workspace.js?v=20261031-directfiles1"></script>
 <script src="/arena-project-state.js?v=20261030-projectactions2"></script>
-<script src="/arena-project-upload-view.js?v=20261030-filequeue1"></script>
-<script src="/arena-project-upload-queue.js?v=20261030-filequeue1"></script>
-<script src="/arena-project-page.js?v=20261030-filequeue1"></script>
+<script src="/arena-project-upload-view.js?v=20261031-directfiles1"></script>
+<script src="/arena-project-upload-queue.js?v=20261031-directfiles1"></script>
+<script src="/arena-project-page.js?v=20261031-directfiles1"></script>
 
 <link rel="stylesheet" href="/arena-table.css?v=20261030-readable1">
 <link rel="stylesheet" href="/arena-admin.css?v=20261030-admin1">
@@ -2504,7 +2504,7 @@ var TEAM_COLORS = {
     sentTexts.forEach(function(t, idx){
       var indexed=conversationFiles&&(conversationFiles.file(t)||(ArenaReading.fileId(t)?{id:ArenaReading.fileId(t),name:ArenaReading.fileName(t),characters:0,pending:true}:null));
       if(indexed){
-        var item=document.createElement('div'),open=document.createElement('button'),name=document.createElement('strong'),status=document.createElement('small'),remove=document.createElement('button');item.className='arena-document-card';open.type=remove.type='button';name.textContent=ArenaProjectFiles.name(indexed);status.textContent=indexed.pending?'文件索引待加载':ArenaProjectFiles.status(indexed)+' · '+indexed.characters.toLocaleString()+' 字符';open.append(name,status);open.onclick=function(){conversationFiles.preview(t).catch(function(error){arenaNotice(error.message);});};remove.textContent='×';remove.setAttribute('aria-label','移除附件：'+indexed.name);remove.onclick=async function(){if(aaRunning||fileImporting)return;remove.disabled=true;try{await conversationFiles.remove(t);sentTexts=sentTexts.filter(function(x){return x!==t;});renderTextPreviews();$('aaSendBtn').disabled=!$('aaTopic').value.trim()&&!sentImgs.length&&!sentTexts.length;}catch(error){remove.disabled=false;arenaNotice(error.message);}};item.append(open,remove);container.appendChild(item);return;
+        var item=document.createElement('div'),open=document.createElement('button'),name=document.createElement('strong'),status=document.createElement('small'),remove=document.createElement('button');item.className='arena-document-card';open.type=remove.type='button';name.textContent=ArenaProjectFiles.name(indexed);status.textContent=indexed.pending?'文件索引待加载':ArenaProjectFiles.status(indexed)+(indexed.coverage?.preparedVisuals?' · '+indexed.coverage.preparedVisuals+' 处原图':'')+(indexed.characters?' · '+indexed.characters.toLocaleString()+' 字符':'');open.append(name,status);open.onclick=function(){conversationFiles.preview(t).catch(function(error){arenaNotice(error.message);});};remove.textContent='×';remove.setAttribute('aria-label','移除附件：'+indexed.name);remove.onclick=async function(){if(aaRunning||fileImporting)return;remove.disabled=true;try{await conversationFiles.remove(t);sentTexts=sentTexts.filter(function(x){return x!==t;});renderTextPreviews();$('aaSendBtn').disabled=!$('aaTopic').value.trim()&&!sentImgs.length&&!sentTexts.length;}catch(error){remove.disabled=false;arenaNotice(error.message);}};item.append(open,remove);container.appendChild(item);return;
       }
       var card = document.createElement('div');
       card.style.cssText = 'position:relative;display:inline-flex;align-items:flex-start;gap:8px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:10px;padding:10px 12px;max-width:200px;';
@@ -2599,7 +2599,7 @@ var TEAM_COLORS = {
       for(var i=0;i<files.length;i++){
         if(context!==fileImportContext())break;
         var source=files[i],originals=skillsRuntime.filesForTexts(sentTexts);
-        if(conversationFiles&&!imageMode&&!debate&&!ArenaFiles.isImage(source.name)){
+        if(conversationFiles&&!imageMode&&!ArenaFiles.isImage(source.name)){
           try{
             var documents=await ArenaProjectFiles.expandFiles([source]);skipped=skipped.concat(documents.skipped);
             for(var entry of documents.files){
@@ -5083,9 +5083,9 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
       return;
     }
     var documentRequest=null,documentOwner=conversationFiles?fileImportContext():null;
-    if(conversationFiles&&!imageMode&&!debate){
+    if(conversationFiles&&!imageMode){
       documentPreparing=true;
-      try{await conversationFiles.ready();if(ArenaReading.originalTask(topic,skillsRuntime.settings()))await conversationFiles.originals();if(documentOwner!==fileImportContext())return;documentRequest=conversationFiles.payload(topic,sentTexts);}
+      try{await conversationFiles.ready();await conversationFiles.prepare(topic);if(ArenaReading.originalTask(topic,skillsRuntime.settings()))await conversationFiles.originals();if(documentOwner!==fileImportContext())return;documentRequest=await conversationFiles.payload(topic,sentTexts);}
       catch(error){arenaNotice(error.message);return;}
       finally{documentPreparing=false;conversationFiles.render();}
     }
@@ -5173,7 +5173,7 @@ var label = MJ_LABEL_MAP[btn.label] || btn.label || (btn.customId.indexOf('pan_l
     if(debate){
       var progress=$('aaDebateProgress');progress.hidden=false;
       var debateUser=serializeMsgs().slice(-1)[0],debateInput={config:ArenaDebateStudio.requestConfig(debatePlan),
-        userMessage:debateUser,images:_imgs.map(function(i){return {data:i.data,mime:i.mime||'image/jpeg'};}),efforts:ArenaDebateStudio.legacyEfforts(debatePlan),search:searchOn,incognito:!!_incognitoMode,title:getChatTitle(),
+        userMessage:debateUser,...(documentRequest?{readingMode:documentRequest.mode,documents:documentRequest.documents}:{}),images:_imgs.map(function(i){return {data:i.data,mime:i.mime||'image/jpeg'};}),efforts:ArenaDebateStudio.legacyEfforts(debatePlan),search:searchOn,incognito:!!_incognitoMode,title:getChatTitle(),
         skills:skillsRuntime.settings(),historyEndUid:msgs.length>1?msgs[msgs.length-2].uid:null,replyUids:debatePlan.turns.map(function(){return newUid();})};
       saveDebateDraft();
       startDurableDebate({id:debatePlan.id,chatId:currentChatId,projectId:activeProjectId},debateInput);
@@ -6623,8 +6623,16 @@ if(imageMode){
     context:function(){return {owner:loginName($('aaUsername').value).toLowerCase(),projectId:activeProjectId||null,chatId:currentChatId||'unsent-draft',incognito:!!_incognitoMode,epoch:_accountLoginEpoch||0};},
     credentials:function(){return {username:loginName($('aaUsername').value),password:getPass()};},
     fetch:function(path,options){return fetch(WORKER+path,options);},binary:projectBinary,texts:function(){return sentTexts;},messages:function(){return msgs;},question:function(){return $('aaTopic').value;},notice:arenaNotice,
-    busy:function(){return aaRunning||fileImporting||scopeSwitchPending||chatNavigationPending||privacySwitchPending||documentPreparing;},imageOrDebate:function(){return imageMode||debate;},hasProject:function(){return !!activeProject;},projectHome:function(){return workspaceController&&workspaceController.visible();},
-    projectMode:function(){return activeProject&&activeProject.readingMode;},setProjectMode:function(mode){return setProjectReadingMode(mode);},capturePrivateOriginal:async function(file){skillsRuntime.capture(file);await skillsRuntime.ready();},hasSavedFiles:function(){return chatList.some(function(c){return c.id===currentChatId&&c.hasDocuments;});},reloadChats:loadChatList
+    busy:function(){return aaRunning||fileImporting||scopeSwitchPending||chatNavigationPending||privacySwitchPending||documentPreparing;},imageOrDebate:function(){return imageMode;},hasProject:function(){return !!activeProject;},projectHome:function(){return workspaceController&&workspaceController.visible();},
+    projectMode:function(){return activeProject&&activeProject.readingMode;},setProjectMode:function(mode){return setProjectReadingMode(mode);},capturePrivateOriginal:async function(file){skillsRuntime.capture(file);await skillsRuntime.ready();},hasSavedFiles:function(){return chatList.some(function(c){return c.id===currentChatId&&c.hasDocuments;});},reloadChats:loadChatList,
+    prepareProjectFiles:async function(question){
+      var owner=fileImportContext(),projectId=activeProjectId,credentials={username:loginName($('aaUsername').value),password:getPass()},data=await projectApi('get',{projectId:projectId});
+      var files=data.project.files||[],named=files.filter(function(f){return question.toLowerCase().includes(ArenaProjectFiles.name(f).toLowerCase());});if(named.length)files=named;
+      for(var f of files){if(f.storage!=='r2'||f.coverage?.sourceVersion==='20261031-directfiles1'||!/\.(?:pdf|docx|xlsx|xlsm|pptx|odt|odp|ods|png|jpe?g|webp)$/i.test(f.name))continue;
+        if(['uploading','indexing'].includes(f.status))throw Error('项目文件仍在准备，请完成后再全文阅读');
+        await ArenaProjectFiles.repair({file:f,projectId:projectId,credentials:credentials,api:projectApi,binary:projectBinary,isCurrent:function(){return owner===fileImportContext();},progress:function(p){showFileImport(p.name+' · '+p.phase+(p.total?' '+p.done+'/'+p.total:''));}});
+      }
+    }
   });
   $('aaTopic').addEventListener('input',function(){conversationFiles.render();});
   var projectReadingModePending=false;
@@ -6713,7 +6721,7 @@ if(imageMode){
     if(context.retrievedMessages)labels.push('旧原文 '+context.retrievedMessages+' 段');
     if(context.fileFragments)labels.push(context.readingMode==='full'?'全文阅读 '+context.fileFragments+' 段':'检索资料 '+context.fileFragments+' 段');
     var explanation=context.historyPolicy==='full'?'已携带当前分支的完整文字历史，未进行摘要或截取。':context.historyPolicy==='compacted'?'已接近模型容量；较早文字用摘记和相关原文片段补充，细节可能省略，原聊天记录完整保留。':'原聊天记录完整保留。较早内容通过摘要和按问题检索的原文补充，摘要可能省略细节。';
-    var materialText=(context.readingMode==='full'?'已逐批读入全部可读文字，最终回答使用阅读笔记，笔记可能省略细节。':context.fileFragments?'仅发送检索命中的片段，没有逐页通读整份资料。':context.availableFiles?.length?'本轮没有检索到相关片段，尚未向模型提供文件正文。':'本轮未提供文件资料。');
+    var materialText=(context.readingMode==='full'?(context.readingDelivery==='native'?'完整 PDF 原件直接交给当前模型，保留图文。':context.readingDelivery==='complete'?'完整提取文字与原始图片直接交给当前模型，未先生成摘要。':'全部图文由当前模型分批读取；最终回答使用阅读笔记，笔记可能省略细节。'):context.fileFragments?'仅发送检索命中的片段，没有逐页通读整份资料。':context.availableFiles?.length?'本轮没有检索到相关片段，尚未向模型提供文件正文。':'本轮未提供文件资料。');
     return '<details class="arena-context-info"><summary>本轮上下文 · '+esc(labels.join(' · '))+'</summary><p>'+explanation+(context.scope!=='general'?'记忆和资料仅限当前项目。':'')+esc(materialText)+'</p>'+(context.files||[]).map(function(file){var source=file.source!=='conversation'&&activeProject&&activeProject.id===context.scope&&(activeProject.files||[]).find(function(item){return item.id===file.id;});var name=source?ArenaProjectFiles.name(source):file.name;return '<button data-context-file="'+esc(file.id)+'"'+(file.source==='conversation'?' data-conversation-file="true"':'')+' data-project="'+esc(context.scope)+'">'+esc(name)+(file.location?' · '+esc(file.location):'')+'</button>';}).join('')+'</details>';
   }
   workspaceController=ArenaWorkspace.mount({

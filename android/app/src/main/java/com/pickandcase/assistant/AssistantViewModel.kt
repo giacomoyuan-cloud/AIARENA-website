@@ -90,6 +90,8 @@ data class AssistantState(
         ),
     val skills: JSONObject = json("mode" to "auto", "ids" to JSONArray()),
     val attachments: List<NativeAttachment> = emptyList(),
+    val documentReadingMode: String = "full",
+    val documentPayload: JSONObject? = null,
     val quote: JSONObject? = null,
     val imageParent: Long? = null,
     val imageMask: NativeAttachment? = null,
@@ -510,7 +512,7 @@ class AssistantViewModel(application: Application, val api: NativeApi = NativeAp
         viewModelScope.launch {
             mutable.update { it.copy(loading = true) }
             try {
-                val entries = withContext(Dispatchers.IO) { uris.flatMap(files::import) }
+                val entries = withContext(Dispatchers.IO) { uris.flatMap(files::projectImport) }
                 mutable.update {
                     it.copy(
                         attachments = it.attachments + entries,
@@ -523,6 +525,8 @@ class AssistantViewModel(application: Application, val api: NativeApi = NativeAp
             }
         }
     }
+
+    fun documentReadingMode(mode: String) { if(mode in listOf("full","retrieve")&&!mutable.value.busy) { val project=mutable.value.project;if(project==null)mutable.update { it.copy(documentReadingMode=mode) } else projectAction("update",project.str("id"),json("readingMode" to mode)) { mutable.update { it.copy(project=project.copyJson().put("readingMode",mode)) } } } }
 
     fun removeAttachment(id: String) {
         mutable.update {
@@ -1192,8 +1196,8 @@ class AssistantViewModel(application: Application, val api: NativeApi = NativeAp
                     return@launch
                 when (s.mode) {
                     "image" -> sendImage(s)
-                    "debate" -> sendDebate(s)
-                    else -> sendChat(s)
+                    "debate" -> sendDebate(prepareDocuments(s))
+                    else -> sendChat(prepareDocuments(s))
                 }
             } catch (e: Exception) {
                 mutable.update { it.copy(busy = false) }
@@ -1215,7 +1219,7 @@ class AssistantViewModel(application: Application, val api: NativeApi = NativeAp
                 "_quote" to s.quote,
                 "pastedTexts" to
                     JSONArray(
-                        s.attachments.filterNot { it.image }.map { "[文件: ${it.name}]\n" + it.text }
+                        s.attachments.filterNot { it.image }.map { if(it.indexedId!=null) "[文件: ${it.name}]\n[对话文件 ${it.indexedId}；正文按阅读方式查阅]" else "[文件: ${it.name}]\n" + it.text }
                     ),
             )
             .apply {
@@ -1236,9 +1240,49 @@ class AssistantViewModel(application: Application, val api: NativeApi = NativeAp
             }
     }
 
+    private suspend fun prepareDocuments(s: AssistantState): AssistantState {
+        val attachments=s.attachments.filterNot { it.image }
+        val known=s.messages.any { it.arr("pastedTexts").strings().any { text-> text.contains("[对话文件 ") } }
+        val full=(s.project?.str("readingMode",s.documentReadingMode)?:s.documentReadingMode)=="full"||Regex("全文|通读|逐页|完整阅读|read.*entire|full (document|text)",RegexOption.IGNORE_CASE).containsMatchIn(s.draft)
+        suspend fun upgrade(meta: JSONObject,projectId: String?,conversation: Boolean) {
+            if(meta.str("storage")!="r2"||meta.obj("coverage").str("sourceVersion")=="20261031-directfiles1"||!Regex("(?i)\\.(pdf|docx|xlsx|pptx|odt|odp|ods|png|jpe?g|webp)$").containsMatchIn(meta.str("name")))return
+            check(meta.str("status") !in listOf("uploading","indexing")) { "文件仍在准备，请稍后全文阅读" }
+            val temp=File(getApplication<Application>().cacheDir,"source-upgrade-"+UUID.randomUUID().toString())
+            try{
+                api.download(if(conversation)"/conversation-original" else "/project-original",json("projectId" to projectId,"chatId" to if(conversation)s.chatId else null,"fileId" to meta.str("id")),temp)
+                val attachment=withContext(Dispatchers.IO){files.describeSaved(temp,meta.str("name"),meta.str("type","application/octet-stream"))}
+                NativeProjectUploads(getApplication(),api).upload(account(),projectId?:s.chatId,attachment,chatId=if(conversation)s.chatId else null,conversationProjectId=projectId,existingId=meta.str("id"),onProgress={label->mutable.update { it.copy(notice=label) }})
+            }finally{temp.delete()}
+        }
+        if(full){
+            val projectId=s.project?.str("id")
+            if(projectId!=null){val catalog=api.call("/projects",json("action" to "get","projectId" to projectId)).obj("project");for(meta in catalog.arr("files").objects())upgrade(meta,projectId,false)}
+            if(!s.incognito&&known){val catalog=api.call("/conversation-files",json("action" to "list","chatId" to s.chatId,"projectId" to projectId));for(meta in catalog.arr("files").objects())upgrade(meta,projectId,true)}
+        }
+        if(attachments.isEmpty()&&!known)return s
+        val uploader=NativeProjectUploads(getApplication(),api)
+        val documents=json("enabled" to true)
+        val updated=s.attachments.toMutableList()
+        if(s.incognito) {
+            val provider=s.catalog.arr("models").objects().firstOrNull { it.str("id")==s.model }?.str("provider").orEmpty()
+            val files=JSONArray();for(file in attachments)files.put(uploader.inlineFile(file,provider))
+            documents.put("inline",json("files" to files))
+        }else {
+            val ids=JSONArray()
+            for(file in attachments) {
+                val meta=if(file.indexedId!=null)json("id" to file.indexedId) else uploader.upload(account(),s.chatId,file,onProgress={label->mutable.update { it.copy(notice=label) }},chatId=s.chatId,conversationProjectId=s.project?.str("id"))
+                val id=meta.str("id");ids.put(id);val at=updated.indexOfFirst { it.id==file.id };updated[at]=file.copy(indexedId=id)
+            }
+            documents.put("currentFileIds",ids)
+            api.call("/conversation-files",json("action" to "settings","chatId" to s.chatId,"projectId" to s.project?.str("id"),"mode" to (s.project?.str("readingMode",s.documentReadingMode)?:s.documentReadingMode)))
+        }
+        check(mutable.value.chatId==s.chatId&&scope()==scope(s)&&account()==s.session?.accountId) { "对话范围已变化，文件保留在原对话" }
+        return s.copy(attachments=updated,documentPayload=documents)
+    }
+
     private suspend fun sendChat(s: AssistantState) {
         require(
-            s.draft.length + s.attachments.sumOf { it.text.length } <=
+            s.draft.length + (if(s.documentPayload==null)s.attachments.sumOf { it.text.length } else 0) <=
                 s.catalog.optInt("maxTextChars", 8 * 1024 * 1024)
         ) {
             "内容较长，请先加入项目资料再提问"
@@ -1278,10 +1322,10 @@ class AssistantViewModel(application: Application, val api: NativeApi = NativeAp
         val question =
             user.str("text") +
                 (s.attachments
-                    .filterNot { it.image }
+                    .filter { !it.image && it.indexedId==null && s.documentPayload==null }
                     .joinToString("") { "\n\n[文件：${it.name}]\n${it.text}" })
         val docs =
-            s.attachments.filterNot { it.image }.takeIf { s.skills.str("mode") != "off" }
+            s.attachments.filter { !it.image && it.indexedId==null && s.documentPayload==null }.takeIf { s.skills.str("mode") != "off" }
                 ?: emptyList()
         val chat =
             json(
@@ -1292,6 +1336,8 @@ class AssistantViewModel(application: Application, val api: NativeApi = NativeAp
                 "historyEndUid" to s.messages.lastOrNull()?.optLong("uid"),
                 "skills" to s.skills,
                 "files" to JSONArray(docs.map { it.skillFile() }),
+                "readingMode" to (s.project?.str("readingMode",s.documentReadingMode)?:s.documentReadingMode),
+                "documents" to s.documentPayload,
                 "skillSession" to
                     s.messages
                         .lastOrNull { it.str("skillSession").isNotBlank() }
@@ -1775,7 +1821,7 @@ class AssistantViewModel(application: Application, val api: NativeApi = NativeAp
                     "topic",
                     user.str("text") +
                         s.attachments
-                            .filterNot { it.image }
+                            .filter { !it.image && s.documentPayload==null }
                             .joinToString("") { "\n\n[资料：${it.name}]\n${it.text}" },
                 )
                 .put("contractVersion", "studio-v3")
@@ -1790,6 +1836,8 @@ class AssistantViewModel(application: Application, val api: NativeApi = NativeAp
         val input =
             json(
                 "config" to config,
+                "readingMode" to (s.project?.str("readingMode",s.documentReadingMode)?:s.documentReadingMode),
+                "documents" to s.documentPayload,
                 "userMessage" to user,
                 "replyUids" to JSONArray(ids),
                 "historyEndUid" to s.messages.lastOrNull()?.optLong("uid"),

@@ -1,9 +1,9 @@
 import Context from '../arena-context.js';
 import {isDocument,isImage,materialName} from '../web/file-types.mjs';
-import {recognizeProjectPage, ocrPayload, OCR_MODEL} from './project-ocr.js';
+import {OCR_MODEL} from './project-ocr.js';
+import {mediaInput,DOCUMENT_DELIVERY_VERSION} from './document-media.js';
 
 const initialized=new WeakSet();
-const activeOCR=new WeakMap();
 const readableSQL="(f.state='ready' OR (f.state='partial' AND COALESCE(json_extract(f.meta,'$.coverage.emptyUnits'),-1)=0 AND COALESCE(json_extract(f.meta,'$.coverage.uncertainUnits'),0)>0))";
 // OCR is appended after native extraction. Preserve chunk IDs while reading the
 // combined document in physical page order, including already indexed files.
@@ -24,6 +24,8 @@ function init(ctx){
   ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS library_scope_files (scope TEXT NOT NULL, file_id TEXT NOT NULL, PRIMARY KEY(scope,file_id))');
   ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS library_ocr_pages (file_id TEXT NOT NULL, page INTEGER NOT NULL, state TEXT NOT NULL, result TEXT, updated_at INTEGER NOT NULL, PRIMARY KEY(file_id,page))');
   ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS library_pending_segments (file_id TEXT NOT NULL, ordinal INTEGER NOT NULL, location TEXT NOT NULL, text TEXT NOT NULL, digest TEXT NOT NULL, words TEXT NOT NULL, PRIMARY KEY(file_id,ordinal))');
+  ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS library_media (file_id TEXT NOT NULL,id TEXT NOT NULL,meta TEXT NOT NULL,PRIMARY KEY(file_id,id))');
+  for(const table of ['library_segments','library_pending_segments'])if(!rows(ctx,'PRAGMA table_info('+table+')').some(c=>c.name==='media'))ctx.storage.sql.exec('ALTER TABLE '+table+' ADD COLUMN media TEXT');
   initialized.add(ctx);
 }
 const digest=async value=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value))),b=>b.toString(16).padStart(2,'0')).join('');
@@ -63,6 +65,7 @@ export async function handleProjectLibrary(ctx,env,request){
     const body=part?{owner:request.headers.get('x-library-owner'),projectId:request.headers.get('x-library-project'),conversation:request.headers.get('x-library-conversation')==='true',channel:request.headers.get('x-library-channel'),action:'part',fileId:url.searchParams.get('file'),part:Number(url.searchParams.get('part'))}:await request.json();
     await identity(ctx,body.owner,body.projectId);
     const action=body.action;
+    if(action==='ocr_page')return json({error:'已停止 Sol 预处理。请刷新网页或更新 App；文件会在发送时交给当前模型。'},409);
     const settings=JSON.parse(rows(ctx,'SELECT value FROM library_settings WHERE id=1')[0]?.value||'{}');
     if(body.conversation){
       if(typeof body.channel!=='string'||(body.channel!=='general'&&!idOK(body.channel)))fail('对话文件范围无效');
@@ -72,12 +75,12 @@ export async function handleProjectLibrary(ctx,env,request){
       if(action==='settings'||action==='move_scope'){
         if(action==='settings'){if(!['retrieve','full'].includes(body.mode))fail('阅读方式无效');settings.readingMode=body.mode;}
         else{if(body.targetChannel!=='general'&&!idOK(body.targetChannel))fail('目标范围无效');settings.channel=body.targetChannel;}
-        ctx.storage.sql.exec('UPDATE library_settings SET value=? WHERE id=1',JSON.stringify(settings));return json({ok:true,readingMode:settings.readingMode||'retrieve'});
+        ctx.storage.sql.exec('UPDATE library_settings SET value=? WHERE id=1',JSON.stringify(settings));return json({ok:true,readingMode:settings.readingMode||'full'});
       }
     }
     if(action==='list'){
       const all=rows(ctx,'SELECT meta,state,removed FROM library_files').map(r=>publicFile({...JSON.parse(r.meta),state:r.state,removed:!!r.removed}));
-      return json({files:all.filter(f=>!f.removed&&f.state!=='aborted'),removed:all.filter(f=>f.removed),readingMode:settings.readingMode||'retrieve',retired:rows(ctx,'SELECT meta FROM library_retired').map(r=>JSON.parse(r.meta))});
+      return json({files:all.filter(f=>!f.removed&&f.state!=='aborted'),removed:all.filter(f=>f.removed),readingMode:settings.readingMode||'full',retired:rows(ctx,'SELECT meta FROM library_retired').map(r=>JSON.parse(r.meta))});
     }
     if(action==='reading_get'){const value=JSON.parse(rows(ctx,'SELECT value FROM library_readings WHERE key=?',String(body.key))[0]?.value||'null');return json({value:value&&value.expiresAt>Date.now()?value:null});}
     if(action==='reading_put'){
@@ -102,12 +105,12 @@ export async function handleProjectLibrary(ctx,env,request){
     if(action==='search'){
       const terms=Context.terms(body.query).slice(0,32),query=terms.map(t=>'"'+t.replace(/"/g,'""')+'"').join(' OR ');
       let hits=[];
-      if(query)hits=rows(ctx,"SELECT s.file_id,s.ordinal,s.location,s.text,bm25(library_search) AS score FROM library_search JOIN library_segments s ON s.file_id=library_search.file_id AND s.ordinal=library_search.ordinal JOIN library_files f ON f.id=s.file_id WHERE library_search MATCH ? AND f.state IN ('ready','partial') AND f.removed=0 ORDER BY score LIMIT 12",query);
+      if(query)hits=rows(ctx,"SELECT s.file_id,s.ordinal,s.location,s.text,s.media,bm25(library_search) AS score FROM library_search JOIN library_segments s ON s.file_id=library_search.file_id AND s.ordinal=library_search.ordinal JOIN library_files f ON f.id=s.file_id WHERE library_search MATCH ? AND f.state IN ('ready','partial') AND f.removed=0 ORDER BY score LIMIT 12",query);
       const available=rows(ctx,"SELECT meta FROM library_files WHERE state IN ('ready','partial') AND removed=0").map(r=>JSON.parse(r.meta));
       const queryName=String(body.query||'').toLowerCase(),specific=available.filter(f=>f.relativePath&&queryName.includes(materialName(f).toLowerCase())),relative=available.filter(f=>f.relativePath&&queryName.includes(f.relativePath.toLowerCase())),named=specific.length?specific:relative.length?relative:available.filter(f=>{const name=f.name.toLowerCase(),stem=name.replace(/\.[^.]+$/,'');return queryName.includes(name)||(stem.length>1&&queryName.includes(stem));});
-      for(const f of named.slice(0,3))if(!hits.some(h=>f.id===h.file_id))hits.push(...rows(ctx,'SELECT file_id,ordinal,location,text,0 AS score FROM library_segments WHERE file_id=? ORDER BY '+readingOrder()+' LIMIT 1',f.id));
+      for(const f of named.slice(0,3))if(!hits.some(h=>f.id===h.file_id))hits.push(...rows(ctx,'SELECT file_id,ordinal,location,text,media,0 AS score FROM library_segments WHERE file_id=? ORDER BY '+readingOrder()+' LIMIT 1',f.id));
       const byId=new Map(available.map(f=>[f.id,f]));
-      return json({hits:hits.map(h=>({...h,text:readingText(byId.get(h.file_id),h.location,h.text),file:{id:h.file_id,name:materialName(byId.get(h.file_id)),characters:byId.get(h.file_id)?.characters},score:-h.score+(named.some(f=>f.id===h.file_id)?1000:0)})),available:available.map(f=>({id:f.id,name:materialName(f),characters:f.characters,segments:f.segments}))});
+      return json({hits:hits.map(h=>({...h,text:readingText(byId.get(h.file_id),h.location,h.text),media:h.media?JSON.parse(h.media):undefined,file:{id:h.file_id,name:materialName(byId.get(h.file_id)),characters:byId.get(h.file_id)?.characters},score:-h.score+(named.some(f=>f.id===h.file_id)?1000:0)})),available:available.map(f=>({id:f.id,name:materialName(f),characters:f.characters,segments:f.segments}))});
     }
     if(action==='scope'){
       if(typeof body.scope!=='string'||!/^[a-f0-9]{64}$/.test(body.scope)||!Array.isArray(body.ids)||body.ids.some(id=>!idOK(id)))fail('阅读范围无效');
@@ -118,46 +121,39 @@ export async function handleProjectLibrary(ctx,env,request){
       if(typeof body.scope!=='string'||!/^[a-f0-9]{64}$/.test(body.scope))fail('阅读范围无效');
       const unavailable=rows(ctx,"SELECT COUNT(*) AS n FROM library_scope_files q LEFT JOIN library_files f ON f.id=q.file_id WHERE q.scope=? AND (f.id IS NULL OR NOT "+readableSQL+" OR f.removed!=0)",body.scope)[0].n;
       if(unavailable)fail('阅读期间项目资料发生变化，请重新开始全文阅读',409);
-      const result=rows(ctx,"SELECT s.file_id,s.ordinal,s.location,s.text,f.meta FROM library_segments s JOIN library_files f ON f.id=s.file_id JOIN library_scope_files q ON q.file_id=f.id WHERE q.scope=? AND "+readableSQL+" AND f.removed=0 ORDER BY s.file_id,"+readingOrder('s.')+" LIMIT 16 OFFSET ?",body.scope,offset);
-      const resultRows=[];let chars=0;
-      for(const row of result){const meta=JSON.parse(row.meta),text=readingText(meta,row.location,row.text);if(resultRows.length&&chars+text.length>24000)break;resultRows.push({fileId:row.file_id,name:materialName(meta),ordinal:row.ordinal,location:row.location,text});chars+=text.length;}
+      const result=rows(ctx,"SELECT s.file_id,s.ordinal,s.location,s.text,s.media,f.meta FROM library_segments s JOIN library_files f ON f.id=s.file_id JOIN library_scope_files q ON q.file_id=f.id WHERE q.scope=? AND "+readableSQL+" AND f.removed=0 ORDER BY s.file_id,"+readingOrder('s.')+" LIMIT 16 OFFSET ?",body.scope,offset);
+      const resultRows=[];let chars=0,mediaCount=0,mediaBytes=0;
+      for(const row of result){const meta=JSON.parse(row.meta),text=readingText(meta,row.location,row.text),media=row.media?JSON.parse(row.media):null;if(resultRows.length&&(chars+text.length>24000||media&&(mediaCount>=3||mediaBytes+media.size>3*1024*1024)))break;resultRows.push({fileId:row.file_id,name:materialName(meta),ordinal:row.ordinal,location:row.location,text,...(media?{media}:{})});chars+=text.length;if(media){mediaCount++;mediaBytes+=media.size;}}
       return json({segments:resultRows,next:offset+resultRows.length,done:resultRows.length===0,total:rows(ctx,"SELECT COUNT(*) AS n FROM library_segments s JOIN library_files f ON f.id=s.file_id JOIN library_scope_files q ON q.file_id=f.id WHERE q.scope=?",body.scope)[0].n});
     }
     if(action==='restore_legacy'){ctx.storage.sql.exec('DELETE FROM library_retired WHERE id=?',body.fileId);return json({ok:true});}
     if(action==='purge_conversation'&&body.conversation){
       for(const row of rows(ctx,'SELECT meta,state FROM library_files')){const f=JSON.parse(row.meta);if(f.objectKey)await env.PROJECT_DOCUMENTS.delete(f.objectKey);if(f.uploadId&&!f.originalComplete)await env.PROJECT_DOCUMENTS.resumeMultipartUpload(f.objectKey,f.uploadId).abort().catch(()=>{});}
-      transact(ctx,()=>{for(const table of ['library_search','library_segments','library_pending_segments','library_ocr_pages','library_retired','library_files','library_readings','library_scope_files'])ctx.storage.sql.exec('DELETE FROM '+table);});return json({ok:true});
+      for(const row of rows(ctx,'SELECT meta FROM library_media'))await env.PROJECT_DOCUMENTS.delete(JSON.parse(row.meta).key);
+      transact(ctx,()=>{for(const table of ['library_media','library_search','library_segments','library_pending_segments','library_ocr_pages','library_retired','library_files','library_readings','library_scope_files'])ctx.storage.sql.exec('DELETE FROM '+table);});return json({ok:true});
     }
     const value=file(ctx,body.fileId);
+    if(action==='media'){
+      if(value.removed||!value.originalComplete||value.state!=='indexing')fail('文件当前不能准备原图',409);
+      if(value.pendingGeneration&&body.generation!==value.pendingGeneration)fail('文件准备任务已变化',409);
+      let bytes;try{bytes=mediaInput(body);}catch(e){fail(e.message);}
+      const id=(await digest(body.data+':'+String(body.location||body.page))).slice(0,48),key=value.objectKey+':media:'+id;
+      const media={id,key,size:bytes.length,mime:body.mime,page:body.page,location:location(body.location||('第 '+body.page+' 页'))};
+      if(!rows(ctx,'SELECT id FROM library_media WHERE file_id=? AND id=?',value.id,id).length){await env.PROJECT_DOCUMENTS.put(key,bytes,{httpMetadata:{contentType:body.mime}});ctx.storage.sql.exec('INSERT INTO library_media(file_id,id,meta) VALUES(?,?,?)',value.id,id,JSON.stringify(media));}
+      const {key:privateKey,...publicMedia}=media;return json({kind:'text',text:'',deferred:true,media:publicMedia,warning:''});
+    }
+    if(action==='media_download'){
+      if(value.removed)fail('文件已移除',404);
+      const row=rows(ctx,'SELECT meta FROM library_media WHERE file_id=? AND id=?',value.id,body.mediaId)[0];if(!row)fail('文件原图不存在',404);
+      const meta=JSON.parse(row.meta),object=await env.PROJECT_DOCUMENTS.get(meta.key);if(!object)fail('文件原图暂不可用',404);
+      return new Response(object.body,{headers:{'Content-Type':meta.mime,'Cache-Control':'no-store','Content-Length':String(object.size)}});
+    }
     if(action==='reparse'){
       if(value.removed||!value.originalComplete||(!isDocument(value.name)&&!isImage(value.name)))fail('此资料暂不能继续识别',409);
       if(value.state!=='indexing')value.previousParseState=value.state;
       value.state='indexing';value.pendingGeneration=crypto.randomUUID();
       transact(ctx,()=>{ctx.storage.sql.exec('DELETE FROM library_pending_segments WHERE file_id=?',value.id);save(ctx,value);});
       return json({file:publicFile(value),generation:value.pendingGeneration});
-    }
-    if(action==='ocr_page'){
-      if(value.removed||!value.originalComplete||value.state!=='indexing'||(!isDocument(value.name)&&!isImage(value.name)))fail('文件当前不能进行图文识别',409);
-      if(value.pendingGeneration&&body.generation!==value.pendingGeneration)fail('识别任务已更新，请刷新资料状态',409);
-      if(!Number.isSafeInteger(body.total)||body.total<1||!Number.isSafeInteger(body.page)||body.page<1||body.page>body.total)fail('识别页码无效');
-      const cached=rows(ctx,'SELECT state,result FROM library_ocr_pages WHERE file_id=? AND page=?',value.id,body.page)[0];
-      if(cached?.state==='done'&&!((body.retryUncertain??body.retry)===true&&JSON.parse(cached.result).uncertain)&&!(body.hasNativeText&&JSON.parse(cached.result).kind==='blank'))return json({...JSON.parse(cached.result),cached:true});
-      let jobs=activeOCR.get(ctx);if(!jobs){jobs=new Map();activeOCR.set(ctx,jobs);}
-      const key=value.id+':'+body.page;
-      if(jobs.has(key))return json(await jobs.get(key));
-      if(cached?.state==='running'&&body.retry!==true)fail('上次识别连接已中断；点击“继续识别”后仅重试未完成页',409);
-      ocrPayload(body.page,body.data,body.mime);
-      ctx.storage.sql.exec('INSERT INTO library_ocr_pages(file_id,page,state,result,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(file_id,page) DO UPDATE SET state=excluded.state,result=NULL,updated_at=excluded.updated_at',value.id,body.page,'running',null,Date.now());
-      const job=(async()=>{
-        try{
-          const result=await recognizeProjectPage(env,body.owner,body.conversation?body.channel:body.projectId,body.page,body.data,body.mime,body.hasNativeText===true,body.location);
-          ctx.storage.sql.exec('UPDATE library_ocr_pages SET state=?,result=?,updated_at=? WHERE file_id=? AND page=?','done',JSON.stringify(result),Date.now(),value.id,body.page);
-          return result;
-        }catch(error){
-          ctx.storage.sql.exec('UPDATE library_ocr_pages SET state=?,updated_at=? WHERE file_id=? AND page=?','failed',Date.now(),value.id,body.page);throw error;
-        }finally{jobs.delete(key);}
-      })();
-      jobs.set(key,job);return json(await job);
     }
     if(action==='part'){
       if(value.state!=='uploading'||value.removed)fail('上传会话已结束',409);
@@ -180,16 +176,16 @@ export async function handleProjectLibrary(ctx,env,request){
       if(!value.originalComplete||value.removed||!['indexing','unreadable'].includes(value.state))fail('文件当前不能建立索引',409);
       if(value.pendingGeneration&&body.generation!==value.pendingGeneration)fail('本次识别已被更新的任务替代，请刷新资料状态',409);
       if(!Array.isArray(body.segments)||body.segments.length>32)fail('索引批次无效');
-      let chars=0;for(const s of body.segments){if(!Number.isSafeInteger(s.ordinal)||s.ordinal<0||typeof s.text!=='string'||!s.text.trim()||s.text.length>5000)fail('文件片段无效');chars+=s.text.length;}
+      let chars=0;for(const s of body.segments){if(!Number.isSafeInteger(s.ordinal)||s.ordinal<0||typeof s.text!=='string'||(!s.text.trim()&&!s.media)||s.text.length>5000)fail('文件片段无效');chars+=s.text.length;}
       if(chars>128000)fail('单个索引批次过大');
-      const prepared=await Promise.all(body.segments.map(async s=>({...s,location:location(s.location),digest:await digest(s.text)})));
+      const prepared=await Promise.all(body.segments.map(async s=>{let media=null;if(s.media){const row=rows(ctx,'SELECT meta FROM library_media WHERE file_id=? AND id=?',value.id,s.media.id)[0];if(!row)fail('文件原图引用无效');const {key,...meta}=JSON.parse(row.meta);media=meta;}return {...s,media:media?JSON.stringify(media):null,location:location(s.location),digest:await digest(s.text+(media?JSON.stringify(media):''))};}));
       const table=value.pendingGeneration?'library_pending_segments':'library_segments';
       transact(ctx,()=>{for(const s of prepared){
         const prior=rows(ctx,'SELECT digest FROM '+table+' WHERE file_id=? AND ordinal=?',value.id,s.ordinal)[0];
         if(prior){if(prior.digest!==s.digest)fail('相同位置的文件片段不一致，请重新上传',409);continue;}
-        if(value.pendingGeneration)ctx.storage.sql.exec('INSERT INTO library_pending_segments(file_id,ordinal,location,text,digest,words) VALUES(?,?,?,?,?,?)',value.id,s.ordinal,s.location,s.text,s.digest,Context.terms(s.text).join(' '));
+        if(value.pendingGeneration)ctx.storage.sql.exec('INSERT INTO library_pending_segments(file_id,ordinal,location,text,digest,words,media) VALUES(?,?,?,?,?,?,?)',value.id,s.ordinal,s.location,s.text,s.digest,Context.terms(s.text).join(' '),s.media);
         else{
-          ctx.storage.sql.exec('INSERT INTO library_segments(file_id,ordinal,location,text,digest) VALUES(?,?,?,?,?)',value.id,s.ordinal,s.location,s.text,s.digest);
+          ctx.storage.sql.exec('INSERT INTO library_segments(file_id,ordinal,location,text,digest,media) VALUES(?,?,?,?,?,?)',value.id,s.ordinal,s.location,s.text,s.digest,s.media);
           ctx.storage.sql.exec('INSERT INTO library_search(words,file_id,ordinal) VALUES(?,?,?)',Context.terms(s.text).join(' '),value.id,s.ordinal);
         }
       }});return json({ok:true});
@@ -204,12 +200,12 @@ export async function handleProjectLibrary(ctx,env,request){
       if(coverage&&(!Number.isSafeInteger(coverage.units)||!Number.isSafeInteger(coverage.emptyUnits)||coverage.emptyUnits<0||coverage.emptyUnits>coverage.units))fail('解析覆盖范围无效');
       if(coverage&&['uncertainUnits','ocrPages','blankUnits','nativeEmptyUnits'].some(key=>coverage[key]!==undefined&&(!Number.isSafeInteger(coverage[key])||coverage[key]<0||coverage[key]>coverage.units)))fail('识别覆盖范围无效');
       const ocrCount=rows(ctx,"SELECT COUNT(*) AS n FROM library_ocr_pages WHERE file_id=? AND state='done'",value.id)[0].n;
-      value.coverage=coverage||null;value.state=coverage?.emptyUnits>0||coverage?.uncertainUnits>0?'partial':'ready';value.characters=stats.chars;value.segments=stats.n;value.indexedAt=Math.max(Date.now(),Number(value.indexedAt||0)+1);if(ocrCount){value.ocrModel=OCR_MODEL;value.ocrPages=ocrCount;}delete value.parseError;delete value.previousParseState;
+      value.coverage=coverage||null;value.state=coverage?.emptyUnits>0||coverage?.uncertainUnits>0?'partial':'ready';value.characters=stats.chars;value.segments=stats.n;value.indexedAt=Math.max(Date.now(),Number(value.indexedAt||0)+1);if(coverage?.sourceVersion===DOCUMENT_DELIVERY_VERSION){delete value.ocrModel;delete value.ocrPages;}else if(ocrCount){value.ocrModel=OCR_MODEL;value.ocrPages=ocrCount;}delete value.parseError;delete value.previousParseState;
       transact(ctx,()=>{
         if(value.pendingGeneration){
           ctx.storage.sql.exec('DELETE FROM library_search WHERE file_id=?',value.id);
           ctx.storage.sql.exec('DELETE FROM library_segments WHERE file_id=?',value.id);
-          ctx.storage.sql.exec('INSERT INTO library_segments(file_id,ordinal,location,text,digest) SELECT file_id,ordinal,location,text,digest FROM library_pending_segments WHERE file_id=?',value.id);
+          ctx.storage.sql.exec('INSERT INTO library_segments(file_id,ordinal,location,text,digest,media) SELECT file_id,ordinal,location,text,digest,media FROM library_pending_segments WHERE file_id=?',value.id);
           ctx.storage.sql.exec('INSERT INTO library_search(words,file_id,ordinal) SELECT words,file_id,ordinal FROM library_pending_segments WHERE file_id=?',value.id);
           ctx.storage.sql.exec('DELETE FROM library_pending_segments WHERE file_id=?',value.id);
           value.indexGeneration=value.pendingGeneration;delete value.pendingGeneration;
@@ -252,6 +248,6 @@ export async function projectLibrary(env,owner,projectId,action,extra={}){
   const actor=env.CHAT_RUNS.get(env.CHAT_RUNS.idFromName('project-library:'+owner+':'+projectId));
   const response=await actor.fetch(new Request('https://project-library.internal/__library',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...extra,owner,projectId,action})}));
   if(!response.ok){const data=await response.json().catch(()=>({}));throw Object.assign(Error(data.error||'项目资料操作失败'),{status:response.status});}
-  if(action==='download')return response;
+  if(['download','media_download'].includes(action))return response;
   return response.json();
 }

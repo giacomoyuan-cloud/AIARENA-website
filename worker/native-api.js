@@ -2,7 +2,7 @@ import { accountDeleted } from './account-access.js';
 // Native clients share the website's account identities and business handlers.
 // Tokens are opaque, revocable and have no automatic expiry. Passwords stay off-device after login.
 const sessions = 'native-session:';
-const allowedPaths = new Set(['/', '/chats', '/projects', '/schedules', '/system-prompt', '/account', '/skills', '/memory', '/usage', '/skill-files', '/chat-runs', '/debate-runs', '/pricing', '/skill-catalog','/project-original']);
+const allowedPaths = new Set(['/', '/chats', '/projects', '/schedules', '/system-prompt', '/account', '/skills', '/memory', '/usage', '/skill-files', '/chat-runs', '/debate-runs', '/pricing', '/skill-catalog','/project-original','/conversation-files','/conversation-original']);
 const allowedGet = new Set(['/skills', '/memory', '/pricing', '/skill-catalog']);
 const reply = (body, status = 200) => Response.json(body, {status, headers: {'Cache-Control':'no-store','Access-Control-Allow-Origin':'*'}});
 const fault = (message, status) => Object.assign(new Error(message), {status});
@@ -55,10 +55,10 @@ export async function handleNativeRequest(request, env, context) {
       return reply({ok:true});
     }
     const account = await identity(request, env, context);
-    if(route==='/native/project-upload'&&request.method==='PUT'){
-      const projectId=url.searchParams.get('project');await context.ownedProject(env,account.accountId,projectId);
-      const destination=new URL('/project-upload','https://api.pickandcase.com');
-      for(const key of ['project','file','part'])destination.searchParams.set(key,url.searchParams.get(key)||'');
+    if(['/native/project-upload','/native/conversation-upload'].includes(route)&&request.method==='PUT'){
+      const projectId=url.searchParams.get('project');if(projectId)await context.ownedProject(env,account.accountId,projectId);
+      const destination=new URL(route==='/native/conversation-upload'?'/conversation-upload':'/project-upload','https://api.pickandcase.com');
+      for(const key of ['project','chat','file','part'])destination.searchParams.set(key,url.searchParams.get(key)||'');
       const internalAuth=btoa(String.fromCharCode(...new TextEncoder().encode(JSON.stringify({user:account.accountId,password:account.record.hash}))));
       const headers=new Headers({'Authorization':'Bearer '+internalAuth,'Content-Type':'application/octet-stream'});
       if(request.headers.has('Content-Length'))headers.set('Content-Length',request.headers.get('Content-Length'));
