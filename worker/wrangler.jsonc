@@ -4,14 +4,66 @@
   "main": "worker.js",
   "compatibility_date": "2026-02-28",
   "keep_vars": true,
-  "durable_objects": { "bindings": [{ "name": "CHAT_RUNS", "class_name": "ChatRun" }, { "name": "PROJECT_SCHEDULES", "class_name": "ProjectScheduler" }] },
-  "migrations": [{ "tag": "chat-runs-v1", "new_sqlite_classes": ["ChatRun"] }, { "tag": "project-schedules-v1", "new_sqlite_classes": ["ProjectScheduler"] }],
-  "workers_dev": true,
-  "placement": { "region": "aws:us-east-1" },
-  "routes": [{ "pattern": "api.pickandcase.com", "custom_domain": true }],
-  "kv_namespaces": [
-    { "binding": "BIZ_KV", "id": "e1932cff9d0440eb9453164653340d2f" },
-    { "binding": "MEMORY_KV", "id": "fa145a4180c4458593fc85f347c1bb2a" }
+  "vars": {
+    "NATIVE_OWNER_ACCOUNT": "oakleyyuen"
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "CHAT_RUNS",
+        "class_name": "ChatRun"
+      },
+      {
+        "name": "PROJECT_SCHEDULES",
+        "class_name": "ProjectScheduler"
+      },
+      {
+        "name": "NATIVE_ACCOUNTS",
+        "class_name": "NativeAccountRegistry"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "chat-runs-v1",
+      "new_sqlite_classes": [
+        "ChatRun"
+      ]
+    },
+    {
+      "tag": "project-schedules-v1",
+      "new_sqlite_classes": [
+        "ProjectScheduler"
+      ]
+    },
+    {
+      "tag": "native-accounts-v1",
+      "new_sqlite_classes": [
+        "NativeAccountRegistry"
+      ]
+    }
   ],
-  "observability": { "enabled": true }
+  "workers_dev": true,
+  "placement": {
+    "region": "aws:us-east-1"
+  },
+  "routes": [
+    {
+      "pattern": "api.pickandcase.com",
+      "custom_domain": true
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "BIZ_KV",
+      "id": "e1932cff9d0440eb9453164653340d2f"
+    },
+    {
+      "binding": "MEMORY_KV",
+      "id": "fa145a4180c4458593fc85f347c1bb2a"
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
 }

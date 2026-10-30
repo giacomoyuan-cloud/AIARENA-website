@@ -11,6 +11,8 @@ import DebateCore from '../arena-debate.js';
 import SkillModels from '../arena-skill-models.js';
 import ChatMode from '../arena-chat-mode.js';
 import { isDocument } from '../web/file-types.mjs';
+import { handleNativeRequest, NativeAccountRegistry } from './native-api.js';
+import ImageCore from '../arena-image.js';
 var __defProp = Object.defineProperty;
 var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
 
@@ -613,11 +615,12 @@ var worker_default = {
         headers: {
           "Access-Control-Allow-Origin": "*",
           "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
-          "Access-Control-Allow-Headers": "Content-Type"
+          "Access-Control-Allow-Headers": "Content-Type, Authorization"
         }
       });
     }
     const url = new URL(request.url);
+    if(url.pathname.startsWith('/native/'))return handleNativeRequest(request,env,{storageAccountName,accountProfile,publicAccountName,validLoginName,hashText,ownedProject,chatStoragePrefix,validResourceId,models:OFFICIAL_MODELS,efforts:MODEL_EFFORT_LEVELS,skillCatalog,skillModels:SkillModels.names,defaultSkillModel:SkillModels.defaultModel,imageCore:ImageCore,debateCore:DebateCore,ownerAccountId:env.NATIVE_OWNER_ACCOUNT||'',forward:inner=>worker_default.fetch(inner,env)});
     if (url.pathname === '/skill-files' && request.method === 'POST') return handleSkillFileRequest(request,env);
     if (url.pathname === '/skill-catalog' && request.method === 'GET') return projectReply({version:'20261030-skills1',skills:skillCatalog.map(({instructions,...skill})=>skill)});
     if (url.pathname === '/debate-runs' && request.method === 'POST') return handleDebateRunRequest(request, env);
@@ -818,7 +821,7 @@ var worker_default = {
         return new Response("Invalid JSON", { status: 400 });
       }
       const { adminKey, username, password: password2 } = body2;
-      if (adminKey !== env.ADMIN_KEY) return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
+      if (!env.ADMIN_KEY || adminKey !== env.ADMIN_KEY) return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
       if (!username || !password2 || password2.length < 8) return new Response(JSON.stringify({ error: "username and password (8+ chars) required" }), { status: 400, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
       if(!validLoginName(username.trim()))return projectReply({error:"Invalid login name"},400);
       const reservedOwner=await storageAccountName(username,env);
@@ -1736,4 +1739,4 @@ const ProjectScheduler = createProjectScheduler({execute:executeRun,project:owne
   if(!record?.hash)throw new Error('账号已不可用');
   return {user,username:user,password:record.hash};
 }});
-export { worker_default as default, ChatRun, ProjectScheduler };
+export { NativeAccountRegistry, worker_default as default, ChatRun, ProjectScheduler };
