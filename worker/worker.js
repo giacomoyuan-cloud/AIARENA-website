@@ -7,6 +7,7 @@ import { validateSkillFiles, serveSkillFile, runOfficialDocuments, rescopeSkillA
 import { createDebateRunClass } from './debate-runs.js';
 import { OpenAITransport, openAIBackgroundFetch } from './openai-transport.js';
 import { createProjectScheduler } from './project-schedules.js';
+import { createScheduledChatClient } from './scheduled-chat.js';
 import { isOpenAIImage, validateOpenAIImage, buildImagePayload, readImageStream, IMAGE_ORCHESTRATOR } from './openai-images.js';
 import DebateCore from '../arena-debate.js';
 import SkillModels from '../arena-skill-models.js';
@@ -1896,9 +1897,10 @@ const ChatRun = createChatRunClass(executeRun, DebateRun, {
     if(id)await cancelGoogleInteraction(id,env);
   }
 });
-const ProjectScheduler = createProjectScheduler({execute:executeRun,project:ownedProject,efforts:MODEL_EFFORT_LEVELS,models:Object.keys(OFFICIAL_MODELS).filter(id=>!OFFICIAL_MODELS[id].image),credentials:async(env,user)=>{
+const scheduledChats = createScheduledChatClient({models:OFFICIAL_MODELS,credentials:async(env,user)=>{
   const record=JSON.parse(await env.MEMORY_KV.get('user:'+user)||'null');
   if(!record?.hash)throw new Error('账号已不可用');
   return {user,username:user,password:record.hash};
 }});
+const ProjectScheduler = createProjectScheduler({runs:scheduledChats,project:ownedProject,efforts:MODEL_EFFORT_LEVELS,models:Object.keys(OFFICIAL_MODELS).filter(id=>!OFFICIAL_MODELS[id].image)});
 export { NativeAccountRegistry, worker_default as default, ChatRun, ProjectScheduler };

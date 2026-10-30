@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>AI 助手</title>
-<meta name="app-version" content="20261030-deepaudit3">
+<meta name="app-version" content="20261030-schedulejournal1">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1282,7 +1282,7 @@
 <script src="/arena-project-files.js?v=20261030-deepaudit4"></script>
 <script src="/arena-workspace.js?v=20261030-deepaudit4"></script>
 <script src="/arena-project-state.js?v=20261030-projectactions2"></script>
-<script src="/arena-project-page.js?v=20261030-deepaudit4"></script>
+<script src="/arena-project-page.js?v=20261030-schedulejournal1"></script>
 <script src="/arena-account.js?v=20261027-account2"></script>
 <script src="/arena-pet-catalog.js?v=20261029-petcycle1"></script>
 <script src="/arena-pet.js?v=20261029-petnoghost1"></script>
@@ -6664,6 +6664,11 @@ if(imageMode){
     scheduleApi:async function(action,extra){
       var payload=Object.assign({action:action,username:loginName($('aaUsername').value),password:getPass()},extra||{});
       var response=await fetch(WORKER+'/schedules',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}),data=await response.json();if(!response.ok)throw Error(data.error||'任务请求失败');return data;
+    },
+    scheduleLog:async function(extra){
+      var payload=Object.assign({action:'events',username:loginName($('aaUsername').value),password:getPass()},extra);
+      var response=await fetch(WORKER+'/schedules',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+      if(!response.ok){var data=await response.json();throw Error(data.error||'日志读取失败');}return response.text();
     },
     models:function(){return AVAILABLE_CHAT_MODELS.map(function(id){return {id:id,name:SUBS[id].name};});},currentModel:function(){return getActiveSubmodels()[0];},syncLayout:syncArenaLayout,
     flushChat:async function(){var saved=await flushScopeChat(true);if(!saved?.ok)throw Error(saved?.error||'当前对话保存失败，请重试');},
