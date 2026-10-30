@@ -1271,8 +1271,8 @@
 <script src="/arena-chat-mode.js?v=20261030-historymodes2"></script>
 <script src="/arena-skills-catalog.js?v=20261030-skills1"></script>
 <script src="/arena-skill-models.js?v=20261030-skillmodels1"></script>
-<script src="/arena-files.js?v=20261030-filezip1"></script>
-<script src="/arena-skills.js?v=20261030-deepaudit1"></script>
+<script src="/arena-files.js?v=20261030-upload20m1"></script>
+<script src="/arena-skills.js?v=20261030-upload20m1"></script>
 <script src="/arena-chat-runs.js?v=20261029-typingclock1"></script>
 <script src="/arena-controls.js?v=20261029-debateresume1"></script>
 <script src="/arena-model-control.js?v=20261030-imagesliders1"></script>
@@ -2586,8 +2586,8 @@ var TEAM_COLORS = {
       for(var i=0;i<files.length;i++){
         if(context!==fileImportContext())break;
         var source=files[i],originals=skillsRuntime.filesForTexts(sentTexts);
-        if(!ArenaFiles.isImage(source.name)&&(originals.length>=5||originals.reduce(function(n,f){return n+f.size;},0)+source.size>16*1024*1024)){
-          skipped.push({name:source.name,reason:'每轮最多 5 个文件或 ZIP，原文件合计不超过 16MB'});continue;
+        if(!ArenaFiles.isImage(source.name)&&(originals.length>=5||originals.reduce(function(n,f){return n+f.size;},0)+source.size>ArenaFiles.LIMITS.roundBytes)){
+          skipped.push({name:source.name,reason:'每轮最多 5 个文件或 ZIP，原文件合计不超过 20MB'});continue;
         }
         if(originals.some(function(f){return f.name===source.name;})){skipped.push({name:source.name,reason:'已添加同名附件，请先移除旧附件'});continue;}
         try{
