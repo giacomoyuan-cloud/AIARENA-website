@@ -5,9 +5,10 @@ export class ReadingPaused extends Error {constructor(progress){super('全文阅
 // Intermediate summaries, rather than every source page, reach the final reply.
 export async function readProject({files,question,history,context,model,scope,library,batchLegacy,complete,progress,signal,incognito,budget=24}){
   if(!files.length)return {text:'项目暂未上传资料。',files:[],fragments:0,mode:'full',coverage:{done:0,total:0,complete:true},usage:[]};
-  const invalid=files.filter(f=>f.storage==='r2'&&f.status!=='ready');
+  const warningFiles=files.filter(f=>f.storage==='r2'&&f.status==='partial'&&f.coverage?.emptyUnits===0&&f.coverage?.uncertainUnits>0);
+  const invalid=files.filter(f=>f.storage==='r2'&&f.status!=='ready'&&!warningFiles.includes(f));
   if(invalid.length)throw Error('尚不能全文阅读：'+invalid.map(f=>f.name+'（'+(f.status==='partial'?'有页面未识别到文字，需先 OCR':f.status==='uploading'?'原文件未上传完成':'索引未完成或解析失败')+'）').join('、'));
-  const revision=await hash(JSON.stringify(files.map(f=>[f.id,f.indexedAt||f.createdAt,f.characters,f.segments,f.chunks]).sort((a,b)=>a[0].localeCompare(b[0]))));
+  const revision=await hash(JSON.stringify(files.map(f=>[f.id,f.indexedAt||f.createdAt,f.characters,f.segments,f.chunks,...(warningFiles.includes(f)?[f.coverage.uncertainUnits,f.coverage.warnings]:[])]).sort((a,b)=>a[0].localeCompare(b[0]))));
   const key=await hash(JSON.stringify([revision,question,history,context,model,scope]));
   const native=files.filter(f=>f.storage==='r2'),legacy=files.filter(f=>f.storage!=='r2');
   const sourceNames=new Map(files.map(f=>[f.id,materialName(f)]));
@@ -45,8 +46,10 @@ export async function readProject({files,question,history,context,model,scope,li
     if(next.join('\n\n').length>=current.join('\n\n').length)throw Error('全文阅读笔记未能压缩，进度已保存，请改用更具体的问题后重试');
     current=next;level++;
   }
-  const coverage={done,total,complete:true};await progress({mode:'full',...coverage,label:'已分批读入全文 · '+files.length+' 份资料 · '+done+' 个片段'});
-  return {text:current.join('\n\n'),files:files.map(f=>({id:f.id,name:materialName(f)})),fragments:done,mode:'full',coverage,usage};
+  const recognitionWarnings=warningFiles.map(f=>({file:materialName(f),pages:f.coverage.uncertainUnits})),coverage={done,total,complete:true,...(recognitionWarnings.length?{recognitionWarnings}:{})};
+  await progress({mode:'full',...coverage,label:(warningFiles.length?'已读入全部识别文字':'已分批读入全文')+' · '+files.length+' 份资料 · '+done+' 个片段'+(warningFiles.length?' · 保留不清晰内容提示':'')});
+  const notice=warningFiles.length?'【识别情况】全部页面已经处理，但以下资料有局部不清晰文字：'+JSON.stringify(recognitionWarnings)+'。下文保留识别提示；这些局部不得当作已确认事实，也不得自行补全。\n\n':'';
+  return {text:notice+current.join('\n\n'),files:files.map(f=>({id:f.id,name:materialName(f)})),fragments:done,mode:'full',coverage,usage};
 }
 
 export async function consumeReadingStream(response,onUsage){
