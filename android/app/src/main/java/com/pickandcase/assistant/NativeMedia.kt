@@ -8,7 +8,6 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffXfermode
-import android.speech.RecognizerIntent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
@@ -110,35 +109,6 @@ fun NativeExportHost(vm: AssistantViewModel) {
     }
 }
 
-@Composable
-fun VoiceButton(vm: AssistantViewModel) {
-    val voice =
-        rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result
-            ->
-            if (result.resultCode == Activity.RESULT_OK)
-                result.data
-                    ?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
-                    ?.firstOrNull()
-                    ?.let { text -> vm.draft((vm.state.value.draft + " " + text).trim()) }
-        }
-    IconButton(
-        onClick = {
-            runCatching {
-                    voice.launch(
-                        Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
-                            .putExtra(
-                                RecognizerIntent.EXTRA_LANGUAGE_MODEL,
-                                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM,
-                            )
-                            .putExtra(RecognizerIntent.EXTRA_PROMPT, "说出你的问题")
-                    )
-                }
-                .onFailure { vm.notice("当前设备未安装语音识别服务，可使用键盘语音输入") }
-        }
-    ) {
-        Icon(Icons.Outlined.Mic, "语音输入")
-    }
-}
 
 @Composable
 fun NativeImageViewer(path: String, onDismiss: () -> Unit) {

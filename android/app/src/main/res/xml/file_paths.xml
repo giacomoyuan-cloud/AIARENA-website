@@ -1,2 +1,3 @@
 <?xml version="1.0" encoding="utf-8"?>
-<paths><cache-path name="shared_images" path="shared-images/" /><files-path name="attachments" path="attachments/" /></paths>
+<paths><cache-path name="shared_images" path="shared-images/" /><files-path name="attachments" path="attachments/" />    <files-path name="app_updates" path="updates/" />
+</paths>

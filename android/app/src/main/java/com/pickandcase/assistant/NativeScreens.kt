@@ -45,6 +45,7 @@ import java.time.LocalTime
 import java.time.ZoneId
 import java.util.UUID
 import org.json.JSONArray
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.json.JSONObject
 
 @Composable
@@ -115,6 +116,7 @@ fun dateLabel(value: Any?): String =
 
 @Composable
 fun SettingsScreen(s: AssistantState, vm: AssistantViewModel, onLogout: () -> Unit) {
+    val update by vm.updates.state.collectAsStateWithLifecycle()
     var licenses by remember { mutableStateOf(false) }
     val context = LocalContext.current
     if (licenses) {
@@ -150,6 +152,7 @@ fun SettingsScreen(s: AssistantState, vm: AssistantViewModel, onLogout: () -> Un
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         OutlinedCard {
+            SettingRow("应用更新", Icons.Outlined.SystemUpdate, subtitle = if (update.release != null) "新版本 " + update.release!!.version else "当前版本 " + BuildConfig.VERSION_NAME, tag = "settings-update") { vm.updates.check() }
             SettingRow("账号设置", Icons.Outlined.Person, subtitle = "显示名、头像、登录名与密码") {
                 vm.navigate(Page.ACCOUNT)
             }
@@ -1009,6 +1012,27 @@ fun TasksScreen(s: AssistantState, vm: AssistantViewModel) {
     var editing by remember { mutableStateOf<JSONObject?>(null) }
     var create by remember { mutableStateOf(false) }
     var history by remember { mutableStateOf<JSONObject?>(null) }
+    var historyRuns by remember { mutableStateOf(emptyList<JSONObject>()) }
+    var historyNext by remember { mutableStateOf<String?>(null) }
+    var historyError by remember { mutableStateOf("") }
+    var historyEpoch by remember { mutableIntStateOf(0) }
+    var historyLoading by remember { mutableStateOf(false) }
+    var replay by remember { mutableStateOf<JSONObject?>(null) }
+    var replayJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+    DisposableEffect(Unit) { onDispose { replayJob?.cancel() } }
+    fun loadHistory(task: JSONObject, after: String? = null) {
+        historyLoading = true
+        historyError = ""
+        val epoch=historyEpoch
+        vm.taskHistory(task, after) { result ->
+            if (epoch!=historyEpoch || history?.str("id")!=task.str("id")) return@taskHistory
+            historyLoading = false
+            if (result != null) {
+                historyRuns = (if (after == null) emptyList() else historyRuns) + result.arr("runs").objects()
+                historyNext = result.str("next").ifBlank { null }
+            } else historyError=vm.state.value.error.ifBlank { "读取执行记录失败，请重试" }
+        }
+    }
     var deleting by remember { mutableStateOf<JSONObject?>(null) }
     LazyColumn(
         Modifier.fillMaxSize(),
@@ -1025,7 +1049,8 @@ fun TasksScreen(s: AssistantState, vm: AssistantViewModel) {
             }
         }
         items(s.data.arr("tasks").objects(), key = { it.str("id") }) { task ->
-            OutlinedCard {
+            val active=task.str("status")=="running"||task.optBoolean("queued")
+            OutlinedCard(Modifier.testTag("task-card-"+task.str("id"))) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
@@ -1036,6 +1061,7 @@ fun TasksScreen(s: AssistantState, vm: AssistantViewModel) {
                         Switch(
                             task.optBoolean("enabled"),
                             { enabled -> vm.taskAction("toggle", task, json("enabled" to enabled)) },
+                            enabled=!active,
                         )
                     }
                     Text(task.str("prompt"), maxLines = 3)
@@ -1057,10 +1083,11 @@ fun TasksScreen(s: AssistantState, vm: AssistantViewModel) {
                             style = MaterialTheme.typography.bodySmall,
                         )
                     FlowRow {
-                        TextButton(onClick = { editing = task }) { Text("编辑") }
-                        TextButton(onClick = { vm.taskAction("run", task) }) { Text("立即执行") }
-                        TextButton(onClick = { history = task }) { Text("执行记录") }
-                        TextButton(onClick = { deleting = task }) { Text("删除") }
+                        TextButton(onClick = { editing = task },enabled=!active) { Text("编辑") }
+                        TextButton(onClick = { vm.taskAction("run", task) },enabled=!active) { Text("立即执行") }
+                        if (task.str("status") == "running") TextButton(onClick = { vm.taskAction("stop", task) }) { Text("停止本次执行") }
+                        TextButton(onClick = { historyEpoch++; history = task; historyRuns = emptyList(); historyNext = null; loadHistory(task) }) { Text("执行记录") }
+                        TextButton(onClick = { deleting = task },enabled=!active) { Text("删除") }
                     }
                 }
             }
@@ -1094,30 +1121,51 @@ fun TasksScreen(s: AssistantState, vm: AssistantViewModel) {
                 editing = null
             },
         )
-    if (history != null)
+    if (history != null && replay == null)
         AlertDialog(
-            onDismissRequest = { history = null },
+            onDismissRequest = { historyEpoch++;history = null },
             title = { Text("执行记录") },
             text = {
-                Column(Modifier.verticalScroll(rememberScrollState())) {
-                    history!!.arr("history").objects().forEach { run ->
-                        TextButton(
-                            onClick = {
-                                vm.openTaskChat(history!!, run.str("chatId"))
-                                history = null
-                            }
-                        ) {
-                            Column {
+                Column(Modifier.heightIn(max=480.dp).verticalScroll(rememberScrollState())) {
+                    historyRuns.forEach { run ->
+                        TextButton(onClick = {
+                            if (run.str("runId").isNotBlank() && !run.optBoolean("legacy")) {
+                                replayJob?.cancel(); replay = JSONObject()
+                                replayJob = vm.observeTaskRun(history!!,run) { replay = it }
+                            } else { vm.openTaskChat(history!!,run.str("chatId")); history = null }
+                        }) {
+                            Column(Modifier.fillMaxWidth()) {
                                 Text(dateLabel(run.opt("at")))
-                                Text(run.str("status"), style = MaterialTheme.typography.bodySmall)
+                                Text(taskStatus(run.str("status")), style=MaterialTheme.typography.bodySmall)
+                                if (run.str("error").isNotBlank()) Text(run.str("error"),style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.error)
                             }
                         }
                     }
+                    if (historyLoading) CircularProgressIndicator(Modifier.size(24.dp))
+                    if (!historyLoading && historyRuns.isEmpty() && historyError.isBlank()) Text("还没有执行记录")
+                    if (historyError.isNotBlank()) { Text(historyError,color=MaterialTheme.colorScheme.error);TextButton(onClick={loadHistory(history!!,if(historyRuns.isEmpty())null else historyNext)}){Text("重试")} }
+                    if (historyNext != null) TextButton(onClick={loadHistory(history!!,historyNext)},enabled=!historyLoading) {Text("加载更早的记录")}
                 }
             },
             confirmButton = { TextButton(onClick = { history = null }) { Text("关闭") } },
         )
+    if (replay != null) {
+        val clipboard=androidx.compose.ui.platform.LocalClipboardManager.current
+        AlertDialog(
+            onDismissRequest={replayJob?.cancel();replay=null},
+            title={Text("任务执行日志")},
+            text={Column(Modifier.heightIn(max=480.dp).verticalScroll(rememberScrollState())) {
+                if(replay!!.length()==0) CircularProgressIndicator(Modifier.size(24.dp))
+                else if(replay!!.has("error")) Text(replay!!.str("error"),color=MaterialTheme.colorScheme.error)
+                else { Text(taskStatus(replay!!.str("status")),style=MaterialTheme.typography.labelMedium);Markdown(replay!!.obj("reply").str("text").ifBlank {"等待任务输出…"}) }
+            }},
+            confirmButton={TextButton(onClick={replayJob?.cancel();replay=null}){Text("关闭")}},
+            dismissButton={TextButton(onClick={clipboard.setText(androidx.compose.ui.text.AnnotatedString(replay!!.obj("reply").str("text")));vm.notice("内容已复制")},enabled=replay!!.obj("reply").str("text").isNotBlank()){Text("复制内容")}}
+        )
+    }
 }
+
+private fun taskStatus(value:String)=when(value) {"running"->"执行中";"completed"->"已完成";"failed"->"执行失败";"cancelled","stopped"->"已停止";else->value}
 
 @Composable
 private fun TaskEditor(
@@ -1128,7 +1176,7 @@ private fun TaskEditor(
 ) {
     var name by rememberSaveable { mutableStateOf(task?.str("name").orEmpty()) }
     var prompt by rememberSaveable { mutableStateOf(task?.str("prompt").orEmpty()) }
-    var model by rememberSaveable { mutableStateOf(task?.str("model") ?: "gpt-6.1-sol") }
+    var model by rememberSaveable { mutableStateOf(vm.clientContract.chat(task?.str("model") ?: s.model)) }
     var frequency by rememberSaveable {
         mutableStateOf(task?.obj("schedule")?.str("frequency") ?: "daily")
     }
@@ -1158,10 +1206,10 @@ private fun TaskEditor(
             originalOnce?.toLocalDate()?.toString() ?: LocalDate.now().plusDays(1).toString()
         )
     }
-    var search by rememberSaveable { mutableStateOf(task?.optBoolean("search") ?: false) }
+    var search by rememberSaveable { mutableStateOf(task?.optBoolean("search") ?: s.search) }
     val id = remember { task?.str("id") ?: UUID.randomUUID().toString() }
     var effort by rememberSaveable {
-        mutableStateOf(task?.str("effort")?.ifBlank { null } ?: vm.savedEffort(model))
+        mutableStateOf(vm.clientContract.effort(model, task?.str("effort")?.ifBlank { null } ?: vm.savedEffort(model)))
     }
     val context = LocalContext.current
     ModalBottomSheet(onDismissRequest = onDismiss) {

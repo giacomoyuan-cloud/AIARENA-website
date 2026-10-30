@@ -2,9 +2,9 @@
   "name": "ai-assistant-web",
   "private": true,
   "scripts": {
-    "build": "node scripts/build-skills.mjs && esbuild web/arena-effort.mjs --bundle --minify --format=iife --target=es2020 --outfile=arena-effort.js --legal-comments=linked && esbuild web/arena-files.mjs --bundle --minify --format=iife --target=es2020 --outfile=arena-files.js --legal-comments=inline && node scripts/stage-site.mjs",
+    "build": "node scripts/build-native-contract.mjs && node scripts/build-skills.mjs && esbuild web/arena-effort.mjs --bundle --minify --format=iife --target=es2020 --outfile=arena-effort.js --legal-comments=linked && esbuild web/arena-files.mjs --bundle --minify --format=iife --target=es2020 --outfile=arena-files.js --legal-comments=inline && node scripts/stage-site.mjs",
     "test": "node --test *.test.cjs web/*.test.mjs",
-    "test:offline": "node worker/sync-shared-context.mjs --check && node --import ./scripts/offline-network-guard.mjs --test worker/*.test.mjs *.test.cjs web/*.test.mjs"
+    "test:offline": "node scripts/build-native-contract.mjs --check && node worker/sync-shared-context.mjs --check && node --import ./scripts/offline-network-guard.mjs --test worker/*.test.mjs *.test.cjs web/*.test.mjs"
   },
   "dependencies": {
     "jszip": "3.10.1",

@@ -1,0 +1,129 @@
+{
+  "schemaVersion": 1,
+  "source": "index.html",
+  "defaultModel": "grok-4.7",
+  "defaultImageModel": "gemini-nano-banana-2.1",
+  "searchDefault": true,
+  "voiceInput": false,
+  "modeNavigation": "drawer",
+  "chatModels": [
+    {
+      "id": "claude-fable-5-1",
+      "name": "Claude Fable 5.1",
+      "provider": "anthropic",
+      "levels": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "defaultEffort": "high"
+    },
+    {
+      "id": "claude-opus-5-5",
+      "name": "Claude Opus 5.5",
+      "provider": "anthropic",
+      "levels": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "defaultEffort": "medium"
+    },
+    {
+      "id": "claude-sonnet-5-5",
+      "name": "Claude Sonnet 5.5",
+      "provider": "anthropic",
+      "levels": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "defaultEffort": "high"
+    },
+    {
+      "id": "grok-4.7",
+      "name": "Grok 4.7",
+      "provider": "xai",
+      "levels": [
+        "low",
+        "medium",
+        "high",
+        "xhigh"
+      ],
+      "defaultEffort": "high"
+    },
+    {
+      "id": "gemini-4-argon",
+      "name": "Gemini 4",
+      "provider": "google",
+      "levels": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "defaultEffort": "medium"
+    },
+    {
+      "id": "gpt-6-astra",
+      "name": "GPT-6 Astra",
+      "provider": "openai",
+      "levels": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "defaultEffort": "medium"
+    },
+    {
+      "id": "gpt-6.1-sol",
+      "name": "GPT-6.1 Sol",
+      "provider": "openai",
+      "levels": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "defaultEffort": "medium"
+    }
+  ],
+  "imageModels": [
+    {
+      "id": "grok-imagine-image-2.0",
+      "name": "Grok Image 2.0",
+      "provider": "xai",
+      "image": true,
+      "levels": []
+    },
+    {
+      "id": "gemini-nano-banana-2.1",
+      "name": "Nano Banana 2.1",
+      "provider": "google",
+      "image": true,
+      "levels": []
+    },
+    {
+      "id": "gpt-image-2.5-sunburst",
+      "name": "GPT Image 2.5 Sunburst",
+      "provider": "openai",
+      "image": true,
+      "levels": []
+    },
+    {
+      "id": "gpt-image-2.5-flare",
+      "name": "GPT Image 2.5 Flare",
+      "provider": "openai",
+      "image": true,
+      "levels": []
+    }
+  ]
+}

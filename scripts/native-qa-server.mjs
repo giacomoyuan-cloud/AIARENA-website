@@ -1,3 +1,4 @@
+import { syntheticProviders } from './native-provider-fixtures.mjs';
 import {createProjectScheduler} from '../worker/project-schedules.js';
 import {NativeAccountRegistry} from '../worker/native-api.js';
 // Local acceptance fixture: real request validation/storage, synthetic providers only.
@@ -6,10 +7,12 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { DatabaseSync } from 'node:sqlite';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
-import worker from '../worker/worker.js';
+import { pathToFileURL } from 'node:url';
+const {default:worker}=await import(process.env.NATIVE_QA_BACKEND_ROOT?pathToFileURL(path.resolve(process.env.NATIVE_QA_BACKEND_ROOT,'worker/worker.js')).href:new URL('../worker/worker.js',import.meta.url).href);
 import { createChatRunClass } from '../worker/chat-runs.js';
 import { createDebateRunClass } from '../worker/debate-runs.js';
 import core from '../arena-debate.js';
+const updateApk=process.env.NATIVE_QA_UPDATE_APK?await readFile(process.env.NATIVE_QA_UPDATE_APK):null;
 const root=path.resolve(process.env.AI_DEBATE_QA_ROOT || path.resolve(import.meta.dirname,'../dist-site')),hash=text=>createHash('sha256').update(text).digest('hex');
 const data=new Map([['user:qa-reader',JSON.stringify({hash:hash('offline-fixture')})],['user:qa-regular',JSON.stringify({hash:hash('offline-fixture')})]]);
 const kv={get:async k=>data.get(k)||null,put:async(k,v)=>data.set(k,v),delete:async k=>data.delete(k),list:async({prefix})=>({keys:[...data.keys()].filter(k=>k.startsWith(prefix)).map(name=>({name})),list_complete:true})};
@@ -34,7 +37,9 @@ async function execute(request){
   },cancel(){clearInterval(timer);closed=true;}});
   return new Response(body,{headers:{'Content-Type':'text/event-stream'}});
 }
-const Debate=createDebateRunClass(execute,async(job)=>{
+const executeFull=(request)=>worker.fetch(request,env);
+const executor=process.env.NATIVE_QA_FULL_WORKER==='1'?executeFull:execute;
+const Debate=createDebateRunClass(executor,async(job)=>{
   const record=JSON.parse(data.get('user:'+job.user)||'null');if(!record||hash(record.hash)!==job.authVersion)throw new Error('synthetic auth changed');
   return {user:job.user,password:record.hash};
 },core);
@@ -43,9 +48,13 @@ const blobs=new Map(),uploads=new Map();
     async uploadPart(n,body){const bytes=new Uint8Array(await new Response(body).arrayBuffer());uploads.get(id).parts.set(n,bytes);return {partNumber:n,etag:'part-'+n+'-'+bytes.length};},
     async complete(parts){const value=uploads.get(id),size=parts.reduce((n,p)=>n+value.parts.get(p.partNumber).length,0),bytes=new Uint8Array(size);let offset=0;for(const p of parts){const b=value.parts.get(p.partNumber);bytes.set(b,offset);offset+=b.length;}blobs.set(key,bytes);uploads.delete(id);return {size};},async abort(){uploads.delete(id);}
   };},async head(key){return blobs.has(key)?{size:blobs.get(key).length}:null;},async get(key){return blobs.has(key)?{body:blobs.get(key),size:blobs.get(key).length}:null;},async delete(key){blobs.delete(key);}};
-const Run=createChatRunClass(execute,Debate),env={MEMORY_KV:kv,BIZ_KV:kv,PASSWORD:'synthetic-only',NATIVE_OWNER_ACCOUNT:'qa-reader',PROJECT_DOCUMENTS:bucket,OPENAI_API_KEY:'synthetic-only'};
-const Scheduler=createProjectScheduler({models:['gpt-6.1-sol'],efforts:{'gpt-6.1-sol':['low','medium','high','xhigh','max']},credentials:async(_env,user)=>({user,password:JSON.parse(data.get('user:'+user)).hash}),project:async()=>{},execute});
-const schedulers=new Map();env.PROJECT_SCHEDULES={idFromName:id=>id,get:id=>({fetch:request=>{if(!schedulers.has(id)){const values=new Map();let alarm;const storage={get:async k=>structuredClone(values.get(k)),put:async(k,v)=>values.set(k,structuredClone(v)),setAlarm:async at=>{clearTimeout(alarm);alarm=setTimeout(()=>schedulers.get(id).alarm().catch(console.error),Math.max(1,at-Date.now()));alarm.unref()},deleteAlarm:async()=>{clearTimeout(alarm)}};schedulers.set(id,new Scheduler({storage,blockConcurrencyWhile:fn=>fn(),waitUntil:promise=>promise.catch(()=>{})},env))}return schedulers.get(id).fetch(request)}})};
+const Run=createChatRunClass(executor,Debate),env={MEMORY_KV:kv,BIZ_KV:kv,PASSWORD:'synthetic-only',NATIVE_OWNER_ACCOUNT:'qa-reader',PROJECT_DOCUMENTS:bucket,OPENAI_API_KEY:'synthetic-only',GROK_API_KEY:'synthetic-only',GEMINI_API_KEY:'synthetic-only',ANTHROPIC_API_KEY:'synthetic-only',SKILL_FILE_SIGNING_KEY:'synthetic-signing-only'};
+const scheduleCredentials=async(_env,user)=>({user,password:JSON.parse(data.get('user:'+user)).hash});
+let scheduledRuns;
+try { const {createScheduledChatClient}=await import('../worker/scheduled-chat.js');scheduledRuns=createScheduledChatClient({credentials:scheduleCredentials,models:{'gpt-6.1-sol':{name:'GPT-6.1 Sol',provider:'openai'}}}); }
+catch(error) { if(error.code!=='ERR_MODULE_NOT_FOUND'||!error.message.includes('scheduled-chat.js'))throw error; }
+const Scheduler=createProjectScheduler({runs:scheduledRuns,models:['gpt-6.1-sol'],efforts:{'gpt-6.1-sol':['low','medium','high','xhigh','max']},credentials:scheduleCredentials,project:async()=>{},execute:executor});
+const schedulers=new Map();env.PROJECT_SCHEDULES={idFromName:id=>id,get:id=>({fetch:request=>{if(!schedulers.has(id)){const values=new Map();let alarm;const storage={get:async k=>Array.isArray(k)?new Map(k.filter(key=>values.has(key)).map(key=>[key,structuredClone(values.get(key))])):structuredClone(values.get(k)),delete:async k=>Array.isArray(k)?k.reduce((n,key)=>n+values.delete(key),0):values.delete(k),list:async({prefix='',startAfter,start,end,reverse,limit}={})=>new Map([...values].filter(([k])=>k.startsWith(prefix)&&(!startAfter||k>startAfter)&&(!start||k>=start)&&(!end||k<end)).sort((a,b)=>(a[0]<b[0]?-1:a[0]>b[0]?1:0)*(reverse?-1:1)).slice(0,limit)),put:async(k,v)=>{if(typeof k==='string')values.set(k,structuredClone(v));else for(const [key,value]of Object.entries(k))values.set(key,structuredClone(value));},setAlarm:async at=>{clearTimeout(alarm);alarm=setTimeout(()=>schedulers.get(id).alarm().catch(console.error),Math.max(1,at-Date.now()));alarm.unref()},deleteAlarm:async()=>{clearTimeout(alarm)}};schedulers.set(id,new Scheduler({storage,blockConcurrencyWhile:fn=>fn(),waitUntil:promise=>promise.catch(()=>{})},env))}return schedulers.get(id).fetch(request)}})};
 const registries=new Map();env.NATIVE_ACCOUNTS={idFromName:name=>name,get:name=>({fetch:request=>{if(!registries.has(name)){const entries=new Map();registries.set(name,new NativeAccountRegistry({storage:{get:async key=>entries.get(key),put:async(key,value)=>entries.set(key,structuredClone(value)),setAlarm:async()=>{}}},env))}return registries.get(name).fetch(request)}})};
 env.CHAT_RUNS={idFromName:name=>name,get:name=>({fetch:request=>{
   if(!actors.has(name)){
@@ -57,6 +66,7 @@ env.CHAT_RUNS={idFromName:name=>name,get:name=>({fetch:request=>{
 }})};
 
 // A loopback-only fixture. External provider traffic is forbidden.
+const fullProvider=syntheticProviders({events,writeEvidence:evidence});
 globalThis.fetch=async(url,options={})=>{
  const target=String(url instanceof Request?url.url:url);
  if(target.startsWith('https://api.openai.com/')){
@@ -68,17 +78,27 @@ globalThis.fetch=async(url,options={})=>{
    return new Response(frames.map(frame=>'data: '+JSON.stringify(frame)+'\n\n').join(''),{headers:{'Content-Type':'text/event-stream'}});
   }
  }
+ if(process.env.NATIVE_QA_FULL_WORKER==='1')return fullProvider(url,options);
  throw new Error('External network is disabled in native acceptance');
 };
 http.createServer(async(req,res)=>{
  try{
   const chunks=[];for await(const part of req)chunks.push(part);
   const route=new URL(req.url,'http://localhost');
+  if(updateApk&&route.pathname==='/downloads/app-release.json'){res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify({version:'2.0.3-qa-debug',versionCode:203,package:'com.pickandcase.assistant.debug',url:'/downloads/AI-Assistant-native-qa.apk',bytes:updateApk.length,sha256:hash(updateApk),native:true,notes:'本地合成更新验收'}));return;}
+  if(updateApk&&route.pathname==='/downloads/AI-Assistant-native-qa.apk'){res.writeHead(200,{'Content-Type':'application/vnd.android.package-archive','Content-Length':updateApk.length});res.end(updateApk);return;}
+
   if(route.pathname==='/__evidence'){res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify({synthetic:true,externalModelCalls:0,events}));return;}
   if(route.pathname==='/__offline'){offlineUntil=Date.now()+Number(route.searchParams.get('ms')||1500);res.writeHead(200);res.end('{}');return;}
   if(Date.now()<offlineUntil&&route.pathname!='/native/login'){res.writeHead(503,{'Content-Type':'application/json'});res.end(JSON.stringify({error:'Synthetic offline'}));return;}
   const init={method:req.method,headers:req.headers};if(req.method!=='GET')init.body=Buffer.concat(chunks);
-  const response=await worker.fetch(new Request('https://api.pickandcase.com'+req.url,init),env);
+  let response;
+  const submitted=req.url==='/native/api'?JSON.parse(Buffer.concat(chunks).toString()||'{}'):null;
+  if(submitted?.path==='/schedules'&&submitted.payload?.action==='history'&&submitted.payload.id?.startsWith('fixture-history-')) {
+   const offset=submitted.payload.after?50:0,count=offset?20:50;
+   response=Response.json({runs:Array.from({length:count},(_,i)=>({runId:'fixture-run-'+(offset+i),chatId:'fixture-chat-'+(offset+i),at:1700000000000-(offset+i)*1000,status:'failed',error:'合成历史记录-'+(offset+i)})),next:offset?null:'page-2'});
+   events.push({kind:'history-page-fixture',offset,count,synthetic:true,externalModelCalls:0});await evidence();
+  } else response=await worker.fetch(new Request('https://api.pickandcase.com'+req.url,init),env);
   if(response.status>=400)console.error('Fixture response',req.url,response.status,(await response.clone().text()).slice(0,240));
   res.writeHead(response.status,Object.fromEntries(response.headers));if(response.body)for await(const part of response.body){if(res.destroyed)break;res.write(part);}res.end();
  }catch(error){res.writeHead(500,{'Content-Type':'application/json'});res.end(JSON.stringify({error:error.message}));}

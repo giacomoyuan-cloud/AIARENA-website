@@ -9,8 +9,8 @@ android {
         applicationId 'com.pickandcase.assistant'
         minSdk 26
         targetSdk 36
-        versionCode 200
-        versionName '2.0.0'
+        versionCode providers.gradleProperty('nativeVersionCode').map { it.toInteger() }.getOrElse(202)
+        versionName providers.gradleProperty('nativeVersionName').getOrElse('2.0.2')
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
         buildConfigField 'String', 'SITE_URL', '"https://ai.pickandcase.com/"'
         buildConfigField 'String', 'API_URL', '"https://api.pickandcase.com/native/"'
@@ -70,3 +70,17 @@ dependencies {
     androidTestImplementation 'com.squareup.okhttp3:mockwebserver:4.12.0'
     debugImplementation 'androidx.compose.ui:ui-test-manifest'
 }
+
+def nativeContractAssets = layout.buildDirectory.dir('generated/native-contract/assets')
+tasks.register('generateNativeClientContract', Exec) {
+    inputs.file(rootProject.file('../index.html'))
+    inputs.file(rootProject.file('../scripts/build-native-contract.mjs'))
+    outputs.file(nativeContractAssets.map { it.file('native-client-contract.json') })
+    commandLine 'node', rootProject.file('../scripts/build-native-contract.mjs').absolutePath,
+        '--out', nativeContractAssets.get().file('native-client-contract.json').asFile.absolutePath
+}
+android.sourceSets.main.assets.srcDir(nativeContractAssets)
+tasks.named('preBuild').configure { dependsOn 'generateNativeClientContract' }
+
+def nativeQaAssets = providers.gradleProperty('nativeQaAssets').orNull
+if (nativeQaAssets) android.sourceSets.androidTest.assets.srcDir(nativeQaAssets)

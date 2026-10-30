@@ -5,6 +5,7 @@
 
 package com.pickandcase.assistant
 
+import android.app.Activity
 import android.content.Intent
 import android.graphics.BitmapFactory
 import android.net.Uri
@@ -13,6 +14,9 @@ import android.widget.TextView
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.view.WindowCompat
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -70,6 +74,16 @@ val WarmAccent = Color(0xFFC47155)
 fun AssistantApp(vm: AssistantViewModel) {
     val state by vm.state.collectAsStateWithLifecycle()
     val dark = state.theme == "dark" || state.theme == "system" && isSystemInDarkTheme()
+    val windowView = LocalView.current
+    DisposableEffect(dark, windowView) {
+        (windowView.context as? Activity)?.window?.let { window ->
+            val controller = WindowCompat.getInsetsController(window, windowView)
+            controller.isAppearanceLightStatusBars = !dark
+            controller.isAppearanceLightNavigationBars = !dark
+        }
+        onDispose { }
+    }
+
     val colors =
         if (dark)
             darkColorScheme(
@@ -121,6 +135,7 @@ fun AssistantApp(vm: AssistantViewModel) {
                 outlineVariant = Color(0xFFE1DED4),
             )
     MaterialTheme(colorScheme = colors) {
+        NativeUpdateHost(vm.updates)
         Surface(Modifier.fillMaxSize(), color = colors.background) {
             if (state.session == null) LoginScreen(state, vm) else MainShell(state, vm)
             NativeExportHost(vm)
@@ -254,9 +269,25 @@ private fun MainShell(s: AssistantState, vm: AssistantViewModel) {
                         Spacer(Modifier.width(12.dp))
                         Text("AI 助手", style = MaterialTheme.typography.titleLarge)
                     }
+                    Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).testTag("navigation-content")) {
+                    NavigationDrawerItem(
+                        label = { Text("新建对话") },
+                        icon = { Icon(Icons.Outlined.Add, null) },
+                        selected = false,
+                        onClick = { vm.newChat(); coroutine.launch { drawer.close() } },
+                    )
+                    listOf(Triple("chat", "对话", Icons.Outlined.ChatBubbleOutline), Triple("debate", "辩论", Icons.Outlined.Forum), Triple("image", "图片", Icons.Outlined.Image)).forEach { (mode, title, icon) ->
+                        NavigationDrawerItem(
+                            label = { Text(title) },
+                            icon = { Icon(icon, null) },
+                            selected = s.page == Page.CHAT && s.mode == mode,
+                            modifier = Modifier.testTag("navigation-mode-" + mode),
+                            onClick = { vm.mode(mode); coroutine.launch { drawer.close() } },
+                        )
+                    }
+                    HorizontalDivider(Modifier.padding(vertical = 8.dp))
                     val entries =
                         listOf(
-                            Triple("新建对话", Icons.Outlined.Add, Page.CHAT),
                             Triple("历史记录", Icons.Outlined.History, Page.HISTORY),
                             Triple("项目", Icons.Outlined.FolderOpen, Page.PROJECTS),
                             Triple("定时任务", Icons.Outlined.Schedule, Page.TASKS),
@@ -292,11 +323,7 @@ private fun MainShell(s: AssistantState, vm: AssistantViewModel) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(16.dp, 8.dp),
                     )
-                    LazyColumn(Modifier.weight(1f)) {
-                        items(
-                            s.histories.sortedByDescending { it.optBoolean("pinned") }.take(15),
-                            key = { it.str("id") },
-                        ) { chat ->
+                        s.histories.sortedByDescending { it.optBoolean("pinned") }.take(15).forEach { chat ->
                             Text(
                                 chat.str("title", "新对话"),
                                 maxLines = 2,
@@ -352,14 +379,10 @@ private fun MainShell(s: AssistantState, vm: AssistantViewModel) {
                     },
                     actions = {
                         if (s.page == Page.CHAT) {
-                            IconButton(onClick = { vm.incognito(!s.incognito) }) {
-                                Icon(
-                                    Icons.Outlined.VisibilityOff,
-                                    if (s.incognito) "关闭无痕" else "开启无痕",
-                                    tint =
-                                        if (s.incognito) MaterialTheme.colorScheme.primary
-                                        else MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
+                            TextButton(onClick = { vm.incognito(!s.incognito) }, enabled = !s.busy) {
+                                Icon(Icons.Outlined.VisibilityOff, null, Modifier.size(18.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text(if (s.incognito) "无痕已开启" else "无痕模式")
                             }
                             IconButton(onClick = { vm.newChat() }) {
                                 Icon(Icons.Outlined.Add, "新对话")
@@ -388,6 +411,19 @@ private fun MainShell(s: AssistantState, vm: AssistantViewModel) {
             snackbarHost = { SnackbarHost(snackbar) },
         ) { padding ->
             Column(Modifier.fillMaxSize().padding(padding)) {
+                if (s.incognito) {
+                    Surface(color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.fillMaxWidth().testTag("incognito-banner")) {
+                        Row(Modifier.padding(start = 16.dp, end = 8.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Outlined.VisibilityOff, null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                            Spacer(Modifier.width(12.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text("无痕模式已开启", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                                Text("此对话不保存到历史或记忆", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                            }
+                            TextButton(onClick = { vm.incognito(false) }, enabled = !s.busy) { Text("退出无痕") }
+                        }
+                    }
+                }
                 if (s.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
                 when (s.page) {
                     Page.CHAT -> ChatScreen(s, vm)
@@ -486,17 +522,23 @@ private fun ChatScreen(s: AssistantState, vm: AssistantViewModel) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-        else
+        else Box(Modifier.weight(1f).fillMaxWidth()) {
+            val scrollScope = rememberCoroutineScope()
             LazyColumn(
-                Modifier.weight(1f).fillMaxWidth(),
+                Modifier.fillMaxSize().testTag("conversation-list"),
                 state = list,
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(22.dp),
             ) {
-                items(s.messages, key = { it.optLong("uid") }) { message ->
-                    MessageView(message, s, vm)
-                }
+                items(s.messages, key = { it.optLong("uid") }) { message -> MessageView(message, s, vm) }
             }
+            if (list.canScrollBackward) Surface(Modifier.align(Alignment.TopEnd).padding(8.dp), shape=CircleShape, shadowElevation=2.dp) {
+                IconButton(onClick={ scrollScope.launch { list.animateScrollToItem(0) } }) { Icon(Icons.Outlined.ArrowUpward,"回到对话顶部") }
+            }
+            if (list.canScrollForward) Surface(Modifier.align(Alignment.BottomCenter).padding(8.dp), shape=CircleShape, shadowElevation=2.dp) {
+                IconButton(onClick={ scrollScope.launch { list.animateScrollToItem(s.messages.lastIndex);list.animateScrollBy(list.layoutInfo.visibleItemsInfo.lastOrNull()?.size?.toFloat()?:0f) } }) { Icon(Icons.Outlined.ArrowDownward,"回到最下面") }
+            }
+        }
         if (s.run != null) DebateRecovery(s, vm)
         if (s.connection.contains("恢复"))
             Text(
@@ -519,16 +561,6 @@ private fun ChatScreen(s: AssistantState, vm: AssistantViewModel) {
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    listOf("chat" to "对话", "debate" to "辩论", "image" to "图片").forEach {
-                        (mode, label) ->
-                        FilterChip(
-                            selected = s.mode == mode,
-                            onClick = { vm.mode(mode) },
-                            label = { Text(label) },
-                            enabled = !s.busy,
-                        )
-                    }
-                    Spacer(Modifier.width(2.dp))
                     TextButton(onClick = { options = true }, enabled = !s.busy) {
                         Text(
                             if (s.mode == "chat")
@@ -598,21 +630,8 @@ private fun ChatScreen(s: AssistantState, vm: AssistantViewModel) {
                     keyboardActions = KeyboardActions(onSend = { vm.send() }),
                 )
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    AttachmentButton(vm)
-                    VoiceButton(vm)
-                    FilterChip(
-                        selected = s.search,
-                        onClick = { vm.search(!s.search) },
-                        label = { Text("联网") },
-                        leadingIcon = { Icon(Icons.Outlined.Language, null, Modifier.size(16.dp)) },
-                    )
+                    AttachmentButton(s, vm)
                     Spacer(Modifier.weight(1f))
-                    if (s.incognito)
-                        Text(
-                            "无痕",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
                     IconButton(
                         onClick = { if (s.busy) vm.stop() else vm.send() },
                         enabled = s.busy || s.draft.isNotBlank(),
@@ -642,7 +661,7 @@ private fun ChatScreen(s: AssistantState, vm: AssistantViewModel) {
 }
 
 @Composable
-private fun AttachmentButton(vm: AssistantViewModel) {
+private fun AttachmentButton(s: AssistantState, vm: AssistantViewModel) {
     var menu by remember { mutableStateOf(false) }
     var cameraUri by rememberSaveable { mutableStateOf<Uri?>(null) }
     val context = LocalContext.current
@@ -657,6 +676,17 @@ private fun AttachmentButton(vm: AssistantViewModel) {
     Box {
         IconButton(onClick = { menu = true }) { Icon(Icons.Outlined.Add, "添加附件") }
         DropdownMenu(menu, { menu = false }) {
+            if (s.mode != "image") {
+                DropdownMenuItem(
+                    text = { Text("联网搜索") },
+                    leadingIcon = { Icon(Icons.Outlined.Language, null) },
+                    trailingIcon = { Switch(checked = s.search, onCheckedChange = { vm.search(it) }, modifier = Modifier.testTag("plus-search-switch")) },
+                    onClick = { vm.search(!s.search) },
+                    modifier = Modifier.testTag("plus-search"),
+                )
+                HorizontalDivider()
+            }
+
             DropdownMenuItem(
                 text = { Text("照片") },
                 onClick = {
