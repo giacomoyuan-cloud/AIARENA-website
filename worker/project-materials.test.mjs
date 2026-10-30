@@ -324,3 +324,22 @@ test('file status distinguishes fully processed OCR warnings from pages that hav
   assert.match(Files.status(file),/Sol 已识别 22 页/);assert.match(Files.status(file),/2 页有不清晰内容，可查阅/);assert.equal(Files.repairLabel(file),'重试不清晰页');
   const missing={...file,coverage:{units:22,emptyUnits:3,ocrError:'连接中断'}};assert.match(Files.status(missing),/3 页待识别/);assert.match(Files.status(missing),/连接中断/);assert.equal(Files.repairLabel(missing),'继续识别');
 });
+test('mixed PDFs read native and OCR chunks in numeric page order without truncating short previews at 32 chunks',async t=>{
+  const s=setup(t),p=(await s.api('create',{name:'Mixed page order'})).project;
+  const pages=[7,...Array.from({length:18},(_,i)=>37-i),...Array.from({length:19},(_,i)=>i+1)];
+  const segments=pages.map((page,ordinal)=>({ordinal,location:'第 '+page+' 页'+(ordinal>18?' · Sol 视觉识别':''),text:'SOURCE '+page+' chunk '+ordinal}));
+  const file=await material(s,p.id,{name:'combined-manual.pdf',segments}),scope='c'.repeat(64);
+  await projectLibrary(s.env,'tester',p.id,'scope',{scope,ids:[file.id]});
+  const received=[];let offset=0;
+  for(;;){const batch=await projectLibrary(s.env,'tester',p.id,'batch',{scope,offset});if(batch.done)break;received.push(...batch.segments);offset=batch.next;}
+  const ordered=[...segments].sort((a,b)=>Number(a.location.match(/第 (\d+)/)[1])-Number(b.location.match(/第 (\d+)/)[1])||a.ordinal-b.ordinal);
+  assert.deepEqual(received.map(x=>x.ordinal),ordered.map(x=>x.ordinal));assert.equal(new Set(received.map(x=>x.ordinal)).size,segments.length);
+  const preview=(await s.api('preview',{projectId:p.id,fileId:file.id})).file;
+  assert.deepEqual([...preview.text.matchAll(/\[第 (\d+) 页/g)].map(x=>Number(x[1])),ordered.map(x=>Number(x.location.match(/第 (\d+)/)[1])));assert.equal(preview.previewTruncated,false);
+  const named=await projectLibrary(s.env,'tester',p.id,'search',{query:'combined-manual.pdf'});assert.equal(named.hits[0].location,'第 1 页 · Sol 视觉识别');
+});
+test('bounded previews disclose omitted short chunks even below the character limit',async t=>{
+  const s=setup(t),p=(await s.api('create',{name:'Bounded preview'})).project,segments=Array.from({length:257},(_,ordinal)=>({ordinal,location:'正文',text:'SHORT_'+ordinal}));
+  const file=await material(s,p.id,{segments}),preview=(await s.api('preview',{projectId:p.id,fileId:file.id})).file;
+  assert.ok(preview.text.length<60000);assert.equal(preview.previewTruncated,true);assert.match(preview.text,/SHORT_255/);assert.doesNotMatch(preview.text,/SHORT_256/);
+});
