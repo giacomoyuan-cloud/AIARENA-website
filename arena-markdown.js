@@ -112,15 +112,18 @@
         var headers = cells(line), alignments = cells(lines[i + 1]);
         if (headers.length === alignments.length) {
           var align = alignments.map(function (cell) { return /^:.*:$/.test(cell) ? 'center' : /:$/.test(cell) ? 'right' : 'left'; });
-          html += '<div class="aa-md-table-wrap" role="region" aria-label="表格，可横向滚动" tabindex="0"><table class="aa-md-table"><thead><tr>';
+          var rows = []; i += 2;
+          while (i < lines.length && lines[i].trim() && cells(lines[i]).length > 1) rows.push(cells(lines[i++]));
+          var tableKey = headers.join('¦'), mode = tableViews[tableKey] || 'auto';
+          html += '<section class="aa-md-table-block'+(headers.length>=4?' aa-md-table-wide':'')+'" data-table-key="'+escape(tableKey)+'" data-table-mode="'+mode+'">'
+            +'<div class="aa-md-table-tools"><span>'+rows.length+' 项 · '+headers.length+' 列</span><div role="group" aria-label="表格阅读方式"><button type="button" data-table-view="table">表格</button><button type="button" data-table-view="cards">逐项</button></div></div>'
+            +'<div class="aa-md-table-wrap" role="region" aria-label="表格，可横向滚动" tabindex="0"><table class="aa-md-table" style="min-width:'+Math.max(320,headers.length*160)+'px"><thead><tr>';
           headers.forEach(function (cell, n) { html += '<th scope="col" style="text-align:' + align[n] + '">' + inline(cell, 0, options) + '</th>'; });
-          html += '</tr></thead><tbody>'; i += 2;
-          while (i < lines.length && lines[i].trim() && cells(lines[i]).length > 1) {
-            var row = cells(lines[i++]); html += '<tr>';
-            headers.forEach(function (_, n) { html += '<td style="text-align:' + align[n] + '">' + inline(row[n] || '', 0, options) + '</td>'; });
-            html += '</tr>';
-          }
-          html += '</tbody></table></div>'; continue;
+          html += '</tr></thead><tbody>';
+          rows.forEach(function(row){html += '<tr>';headers.forEach(function(_,n){html += '<td style="text-align:'+align[n]+'">'+inline(row[n]||'',0,options)+'</td>';});html += '</tr>';});
+          html += '</tbody></table></div><div class="aa-md-table-cards" role="list" aria-label="逐项阅读">';
+          rows.forEach(function(row,index){html += '<article class="aa-md-row-card" role="listitem"><div class="aa-md-card-index">第 '+(index+1)+' 项</div><dl>';headers.forEach(function(header,n){html += '<div><dt>'+inline(header,0,options)+'</dt><dd>'+inline(row[n]||'—',0,options)+'</dd></div>';});html += '</dl></article>';});
+          html += '</div></section>'; continue;
         }
       }
       var heading = /^\s{0,3}(#{1,6})\s+(.+?)\s*#*\s*$/.exec(line);
@@ -160,7 +163,20 @@
     }
     return html;
   }
-  var api = { render: render, inline: inline, escape: escape };
+  var tableViews = Object.create(null);
+  function mountTables(host) {
+    if(!host||host.dataset.arenaTablesMounted)return;
+    host.dataset.arenaTablesMounted='true';
+    host.addEventListener('click',function(event){
+      var button=event.target.closest&&event.target.closest('[data-table-view]');if(!button)return;
+      var block=button.closest('.aa-md-table-block');if(!block)return;
+      var mode=button.getAttribute('data-table-view');if(mode!=='cards'&&mode!=='table')return;
+      tableViews[block.getAttribute('data-table-key')]=mode;
+      block.setAttribute('data-table-mode',mode);
+      block.querySelectorAll('[data-table-view]').forEach(function(b){b.setAttribute('aria-pressed',String(b===button));});
+    });
+  }
+  var api = { render: render, inline: inline, escape: escape, mountTables: mountTables };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.ArenaMarkdown = api;
 })(typeof window === 'undefined' ? this : window);

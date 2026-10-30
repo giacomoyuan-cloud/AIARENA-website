@@ -37,7 +37,7 @@
     async function request(action,auth,fields){
       var response=await fetch(config.worker+'/account',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({action:action,user:auth.user,password:auth.password},fields||{}))});
       var data=await response.json();if(!response.ok||!data.profile)throw new Error(data.error||'账号设置暂不可用');
-      return data.profile;
+      return Object.assign({},data.profile,{canManage:data.canManage===true});
     }
     async function refresh(){
       var auth=config.auth(),run=++epoch;if(!auth.user||!auth.password)return;

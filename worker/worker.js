@@ -21,7 +21,8 @@ import {conversationLibrary,handleConversationFiles,moveConversationFiles} from 
 import {inlineSource,retrieveLibrary,mergeMaterials,readSources,namedFiles} from './document-reading.js';
 const internalReadingRequests=new WeakMap();
 import { isDocument, materialName } from '../web/file-types.mjs';
-import { handleNativeRequest, NativeAccountRegistry } from './native-api.js';
+import { accountAccessEnvironment, accountDeleted } from './account-access.js';
+import { handleNativeRequest, handleAccountManagement, NativeAccountRegistry } from './native-api.js';
 import ImageCore from '../arena-image.js';
 import { UPLOAD_LIMITS, uploadDataInfo } from '../web/upload-limits.mjs';
 import { storeProjectOriginal, readProjectOriginal, downloadProjectOriginal } from './project-files.js';
@@ -182,6 +183,7 @@ __name(hashText, "hashText");
 async function storageAccountName(value, env) {
   if(typeof value!=="string")return value;
   const name=value.trim().toLowerCase();
+  if(await accountDeleted(env,name))return name;
   // Stable account keys take precedence over aliases and never move during a rename.
   if(await env.MEMORY_KV.get("user:"+name))return name;
   const alias=await env.MEMORY_KV.get("login:"+name);
@@ -191,7 +193,10 @@ async function storageAccountName(value, env) {
 async function accountRequestBody(body, env) {
   if (!body || typeof body !== "object") return body;
   for (const field of ["user", "username"]) {
-    if (typeof body[field] === "string") body[field] = await storageAccountName(body[field], env);
+    if (typeof body[field] === "string") {
+      body[field] = await storageAccountName(body[field], env);
+      if(await accountDeleted(env,body[field]))throw Object.assign(new Error("账号已被管理员删除"),{status:401});
+    }
   }
   return body;
 }
@@ -319,7 +324,7 @@ async function handleAccountRequest(request,env){
     if(!await registeredAccount(env,user,body.password||body.passwordHash))return projectReply({error:"请先登录账号"},401);
     const record=JSON.parse(await env.MEMORY_KV.get("user:"+user)),key="profile:"+user;
     const profile=JSON.parse(await env.BIZ_KV.get(key)||"{}");
-    if((body.action||"get")==="get")return projectReply({profile:accountProfile(user,record,profile)});
+    if((body.action||"get")==="get")return projectReply({profile:accountProfile(user,record,profile),canManage:!!env.NATIVE_OWNER_ACCOUNT&&user===env.NATIVE_OWNER_ACCOUNT});
     if(body.action!=="update")return projectReply({error:"未知账号操作"},400);
     const displayName=typeof body.displayName==="string"?body.displayName.trim():"",loginName=typeof body.loginName==="string"?body.loginName.trim():"";
     if(!displayName||displayName.length>60||/[\u0000-\u001f\u007f]/.test(displayName))return projectReply({error:"显示名需为 1–60 字"},400);
@@ -328,7 +333,9 @@ async function handleAccountRequest(request,env){
     if(body.newPasswordHash!==undefined&&(typeof body.newPasswordHash!=="string"||! /^[a-f0-9]{64}$/.test(body.newPasswordHash)))return projectReply({error:"新密码格式无效"},400);
     const currentLogin=record.loginName||publicAccountName(user),loginChanged=loginName!==currentLogin;
     if(loginChanged){
-      const target=await storageAccountName(loginName,env),targetRecord=await env.MEMORY_KV.get("user:"+target);
+      const target=await storageAccountName(loginName,env);
+      if(await accountDeleted(env,target))return projectReply({error:'这个登录名已被占用'},409);
+      const targetRecord=await env.MEMORY_KV.get("user:"+target);
       // Old aliases stay reserved to their original account, even after renaming again.
       if(targetRecord&&target!==user)return projectReply({error:"这个登录名已被使用，请换一个"},409);
       const reserved=await env.MEMORY_KV.get("login:"+loginName.toLowerCase());
@@ -342,8 +349,8 @@ async function handleAccountRequest(request,env){
       if(body.newPasswordHash!==undefined)record.hash=body.newPasswordHash;
       await putProjectKV(env.MEMORY_KV,"user:"+user,JSON.stringify(record));
     }
-    return projectReply({ok:true,profile:accountProfile(user,record,updated)});
-  }catch(error){return projectReply({error:error instanceof SyntaxError?"账号请求无效":"保存失败，请稍后重试"},error instanceof SyntaxError?400:500);}
+    return projectReply({ok:true,profile:accountProfile(user,record,updated),canManage:!!env.NATIVE_OWNER_ACCOUNT&&user===env.NATIVE_OWNER_ACCOUNT});
+  }catch(error){return projectReply({error:error.status?error.message:error instanceof SyntaxError?"账号请求无效":"保存失败，请稍后重试"},error.status||(error instanceof SyntaxError?400:500));}
 }
 async function ownedProject(env,user,id,includeArchived=false,includeDeleted=false){
   if(!validResourceId(id))throw Object.assign(new Error("项目不存在"),{status:404});
@@ -759,8 +766,16 @@ var worker_default = {
         }
       });
     }
+    env=accountAccessEnvironment(env);
     const url = new URL(request.url);
     if(url.pathname.startsWith('/native/'))return handleNativeRequest(request,env,{storageAccountName,accountProfile,publicAccountName,validLoginName,hashText,ownedProject,chatStoragePrefix,validResourceId,models:OFFICIAL_MODELS,efforts:MODEL_EFFORT_LEVELS,skillCatalog,uploadLimits:UPLOAD_LIMITS,tokenLimits:TokenLimits.models,maxTextChars:TokenLimits.maxTextChars,skillModels:SkillModels.names,defaultSkillModel:SkillModels.defaultModel,imageCore:ImageCore,debateCore:DebateCore,ownerAccountId:env.NATIVE_OWNER_ACCOUNT||'',forward:(inner,parsed)=>worker_default.fetch(inner,env,undefined,parsed)});
+    if(url.pathname==='/admin/accounts'&&request.method==='POST') {
+      try {
+        const body=await request.json(),id=await storageAccountName(String(body.user||''),env);
+        if(!await registeredAccount(env,id,body.password||body.passwordHash))return projectReply({error:'请先登录账号'},401);
+        return await handleAccountManagement(request,env,{ownerAccountId:env.NATIVE_OWNER_ACCOUNT||'',publicAccountName,validLoginName,hashText},{accountId:id},body);
+      }catch(error){return projectReply({error:error.status?error.message:'账号管理暂不可用'},error.status||503)}
+    }
     if((url.pathname==='/project-upload'&&request.method==='PUT')||(url.pathname==='/project-original'&&request.method==='POST'))return handleProjectTransfer(request,env);
     if((url.pathname==='/conversation-upload'&&request.method==='PUT')||(['/conversation-files','/conversation-original'].includes(url.pathname)&&request.method==='POST'))return handleConversationRequest(request,env);
     if(url.pathname==='/model-limits'&&request.method==='GET')return Response.json({checkedAt:'2026-10-30',historyPolicy:'full-history-first',models:TokenLimits.models},{headers:{'Access-Control-Allow-Origin':'*','Cache-Control':'no-store'}});
@@ -769,7 +784,9 @@ var worker_default = {
     if (url.pathname === '/debate-runs' && request.method === 'POST') return handleDebateRunRequest(request, env);
     if (url.pathname === '/chat-runs' && request.method === 'POST') return handleChatRunRequest(request, env);
     if (url.searchParams.has("user")) {
-      url.searchParams.set("user", await storageAccountName(url.searchParams.get("user"), env));
+      const user=await storageAccountName(url.searchParams.get("user"), env);
+      if(await accountDeleted(env,user))return projectReply({error:'账号已被管理员删除'},401);
+      url.searchParams.set("user",user);
     }
     if (["/account-balances", "/topup", "/topup-edit", "/topups", "/pool-spent", "/model-prices"].includes(url.pathname)) {
       return new Response(JSON.stringify({ error: "This feature has been removed" }), { status: 410, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
@@ -801,7 +818,8 @@ var worker_default = {
       let body2;
       try {
         body2 = await accountRequestBody(await request.json(), env);
-      } catch {
+      } catch(error) {
+        if(error.status)return projectReply({error:error.message},error.status);
         return new Response("Invalid JSON", { status: 400, headers: { "Access-Control-Allow-Origin": "*" } });
       }
       const { password: password2, username, action, chatId, title, messages } = body2;
@@ -977,7 +995,8 @@ var worker_default = {
       let body2;
       try {
         body2 = await request.json();
-      } catch {
+      } catch(error) {
+        if(error.status)return projectReply({error:error.message},error.status);
         return new Response("Invalid JSON", { status: 400 });
       }
       const { adminKey, username, password: password2 } = body2;
@@ -985,7 +1004,7 @@ var worker_default = {
       if (!username || !password2 || password2.length < 8) return new Response(JSON.stringify({ error: "username and password (8+ chars) required" }), { status: 400, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
       if(!validLoginName(username.trim()))return projectReply({error:"Invalid login name"},400);
       const reservedOwner=await storageAccountName(username,env);
-      if(await env.MEMORY_KV.get("user:"+reservedOwner)||await env.MEMORY_KV.get("login:"+username.trim().toLowerCase()))return projectReply({error:"Login name already exists"},409);
+      if(await accountDeleted(env,reservedOwner)||await env.MEMORY_KV.get("user:"+reservedOwner)||await env.MEMORY_KV.get("login:"+username.trim().toLowerCase()))return projectReply({error:"Login name already exists"},409);
       const passHash = await hashText(password2);
       await env.MEMORY_KV.put("user:" + username.trim().toLowerCase(), JSON.stringify({ hash: passHash, created: Date.now() }));
       return new Response(JSON.stringify({ ok: true, username: publicAccountName(username.toLowerCase()) }), { status: 200, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
@@ -996,7 +1015,8 @@ var worker_default = {
       try {
         body2 = await request.json();requestedLogin=String(body2.username||"").trim();
         body2 = await accountRequestBody(body2, env);
-      } catch {
+      } catch(error) {
+        if(error.status)return projectReply({error:error.message},error.status);
         return new Response("Invalid JSON", { status: 400 });
       }
       const { username, passwordHash } = body2;
@@ -1007,7 +1027,7 @@ var worker_default = {
       if(parsed.loginName&&parsed.loginName.toLowerCase()!==requestedLogin.toLowerCase())return projectReply({error:"登录名或密码错误"},401);
       if (parsed.hash !== passwordHash) return new Response(JSON.stringify({ error: "\u5BC6\u7801\u9519\u8BEF" }), { status: 401, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
       const profile=accountProfile(username.toLowerCase(),parsed,JSON.parse(await env.BIZ_KV.get("profile:"+username.toLowerCase())||"{}"));
-      return projectReply({ok:true,username:profile.loginName,profile});
+      return projectReply({ok:true,username:profile.loginName,profile,canManage:!!env.NATIVE_OWNER_ACCOUNT&&username.toLowerCase()===env.NATIVE_OWNER_ACCOUNT});
     }
     if (url.pathname === "/skills" && request.method === "GET") {
       const user = url.searchParams.get("user");
@@ -1023,7 +1043,8 @@ var worker_default = {
       let body2;
       try {
         body2 = await accountRequestBody(await request.json(), env);
-      } catch {
+      } catch(error) {
+        if(error.status)return projectReply({error:error.message},error.status);
         return new Response("Invalid JSON", { status: 400 });
       }
       const { username, password: password2, skills } = body2;
@@ -1061,7 +1082,8 @@ var worker_default = {
       let body2;
       try {
         body2 = await accountRequestBody(await request.json(), env);
-      } catch {
+      } catch(error) {
+        if(error.status)return projectReply({error:error.message},error.status);
         return new Response("Invalid JSON", { status: 400 });
       }
       const { password: password2, user, conversation } = body2;
@@ -1161,7 +1183,8 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
     let body;
     try {
       body = await accountRequestBody(internalPayload??await request.json(), env);
-    } catch {
+    } catch(error) {
+        if(error.status)return projectReply({error:error.message},error.status);
       return new Response("Invalid JSON", { status: 400 });
     }
     const { password, model: requestedModel, prompt, search, image = null, imageMime = null, images = null } = body;
@@ -1188,6 +1211,7 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
         authOk = parsed.hash === authPass || parsed.hash === hashOfPass;
       }
     }
+    if (authUser && await accountDeleted(env,authUser)) return projectReply({error:'账号已被管理员删除'},401);
     if (!authOk) {
       const expectedHash = await hashText(env.PASSWORD);
       if (!authPass || authPass !== expectedHash) {

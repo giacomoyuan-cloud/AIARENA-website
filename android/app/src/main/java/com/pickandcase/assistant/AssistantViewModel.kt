@@ -167,6 +167,10 @@ class AssistantViewModel(application: Application, val api: NativeApi = NativeAp
 
     private fun error(error: Throwable) {
         if (error is CancellationException) throw error
+        if (error is ApiFailure && error.status == 401 && error.message.orEmpty().contains("账号已被管理员删除")) {
+            logoutForReason("账号已被管理员删除，请联系管理员")
+            return
+        }
         mutable.update { it.copy(error = error.message ?: "操作未完成，请重试", loading = false) }
     }
 
@@ -235,7 +239,9 @@ class AssistantViewModel(application: Application, val api: NativeApi = NativeAp
         }
     }
 
-    fun logout() {
+    fun logout() { logoutForReason("") }
+
+    private fun logoutForReason(reason: String) {
         viewModelScope.launch {
             try {
                 val id = account()
@@ -252,7 +258,7 @@ class AssistantViewModel(application: Application, val api: NativeApi = NativeAp
                 }
                 api.token = null
                 activeRun = null
-                mutable.value = AssistantState(theme = mutable.value.theme)
+                mutable.value = AssistantState(theme = mutable.value.theme, error = reason, model = clientContract.defaultModel, effort = clientContract.defaultEffort(clientContract.defaultModel), imageModel = clientContract.defaultImageModel)
                 withContext(Dispatchers.IO) {
                     sessions.revocations().forEach { (key, token) ->
                         runCatching {
@@ -955,6 +961,18 @@ class AssistantViewModel(application: Application, val api: NativeApi = NativeAp
             } catch (e: Exception) {
                 error(e)
             }
+        }
+    }
+
+    fun deleteUser(id: String) {
+        if (mutable.value.session?.canManage != true || id == account()) return
+        mutable.update { it.copy(loading = true) }
+        viewModelScope.launch {
+            try {
+                api.route("users", json("action" to "delete", "accountId" to id))
+                notice("账号已删除，无法再登录 App 和网页")
+                loadAdmin()
+            } catch (e: Exception) { error(e) }
         }
     }
 

@@ -15,7 +15,9 @@ test('table cells render inline formatting, align numeric values and retain repe
   assert.ok(html.includes('<strong>Opus</strong>'));
   assert.ok(html.includes('text-align:right">$4'));
   assert.ok(html.includes('<code>a|b</code>'));
-  assert.equal((html.match(/A\|B/g) || []).length, 2);
+  assert.equal((html.split('</table>')[0].match(/A\|B/g) || []).length, 2);
+  assert.equal((html.match(/aa-md-row-card/g) || []).length, 3);
+  assert.ok(html.includes('data-table-view="cards"'));
   assert.equal((html.match(/<td /g) || []).length, 9);
   assert.ok(html.includes('scope="col"'));
 });

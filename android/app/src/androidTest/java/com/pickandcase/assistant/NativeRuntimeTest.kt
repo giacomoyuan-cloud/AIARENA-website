@@ -114,7 +114,7 @@ class NativeRuntimeTest : NativeHarness() {
         assertNotNull(cache.get("qa-reader", "general", "large"))
         cache.clearAccount("qa-reader")
         cache.close()
-        runBlocking { NativeApi("http://10.0.2.2:4197/").route("__offline?ms=1500") }
+        runBlocking { NativeApi(java.net.URI(base).resolve("/").toString()).route("__offline?ms=1500") }
         scene.recreate()
         ui.waitForIdle()
         ui.onNodeWithTag("login-submit").assertDoesNotExist()

@@ -263,7 +263,6 @@ private fun MainShell(s: AssistantState, vm: AssistantViewModel) {
                         Modifier.fillMaxWidth().padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Spacer(Modifier.width(12.dp))
                         Text("AI 助手", style = MaterialTheme.typography.titleLarge)
                     }
                     Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).testTag("navigation-content")) {
@@ -516,11 +515,13 @@ private fun ChatScreen(s: AssistantState, vm: AssistantViewModel) {
             ) {
                 items(s.messages, key = { it.optLong("uid") }) { message -> MessageView(message, s, vm) }
             }
-            if (list.canScrollBackward) Surface(Modifier.align(Alignment.TopEnd).padding(8.dp), shape=CircleShape, shadowElevation=2.dp) {
-                IconButton(onClick={ scrollScope.launch { list.animateScrollToItem(0) } }) { Icon(Icons.Outlined.ArrowUpward,"回到对话顶部") }
-            }
-            if (list.canScrollForward) Surface(Modifier.align(Alignment.BottomCenter).padding(8.dp), shape=CircleShape, shadowElevation=2.dp) {
-                IconButton(onClick={ scrollScope.launch { list.animateScrollToItem(s.messages.lastIndex);list.animateScrollBy(list.layoutInfo.visibleItemsInfo.lastOrNull()?.size?.toFloat()?:0f) } }) { Icon(Icons.Outlined.ArrowDownward,"回到最下面") }
+
+        }
+        if (s.messages.isNotEmpty() && (list.canScrollBackward || list.canScrollForward)) {
+            val scrollScope = rememberCoroutineScope()
+            Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                TextButton(enabled = list.canScrollBackward, onClick = { scrollScope.launch { list.animateScrollToItem(0) } }) { Icon(Icons.Outlined.ArrowUpward, "回到对话顶部", Modifier.size(16.dp)); Spacer(Modifier.width(4.dp)); Text("顶部", style = MaterialTheme.typography.labelMedium) }
+                TextButton(enabled = list.canScrollForward, onClick = { scrollScope.launch { list.animateScrollToItem(s.messages.lastIndex); list.animateScrollBy(list.layoutInfo.visibleItemsInfo.lastOrNull()?.size?.toFloat() ?: 0f) } }) { Text("最新", style = MaterialTheme.typography.labelMedium); Spacer(Modifier.width(4.dp)); Icon(Icons.Outlined.ArrowDownward, "回到最下面", Modifier.size(16.dp)) }
             }
         }
         if (s.run != null) DebateRecovery(s, vm)
@@ -1042,6 +1043,17 @@ private fun MessageView(message: JSONObject, s: AssistantState, vm: AssistantVie
 
 @Composable
 fun Markdown(text: String) {
+    val parts = remember(text) { NativeMarkdownTables.parse(text) }
+    Column(Modifier.fillMaxWidth()) {
+        parts.forEach { part -> when (part) {
+            is NativeMarkdownPart.Text -> MarkdownText(part.value)
+            is NativeMarkdownPart.Table -> NativeReadableTable(part)
+        } }
+    }
+}
+
+@Composable
+fun MarkdownText(text: String) {
     val context = LocalContext.current
     val color = MaterialTheme.colorScheme.onSurface.toArgb()
     val modernTypeface = remember(context) { NativeTypography.typeface(context) }
@@ -1054,7 +1066,6 @@ fun Markdown(text: String) {
                         .headingTypeface(modernTypeface)
                 }
             })
-            .usePlugin(TablePlugin.create(context))
             .usePlugin(StrikethroughPlugin.create())
             .usePlugin(LinkifyPlugin.create())
             .usePlugin(

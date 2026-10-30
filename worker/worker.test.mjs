@@ -481,7 +481,7 @@ test('Oakley signs in with the existing password without rewriting any credentia
   for(const username of ['Oakley','OAKLEY','oakleyyuen']) {
     const response=await worker.fetch(accountRequest('/auth',{username,passwordHash:ownerHash}),env);
     assert.equal(response.status,200);
-    assert.deepEqual(await response.json(),{ok:true,username:'Oakley',profile:{accountId:'oakleyyuen',loginName:'Oakley',displayName:'Oakley',avatar:''}});
+    assert.deepEqual(await response.json(),{ok:true,username:'Oakley',profile:{accountId:'oakleyyuen',loginName:'Oakley',displayName:'Oakley',avatar:''},canManage:false});
   }
   assert.equal((await worker.fetch(accountRequest('/auth',{username:'Oakley',passwordHash:await sha('wrong-password')}),env)).status,401);
   assert.equal(data.get('user:oakleyyuen'),original);

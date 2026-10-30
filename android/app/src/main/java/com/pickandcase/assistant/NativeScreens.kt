@@ -289,6 +289,11 @@ fun AdminScreen(s: AssistantState, vm: AssistantViewModel) {
         EmptyState("此账号无管理权限")
         return
     }
+    var deleting by remember { mutableStateOf<JSONObject?>(null) }
+    if (deleting != null) {
+        val target = deleting!!
+        AlertDialog(onDismissRequest = { deleting = null }, title = { Text("删除账号 ${target.str("username")}？") }, text = { Text("该账号将无法再登录 App 和网页，已有登录也会立即失效。") }, confirmButton = { TextButton(onClick = { vm.deleteUser(target.str("accountId")); deleting = null }, modifier = Modifier.testTag("admin-delete-confirm")) { Text("确认删除", color = MaterialTheme.colorScheme.error) } }, dismissButton = { TextButton(onClick = { deleting = null }) { Text("取消") } })
+    }
     var username by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var visible by remember { mutableStateOf(false) }
@@ -356,6 +361,7 @@ fun AdminScreen(s: AssistantState, vm: AssistantViewModel) {
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.primary,
                         )
+                    else TextButton(onClick = { deleting = user }, enabled = !s.loading, modifier = Modifier.testTag("admin-delete-" + user.str("accountId"))) { Text("删除", color = MaterialTheme.colorScheme.error) }
                 },
             )
         }

@@ -7,5 +7,5 @@
         <item name="android:windowBackground">#FFFFFF</item>
     </style>
     <style name="AppTheme" parent="AppThemeBase" />
-    <color name="icon_bg">#FAF9F7</color>
+    <color name="icon_bg">#101010</color>
 </resources>
