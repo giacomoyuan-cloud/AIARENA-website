@@ -62,13 +62,18 @@
       }}finally{await pdf.destroy();}
       if(!options.ocr||!candidates.length)return;
       coverage.nativeEmptyUnits=coverage.emptyUnits;coverage.ocrPages=0;coverage.blankUnits=0;coverage.uncertainUnits=0;
-      var PDFLib=await load('PDFLib','https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js'),source=await PDFLib.PDFDocument.load(await file.arrayBuffer(),{updateMetadata:false});
-      if(source.getPageCount()!==coverage.units)throw Error('PDF 页数校验失败，原文件已保留');
+      var PDFLib,source;
+      try{PDFLib=await load('PDFLib','https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js');source=await PDFLib.PDFDocument.load(await file.arrayBuffer(),{updateMetadata:false});if(source.getPageCount()!==coverage.units)source=null;}
+      catch(error){source=null;} // PDF.js may read an original whose object table cannot be copied.
       for(var candidate of candidates){var number=candidate.page;
         try{
           if(options.progress)options.progress({phase:'Sol 识别扫描页',done:coverage.ocrPages,total:candidates.length,page:number});
-          var single=await PDFLib.PDFDocument.create({updateMetadata:false}),copied=await single.copyPages(source,[number-1]);single.addPage(copied[0]);
-          var bytes=await single.save({useObjectStreams:true}),input=bytes.length>8*1024*1024?await rasterPage(file,number):{data:base64(bytes),mime:'application/pdf'};
+          var input;
+          if(source){
+            try{var single=await PDFLib.PDFDocument.create({updateMetadata:false}),copied=await single.copyPages(source,[number-1]);single.addPage(copied[0]);
+              var bytes=await single.save({useObjectStreams:true});input=bytes.length>8*1024*1024?await rasterPage(file,number):{data:base64(bytes),mime:'application/pdf'};
+            }catch(error){input=await rasterPage(file,number);}
+          }else input=await rasterPage(file,number);
           var result=await options.ocr(Object.assign({page:number,total:coverage.units},input));
           if(!result||!['text','blank'].includes(result.kind)||typeof result.text!=='string'||result.kind==='text'&&!result.text.trim())throw Error('本页未能识别，请继续识别未完成页');
           if(result.kind==='blank'&&candidate.nativeText.trim())throw Error('本页包含文字，但识别结果为空白；请继续识别确认');
