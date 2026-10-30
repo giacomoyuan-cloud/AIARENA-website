@@ -41,7 +41,7 @@ test('destroying the controller stops motion and removes event listeners',()=>{
 test('Pages staging includes the animation and controller without publishing tests or private files',async()=>{
   const root=await fs.mkdtemp(path.join(os.tmpdir(),'welcome-stage-'));
   try{
-    for(const name of ['scripts','songs','downloads','welcome-media'])await fs.mkdir(path.join(root,name));
+    for(const name of ['scripts','songs','downloads','welcome-media','assets/fonts'])await fs.mkdir(path.join(root,name),{recursive:true});
     for(const name of ['stage-site.mjs','app-version.mjs'])await fs.copyFile(path.join(__dirname,'scripts',name),path.join(root,'scripts',name));
     for(const [name,text]of [['index.html','<meta name="app-version" content="fixture-old">welcome'],['app-version.json','{"version":"fixture-v2"}'],['arena-welcome.js','controller'],['arena-welcome.test.cjs','exclude'],['private.env','exclude'],['welcome-media/jiujiu-knead-v1.webp','animation'],['welcome-media/jiujiu-poster-v1.png','poster']])await fs.writeFile(path.join(root,name),text);
     execFileSync(process.execPath,[path.join(root,'scripts/stage-site.mjs')]);

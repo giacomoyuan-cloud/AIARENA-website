@@ -7,7 +7,6 @@ package com.pickandcase.assistant
 
 import android.app.Activity
 import android.content.Intent
-import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Build
 import android.widget.TextView
@@ -47,7 +46,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -134,7 +132,9 @@ fun AssistantApp(vm: AssistantViewModel) {
                 secondaryContainer = Color(0xFFF0EDE4),
                 outlineVariant = Color(0xFFE1DED4),
             )
-    MaterialTheme(colorScheme = colors) {
+    val typographyContext = LocalContext.current
+    val typography = remember(typographyContext) { NativeTypography.typography(typographyContext) }
+    MaterialTheme(colorScheme = colors, typography = typography) {
         NativeUpdateHost(vm.updates)
         Surface(Modifier.fillMaxSize(), color = colors.background) {
             if (state.session == null) LoginScreen(state, vm) else MainShell(state, vm)
@@ -156,11 +156,9 @@ private fun LoginScreen(s: AssistantState, vm: AssistantViewModel) {
             Modifier.widthIn(max = 420.dp).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
-            Kitten(Modifier.size(92.dp).align(Alignment.CenterHorizontally))
             Text(
                 "AI 助手",
                 fontSize = 32.sp,
-                fontFamily = FontFamily.Serif,
                 modifier = Modifier.align(Alignment.CenterHorizontally),
             )
             Text(
@@ -265,7 +263,6 @@ private fun MainShell(s: AssistantState, vm: AssistantViewModel) {
                         Modifier.fillMaxWidth().padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Kitten(Modifier.size(40.dp))
                         Spacer(Modifier.width(12.dp))
                         Text("AI 助手", style = MaterialTheme.typography.titleLarge)
                     }
@@ -479,17 +476,6 @@ private fun pageTitle(s: AssistantState) =
     }
 
 @Composable
-fun Kitten(modifier: Modifier = Modifier) {
-    val context = LocalContext.current
-    val bitmap = remember {
-        runCatching { context.assets.open("native-kitten.png").use(BitmapFactory::decodeStream) }
-            .getOrNull()
-    }
-    if (bitmap != null) Image(bitmap.asImageBitmap(), "袁啾啾", modifier)
-    else Icon(Icons.Outlined.AutoAwesome, null, modifier, tint = WarmAccent)
-}
-
-@Composable
 private fun ChatScreen(s: AssistantState, vm: AssistantViewModel) {
     var options by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -505,7 +491,6 @@ private fun ChatScreen(s: AssistantState, vm: AssistantViewModel) {
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Kitten(Modifier.size(88.dp))
                 Spacer(Modifier.height(20.dp))
                 Text(
                     when (s.mode) {
@@ -513,8 +498,7 @@ private fun ChatScreen(s: AssistantState, vm: AssistantViewModel) {
                         "image" -> "把想象，变成画面。"
                         else -> "想聊点什么？"
                     },
-                    fontFamily = FontFamily.Serif,
-                    fontSize = 27.sp,
+                        fontSize = 27.sp,
                 )
                 Spacer(Modifier.height(10.dp))
                 Text(
@@ -1060,8 +1044,16 @@ private fun MessageView(message: JSONObject, s: AssistantState, vm: AssistantVie
 fun Markdown(text: String) {
     val context = LocalContext.current
     val color = MaterialTheme.colorScheme.onSurface.toArgb()
-    val markwon = remember {
+    val modernTypeface = remember(context) { NativeTypography.typeface(context) }
+    val markwon = remember(context, modernTypeface) {
         Markwon.builder(context)
+            .usePlugin(object : io.noties.markwon.AbstractMarkwonPlugin() {
+                override fun configureTheme(builder: io.noties.markwon.core.MarkwonTheme.Builder) {
+                    builder.codeTypeface(modernTypeface)
+                        .codeBlockTypeface(modernTypeface)
+                        .headingTypeface(modernTypeface)
+                }
+            })
             .usePlugin(TablePlugin.create(context))
             .usePlugin(StrikethroughPlugin.create())
             .usePlugin(LinkifyPlugin.create())
@@ -1073,6 +1065,7 @@ fun Markdown(text: String) {
     AndroidView(
         factory = {
             TextView(it).apply {
+                typeface = modernTypeface
                 textSize = 16f
                 setTextIsSelectable(true)
                 setLineSpacing(4f, 1.15f)

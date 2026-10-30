@@ -4,16 +4,17 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>越人歌 · 音准分析</title>
+<link rel="stylesheet" href="/arena-fonts.css?v=20261030-modernfont1">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:#0a0a0f;color:#f1f5f9;font-family:'Courier New',monospace;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:24px 16px 48px;overflow-x:hidden}
+body{background:#0a0a0f;color:#f1f5f9;font-family: var(--arena-ui-font);min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:24px 16px 48px;overflow-x:hidden}
 .screen{display:none;width:100%;max-width:480px;flex-direction:column;align-items:center}
 .screen.active{display:flex}
 h1{font-size:22px;letter-spacing:.5em;color:#f1f5f9;margin-bottom:4px;text-align:center;font-weight:900}
 .sub{font-size:10px;color:#64748b;letter-spacing:.4em;margin-bottom:24px;text-align:center}
 .card{background:#13131a;border:1px solid #1e293b;border-radius:12px;padding:18px;width:100%;margin-bottom:12px}
 .card-title{font-size:10px;color:#94a3b8;letter-spacing:.3em;margin-bottom:12px;font-weight:700}
-.btn{padding:14px 0;border-radius:40px;border:none;font-size:13px;font-weight:700;cursor:pointer;letter-spacing:.3em;font-family:'Courier New',monospace;transition:all .15s;width:100%;margin-top:6px}
+.btn{padding:14px 0;border-radius:40px;border:none;font-size:13px;font-weight:700;cursor:pointer;letter-spacing:.3em;font-family: var(--arena-ui-font);transition:all .15s;width:100%;margin-top:6px}
 .btn.primary{background:#166534;color:#bbf7d0}
 .btn.primary:hover{background:#15803d}
 .btn.danger{background:#7f1d1d;color:#fecaca}
@@ -97,7 +98,7 @@ h1{font-size:22px;letter-spacing:.5em;color:#f1f5f9;margin-bottom:4px;text-align
     <div class="card-title">选择曲目</div>
     <div class="info-row">
       <span class="info-key">曲目</span>
-      <select id="song-select" style="background:#1e293b;color:#f1f5f9;border:none;font-family:'Courier New',monospace;font-size:13px;font-weight:700;padding:4px 8px;border-radius:6px;cursor:pointer">
+      <select id="song-select" style="background:#1e293b;color:#f1f5f9;border:none;font-family: var(--arena-ui-font);font-size:13px;font-weight:700;padding:4px 8px;border-radius:6px;cursor:pointer">
         <option value="yuerge">越人歌</option>
       </select>
     </div>
@@ -116,7 +117,7 @@ h1{font-size:22px;letter-spacing:.5em;color:#f1f5f9;margin-bottom:4px;text-align
         <div style="color:#f1f5f9;font-size:13px;font-weight:700;margin-bottom:4px">🎹 单句练习</div>
         <div style="color:#64748b;font-size:11px;line-height:1.7">钢琴逐字引导，唱对才前进<br>评分：仅音准</div>
       </div>
-      <button id="btn-start-prac" style="width:auto;padding:10px 20px;margin:0;font-size:11px;background:#1e3a5f;color:#bae6fd;border-radius:40px;border:none;font-weight:700;cursor:pointer;font-family:'Courier New',monospace">开始</button>
+      <button id="btn-start-prac" style="width:auto;padding:10px 20px;margin:0;font-size:11px;background:#1e3a5f;color:#bae6fd;border-radius:40px;border:none;font-weight:700;cursor:pointer;font-family: var(--arena-ui-font)
     </div>
   </div>
 </div>
@@ -982,7 +983,7 @@ async function doStartTap(){
     const btn=document.createElement('button');
     btn.textContent=note.l;
     btn.id='tap-btn-'+i;
-    btn.style.cssText='background:#1e293b;color:#94a3b8;border:1px solid #334155;border-radius:8px;padding:10px 14px;font-size:20px;font-weight:900;cursor:pointer;font-family:inherit;transition:all .1s';
+    btn.style.cssText='background:#1e293b;color:#94a3b8;border:1px solid #334155;border-radius:8px;padding:10px 14px;font-size:20px;font-weight:900;cursor:pointer;font-family: inherit;transition:all .1s';
     btn.addEventListener('click',()=>{
       noteIdx=i;
       tapMatchStreak=0; tapMatchTarget=-1; tapPitchHistory=[];

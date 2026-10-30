@@ -37,7 +37,7 @@
 #ai-arena-app.arena-shell .arena-image-result-details summary { cursor:pointer; }
 #ai-arena-app.arena-shell .arena-image-result-details summary span { margin-left:8px; color:var(--arena-faint); }
 #ai-arena-app.arena-shell .arena-image-result-details p { white-space:pre-wrap; overflow-wrap:anywhere; margin:8px 0; }
-#ai-arena-app.arena-shell .arena-image-editor { position:fixed; inset:20px; margin:auto; width:min(920px,calc(100vw - 40px)); max-height:calc(100dvh - 40px); box-sizing:border-box; padding:0; border:1px solid var(--arena-border); border-radius:18px; background:var(--arena-bg); color:var(--arena-text); box-shadow:0 24px 80px #0003; font-family:var(--arena-ui-font); overflow:hidden; }
+#ai-arena-app.arena-shell .arena-image-editor { position:fixed; inset:20px; margin:auto; width:min(920px,calc(100vw - 40px)); max-height:calc(100dvh - 40px); box-sizing:border-box; padding:0; border:1px solid var(--arena-border); border-radius:18px; background:var(--arena-bg); color:var(--arena-text); box-shadow:0 24px 80px #0003; font-family: var(--arena-ui-font); overflow:hidden; }
 #ai-arena-app.arena-shell .arena-image-editor[open] { display:flex; flex-direction:column; }
 #ai-arena-app.arena-shell .arena-image-editor::backdrop { background:#0007; }
 #ai-arena-app.arena-shell .arena-image-editor header { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; padding:20px 22px 14px; }

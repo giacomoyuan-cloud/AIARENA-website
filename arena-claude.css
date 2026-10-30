@@ -1,6 +1,6 @@
 /* Claude 风格外观层。
    最后加载，只覆盖颜色、字体、圆角、尺寸和对齐；不改结构、不改交互、不删功能。
-   衬线体负责“说话”（欢迎语、回复正文、辩论发言），无衬线负责“操作”。
+   思源现代统一所有标题、正文与操作文字。
    输入框第二行的 +、模型、图像工具和发送键统一 34px 高、按中线对齐。 */
 
 #ai-arena-app.arena-shell {
@@ -25,7 +25,6 @@
   --claude-shadow: 0 .25rem 1.25rem rgba(0, 0, 0, .2), 0 0 0 .5px rgba(250, 249, 245, .12);
   --claude-shadow-focus: 0 .25rem 1.25rem rgba(0, 0, 0, .28), 0 0 0 .5px rgba(250, 249, 245, .22);
   --claude-menu-shadow: 0 12px 32px rgba(0, 0, 0, .45), 0 0 0 .5px rgba(250, 249, 245, .12);
-  --claude-serif: "Source Serif 4", "Noto Serif SC", "Songti SC", "STSong", Georgia, serif;
   --claude-h: 34px;
 }
 #ai-arena-app.arena-shell.light-mode {
@@ -52,7 +51,7 @@
 
 /* ---------- 侧边栏 ---------- */
 #ai-arena-app.arena-shell .aa-history-panel { background: var(--arena-sidebar); border-right: .5px solid var(--claude-line); }
-#ai-arena-app.arena-shell .arena-wordmark { display: inline-flex; align-items: center; gap: 9px; font: 500 20px/1 var(--claude-serif); letter-spacing: -.01em; }
+#ai-arena-app.arena-shell .arena-wordmark { display: inline-flex; align-items: center; gap: 9px; font: 500 20px/1 var(--arena-ui-font); letter-spacing: -.01em; }
 #ai-arena-app.arena-shell .arena-nav-item { font-size: 14.5px; color: var(--claude-text-2); border-radius: 8px; }
 #ai-arena-app.arena-shell .arena-nav-item svg { color: var(--arena-muted); }
 #ai-arena-app.arena-shell .arena-nav-item.active,
@@ -85,14 +84,14 @@
 #ai-arena-app.arena-shell:has(#aaIncognitoBtn[aria-pressed="true"]) .aa-input-row { background: transparent; box-shadow: none; border: 1px dashed var(--claude-line-2); }
 
 /* ---------- 欢迎页 ---------- */
-#ai-arena-app.arena-shell .aa-welcome h1 { font: 400 clamp(30px, 4.2vw, 40px)/1.2 var(--claude-serif); letter-spacing: -.015em; color: var(--claude-text-2); -webkit-text-fill-color: var(--claude-text-2); text-wrap: balance; }
+#ai-arena-app.arena-shell .aa-welcome h1 { font: 400 clamp(30px, 4.2vw, 40px)/1.2 var(--arena-ui-font); letter-spacing: -.015em; color: var(--claude-text-2); -webkit-text-fill-color: var(--claude-text-2); text-wrap: balance; }
 #aaDebateWelcomeCopy { display: none !important; }
 
 /* ---------- 消息 ---------- */
-#ai-arena-app.arena-shell .aa-msg-body.ai-bubble { font-family: var(--claude-serif); font-size: 17px; line-height: 1.72; }
+#ai-arena-app.arena-shell .aa-msg-body.ai-bubble { font-family: var(--arena-ui-font); font-size: 17px; line-height: 1.72; }
 #ai-arena-app.arena-shell .aa-msg-body.ai-bubble :is(table, th, td, pre, code, button, input, select, textarea, .aa-code-wrap, .aa-md-table-wrap) { font-family: var(--arena-ui-font); }
-#ai-arena-app.arena-shell .aa-msg-body.ai-bubble :is(pre, code, .aa-code-wrap) { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-#ai-arena-app.arena-shell .aa-msg-body.ai-bubble :is(h1, h2, h3, h4) { font-family: var(--claude-serif); font-weight: 600; letter-spacing: -.01em; }
+#ai-arena-app.arena-shell .aa-msg-body.ai-bubble :is(pre, code, .aa-code-wrap) { font-family: var(--arena-ui-font); }
+#ai-arena-app.arena-shell .aa-msg-body.ai-bubble :is(h1, h2, h3, h4) { font-family: var(--arena-ui-font); font-weight: 600; letter-spacing: -.01em; }
 #ai-arena-app.arena-shell .aa-msg-body.user { background: var(--arena-user); border-radius: 18px; padding: 10px 15px; font-size: 15.5px; line-height: 1.6; }
 #ai-arena-app.arena-shell .aa-msg-name { font-size: 12.5px; }
 #ai-arena-app.arena-shell .arena-message-action { width: 30px; height: 30px; border-radius: 7px; color: var(--arena-muted); }
@@ -211,7 +210,7 @@
 /* ---------- 弹窗 ---------- */
 #ai-arena-app.arena-shell .arena-workspace-dialog,
 #ai-arena-app.arena-shell .arena-account-dialog { border: 0; border-radius: 18px; background: var(--arena-surface); box-shadow: var(--claude-menu-shadow); }
-#ai-arena-app.arena-shell .arena-dialog-heading h2 { font: 400 22px/1.25 var(--claude-serif); letter-spacing: -.01em; }
+#ai-arena-app.arena-shell .arena-dialog-heading h2 { font: 400 22px/1.25 var(--arena-ui-font); letter-spacing: -.01em; }
 
 /* ---------- 手机 ---------- */
 @media (max-width: 600px) {
@@ -246,7 +245,7 @@
 #ai-arena-app.arena-shell .aa-chat.empty-state .arena-project-bar { position: absolute; inset: 0 0 auto; }
 #ai-arena-app.arena-shell .aa-chat.empty-state .aa-messages { flex: 0 0 auto; height: 0; min-height: 0; padding: 0; overflow: hidden; }
 #ai-arena-app.arena-shell .aa-chat.empty-state .aa-welcome { position: static; inset: auto; transform: none; display: grid; grid-template-columns: minmax(0, 1fr); align-items: center; width: calc(100% - 32px); max-width: var(--arena-reading-width); height: 72px; min-height: 72px; flex: 0 0 72px; margin: 0 auto 24px; text-align: left; pointer-events: auto; }
-#ai-arena-app.arena-shell .aa-chat.empty-state .aa-welcome h1 { align-self: start; margin: 12px 0 0; text-align: left; font: 400 clamp(24px, 3.3vw, 34px)/1.25 var(--claude-serif); }
+#ai-arena-app.arena-shell .aa-chat.empty-state .aa-welcome h1 { align-self: start; margin: 12px 0 0; text-align: left; font: 400 clamp(24px, 3.3vw, 34px)/1.25 var(--arena-ui-font); }
 @media (max-height: 600px) {
   #ai-arena-app.arena-shell .aa-chat.empty-state,
   #ai-arena-app.arena-shell .aa-chat.empty-state.image-composer-state { padding-top: 12px; }
@@ -371,7 +370,7 @@
 #ai-arena-app.arena-shell .arena-effort-heading { grid-template-columns: minmax(0, 1fr) 28px; min-height: 32px; padding: 2px 4px 2px 10px; }
 #ai-arena-app.arena-shell .arena-effort-heading > span:first-child { display: none; }
 #ai-arena-app.arena-shell .arena-effort-heading > output,
-#ai-arena-app.arena-shell:not(.light-mode) .arena-effort-heading > output { text-align: left; color: var(--arena-text); font: 500 15px/1.4 var(--claude-serif); letter-spacing: 0; }
+#ai-arena-app.arena-shell:not(.light-mode) .arena-effort-heading > output { text-align: left; color: var(--arena-text); font: 500 15px/1.4 var(--arena-ui-font); letter-spacing: 0; }
 #ai-arena-app.arena-shell .arena-effort-model { justify-content: flex-start; gap: 9px; min-height: 40px; margin-top: 2px; padding: 0 10px; border-radius: 7px; background: transparent; color: var(--arena-text); font-size: 14px; }
 #ai-arena-app.arena-shell .arena-effort-model > span { flex: 1; text-align: left; }
 #ai-arena-app.arena-shell .arena-effort-model svg { color: var(--arena-muted); }
@@ -388,7 +387,7 @@
 /* ---------- 登录：大猫 + 衬线标题 + 两个独立输入框 + 整宽按钮，不包卡片 ---------- */
 #ai-arena-app.arena-shell #aaLoginOverlay { background: var(--arena-bg) !important; }
 #ai-arena-app.arena-shell #aaLoginOverlay > div { max-width: 360px !important; }
-#ai-arena-app.arena-shell #aaLoginOverlay h2 { margin: 4px 0 22px !important; font: 400 36px/1.1 var(--claude-serif) !important; letter-spacing: -.01em; }
+#ai-arena-app.arena-shell #aaLoginOverlay h2 { margin: 4px 0 22px !important; font: 400 36px/1.1 var(--arena-ui-font) !important; letter-spacing: -.01em; }
 #ai-arena-app.arena-shell #aaLoginOverlay > div > p:empty { display: none; }
 #ai-arena-app.arena-shell #aaLoginOverlay > div > div:nth-of-type(2) { padding: 0 !important; border: 0 !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
 #ai-arena-app.arena-shell #aaLoginOverlay .aa-key-input { height: 46px; padding: 0 14px; border: .5px solid var(--claude-line-2) !important; border-radius: 12px !important; background: var(--arena-surface) !important; font-size: 15px; outline: 0; }
