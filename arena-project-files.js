@@ -101,11 +101,12 @@
     }return result;
   }
   async function upload(options){
-    var file=options.file,credentials=options.credentials,key=credentials.username.toLowerCase()+'|'+options.projectId+'|'+file.name+'|'+file.size+'|'+file.lastModified+'|'+await fingerprint(file),saved=await session('get',key)||{id:crypto.randomUUID(),parts:[]};
+    var file=options.file,credentials=options.credentials,key=credentials.username.toLowerCase()+'|'+(options.resumeNamespace||options.projectId)+'|'+file.name+'|'+file.size+'|'+file.lastModified+'|'+await fingerprint(file),saved=await session('get',key)||{id:crypto.randomUUID(),parts:[]};
     var auth=Object.assign({},credentials),id=saved.id;
     function api(action,extra){if(options.signal?.aborted||options.isCurrent&& !options.isCurrent())throw Object.assign(Error('账号已切换，上传已暂停'),{name:'AbortError'});return options.api('library_'+action,Object.assign({projectId:options.projectId,fileId:id},extra||{},auth));}
     function progress(phase,done,total){if(options.progress)options.progress({phase:phase,done:done,total:total,name:file.name});}
     var descriptor={id:id,name:file.name,size:file.size,type:file.type};if(options.folder){descriptor.folder=options.folder;descriptor.relativePath=options.relativePath;}
+    await session('put',key,saved);
     var started=await api('start',{file:descriptor,replaceFileId:options.replaceFileId});
     if(started.file.status==='ready'||started.file.status==='partial'){await session('delete',key);return started.file;}
     saved.partSize=started.partSize;await session('put',key,saved);

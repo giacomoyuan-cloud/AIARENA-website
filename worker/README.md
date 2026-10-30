@@ -12,6 +12,16 @@ New project originals use the private `PROJECT_DOCUMENTS` R2 binding (`ai-assist
 
 Original bytes are downloaded only through authenticated Worker routes. R2 public access stays disabled. Existing KV files remain readable, and project/account authorization precedes original transfer or index access. Soft removal and replacement preserve recoverability. No embedding/model call is made merely to upload or index a file. See [R2 limits](https://developers.cloudflare.com/r2/platform/limits/) and [Durable Objects limits](https://developers.cloudflare.com/durable-objects/platform/limits/).
 
+## File reading in ordinary chats
+
+The composer now exposes the same **按需检索 / 全文阅读** controls in ordinary chats and projects. A user instruction such as “请全文阅读这份文件” selects full reading for that turn; a quoted instruction inside a file cannot change the mode. Named files and newly attached files determine the requested reading range. Model thinking intensity is a separate setting.
+
+Ordinary-chat uploads use the browser parser, resumable private R2 originals and SQLite index above, rather than concatenating the old 40,000-character attachment preview into every prompt. Only this account and conversation can access them. Project chats also retain their project scope. Upload-only drafts are listed so a refresh does not strand their files; moving a conversation preserves its associated originals, and deleting the conversation removes its own file library. Ordinary files do not become project-wide reference files automatically.
+
+Indexed file cards open a right-side text preview and can download the exact original. Readable PDF, Word and Excel text is supported through the same parser as project materials. Re-upload old inline attachments to obtain a complete index: the app cannot recover text previously truncated by the old upload path. Original-file generation/editing tools still have their own 20 MiB / five-original request bounds.
+
+Incognito parses files in browser memory and supplies only the selected text with the request; it does not create a persistent file library, R2 original or saved reading notes. Leaving that private conversation discards its browser file state. Full reading beyond the bounded private request requires normal mode, with the limitation reported before a reading call. “Full” means every available indexed text segment is checked in batches, not that the model retains every word in its final notes or can read unrecognized scans, embedded images or Office diagrams.
+
 ## Provider routes
 
 | Models | API host | Existing secret binding |

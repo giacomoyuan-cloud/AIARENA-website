@@ -9,6 +9,7 @@ const rows=(ctx,sql,...args)=>ctx.storage.sql.exec(sql,...args).toArray();
 function init(ctx){
   if(initialized.has(ctx))return;
   ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS library_identity (id INTEGER PRIMARY KEY, owner TEXT NOT NULL, project TEXT NOT NULL)');
+  ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS library_settings (id INTEGER PRIMARY KEY, value TEXT NOT NULL)');
   ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS library_files (id TEXT PRIMARY KEY, meta TEXT NOT NULL, state TEXT NOT NULL, removed INTEGER NOT NULL DEFAULT 0)');
   ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS library_segments (file_id TEXT NOT NULL, ordinal INTEGER NOT NULL, location TEXT NOT NULL, text TEXT NOT NULL, digest TEXT NOT NULL, PRIMARY KEY(file_id,ordinal))');
   ctx.storage.sql.exec('CREATE VIRTUAL TABLE IF NOT EXISTS library_search USING fts5(words, file_id UNINDEXED, ordinal UNINDEXED)');
@@ -47,12 +48,24 @@ export async function handleProjectLibrary(ctx,env,request){
   try{
     init(ctx);
     const url=new URL(request.url),part=request.method==='PUT';
-    const body=part?{owner:request.headers.get('x-library-owner'),projectId:request.headers.get('x-library-project'),action:'part',fileId:url.searchParams.get('file'),part:Number(url.searchParams.get('part'))}:await request.json();
+    const body=part?{owner:request.headers.get('x-library-owner'),projectId:request.headers.get('x-library-project'),conversation:request.headers.get('x-library-conversation')==='true',channel:request.headers.get('x-library-channel'),action:'part',fileId:url.searchParams.get('file'),part:Number(url.searchParams.get('part'))}:await request.json();
     await identity(ctx,body.owner,body.projectId);
     const action=body.action;
+    const settings=JSON.parse(rows(ctx,'SELECT value FROM library_settings WHERE id=1')[0]?.value||'{}');
+    if(body.conversation){
+      if(typeof body.channel!=='string'||(body.channel!=='general'&&!idOK(body.channel)))fail('对话文件范围无效');
+      if(action==='move_scope'&&settings.channel===body.targetChannel)return json({ok:true});
+      if(settings.channel&&settings.channel!==body.channel)fail('对话文件已移动，请从所属对话打开',409);
+      if(!settings.channel){settings.channel=body.channel;ctx.storage.sql.exec('INSERT INTO library_settings(id,value) VALUES(1,?) ON CONFLICT(id) DO UPDATE SET value=excluded.value',JSON.stringify(settings));}
+      if(action==='settings'||action==='move_scope'){
+        if(action==='settings'){if(!['retrieve','full'].includes(body.mode))fail('阅读方式无效');settings.readingMode=body.mode;}
+        else{if(body.targetChannel!=='general'&&!idOK(body.targetChannel))fail('目标范围无效');settings.channel=body.targetChannel;}
+        ctx.storage.sql.exec('UPDATE library_settings SET value=? WHERE id=1',JSON.stringify(settings));return json({ok:true,readingMode:settings.readingMode||'retrieve'});
+      }
+    }
     if(action==='list'){
       const all=rows(ctx,'SELECT meta,state,removed FROM library_files').map(r=>publicFile({...JSON.parse(r.meta),state:r.state,removed:!!r.removed}));
-      return json({files:all.filter(f=>!f.removed&&f.state!=='aborted'),removed:all.filter(f=>f.removed),retired:rows(ctx,'SELECT meta FROM library_retired').map(r=>JSON.parse(r.meta))});
+      return json({files:all.filter(f=>!f.removed&&f.state!=='aborted'),removed:all.filter(f=>f.removed),readingMode:settings.readingMode||'retrieve',retired:rows(ctx,'SELECT meta FROM library_retired').map(r=>JSON.parse(r.meta))});
     }
     if(action==='reading_get'){const value=JSON.parse(rows(ctx,'SELECT value FROM library_readings WHERE key=?',String(body.key))[0]?.value||'null');return json({value:value&&value.expiresAt>Date.now()?value:null});}
     if(action==='reading_put'){
@@ -69,7 +82,7 @@ export async function handleProjectLibrary(ctx,env,request){
       const existing=rows(ctx,'SELECT id FROM library_files WHERE id=?',input.id)[0];
       if(existing){const prior=file(ctx,input.id);if(prior.name!==input.name||prior.size!==input.size||prior.state==='aborted'||prior.removed)fail('上传会话与文件不匹配，请重新开始上传',409);return json({file:publicFile(prior),partSize:prior.partSize});}
       if(input.folder!==undefined&&(typeof input.folder!=='string'||!input.folder.trim()||input.folder.length>180||/[\u0000-\u001f/\\]/.test(input.folder)||typeof input.relativePath!=='string'||input.relativePath.length>500||input.relativePath.split(/[\\/]/).some(p=>!p||p==='.'||p==='..')))fail('文件夹路径无效');
-      const objectKey='projects/'+encodeURIComponent(body.owner)+'/'+body.projectId+'/'+input.id+'/original';
+      const objectKey=(body.conversation?'conversations/':'projects/')+encodeURIComponent(body.owner)+'/'+(body.conversation?encodeURIComponent(body.channel)+'/':'')+body.projectId+'/'+input.id+'/original';
       const upload=await env.PROJECT_DOCUMENTS.createMultipartUpload(objectKey,{httpMetadata:{contentType:input.type||'application/octet-stream'}});
       const value={id:input.id,name:input.name,size:input.size,type:String(input.type||'application/octet-stream').slice(0,120),createdAt:Date.now(),characters:0,segments:0,partSize:Math.max(5*1024*1024,Math.ceil(input.size/9999/1024/1024)*1024*1024),objectKey,uploadId:upload.uploadId,state:'uploading',removed:false,...(input.folder?{folder:input.folder,relativePath:input.relativePath}:{}),...(body.replaced?{replaced:body.replaced}:{})};
       save(ctx,value);return json({file:publicFile(value),partSize:value.partSize});
@@ -99,6 +112,10 @@ export async function handleProjectLibrary(ctx,env,request){
       return json({segments:resultRows,next:offset+resultRows.length,done:resultRows.length===0,total:rows(ctx,"SELECT COUNT(*) AS n FROM library_segments s JOIN library_files f ON f.id=s.file_id JOIN library_scope_files q ON q.file_id=f.id WHERE q.scope=?",body.scope)[0].n});
     }
     if(action==='restore_legacy'){ctx.storage.sql.exec('DELETE FROM library_retired WHERE id=?',body.fileId);return json({ok:true});}
+    if(action==='purge_conversation'&&body.conversation){
+      for(const row of rows(ctx,'SELECT meta,state FROM library_files')){const f=JSON.parse(row.meta);if(f.objectKey)await env.PROJECT_DOCUMENTS.delete(f.objectKey);if(f.uploadId&&!f.originalComplete)await env.PROJECT_DOCUMENTS.resumeMultipartUpload(f.objectKey,f.uploadId).abort().catch(()=>{});}
+      transact(ctx,()=>{for(const table of ['library_search','library_segments','library_files','library_readings','library_scope_files'])ctx.storage.sql.exec('DELETE FROM '+table);});return json({ok:true});
+    }
     const value=file(ctx,body.fileId);
     if(action==='part'){
       if(value.state!=='uploading'||value.removed)fail('上传会话已结束',409);

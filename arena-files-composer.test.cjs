@@ -15,7 +15,7 @@ function fn(name) {
 function fixture(prepare) {
   const elements = new Map(), captured = [], originals = []; let scope = 'general';
   const get = id => { if (!elements.has(id)) elements.set(id, { value: '', disabled: false, setAttribute() {}, removeAttribute() {} }); return elements.get(id); };
-  const context = vm.createContext({ fileImporting: false, aaRunning: false, imageMode: false, sentTexts: [], sentImgs: [], ArenaFiles: { LIMITS: { chatCharacters: 40000 }, isImage: () => false, prepareChatFile: prepare }, $: get, fileImportContext: () => scope, showFileImport() {}, arenaNotice() {}, renderTextPreviews() {}, handleImageFile: async () => true, skillsRuntime: { ready: async () => {}, filesForTexts: () => originals, capture: file => { captured.push(file); originals.push({ name: file.name, size: file.size }); } } });
+  const context = vm.createContext({ conversationFiles:null,currentChatId:'synthetic-chat',fileImporting: false, aaRunning: false, imageMode: false, sentTexts: [], sentImgs: [], ArenaFiles: { LIMITS: { chatCharacters: 40000 }, isImage: () => false, prepareChatFile: prepare }, $: get, fileImportContext: () => scope, showFileImport() {}, arenaNotice() {}, renderTextPreviews() {}, handleImageFile: async () => true, skillsRuntime: { ready: async () => {}, filesForTexts: () => originals, capture: file => { captured.push(file); originals.push({ name: file.name, size: file.size }); } } });
   vm.runInContext(fn('importComposerFiles'), context);
   return { context, captured, originals, switchScope: () => { scope = 'project-b'; } };
 }
@@ -39,6 +39,6 @@ test('limits prevent an extra original from making the later native document req
 });
 test('sending while parsing stops before any chat or model request', async () => {
   let notice = '';
-  const context = vm.createContext({ fileImporting: true, arenaNotice: value => { notice = value; } });
+  const context = vm.createContext({ documentPreparing:false,fileImporting: true, arenaNotice: value => { notice = value; } });
   vm.runInContext(fn('aaStart'), context); await context.aaStart(); assert.match(notice, /解析/);
 });
