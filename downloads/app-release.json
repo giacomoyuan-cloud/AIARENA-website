@@ -1,11 +1,11 @@
 {
-  "version": "2.0.6",
-  "versionCode": 206,
+  "version": "2.0.7",
+  "versionCode": 207,
   "package": "com.pickandcase.assistant",
   "minAndroid": "8.0",
-  "url": "/downloads/AI-Assistant-2.0.6.apk",
-  "bytes": 23047297,
-  "sha256": "814d7d272996b9c9b0d8e9280721270b3221fa1969b33b6624287d39fe7c0953",
+  "url": "/downloads/AI-Assistant-2.0.7.apk",
+  "bytes": 23063685,
+  "sha256": "53746a5b69d1f4905397ba9b3fbda67742cc1ca8b6236631fe0fa672eb442884",
   "native": true,
-  "notes": "统一网站与 App 的字体、按钮、选择器和滑块；修复暂停状态、附件旧提示与手机布局；代码等宽显示，公式支持浅色及深色主题。"
+  "notes": "修复表格与逐项切换卡顿；大表分页，保留当前页和横向位置；切换后展示开头内容，保留格式、链接和公式。"
 }

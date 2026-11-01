@@ -9,8 +9,8 @@ android {
         applicationId 'com.pickandcase.assistant'
         minSdk 26
         targetSdk 36
-        versionCode providers.gradleProperty('nativeVersionCode').map { it.toInteger() }.getOrElse(206)
-        versionName providers.gradleProperty('nativeVersionName').getOrElse('2.0.6')
+        versionCode providers.gradleProperty('nativeVersionCode').map { it.toInteger() }.getOrElse(207)
+        versionName providers.gradleProperty('nativeVersionName').getOrElse('2.0.7')
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
         buildConfigField 'String', 'SITE_URL', '"https://ai.pickandcase.com/"'
         buildConfigField 'String', 'API_URL', '"https://api.pickandcase.com/native/"'

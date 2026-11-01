@@ -1068,11 +1068,11 @@ fun Markdown(text: String) {
 }
 
 @Composable
-fun MarkdownText(text: String) {
+internal fun rememberNativeMarkdownRenderer(): Markwon {
     val context = LocalContext.current
     val color = MaterialTheme.colorScheme.onSurface.toArgb()
     val modernTypeface = remember(context) { NativeTypography.typeface(context) }
-    val markwon = remember(context, modernTypeface, color) {
+    return remember(context, modernTypeface, color) {
         Markwon.builder(context)
             .usePlugin(object : io.noties.markwon.AbstractMarkwonPlugin() {
                 override fun configureTheme(builder: io.noties.markwon.core.MarkwonTheme.Builder) {
@@ -1091,6 +1091,16 @@ fun MarkdownText(text: String) {
             )
             .build()
     }
+}
+
+internal val LocalNativeMarkdownRenderer = staticCompositionLocalOf<Markwon?> { null }
+
+@Composable
+fun MarkdownText(text: String) {
+    val context = LocalContext.current
+    val color = MaterialTheme.colorScheme.onSurface.toArgb()
+    val modernTypeface = remember(context) { NativeTypography.typeface(context) }
+    val markwon = LocalNativeMarkdownRenderer.current ?: rememberNativeMarkdownRenderer()
     AndroidView(
         factory = {
             TextView(it).apply {
