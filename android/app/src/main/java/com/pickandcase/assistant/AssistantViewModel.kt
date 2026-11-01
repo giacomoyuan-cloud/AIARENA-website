@@ -159,6 +159,7 @@ class AssistantViewModel(application: Application, val api: NativeApi = NativeAp
     private var observer: Job? = null
     private var pageEpoch = 0
     private var activeRun: JSONObject? = null
+    private var modeNavigationPending = false
 
     private fun scope(s: AssistantState = mutable.value) = s.project?.str("id") ?: "general"
 
@@ -392,11 +393,40 @@ class AssistantViewModel(application: Application, val api: NativeApi = NativeAp
     }
 
     fun mode(value: String) {
-        if (mutable.value.busy) {
+        if (value !in listOf("chat", "debate", "image")) return
+        val previous = mutable.value
+        if (previous.busy) {
             notice("请先停止当前任务，再切换模式")
             return
         }
-        mutable.update { it.copy(mode = value, page = Page.CHAT) }
+        if (previous.loading || modeNavigationPending) {
+            notice("正在保存或加载，请稍后再切换")
+            return
+        }
+        val epoch = ++pageEpoch
+        fun commit() {
+            if (epoch != pageEpoch || account() != previous.session?.accountId) return
+            // Drawer destinations are global; project conversations keep their scope in history.
+            startFreshChat(value, null, resetModeContext = true)
+            savePreferences()
+            loadHistory()
+        }
+        if (previous.messages.isEmpty() || previous.incognito) {
+            commit()
+            return
+        }
+        modeNavigationPending = true
+        mutable.update { it.copy(loading = true, error = "") }
+        viewModelScope.launch {
+            try {
+                saveChat(previous)
+                commit()
+            } catch (e: Exception) {
+                if (epoch == pageEpoch) error(e)
+            } finally {
+                modeNavigationPending = false
+            }
+        }
     }
 
     fun model(id: String, effort: String) {
@@ -483,17 +513,33 @@ class AssistantViewModel(application: Application, val api: NativeApi = NativeAp
     }
 
     fun newChat() {
-        preferences.edit().remove("last-view:" + account()).apply()
+        startFreshChat()
+    }
+
+    private fun startFreshChat(
+        mode: String = mutable.value.mode,
+        project: JSONObject? = mutable.value.project,
+        resetModeContext: Boolean = false,
+    ) {
+        ++pageEpoch // Invalidate history/project loads that started before the reset.
+        preferences.edit().remove("last-view:" + account())
+            .remove("draft:" + account() + ":" + (project?.str("id") ?: "general")).apply()
         observer?.cancel()
         activeRun = null
         mutable.update {
             it.copy(
                 page = Page.CHAT,
+                mode = mode,
+                project = project,
+                data = JSONObject(),
+                histories = if (scope(it) == (project?.str("id") ?: "general")) it.histories else emptyList(),
+                groups = if (scope(it) == (project?.str("id") ?: "general")) it.groups else emptyList(),
                 chatId = UUID.randomUUID().toString(),
                 title = "新对话",
                 messages = emptyList(),
                 draft = "",
                 attachments = emptyList(),
+                documentPayload = null,
                 quote = null,
                 imageParent = null,
                 imageMask = null,
@@ -503,7 +549,12 @@ class AssistantViewModel(application: Application, val api: NativeApi = NativeAp
                 run = null,
                 busy = false,
                 error = "",
-                debate = it.debate.copyJson().apply { remove("priorRunId") },
+                notice = "",
+                connection = "",
+                debate = it.debate.copyJson().apply {
+                    remove("priorRunId")
+                    if (resetModeContext) { remove("context"); remove("constraints") }
+                },
             )
         }
     }

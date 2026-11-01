@@ -18,19 +18,22 @@ test('ordinary attachments and round zero do not turn a text conversation into i
   assert.equal(Modes.infer([null,false]).mode,'chat');
 });
 function fixture(overrides={}){
-  const elements=new Map(),events=new Map(),calls=[];
-  const element=id=>{if(!elements.has(id))elements.set(id,{value:'',style:{},classList:{add(){},remove(){},toggle(){}},addEventListener:(event,handler)=>events.set(id+':'+event,handler)});return elements.get(id);};
+  const elements=new Map(),events=new Map(),calls=[];let sequence=0;
+  const element=id=>{if(!elements.has(id))elements.set(id,{value:'',style:{},focus(){},parentElement:{scrollTop:42},classList:{add(){},remove(){},toggle(){}},addEventListener:(event,handler)=>events.set(id+':'+event,handler)});return elements.get(id);};
   const noop=()=>{};
   const c=vm.createContext({ArenaChatMode:Modes,ArenaImage:Image,window:{},document:{querySelectorAll:()=>[]},$:element,
-    aaRunning:false,scopeSwitchPending:false,chatNavigationPending:false,privacySwitchPending:false,activeProjectId:null,scopeEpoch:1,chatLoadEpoch:0,_saveTimer:null,currentChatId:'previous',msgs:[],chatList:[],
+    aaRunning:false,skillSubmitPending:false,scopeSwitchPending:false,chatNavigationPending:false,privacySwitchPending:false,activeProjectId:null,scopeEpoch:1,chatLoadEpoch:0,_saveTimer:null,currentChatId:'previous',msgs:[],chatList:[],
     debate:true,imageMode:false,videoMode:false,debateMode:'free',imageComposerModel:'grok-imagine-image-2.0',imageComposerTask:'generation',imageEditParentUid:null,imageMaskState:null,
-    sentImgs:[],sentTexts:[],brandSelection:{},activeBrands:{xai:true},AVAILABLE_CHAT_MODELS:['gpt-6.1-sol','claude-sonnet-5-5'],SUBS:{'gpt-6.1-sol':{brand:'openai'},'claude-sonnet-5-5':{brand:'anthropic'}},
+    sentImgs:[],sentTexts:[],activeQuote:null,_incognitoMode:false,_bizMode:false,_memoryLoaded:false,debateSettings:{context:'',constraints:''},brandSelection:{},activeBrands:{xai:true},AVAILABLE_CHAT_MODELS:['gpt-6.1-sol','claude-sonnet-5-5'],SUBS:{'gpt-6.1-sol':{brand:'openai'},'claude-sonnet-5-5':{brand:'anthropic'}},
     chatApiCall:async()=>({messages:imageMessages}),getLastAssistantReplyAt:()=>0,rememberChatReplyTime:noop,clearDebateView:noop,render:noop,
     renderImgPreviews:noop,syncImageComposer:noop,setImageError:noop,closeHistory:noop,forgetPendingChatRun:noop,
     syncImageCards:noop,syncBrandUI:noop,sync2v2UI:noop,syncNbOptions:noop,updateModeBadge:noop,saveState:noop,normalizeAvailableModels:noop,defaultTopicPlaceholder:()=>'',
     arenaNotice:message=>calls.push(['notice',message]),setGeneratedImageReference:(image,parent)=>{c.sentImgs=[{...image,autoFollowup:true}];c.imageEditParentUid=parent.uid;},
-    flushScopeChat:async()=>{calls.push(['save']);return {ok:true};},beginNewChat:()=>{calls.push(['new']);c.currentChatId='new-chat';c.msgs=[];c.sentImgs=[];c.sentTexts=[];c.chatLoadEpoch++;},...overrides});
-  vm.runInContext(fn('restoreChatMode')+'\n'+fn('prepareModeNavigation')+'\n'+fn('loadChat'),c);
+    flushScopeChat:async force=>{calls.push(['save',force]);return {ok:true};},
+    syncArenaNavigation:noop,saveDebateDraft:noop,clearQuote:()=>{c.activeQuote=null;},debateRunKey:()=> 'fixture',sessionStorage:{removeItem:noop},
+    genChatId:()=>{calls.push(['new']);return 'new-chat'+(++sequence===1?'':'-'+sequence);},hideThink:noop,syncKitten:noop,loadMemory:noop,
+    clearPreview:()=>{c.sentImgs=[];c.sentTexts=[];},...overrides});
+  vm.runInContext(fn('restoreChatMode')+'\n'+fn('beginNewChat')+'\n'+fn('prepareModeNavigation')+'\n'+fn('loadChat'),c);
   return {c,calls,events,element};
 }
 test('opening an image history from debate restores the image composer and original image model',async()=>{
@@ -57,6 +60,36 @@ for(const [button,target] of [['Debate','debate'],['Image','image'],['Chat','cha
   const start=source.indexOf("$('aaBar"+button+"Btn').addEventListener('click',"),end=source.indexOf('\n  });',start)+6;
   vm.runInContext(source.slice(start,end),c);await events.get('aaBar'+button+'Btn:click')();
   assert.deepEqual(calls.map(call=>call[0]),['save','new']);assert.equal(c.msgs.length,0);assert.equal(c.currentChatId,'new-chat');
+});
+for(const current of ['chat','debate','image'])for(const target of ['chat','debate','image'])test('fresh mode session '+current+' -> '+target+' clears all conversation input and retains the outgoing record',async()=>{
+  const original=JSON.parse(JSON.stringify(imageMessages));
+  const {c,calls,events,element}=fixture({debate:current==='debate',imageMode:current==='image',msgs:original,
+    sentImgs:[{data:'old-file',generatedReference:true}],sentTexts:['old-document'],activeQuote:{text:'old-quote'},imageEditParentUid:2,imageMaskState:{data:'old-mask'},imageComposerTask:'edit',
+    debateSettings:{objective:'explore',context:'old-background',constraints:'old-limit'}});
+  element('aaTopic').value='old-unsent-question';
+  const name={chat:'Chat',debate:'Debate',image:'Image'}[target],start=source.indexOf("$('aaBar"+name+"Btn').addEventListener('click',"),end=source.indexOf('\n  });',start)+6;
+  vm.runInContext(source.slice(start,end),c);await events.get('aaBar'+name+'Btn:click')();
+  assert.deepEqual(calls.filter(call=>call[0]==='save'),[['save',true]]);
+  assert.deepEqual(original,imageMessages);assert.equal(c.currentChatId,'new-chat');assert.equal(c.msgs.length,0);
+  assert.equal(c.sentImgs.length,0);assert.equal(c.sentTexts.length,0);assert.equal(c.activeQuote,null);assert.equal(element('aaTopic').value,'');
+  assert.equal(c.imageEditParentUid,null);assert.equal(c.imageMaskState,null);assert.equal(c.imageComposerTask,'generation');
+  assert.equal(c.debatePriorRunId,null);assert.equal(c.debateSettings.context,'');assert.equal(c.debateSettings.constraints,'');
+  assert.equal(c.debate,target==='debate');assert.equal(c.imageMode,target==='image');assert.equal(c.chatNavigationPending,false);
+});
+test('an unsent empty conversation also gets a new identity and no old files, quote or draft',async()=>{
+  const {c,element}=fixture({debate:false,msgs:[],sentImgs:[{data:'unsent'}],sentTexts:['unsent text'],activeQuote:{text:'quote'}});
+  element('aaTopic').value='unfinished';assert.equal(await c.prepareModeNavigation('chat'),true);
+  assert.equal(c.currentChatId,'new-chat');assert.equal(element('aaTopic').value,'');assert.equal(c.sentImgs.length,0);assert.equal(c.sentTexts.length,0);assert.equal(c.activeQuote,null);
+});
+test('rapid mode clicks cannot race the save or clear a newer session',async()=>{
+  let finish;const {c,calls}=fixture({msgs:imageMessages,flushScopeChat:()=>new Promise(resolve=>finish=resolve)});
+  const first=c.prepareModeNavigation('chat');assert.equal(c.chatNavigationPending,true);
+  assert.equal(await c.prepareModeNavigation('image'),false);assert.equal(c.currentChatId,'previous');
+  finish({ok:true});assert.equal(await first,true);assert.equal(calls.filter(call=>call[0]==='new').length,1);assert.equal(c.chatNavigationPending,false);
+});
+test('pending attachment/skill submission blocks mode navigation without discarding input',async()=>{
+  const {c,calls,element}=fixture({skillSubmitPending:true,sentTexts:['keep-file']});element('aaTopic').value='keep-draft';
+  assert.equal(await c.prepareModeNavigation('image'),false);assert.equal(c.currentChatId,'previous');assert.equal(c.sentTexts[0],'keep-file');assert.equal(element('aaTopic').value,'keep-draft');assert.equal(calls.length,0);
 });
 test('failed save or navigation during generation keeps the original conversation intact',async()=>{
   const {c,calls}=fixture({msgs:imageMessages,flushScopeChat:async()=>({ok:false})});

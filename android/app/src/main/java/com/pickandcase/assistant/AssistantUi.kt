@@ -285,7 +285,7 @@ private fun MainShell(s: AssistantState, vm: AssistantViewModel) {
                         NavigationDrawerItem(
                             label = { Text(title) },
                             icon = { Icon(icon, null) },
-                            selected = s.page == Page.CHAT && s.mode == mode,
+                            selected = s.page == Page.CHAT && s.project == null && s.mode == mode,
                             modifier = Modifier.testTag("navigation-mode-" + mode),
                             onClick = { vm.mode(mode); coroutine.launch { drawer.close() } },
                         )
