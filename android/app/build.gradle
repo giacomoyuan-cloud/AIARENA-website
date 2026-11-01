@@ -9,8 +9,8 @@ android {
         applicationId 'com.pickandcase.assistant'
         minSdk 26
         targetSdk 36
-        versionCode providers.gradleProperty('nativeVersionCode').map { it.toInteger() }.getOrElse(205)
-        versionName providers.gradleProperty('nativeVersionName').getOrElse('2.0.5')
+        versionCode providers.gradleProperty('nativeVersionCode').map { it.toInteger() }.getOrElse(206)
+        versionName providers.gradleProperty('nativeVersionName').getOrElse('2.0.6')
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
         buildConfigField 'String', 'SITE_URL', '"https://ai.pickandcase.com/"'
         buildConfigField 'String', 'API_URL', '"https://api.pickandcase.com/native/"'
@@ -55,6 +55,7 @@ dependencies {
     implementation 'io.noties.markwon:ext-tables:4.6.2'
     implementation 'io.noties.markwon:ext-strikethrough:4.6.2'
     implementation 'io.noties.markwon:linkify:4.6.2'
+    implementation 'io.noties.markwon:inline-parser:4.6.2'
     implementation 'io.noties.markwon:ext-latex:4.6.2'
     implementation 'com.tom-roush:pdfbox-android:2.0.27.0'
     implementation 'androidx.exifinterface:exifinterface:1.3.7'
@@ -81,6 +82,14 @@ tasks.register('generateNativeClientContract', Exec) {
 }
 android.sourceSets.main.assets.srcDir(nativeContractAssets)
 tasks.named('preBuild').configure { dependsOn 'generateNativeClientContract' }
+tasks.register('generateSharedUiTokens', Exec) {
+    inputs.file(rootProject.file('../ui-design-tokens.json'))
+    inputs.file(rootProject.file('../scripts/build-ui-tokens.mjs'))
+    outputs.file(file('src/main/java/com/pickandcase/assistant/NativeDesignTokens.kt'))
+    outputs.file(rootProject.file('../arena-ui-tokens.css'))
+    commandLine 'node', rootProject.file('../scripts/build-ui-tokens.mjs').absolutePath
+}
+tasks.named('preBuild').configure { dependsOn 'generateSharedUiTokens' }
 
 def nativeQaAssets = providers.gradleProperty('nativeQaAssets').orNull
 if (nativeQaAssets) android.sourceSets.androidTest.assets.srcDir(nativeQaAssets)

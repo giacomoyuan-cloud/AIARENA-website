@@ -1,0 +1,34 @@
+/* Generated from ui-design-tokens.json. Edit the shared source. */
+:root {
+  --ui-type-body: 16px;
+  --ui-type-control: 14px;
+  --ui-type-caption: 12px;
+  --ui-type-title: 18px;
+  --ui-type-heading: 24px;
+  --ui-size-control: 40px;
+  --ui-size-compact: 32px;
+  --ui-size-touch: 44px;
+  --ui-size-icon: 32px;
+  --ui-radius-control: 8px;
+  --ui-radius-dialog: 16px;
+  --ui-radius-popover: 12px;
+  --ui-radius-send: 10px;
+  --ui-spacing-panel: 24px;
+  --ui-spacing-mobilePanel: 16px;
+  --ui-spacing-field: 16px;
+  --ui-motion-feedback: 140ms;
+  --ui-color-lightBackground: #faf9f5;
+  --ui-color-lightSurface: #ffffff;
+  --ui-color-lightText: #141413;
+  --ui-color-lightMuted: #73726c;
+  --ui-color-lightBorder: #e3e0d7;
+  --ui-color-lightAccent: #d97757;
+  --ui-color-darkBackground: #262624;
+  --ui-color-darkSurface: #30302e;
+  --ui-color-darkText: #faf9f5;
+  --ui-color-darkMuted: #a8a69e;
+  --ui-color-darkBorder: #4a4944;
+  --ui-color-darkAccent: #d97757;
+  --arena-mono-font: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  --ui-ease: cubic-bezier(.23,1,.32,1);
+}

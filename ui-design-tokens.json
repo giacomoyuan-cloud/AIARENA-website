@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "type": {
+    "body": 16,
+    "control": 14,
+    "caption": 12,
+    "title": 18,
+    "heading": 24
+  },
+  "size": {
+    "control": 40,
+    "compact": 32,
+    "touch": 44,
+    "icon": 32
+  },
+  "radius": {
+    "control": 8,
+    "dialog": 16,
+    "popover": 12,
+    "send": 10
+  },
+  "spacing": {
+    "panel": 24,
+    "mobilePanel": 16,
+    "field": 16
+  },
+  "motion": {
+    "feedback": 140
+  },
+  "taskStates": {
+    "queued": "已排队",
+    "running": "正在执行",
+    "paused": "已暂停",
+    "scheduled": "已排定",
+    "completed": "已完成",
+    "failed": "上次执行失败",
+    "cancelled": "已停止"
+  },
+  "color": {
+    "lightBackground": "#faf9f5",
+    "lightSurface": "#ffffff",
+    "lightText": "#141413",
+    "lightMuted": "#73726c",
+    "lightBorder": "#e3e0d7",
+    "lightAccent": "#d97757",
+    "darkBackground": "#262624",
+    "darkSurface": "#30302e",
+    "darkText": "#faf9f5",
+    "darkMuted": "#a8a69e",
+    "darkBorder": "#4a4944",
+    "darkAccent": "#d97757"
+  }
+}

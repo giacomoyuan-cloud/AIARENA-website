@@ -60,7 +60,8 @@
     popup.className='arena-select-popover';popup.hidden=true;popup.setAttribute('popover','manual');
     heading.className='arena-select-heading';heading.textContent=options.label;
     list.id=id;list.setAttribute('role','listbox');list.setAttribute('aria-label',options.label);
-    popup.appendChild(heading);popup.appendChild(list);host.appendChild(popup);
+    popup.appendChild(heading);popup.appendChild(list);
+    (trigger.closest('dialog')||host).appendChild(popup);
     trigger.type='button';trigger.setAttribute('role','combobox');trigger.setAttribute('aria-label',options.label);
     trigger.setAttribute('aria-haspopup','listbox');trigger.setAttribute('aria-controls',id);trigger.setAttribute('aria-expanded','false');
     function enabled(){return state.options.map(function(item,i){return item.disabled?-1:i;}).filter(function(i){return i>=0;});}
@@ -96,7 +97,7 @@
     }
     function close(restore){
       if(!opened)return;opened=false;listen(false);
-      if(popup.matches(':popover-open'))popup.hidePopover();popup.hidden=true;
+      if(popup.hidePopover&&popup.matches(':popover-open'))popup.hidePopover();popup.hidden=true;
       trigger.setAttribute('aria-expanded','false');trigger.removeAttribute('aria-activedescendant');
       if(activeSelect===control)activeSelect=null;
       if(restore&&trigger.isConnected)trigger.focus({preventScroll:true});

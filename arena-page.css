@@ -1,0 +1,26 @@
+:root { --ui-focus:var(--arena-accent);--ui-input-font:var(--ui-type-control); --arena-bg:var(--ui-color-lightBackground);--arena-surface:#fff;--arena-text:var(--ui-color-darkSurface);--arena-muted:var(--ui-color-lightMuted);--arena-border:var(--ui-color-lightBorder);--arena-accent:var(--ui-color-lightAccent);--arena-hover:#efede5; }
+:root[data-theme="dark"] { --arena-bg:var(--ui-color-darkBackground);--arena-surface:#30302e;--arena-text:var(--ui-color-darkText);--arena-muted:var(--ui-color-darkMuted);--arena-border:var(--ui-color-darkBorder);--arena-hover:#393935; }
+html { -webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent; }
+body.arena-public-page { margin:0;background:var(--arena-bg);color:var(--arena-text);font-family:var(--arena-ui-font);min-height:100svh;padding:40px max(22px,env(safe-area-inset-right)) max(40px,env(safe-area-inset-bottom)) max(22px,env(safe-area-inset-left)); }
+.arena-public-page * { box-sizing:border-box; }
+.arena-public-page :is(a,button,input):focus-visible { outline:2px solid var(--ui-focus,var(--arena-accent));outline-offset:3px; }
+.arena-public-page :is(button,.install) { border-radius:var(--ui-radius-control);font:500 var(--ui-type-control)/1.5 var(--arena-ui-font);min-height:var(--ui-size-touch);touch-action:manipulation; }
+.arena-public-page :is(button,.install):active { opacity:.85; }
+.arena-public-page .card { border:1px solid var(--arena-border);border-radius:var(--ui-radius-dialog);background:var(--arena-surface);padding:24px; }
+.arena-download { display:grid;place-items:center; }
+.arena-download main { width:100%;max-width:440px; }
+.arena-download header { display:flex;align-items:center;gap:16px;margin-bottom:30px; }
+.arena-download header img { width:64px;height:64px;border-radius:16px; }
+.arena-download h1 { font-size:var(--ui-type-heading);font-weight:600;letter-spacing:-.02em;margin:0 0 6px; }
+.arena-download header p { margin:0;font-size:var(--ui-type-control); }
+.arena-download p { font-size:var(--ui-type-control);line-height:1.8;color:var(--arena-muted);margin:0 0 20px; }
+.arena-download .install { display:block;text-align:center;background:var(--arena-accent);color:#fff;padding:12px 18px;text-decoration:none; }
+.arena-download .qr { display:block;width:180px;height:180px;margin:22px auto 8px; }
+.arena-download small { display:block;font-size:var(--ui-type-caption);line-height:1.8;color:var(--arena-muted);text-align:center; }
+.arena-download .back { display:inline-block;margin-top:24px;color:var(--arena-muted);font-size:var(--ui-type-control);text-underline-offset:4px; }
+.arena-download .checksum { margin-top:20px;overflow-wrap:anywhere; }
+.arena-download summary { font-size:var(--ui-type-caption);color:var(--arena-muted);cursor:pointer; }
+.arena-download code { display:block;font:var(--ui-type-caption)/1.6 var(--arena-mono-font);margin-top:8px;user-select:all; }
+.arena-tool-nav { width:100%;max-width:480px;display:flex;justify-content:space-between;gap:16px;margin-bottom:24px;font-size:var(--ui-type-control); }
+.arena-tool-nav a { color:var(--arena-muted);text-underline-offset:4px; }
+@media(prefers-reduced-motion:reduce) { .arena-public-page *, .arena-public-page *::before { animation:none!important;transition:none!important; } }

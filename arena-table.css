@@ -1,7 +1,7 @@
 #ai-arena-app.arena-shell .aa-md-table-block{margin:24px 0;min-width:0;max-width:100%}
 #ai-arena-app.arena-shell .aa-md-table-tools{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;font:13px/1.4 var(--arena-ui-font);color:var(--arena-muted)}
 #ai-arena-app.arena-shell .aa-md-table-tools>div{display:flex;gap:3px;padding:3px;border-radius:9px;background:var(--arena-sidebar)}
-#ai-arena-app.arena-shell .aa-md-table-tools button{min-height:32px;padding:5px 12px;border:0;border-radius:7px;background:transparent;color:var(--arena-muted);font:inherit;cursor:pointer}
+#ai-arena-app.arena-shell .aa-md-table-tools button{min-height:max(32px,var(--ui-hit-min,0px));padding:5px 12px;border:0;border-radius:7px;background:transparent;color:var(--arena-muted);font:inherit;cursor:pointer}
 #ai-arena-app.arena-shell .aa-md-table-block:is([data-table-mode=auto],[data-table-mode=table]) [data-table-view=table],#ai-arena-app.arena-shell .aa-md-table-block[data-table-mode=cards] [data-table-view=cards]{background:var(--arena-surface,#fff);color:var(--arena-text);box-shadow:0 1px 3px #0000000d}
 #ai-arena-app.arena-shell .aa-md-table-block .aa-md-table-wrap{margin:0;max-width:100%;overflow-x:auto;scrollbar-width:thin}
 #ai-arena-app.arena-shell .aa-md-table-block .aa-md-table{table-layout:fixed;width:100%;font-size:14px;line-height:1.65}

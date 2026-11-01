@@ -16,7 +16,7 @@
     var image=await loadImage('data:'+(source.mime||'image/png')+';base64,'+source.data);
     if(image.naturalWidth*image.naturalHeight>16777216)throw new Error('局部编辑图片过大，请先将图片缩至 4096 × 4096 像素以内。');
     var dialog=document.createElement('dialog');dialog.className='arena-image-editor';dialog.setAttribute('aria-labelledby','arenaImageEditorTitle');
-    dialog.innerHTML='<header><div><h2 id="arenaImageEditorTitle">选择修改区域</h2><p>涂抹要修改的位置，再描述想怎么改。选区是修改指引，模型可能调整边缘。</p></div><button type="button" data-close aria-label="关闭局部编辑">×</button></header>'
+    dialog.innerHTML='<header><div><h2 id="arenaImageEditorTitle">选择修改区域</h2><p>涂抹要修改的位置，再描述想怎么改。选区是修改指引，模型可能调整边缘。</p></div><button type="button" data-close aria-label="关闭局部编辑"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></header>'
       +'<div class="arena-image-editor-toolbar"><label>画笔大小 <input type="range" aria-label="画笔大小" min="6" max="100" step="2" value="36"></label><button type="button" data-undo>撤销</button><button type="button" data-all>全部选中</button><button type="button" data-clear>清空</button><button type="button" data-import>导入选区 PNG</button><input type="file" accept="image/png" hidden></div>'
       +'<div class="arena-image-editor-scroll"><div class="arena-image-editor-stage"><img alt="局部编辑原图"><canvas aria-label="涂抹要修改的区域"></canvas></div></div>'
       +'<p class="arena-image-editor-error" role="alert" hidden></p><footer><span>有颜色的区域会被修改</span><button type="button" data-cancel>取消</button><button type="button" data-apply disabled>使用选区</button></footer>';

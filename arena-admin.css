@@ -5,7 +5,7 @@
 #ai-arena-app .arena-admin-fields label{display:flex;flex-direction:column;gap:8px;font-size:13px;color:var(--arena-muted)}
 #ai-arena-app .arena-admin-fields input{width:100%;box-sizing:border-box;min-height:44px;padding:10px 12px;border:1px solid var(--arena-border);border-radius:10px;background:var(--arena-bg);color:var(--arena-text);font:inherit;font-size:16px}
 #ai-arena-app .arena-admin-fields>button{justify-self:start;grid-column:1/-1}
-#ai-arena-app .arena-admin-content button{min-height:40px;padding:8px 14px;border:1px solid var(--arena-border);border-radius:10px;background:var(--arena-surface);color:var(--arena-text);font:inherit;font-size:14px;cursor:pointer}
+#ai-arena-app .arena-admin-content button{min-height:max(40px,var(--ui-hit-min,0px));padding:8px 14px;border:1px solid var(--arena-border);border-radius:10px;background:var(--arena-surface);color:var(--arena-text);font:inherit;font-size:14px;cursor:pointer}
 #ai-arena-app .arena-admin-content button:disabled{opacity:.55;cursor:wait}
 #ai-arena-app .arena-admin-status{min-height:1.5em;margin:14px 0;font-size:13px;color:var(--arena-muted)}
 #ai-arena-app .arena-admin-status[data-error]{color:#a93d37}

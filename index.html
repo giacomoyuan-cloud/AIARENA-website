@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>AI 助手</title>
-<meta name="app-version" content="20261030-accounts204-filequeue">
+<meta name="app-version" content="20261102-ui206-1">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -12,11 +12,13 @@
 <meta name="theme-color" content="#faf9f5">
 <link rel="manifest" href="/manifest.json?v=20261027-oakley">
 <link rel="apple-touch-icon" href="/icon-192.png">
-<link rel="stylesheet" href="/arena-billing.css?v=20261030-modernfont2">
+<link rel="stylesheet" href="/arena-billing.css?v=20261102-ui206-1">
 </head>
 <body>
 
-<link rel="stylesheet" href="/arena-fonts.css?v=20261030-modernfont2">
+<link rel="stylesheet" href="/arena-ui-tokens.css?v=20261102-ui206-1">
+<link rel="stylesheet" href="/assets/katex/katex.min.css?v=0.19.1">
+<link rel="stylesheet" href="/arena-fonts.css?v=20261102-ui206-1">
 <style>
   html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #fff; }
 </style>
@@ -867,12 +869,12 @@
 
 </style>
 <link rel="stylesheet" href="/arena.css?v=20261101-login-theme1">
-<link rel="stylesheet" href="/arena-workspace.css?v=20261030-modernfont2">
-<link rel="stylesheet" href="/arena-controls.css?v=20261030-modernfont2">
-<link rel="stylesheet" href="/arena-claude.css?v=20261101-login-theme1">
-<link rel="stylesheet" href="/arena-project-page.css?v=20261031-directfiles1">
-<link rel="stylesheet" href="/arena-project-files.css?v=20261030-modernfont2">
-<link rel="stylesheet" href="/arena-debate-ui.css?v=20261030-modernfont2">
+<link rel="stylesheet" href="/arena-workspace.css?v=20261102-ui206-1">
+<link rel="stylesheet" href="/arena-controls.css?v=20261102-ui206-1">
+<link rel="stylesheet" href="/arena-claude.css?v=20261102-ui206-1">
+<link rel="stylesheet" href="/arena-project-page.css?v=20261102-ui206-1">
+<link rel="stylesheet" href="/arena-project-files.css?v=20261102-ui206-1">
+<link rel="stylesheet" href="/arena-debate-ui.css?v=20261102-ui206-1">
 
 <!-- Login overlay -->
 <div id="aaLoginOverlay" role="dialog" aria-modal="true" aria-label="登录 AI 助手" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:999999;background:linear-gradient(160deg,#0c1222 0%,#151d35 40%,#1a1030 100%);flex-direction:column;align-items:center;justify-content:center;padding:32px;">
@@ -1256,43 +1258,46 @@
 </div>
 </div>
 
-<script src="/arena-markdown.js?v=20261030-readable1"></script>
-<link rel="stylesheet" href="/arena-image-editor.css?v=20261030-modernfont2">
-<script src="/arena-slider.js?v=20261030-imagesliders1"></script>
-<script src="/arena-image.js?v=20261030-imagesliders1"></script>
-<script src="/arena-image-editor.js?v=20261030-openai-image1"></script>
-<script src="/arena-native.js?v=20261030-nativeupdate1"></script>
-<script src="/arena-effort.js?v=20261030-imagesliders1"></script>
-<script src="/arena-token-limits.js?v=20261030-tokenlimits1"></script>
-<script src="/arena-context.js?v=20261030-tokenlimits1"></script>
-<script src="/arena-chat-mode.js?v=20261030-historymodes2"></script>
-<script src="/arena-skills-catalog.js?v=20261030-skills1"></script>
-<script src="/arena-skill-models.js?v=20261030-skillmodels1"></script>
-<script src="/arena-files.js?v=20261031-directfiles1"></script>
-<script src="/arena-skills.js?v=20261030-upload20m1"></script>
-<script src="/arena-chat-runs.js?v=20261029-typingclock1"></script>
-<script src="/arena-controls.js?v=20261029-debateresume1"></script>
-<script src="/arena-model-control.js?v=20261030-imagesliders1"></script>
-<script src="/arena-debate.js?v=20261030-debatestudio3"></script>
-<script src="/arena-debate-studio.js?v=20261030-debatecontrols1"></script>
-<script src="/arena-debate-runs.js?v=20261030-debatestudio3"></script>
-<script src="/arena-project-files.js?v=20261031-directfiles1"></script>
-<script src="/arena-reading.js?v=20261031-directfiles1"></script>
-<script src="/arena-conversation-files.js?v=20261031-directfiles1"></script>
-<link rel="stylesheet" href="/arena-conversation-files.css?v=20261030-modernfont2">
-<script src="/arena-workspace.js?v=20261031-directfiles1"></script>
-<script src="/arena-project-state.js?v=20261030-projectactions2"></script>
-<script src="/arena-project-upload-view.js?v=20261031-directfiles1"></script>
-<script src="/arena-project-upload-queue.js?v=20261031-directfiles1"></script>
-<script src="/arena-project-page.js?v=20261031-directfiles1"></script>
+<script src="/arena-math.js?v=20261102-ui206-1"></script>
+<script src="/arena-markdown.js?v=20261102-ui206-1"></script>
+<link rel="stylesheet" href="/arena-image-editor.css?v=20261102-ui206-1">
+<script src="/arena-slider.js?v=20261102-ui206-1"></script>
+<script src="/arena-image.js?v=20261102-ui206-1"></script>
+<script src="/arena-image-editor.js?v=20261102-ui206-1"></script>
+<script src="/arena-native.js?v=20261102-ui206-1"></script>
+<script src="/arena-effort.js?v=20261102-ui206-1"></script>
+<script src="/arena-token-limits.js?v=20261102-ui206-1"></script>
+<script src="/arena-context.js?v=20261102-ui206-1"></script>
+<script src="/arena-chat-mode.js?v=20261102-ui206-1"></script>
+<script src="/arena-skills-catalog.js?v=20261102-ui206-1"></script>
+<script src="/arena-skill-models.js?v=20261102-ui206-1"></script>
+<script src="/arena-files.js?v=20261102-ui206-1"></script>
+<script src="/arena-skills.js?v=20261102-ui206-1"></script>
+<script src="/arena-chat-runs.js?v=20261102-ui206-1"></script>
+<script src="/arena-controls.js?v=20261102-ui206-1"></script>
+<script src="/arena-ui.js?v=20261102-ui206-1"></script>
+<script src="/arena-model-control.js?v=20261102-ui206-1"></script>
+<script src="/arena-debate.js?v=20261102-ui206-1"></script>
+<script src="/arena-debate-studio.js?v=20261102-ui206-1"></script>
+<script src="/arena-debate-runs.js?v=20261102-ui206-1"></script>
+<script src="/arena-project-files.js?v=20261102-ui206-1"></script>
+<script src="/arena-reading.js?v=20261102-ui206-1"></script>
+<script src="/arena-conversation-files.js?v=20261102-ui206-1"></script>
+<link rel="stylesheet" href="/arena-conversation-files.css?v=20261102-ui206-1">
+<script src="/arena-workspace.js?v=20261102-ui206-1"></script>
+<script src="/arena-project-state.js?v=20261102-ui206-1"></script>
+<script src="/arena-project-upload-view.js?v=20261102-ui206-1"></script>
+<script src="/arena-project-upload-queue.js?v=20261102-ui206-1"></script>
+<script src="/arena-project-page.js?v=20261102-ui206-1"></script>
 
-<link rel="stylesheet" href="/arena-table.css?v=20261030-readable1">
-<link rel="stylesheet" href="/arena-admin.css?v=20261030-admin1">
-<script src="/arena-admin.js?v=20261030-admin1"></script>
-<script src="/arena-account.js?v=20261030-admin1"></script>
-<script src="/arena-stream.js?v=20261030-typing50-1"></script>
-<script src="/arena-billing.js?v=20261030-billing-haiku55"></script>
-<script src="/arena-billing-ui.js?v=20261030-materials1"></script>
+<link rel="stylesheet" href="/arena-table.css?v=20261102-ui206-1">
+<link rel="stylesheet" href="/arena-admin.css?v=20261102-ui206-1">
+<link rel="stylesheet" href="/arena-ui.css?v=20261102-ui206-1">
+<script src="/arena-admin.js?v=20261102-ui206-1"></script>
+<script src="/arena-account.js?v=20261102-ui206-1"></script>
+<script src="/arena-stream.js?v=20261102-ui206-1"></script>
+<script src="/arena-billing.js?v=20261102-ui206-1"></script>
+<script src="/arena-billing-ui.js?v=20261102-ui206-1"></script>
 <script>
 (function(){
   (function(){
@@ -2493,6 +2498,7 @@ var TEAM_COLORS = {
   function showPreview(dataUrl){ if(!dataUrl) return; if(sentImgs.length < imageReferenceLimit()){ sentImgs.push({data: dataUrl.split(',').length > 1 ? dataUrl.split(',')[1] : dataUrl, mime: 'image/jpeg', preview: dataUrl}); setImageError('');renderImgPreviews(); } }
   var conversationFiles=null,documentPreparing=false;
   function renderTextPreviews(){
+    if(!fileImporting)clearFileImportNotice();
     if(conversationFiles)conversationFiles.sync();
     var container = $('aaTextPreview');
     container.innerHTML = '';
@@ -2519,6 +2525,7 @@ var TEAM_COLORS = {
     });
   }
   function renderImgPreviews(){
+    if(!fileImporting)clearFileImportNotice();
     syncImageMaskTools();
     if(!aaRunning) $('aaSendBtn').disabled = (!$('aaTopic').value.trim() && !sentImgs.length && !sentTexts.length);
     var container = $('aaImgPreview');
@@ -2578,7 +2585,11 @@ var TEAM_COLORS = {
   });
   var fileImporting = false;
   function fileImportContext(){return scopeViewKey(activeProjectId)+':'+currentChatId+':'+_accountLoginEpoch+':'+(_incognitoMode?'private':'saved');}
+  var fileImportNoticeTimer;
+  function clearFileImportNotice(){clearTimeout(fileImportNoticeTimer);$('aaFileImportStatus').hidden=true;$('aaFileImportStatus').replaceChildren();}
   function showFileImport(message,skipped){
+    clearTimeout(fileImportNoticeTimer);
+    if(!skipped||!skipped.length)fileImportNoticeTimer=setTimeout(clearFileImportNotice,5000);
     var status=$('aaFileImportStatus');status.hidden=false;status.replaceChildren();
     var summary=document.createElement('div');summary.textContent=message;status.appendChild(summary);
     if(skipped&&skipped.length){

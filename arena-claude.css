@@ -4,16 +4,16 @@
    输入框第二行的 +、模型、图像工具和发送键统一 34px 高、按中线对齐。 */
 
 #ai-arena-app.arena-shell {
-  --arena-bg: #262624;
+  --arena-bg: var(--ui-color-darkBackground);
   --arena-sidebar: #1f1e1d;
-  --arena-surface: #30302e;
+  --arena-surface: var(--ui-color-darkSurface);
   --arena-hover: #393935;
   --arena-selected: #42413c;
-  --arena-border: #4a4944;
-  --arena-text: #faf9f5;
-  --arena-muted: #a8a69e;
+  --arena-border: var(--ui-color-darkBorder);
+  --arena-text: var(--ui-color-darkText);
+  --arena-muted: var(--ui-color-darkMuted);
   --arena-faint: #85837c;
-  --arena-accent: #d97757;
+  --arena-accent: var(--ui-color-darkAccent);
   --arena-user: #1a1918;
   --arena-reading-width: 768px;
   --claude-accent-2: #c6613f;
@@ -28,14 +28,14 @@
   --claude-h: 34px;
 }
 #ai-arena-app.arena-shell.light-mode {
-  --arena-bg: #faf9f5;
+  --arena-bg: var(--ui-color-lightBackground);
   --arena-sidebar: #f5f4ed;
-  --arena-surface: #ffffff;
+  --arena-surface: var(--ui-color-lightSurface);
   --arena-hover: #efede5;
   --arena-selected: #e8e6dc;
-  --arena-border: #e3e0d6;
-  --arena-text: #141413;
-  --arena-muted: #73726c;
+  --arena-border: var(--ui-color-lightBorder);
+  --arena-text: var(--ui-color-lightText);
+  --arena-muted: var(--ui-color-lightMuted);
   --arena-faint: #a3a198;
   --arena-user: #f0eee6;
   --claude-accent-soft: rgba(217, 119, 87, .13);
@@ -89,8 +89,8 @@
 
 /* ---------- 消息 ---------- */
 #ai-arena-app.arena-shell .aa-msg-body.ai-bubble { font-family: var(--arena-ui-font); font-size: 17px; line-height: 1.72; }
-#ai-arena-app.arena-shell .aa-msg-body.ai-bubble :is(table, th, td, pre, code, button, input, select, textarea, .aa-code-wrap, .aa-md-table-wrap) { font-family: var(--arena-ui-font); }
-#ai-arena-app.arena-shell .aa-msg-body.ai-bubble :is(pre, code, .aa-code-wrap) { font-family: var(--arena-ui-font); }
+#ai-arena-app.arena-shell .aa-msg-body.ai-bubble :is(table, th, td, button, input, select, textarea, .aa-md-table-wrap) { font-family: var(--arena-ui-font); }
+#ai-arena-app.arena-shell .aa-msg-body.ai-bubble :is(pre, code, .aa-code-wrap) { font-family: var(--arena-mono-font); }
 #ai-arena-app.arena-shell .aa-msg-body.ai-bubble :is(h1, h2, h3, h4) { font-family: var(--arena-ui-font); font-weight: 600; letter-spacing: -.01em; }
 #ai-arena-app.arena-shell .aa-msg-body.user { background: var(--arena-user); border-radius: 18px; padding: 10px 15px; font-size: 15.5px; line-height: 1.6; }
 #ai-arena-app.arena-shell .aa-msg-name { font-size: 12.5px; }
@@ -141,15 +141,15 @@
 #ai-arena-app.arena-shell .aa-input-row,
 #ai-arena-app.arena-shell .aa-input-row.image-mode-layout,
 #ai-arena-app.arena-shell:not(.arena-image-mode) .aa-input-row { grid-template-columns: var(--claude-h) minmax(0, 1fr) auto var(--claude-h); grid-template-rows: auto var(--claude-h); align-items: center; gap: 6px; padding: 10px; border-radius: 20px; }
-#ai-arena-app.arena-shell:not(.arena-image-mode) .aa-input-row .aa-topic { min-height: 36px; padding: 6px 8px; font-size: 16px; line-height: 24px; }
-#ai-arena-app.arena-shell .aa-input-row .arena-model-trigger { min-height: var(--claude-h); height: var(--claude-h); padding: 0 8px 0 10px; gap: 6px; border-radius: 10px; font-size: 14px; }
+#ai-arena-app.arena-shell:not(.arena-image-mode) .aa-input-row .aa-topic { min-height:max(36px,var(--ui-hit-min,0px)); padding: 6px 8px; font-size: 16px; line-height: 24px; }
+#ai-arena-app.arena-shell .aa-input-row .arena-model-trigger { min-height: var(--claude-h); height: var(--claude-h); padding: 0 8px 0 10px; gap: 6px; border-radius: 10px; font-size:var(--ui-input-font,14px); }
 /* 不放提示语：原来输入框下方的“AI 可能会出错”说明 */
 #ai-arena-app.arena-shell .arena-composer-note { display: none; }
 #ai-arena-app.arena-shell .aa-image-dock { height: var(--claude-h); gap: 6px; align-self: center; }
 #ai-arena-app.arena-shell .aa-image-tool { height: var(--claude-h); min-height: var(--claude-h); padding: 0 10px; gap: 6px; border: .5px solid var(--claude-line-2); border-radius: 10px; color: var(--claude-text-2); font-size: 13px; }
 #ai-arena-app.arena-shell .aa-image-tool.model { color: var(--arena-text); }
 #ai-arena-app.arena-shell .aa-image-tool svg { width: 16px; height: 16px; }
-#ai-arena-app.arena-shell .aa-image-tool .new { align-items: center; height: 16px; padding: 0 5px; border-radius: 4px; background: var(--claude-accent-soft); color: var(--claude-accent-2); font-size: 10px; font-weight: 600; letter-spacing: .04em; }
+#ai-arena-app.arena-shell .aa-image-tool .new { align-items: center; height: 16px; padding: 0 5px; border-radius: 4px; background: var(--claude-accent-soft); color: var(--claude-accent-2); font-size:var(--ui-type-caption); font-weight: 600; letter-spacing: .04em; }
 
 /* 浮层与菜单 */
 #ai-arena-app.arena-shell .arena-model-popover,
@@ -181,13 +181,13 @@
 #ai-arena-app.arena-shell .arena-skills-hint { margin: 2px 12px 8px; color: #73726c; font-size: 12px; line-height: 1.5; }
 #ai-arena-app .arena-skill-option { width: 100%; border: 0; background: transparent; text-align: left; font: inherit; cursor: pointer; white-space: normal; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
 #ai-arena-app .arena-skill-option[aria-pressed="true"] { background: var(--arena-hover); }
-#ai-arena-app .arena-skill-option small { font-size: 11px; color: var(--arena-muted); line-height: 1.5; }
+#ai-arena-app .arena-skill-option small { font-size:var(--ui-type-caption); color: var(--arena-muted); line-height: 1.5; }
 #ai-arena-app.arena-shell .arena-skill-files { display: flex; gap: 10px; flex-wrap: wrap; margin: 14px 0; }
 #ai-arena-app.arena-shell .arena-skill-file { display: grid; grid-template-columns: 1fr auto; gap: 5px 14px; max-width: 100%; min-width: min(260px, 100%); font: 14px var(--arena-ui-font); padding: 12px 14px; border: 1px solid var(--arena-border); border-radius: 12px; background: var(--arena-surface); }
 #ai-arena-app.arena-shell .arena-skill-file > span { overflow-wrap: anywhere; grid-column: 1 / -1; }
 #ai-arena-app.arena-shell .arena-skill-file > small { color: var(--arena-muted); grid-column: 1 / -1; }
 #ai-arena-app.arena-shell .arena-skill-file button, #ai-arena-app.arena-shell .arena-skill-file .arena-skill-save { justify-self: start; border: 0; border-radius: 6px; padding: 5px 9px; color: var(--arena-text); background: var(--arena-hover); cursor: pointer; text-decoration: none; }
-#ai-arena-app.arena-shell .arena-skill-file .arena-skill-delete { justify-self: end; color: var(--arena-muted); background: transparent; font-size: 11px; }
+#ai-arena-app.arena-shell .arena-skill-file .arena-skill-delete { justify-self: end; color: var(--arena-muted); background: transparent; font-size:var(--ui-type-caption); }
 /* ---------- 多 AI 辩论 ---------- */
 #aaDebateHint { display: none !important; }
 #ai-arena-app.arena-shell .arena-debate-modes { padding: 2px; border-radius: 9px; background: var(--arena-hover); }
@@ -197,10 +197,10 @@
 #ai-arena-app.arena-shell .arena-debate-modes .aa-bar-btn.active { background: var(--arena-surface) !important; color: var(--arena-text) !important; box-shadow: 0 1px 2px rgba(0, 0, 0, .1), 0 0 0 .5px var(--claude-line); }
 #ai-arena-app.arena-shell .arena-debate-round-row { font-size: 12.5px; }
 #ai-arena-app.arena-shell .arena-round-options { padding: 2px; border: 0; border-radius: 9px; background: var(--arena-hover); }
-#ai-arena-app.arena-shell .arena-round-options button { min-height: 28px; padding: 0 10px; border-radius: 7px; font-size: 13px; color: var(--claude-text-2); }
+#ai-arena-app.arena-shell .arena-round-options button { min-height:max(28px,var(--ui-hit-min,0px)); padding: 0 10px; border-radius: 7px; font-size: 13px; color: var(--claude-text-2); }
 #ai-arena-app.arena-shell .arena-round-options button[aria-pressed="true"] { background: var(--arena-surface); color: var(--arena-text); box-shadow: 0 1px 2px rgba(0, 0, 0, .1), 0 0 0 .5px var(--claude-line); }
 #ai-arena-app.arena-shell .arena-select-trigger,
-#ai-arena-app.arena-shell .arena-debate-judge { min-height: 32px; border: .5px solid var(--claude-line-2); border-radius: 9px; background: transparent; font-size: 13.5px; }
+#ai-arena-app.arena-shell .arena-debate-judge { min-height:max(32px,var(--ui-hit-min,0px)); border: .5px solid var(--claude-line-2); border-radius: 9px; background: transparent; font-size:var(--ui-input-font,14px); }
 #ai-arena-app.arena-shell .arena-persona-heading > span { font-size: 12.5px; color: var(--arena-muted); font-weight: 400; }
 #ai-arena-app.arena-shell .aa-persona-slot { border: .5px solid var(--claude-line-2); border-radius: 12px; background: var(--arena-bg); }
 #ai-arena-app.arena-shell .aa-persona-input { border: .5px solid var(--claude-line-2); border-radius: 8px; background: var(--arena-surface); }
@@ -210,7 +210,7 @@
 /* ---------- 弹窗 ---------- */
 #ai-arena-app.arena-shell .arena-workspace-dialog,
 #ai-arena-app.arena-shell .arena-account-dialog { border: 0; border-radius: 18px; background: var(--arena-surface); box-shadow: var(--claude-menu-shadow); }
-#ai-arena-app.arena-shell .arena-dialog-heading h2 { font: 400 22px/1.25 var(--arena-ui-font); letter-spacing: -.01em; }
+#ai-arena-app.arena-shell .arena-dialog-heading h2 {   }
 
 /* ---------- 手机 ---------- */
 @media (max-width: 600px) {
@@ -329,7 +329,7 @@
 #ai-arena-app.arena-shell .arena-free-seat { display: inline-flex; align-items: center; height: 32px; padding-right: 3px; border: .5px solid var(--claude-line-2); border-radius: 999px; background: var(--arena-surface); }
 #ai-arena-app.arena-shell .arena-free-seat .arena-seat-number { display: none; }
 #ai-arena-app.arena-shell .arena-free-seat .arena-free-model { min-width: 0; }
-#ai-arena-app.arena-shell .arena-free-seat .arena-select-trigger { width: auto; height: 30px; min-height: 30px; padding: 0 6px 0 12px; gap: 6px; border: 0; border-radius: 999px; background: transparent; font-size: 13.5px; }
+#ai-arena-app.arena-shell .arena-free-seat .arena-select-trigger { width: auto; height: 30px; min-height:max(30px,var(--ui-hit-min,0px)); padding: 0 6px 0 12px; gap: 6px; border: 0; border-radius: 999px; background: transparent; font-size:var(--ui-input-font,14px); }
 #ai-arena-app.arena-shell .arena-free-seat .arena-role-remove,
 #ai-arena-app.arena-shell .aa-persona-slot .arena-role-remove { width: 24px; height: 24px; min-width: 24px; padding: 0; border-radius: 6px; }
 #ai-arena-app.arena-shell #aaAddParticipant,
@@ -349,15 +349,15 @@
 #ai-arena-app.arena-shell .arena-role-heading { min-height: 24px; padding-left: 2px; font-size: 12.5px; font-weight: 400; color: var(--arena-muted); }
 #ai-arena-app.arena-shell .arena-role-field { gap: 0; }
 #ai-arena-app.arena-shell .arena-role-field > span { display: none; }
-#ai-arena-app.arena-shell .aa-persona-model .arena-select-trigger { height: 32px; min-height: 32px; padding: 0 10px; border: .5px solid var(--claude-line-2); border-radius: 8px; background: var(--arena-surface); font-size: 13.5px; }
-#ai-arena-app.arena-shell .aa-persona-input { height: 32px; padding: 6px 10px; font-size: 13.5px; }
+#ai-arena-app.arena-shell .aa-persona-model .arena-select-trigger { height: 32px; min-height:max(32px,var(--ui-hit-min,0px)); padding: 0 10px; border: .5px solid var(--claude-line-2); border-radius: 8px; background: var(--arena-surface); font-size:var(--ui-input-font,14px); }
+#ai-arena-app.arena-shell .aa-persona-input { height: 32px; padding: 6px 10px; font-size:var(--ui-input-font,14px); }
 
 /* 2v2：正方 / 反方各两颗胶囊，排成一行 */
 #ai-arena-app.arena-shell .aa-seats-row { display: flex; flex-wrap: wrap; gap: 10px 18px; margin-top: 10px; }
 #ai-arena-app.arena-shell .aa-seat-zone { display: inline-flex; align-items: center; gap: 6px; padding: 0; border: 0; border-radius: 0; background: transparent; }
 #ai-arena-app.arena-shell .aa-seat-title { margin: 0 2px 0 0; font-size: 12.5px; color: var(--arena-muted); }
 #ai-arena-app.arena-shell .aa-seat-slots { display: flex; gap: 6px; }
-#ai-arena-app.arena-shell .aa-seat-slots .arena-select-trigger { width: auto; height: 32px; min-height: 32px; padding: 0 10px 0 12px; border: .5px solid var(--claude-line-2); border-radius: 999px; background: var(--arena-surface); font-size: 13.5px; }
+#ai-arena-app.arena-shell .aa-seat-slots .arena-select-trigger { width: auto; height: 32px; min-height:max(32px,var(--ui-hit-min,0px)); padding: 0 10px 0 12px; border: .5px solid var(--claude-line-2); border-radius: 999px; background: var(--arena-surface); font-size:var(--ui-input-font,14px); }
 #ai-arena-app.arena-shell .aa-persona-grid { width: 100%; }
 #ai-arena-app.arena-shell .aa-persona-slot { align-items: stretch; }
 #ai-arena-app.arena-shell .aa-persona-slot .arena-role-heading { width: auto; }

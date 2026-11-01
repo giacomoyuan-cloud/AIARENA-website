@@ -8,6 +8,8 @@ import android.graphics.fonts.FontStyle
 import android.os.Build
 import java.nio.ByteBuffer
 import androidx.annotation.RequiresApi
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.font.FontFamily as ComposeFontFamily
 
@@ -60,15 +62,15 @@ object NativeTypography {
             headlineLarge = base.headlineLarge.copy(fontFamily = family),
             headlineMedium = base.headlineMedium.copy(fontFamily = family),
             headlineSmall = base.headlineSmall.copy(fontFamily = family),
-            titleLarge = base.titleLarge.copy(fontFamily = family),
-            titleMedium = base.titleMedium.copy(fontFamily = family),
-            titleSmall = base.titleSmall.copy(fontFamily = family),
-            bodyLarge = base.bodyLarge.copy(fontFamily = family),
-            bodyMedium = base.bodyMedium.copy(fontFamily = family),
-            bodySmall = base.bodySmall.copy(fontFamily = family),
-            labelLarge = base.labelLarge.copy(fontFamily = family),
-            labelMedium = base.labelMedium.copy(fontFamily = family),
-            labelSmall = base.labelSmall.copy(fontFamily = family),
+            titleLarge = base.titleLarge.copy(fontFamily = family, fontSize=NativeDesignTokens.type_title.sp, lineHeight=(NativeDesignTokens.type_title * 1.5).sp, fontWeight=FontWeight.SemiBold),
+            titleMedium = base.titleMedium.copy(fontFamily = family, fontSize=NativeDesignTokens.type_control.sp, lineHeight=(NativeDesignTokens.type_control * 1.5).sp, fontWeight=FontWeight.SemiBold),
+            titleSmall = base.titleSmall.copy(fontFamily = family, fontSize=NativeDesignTokens.type_control.sp, lineHeight=(NativeDesignTokens.type_control * 1.5).sp, fontWeight=FontWeight.Medium),
+            bodyLarge = base.bodyLarge.copy(fontFamily = family, fontSize=NativeDesignTokens.type_body.sp, lineHeight=(NativeDesignTokens.type_body * 1.5).sp, fontWeight=FontWeight.Normal),
+            bodyMedium = base.bodyMedium.copy(fontFamily = family, fontSize=NativeDesignTokens.type_control.sp, lineHeight=(NativeDesignTokens.type_control * 1.5).sp, fontWeight=FontWeight.Normal),
+            bodySmall = base.bodySmall.copy(fontFamily = family, fontSize=NativeDesignTokens.type_caption.sp, lineHeight=(NativeDesignTokens.type_caption * 1.5).sp, fontWeight=FontWeight.Normal),
+            labelLarge = base.labelLarge.copy(fontFamily = family, fontSize=NativeDesignTokens.type_control.sp, lineHeight=(NativeDesignTokens.type_control * 1.5).sp, fontWeight=FontWeight.Medium),
+            labelMedium = base.labelMedium.copy(fontFamily = family, fontSize=NativeDesignTokens.type_caption.sp, lineHeight=(NativeDesignTokens.type_caption * 1.5).sp, fontWeight=FontWeight.Medium),
+            labelSmall = base.labelSmall.copy(fontFamily = family, fontSize=NativeDesignTokens.type_caption.sp, lineHeight=(NativeDesignTokens.type_caption * 1.5).sp, fontWeight=FontWeight.Normal),
         )
     }
 }

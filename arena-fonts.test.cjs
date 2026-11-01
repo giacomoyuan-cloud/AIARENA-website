@@ -6,13 +6,14 @@ const path = require('node:path');
 test('every published entry point uses the same self-hosted modern font policy', () => {
   const css = fs.readFileSync('arena-fonts.css', 'utf8');
   assert.deepEqual([...new Set([...css.matchAll(/font-family: '([^']+)'/g)].map(m => m[1]))].sort(), ['Inter', 'Noto Sans SC']);
-  assert.match(css, /body \*, body \*::before, body \*::after[^}]+font-family: var\(--arena-ui-font\) !important/s);
+  assert.match(css, /body :is\(button,input,textarea,select\)[^}]+font-family: var\(--arena-ui-font\)/s);
+  assert.doesNotMatch(css, /body \*[^}]+font-family:[^}]+!important/s);
   for (const file of ['index.html', 'android.html', 'pitch-analyzer.html']) {
     const html = fs.readFileSync(file, 'utf8');
     assert.match(html, /href="\/arena-fonts.css\?v=/, file);
     assert.equal(/fonts\.(?:googleapis|gstatic)\.com|Sora|Courier New|Source Serif|Noto Serif/.test(html), false, file);
   }
-  for (const file of fs.readdirSync('.').filter(n => /^arena.*\.css$/.test(n) && !['arena-fonts.css', 'arena-pet.css'].includes(n))) {
+  for (const file of fs.readdirSync('.').filter(n => /^arena.*\.css$/.test(n) && !['arena-fonts.css', 'arena-pet.css', 'arena-ui-tokens.css'].includes(n))) {
     assert.doesNotMatch(fs.readFileSync(file, 'utf8'), /claude-serif|ui-monospace|SFMono|Source Serif|Noto Serif|BlinkMacSystemFont|Georgia|Songti SC/, file);
   }
 });
