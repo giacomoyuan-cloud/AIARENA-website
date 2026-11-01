@@ -17,6 +17,7 @@ import androidx.core.view.WindowCompat
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -28,6 +29,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.*
@@ -39,6 +41,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -47,6 +50,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -415,7 +419,7 @@ private fun MainShell(s: AssistantState, vm: AssistantViewModel) {
             },
             snackbarHost = { SnackbarHost(snackbar) },
         ) { padding ->
-            Column(Modifier.fillMaxSize().padding(padding)) {
+            Column(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding)) {
                 if (s.incognito) {
                     Surface(color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.fillMaxWidth().testTag("incognito-banner")) {
                         Row(Modifier.padding(start = 16.dp, end = 8.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -543,27 +547,14 @@ private fun ChatScreen(s: AssistantState, vm: AssistantViewModel) {
             )
         Surface(
             color = MaterialTheme.colorScheme.surface,
-            shadowElevation = 2.dp,
+            shadowElevation = 0.dp,
             tonalElevation = 0.dp,
         ) {
             Column(
-                Modifier.fillMaxWidth().imePadding().padding(12.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
+                Modifier.fillMaxWidth().imePadding().padding(horizontal = 12.dp).padding(top = 8.dp)
+                    .testTag("composer-area"),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
-                Row(
-                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    ArenaTextButton(onClick = { options = true }, enabled = !s.busy) {
-                        Text(
-                            if (s.mode == "chat")
-                                vm.modelName(s.model) + " · " + effortLabel(s.effort)
-                            else if (s.mode == "image") "图像设置" else "讨论设置"
-                        )
-                        Icon(Icons.Outlined.ExpandMore, null, Modifier.size(18.dp))
-                    }
-                }
                 if (s.quote != null)
                     Row(
                         Modifier.fillMaxWidth()
@@ -609,44 +600,75 @@ private fun ChatScreen(s: AssistantState, vm: AssistantViewModel) {
                             )
                         }
                     }
-                OutlinedTextField(
-                    s.draft,
-                    vm::draft,
-                    placeholder = {
+                Surface(
+                    modifier = Modifier.fillMaxWidth().testTag("composer-shell"),
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    color = MaterialTheme.colorScheme.surface,
+                ) {
+                    Row(Modifier.fillMaxWidth().padding(4.dp), verticalAlignment = Alignment.Bottom) {
+                        AttachmentButton(s, vm)
+                        BasicTextField(
+                            value = s.draft,
+                            onValueChange = vm::draft,
+                            modifier = Modifier.weight(1f).padding(horizontal = 4.dp, vertical = 12.dp)
+                                .testTag("composer"),
+                            textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
+                            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                            minLines = 1,
+                            maxLines = 6,
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                            keyboardActions = KeyboardActions(onSend = { vm.send() }),
+                            decorationBox = { input ->
+                                Box {
+                                    if (s.draft.isEmpty()) Text(
+                                        when (s.mode) {
+                                            "image" -> "描述想生成或修改的图片…"
+                                            "debate" -> "输入一个值得讨论的问题…"
+                                            else -> "输入消息…"
+                                        },
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                    input()
+                                }
+                            },
+                        )
+                        IconButton(
+                            onClick = { if (s.busy) vm.stop() else vm.send() },
+                            enabled = s.busy || (!s.loading && s.draft.isNotBlank()),
+                            colors = IconButtonDefaults.iconButtonColors(
+                                containerColor = Color.Transparent,
+                                contentColor = MaterialTheme.colorScheme.primary,
+                                disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .38f),
+                            ),
+                            modifier = Modifier.size(48.dp).testTag("send"),
+                        ) {
+                            Icon(
+                                if (s.busy) Icons.Outlined.Stop else Icons.Outlined.ArrowUpward,
+                                if (s.busy) "停止生成" else "发送",
+                            )
+                        }
+                    }
+                }
+                Row(Modifier.fillMaxWidth().testTag("composer-toolbar"), horizontalArrangement = Arrangement.End) {
+                    ArenaTextButton(
+                        onClick = { options = true }, enabled = !s.busy,
+                        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant),
+                        modifier = Modifier.testTag("composer-settings"),
+                    ) {
                         Text(
                             when (s.mode) {
-                                "image" -> "描述想生成或修改的图片…"
-                                "debate" -> "输入一个值得讨论的问题…"
-                                else -> "输入消息…"
-                            }
+                                "chat" -> vm.modelName(s.model) + " · " + effortLabel(s.effort)
+                                "image" -> vm.modelName(s.imageModel) + " · 图像设置"
+                                else -> "讨论设置"
+                            },
+                            maxLines = 1, overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false),
                         )
-                    },
-                    minLines = 1,
-                    maxLines = 6,
-                    modifier = Modifier.fillMaxWidth().testTag("composer"),
-                    shape = MaterialTheme.shapes.large,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                    keyboardActions = KeyboardActions(onSend = { vm.send() }),
-                )
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    AttachmentButton(s, vm)
-                    Spacer(Modifier.weight(1f))
-                    IconButton(
-                        onClick = { if (s.busy) vm.stop() else vm.send() },
-                        enabled = s.busy || s.draft.isNotBlank(),
-                        colors=IconButtonDefaults.iconButtonColors(contentColor=Color.White),
-                        modifier =
-                            Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(NativeDesignTokens.radius_send.dp)).background(
-                                    if(s.busy||s.draft.isNotBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primaryContainer,
-                                    androidx.compose.foundation.shape.RoundedCornerShape(NativeDesignTokens.radius_send.dp),
-                                )
-                                .testTag("send"),
-                    ) {
-                        Icon(
-                            if (s.busy) Icons.Outlined.Stop else Icons.Outlined.ArrowUpward,
-                            if (s.busy) "停止生成" else "发送",
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                        )
+                        Icon(Icons.Outlined.ExpandMore, null, Modifier.size(18.dp))
                     }
                 }
             }
@@ -674,7 +696,7 @@ private fun AttachmentButton(s: AssistantState, vm: AssistantViewModel) {
             if (success) cameraUri?.let { vm.addFiles(listOf(it)) }
         }
     Box {
-        IconButton(onClick = { menu = true }) { Icon(Icons.Outlined.Add, "添加附件") }
+        IconButton(onClick = { menu = true }, modifier = Modifier.size(48.dp).testTag("composer-attachment")) { Icon(Icons.Outlined.Add, "添加附件") }
         DropdownMenu(menu, { menu = false }) {
             if (s.mode != "image") {
                 DropdownMenuItem(

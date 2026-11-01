@@ -1,11 +1,11 @@
 {
-  "version": "2.0.8",
-  "versionCode": 208,
+  "version": "2.0.9",
+  "versionCode": 209,
   "package": "com.pickandcase.assistant",
   "minAndroid": "8.0",
-  "url": "/downloads/AI-Assistant-2.0.8.apk",
+  "url": "/downloads/AI-Assistant-2.0.9.apk",
   "bytes": 23063685,
-  "sha256": "e049c8deeb2d18093e2aadfa9dea8e7b01c94151b9d09c185e6f7fce1237253f",
+  "sha256": "67d0f45a052540953c615273f64546d3c9c619940cb045275d3b6237f4a4e95b",
   "native": true,
-  "notes": "对话、辩论和图片入口打开独立新会话；保留原记录，清空旧消息、草稿、附件与引用；修复旧记录加载回填和快速切换竞态。"
+  "notes": "输入区更紧凑：加号和发送键放入框内，去掉实心底色，仅保留橙色箭头；模型选择移到下方，收紧键盘弹起时的多余留白。"
 }

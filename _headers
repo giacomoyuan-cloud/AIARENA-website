@@ -121,3 +121,7 @@
 /downloads/AI-Assistant-2.0.8.apk
   Content-Type: application/vnd.android.package-archive
   Content-Disposition: attachment
+
+/downloads/AI-Assistant-2.0.9.apk
+  Content-Type: application/vnd.android.package-archive
+  Content-Disposition: attachment
