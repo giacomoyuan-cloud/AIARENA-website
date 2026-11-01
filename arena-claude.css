@@ -384,13 +384,14 @@
 #ai-arena-app.arena-shell .arena-model-picker .arena-model-option { min-height: 38px; padding: 8px 10px; border-radius: 8px; font-size: 14px; }
 #ai-arena-app.arena-shell .arena-model-picker .arena-model-option[aria-pressed="true"] .arena-model-check { color: var(--claude-accent-2); }
 
-/* ---------- 登录：大猫 + 衬线标题 + 两个独立输入框 + 整宽按钮，不包卡片 ---------- */
+/* ---------- 登录：标题 + 两个独立输入框 + 整宽按钮，不包卡片 ---------- */
 #ai-arena-app.arena-shell #aaLoginOverlay { background: var(--arena-bg) !important; }
 #ai-arena-app.arena-shell #aaLoginOverlay > div { max-width: 360px !important; }
 #ai-arena-app.arena-shell #aaLoginOverlay h2 { margin: 4px 0 22px !important; font: 400 36px/1.1 var(--arena-ui-font) !important; letter-spacing: -.01em; }
 #ai-arena-app.arena-shell #aaLoginOverlay > div > p:empty { display: none; }
-#ai-arena-app.arena-shell #aaLoginOverlay > div > div:nth-of-type(2) { padding: 0 !important; border: 0 !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
-#ai-arena-app.arena-shell #aaLoginOverlay .aa-key-input { height: 46px; padding: 0 14px; border: .5px solid var(--claude-line-2) !important; border-radius: 12px !important; background: var(--arena-surface) !important; font-size: 15px; outline: 0; }
+/* 固定类名不依赖欢迎图等兄弟节点的顺序，避免旧深色卡片重新露出。 */
+#ai-arena-app.arena-shell #aaLoginOverlay .arena-login-fields { padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
+#ai-arena-app.arena-shell #aaLoginOverlay .aa-key-input { height: 46px; padding: 0 14px; border: .5px solid var(--claude-line-2) !important; border-radius: 12px !important; background: var(--arena-surface) !important; font-size: 16px; outline: 0; }
 #ai-arena-app.arena-shell #aaLoginOverlay .aa-key-input:focus { border-color: var(--arena-accent) !important; box-shadow: 0 0 0 3px var(--claude-accent-soft); }
 #ai-arena-app.arena-shell #aaLoginBtn { height: 46px !important; margin-top: 4px !important; border-radius: 12px !important; font-size: 15px !important; font-weight: 500 !important; }
 #ai-arena-app.arena-shell #aaLoginBtn:hover { background: var(--claude-accent-2) !important; }
