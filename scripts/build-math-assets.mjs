@@ -1,0 +1,11 @@
+import {cp,mkdir,copyFile,readFile,writeFile} from 'node:fs/promises';
+import {dirname,resolve} from 'node:path';
+import {createRequire} from 'node:module';
+const require=createRequire(import.meta.url),root=resolve(import.meta.dirname,'..');
+const source=resolve(dirname(require.resolve('katex')),'..'),target=resolve(root,'assets/katex');
+await mkdir(target,{recursive:true});
+await copyFile(resolve(source,'dist/katex.min.css'),resolve(target,'katex.min.css'));
+await cp(resolve(source,'dist/fonts'),resolve(target,'fonts'),{recursive:true,filter:path=>!path.endsWith('.ttf')&&!path.endsWith('.woff')});
+await copyFile(resolve(source,'LICENSE'),resolve(target,'LICENSE'));
+const css=await readFile(resolve(target,'katex.min.css'),'utf8');
+await writeFile(resolve(target,'katex.min.css'),css.replace(/url\([^)]*\.(?:woff|ttf)\)\s*format\([^)]*\),?/g,'').replace(/,\s*;/g,';'));

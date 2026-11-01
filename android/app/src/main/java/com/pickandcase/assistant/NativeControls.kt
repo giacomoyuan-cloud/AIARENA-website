@@ -86,7 +86,7 @@ fun NativeUsageReceipt(receipt: JSONObject, onDismiss: () -> Unit) {
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("关闭") } },
+        confirmButton = { ArenaTextButton(onClick = onDismiss) { Text("关闭") } },
     )
 }
 
@@ -105,9 +105,9 @@ fun ChoiceField(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(7.dp))
-        OutlinedCard(Modifier.fillMaxWidth().clickable { open = true }) {
+        OutlinedCard(Modifier.fillMaxWidth().heightIn(min=NativeDesignTokens.size_touch.dp).clickable { open = true }, shape=androidx.compose.foundation.shape.RoundedCornerShape(NativeDesignTokens.radius_control.dp)) {
             Row(
-                Modifier.padding(14.dp).fillMaxWidth(),
+                Modifier.padding(horizontal=12.dp,vertical=10.dp).fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
@@ -172,7 +172,7 @@ fun OrderedSlider(
             )
             if (!auto) Text(options[index].second, style = MaterialTheme.typography.labelLarge)
             if (automatic)
-                TextButton(
+                ArenaTextButton(
                     onClick = {
                         interactionChanged = false
                         onPick("auto")
@@ -185,56 +185,13 @@ fun OrderedSlider(
                     )
                 }
         }
-        Slider(
-            value = index.toFloat(),
-            onValueChange = {
-                interactionChanged = true
-                onPick(options[it.roundToInt().coerceIn(0, options.lastIndex)].first)
-            },
-            onValueChangeFinished = {
-                if (auto && !interactionChanged) onPick(options[index].first)
-                interactionChanged = false
-            },
-            valueRange = 0f..maxOf(1, options.lastIndex).toFloat(),
-            steps = maxOf(0, options.size - 2),
-            modifier = Modifier.fillMaxWidth().height(34.dp).testTag("ordered-slider-$title"),
-            thumb = {
-                Surface(
-                    Modifier.size(18.dp).alpha(if (auto) 0f else 1f),
-                    shape = CircleShape,
-                    color = surface,
-                    border = BorderStroke(2.dp, accent),
-                    shadowElevation = 2.dp,
-                ) {}
-            },
-            track = { state ->
-                Canvas(Modifier.fillMaxWidth().height(4.dp)) {
-                    val y = size.height / 2
-                    val progress = if (auto) 0f else state.value / maxOf(1, options.lastIndex)
-                    drawLine(
-                        gray,
-                        Offset(0f, y),
-                        Offset(size.width, y),
-                        4.dp.toPx(),
-                        StrokeCap.Round,
-                    )
-                    if (progress > 0)
-                        drawLine(
-                            accent,
-                            Offset(0f, y),
-                            Offset(size.width * progress, y),
-                            4.dp.toPx(),
-                            StrokeCap.Round,
-                        )
-                    val ticks = if (options.size <= 11) maxOf(1, options.lastIndex) else 4
-                    for (i in 0..ticks) drawCircle(
-                        if (i.toFloat() / ticks <= progress && !auto) surface.copy(alpha = .45f)
-                        else gray,
-                        1.6.dp.toPx(),
-                        Offset(size.width * i / ticks, y),
-                    )
-                }
-            },
+        ArenaSlider(
+            value=index.toFloat(),
+            onValueChange={ interactionChanged=true;onPick(options[it.roundToInt().coerceIn(0,options.lastIndex)].first) },
+            onValueChangeFinished={ if(auto&&!interactionChanged)onPick(options[index].first);interactionChanged=false },
+            valueRange=0f..maxOf(1,options.lastIndex).toFloat(),
+            steps=maxOf(0,options.size-2), automatic=auto,
+            modifier=Modifier.fillMaxWidth().testTag("ordered-slider-$title"),
         )
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 4.dp),
@@ -409,7 +366,7 @@ fun ImageSettingsSheet(s: AssistantState, vm: AssistantViewModel, onDismiss: () 
                         )
                     }
                 if (s.attachments.count { it.image } == 1)
-                    TextButton(onClick = { showMask = true }) {
+                    ArenaTextButton(onClick = { showMask = true }) {
                         Icon(Icons.Outlined.Brush, null)
                         Spacer(Modifier.width(8.dp))
                         Text(if (s.imageMask != null) "重新涂抹修改区域" else "涂抹修改区域")
@@ -462,7 +419,7 @@ fun ImageSettingsSheet(s: AssistantState, vm: AssistantViewModel, onDismiss: () 
                         set("compression", it.toInt())
                     }
                 var advanced by remember { mutableStateOf(false) }
-                TextButton(onClick = { advanced = !advanced }) {
+                ArenaTextButton(onClick = { advanced = !advanced }) {
                     Text("高级选项")
                     Icon(
                         if (advanced) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
@@ -696,7 +653,7 @@ fun DebateSettingsSheet(s: AssistantState, vm: AssistantViewModel, onDismiss: ()
                 }
             }
             if (config.str("mode") != "2v2" && config.arr("members").length() < 6)
-                OutlinedButton(
+                ArenaOutlinedButton(
                     onClick = {
                         val n = config.arr("members").length() + 1
                         set(
@@ -830,15 +787,15 @@ fun DebateRecovery(s: AssistantState, vm: AssistantViewModel) {
                                 "turnIndex" to failed.optInt("index"),
                                 "turnAttempt" to failed.optInt("attempt"),
                             )
-                        TextButton(onClick = { vm.debateAction("retry", turn) }) { Text("重试本席") }
-                        TextButton(onClick = { vm.debateAction("skip", turn) }) { Text("跳过并继续") }
+                        ArenaTextButton(onClick = { vm.debateAction("retry", turn) }) { Text("重试本席") }
+                        ArenaTextButton(onClick = { vm.debateAction("skip", turn) }) { Text("跳过并继续") }
                     } else if (run.arr("turns").objects().any { it.str("status") == "pending" })
-                        TextButton(onClick = { vm.debateAction("resume") }) { Text("继续讨论") }
-                    TextButton(onClick = { vm.followupDebate() }) { Text("基于本场追问") }
+                        ArenaTextButton(onClick = { vm.debateAction("resume") }) { Text("继续讨论") }
+                    ArenaTextButton(onClick = { vm.followupDebate() }) { Text("基于本场追问") }
                     if (run.arr("turns").objects().any { it.str("status") == "pending" })
-                        TextButton(onClick = { vm.debateAction("finish") }) { Text("结束本场") }
+                        ArenaTextButton(onClick = { vm.debateAction("finish") }) { Text("结束本场") }
                 }
-                TextButton(onClick = { exporter.launch("讨论记录.md") }) { Text("导出记录") }
+                ArenaTextButton(onClick = { exporter.launch("讨论记录.md") }) { Text("导出记录") }
             }
         }
     }

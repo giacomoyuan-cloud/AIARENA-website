@@ -96,3 +96,20 @@
 /downloads/AI-Assistant-2.0.4.apk
   Content-Type: application/vnd.android.package-archive
   Content-Disposition: attachment
+
+/arena-ui.js
+  Cache-Control: no-cache, max-age=0, must-revalidate
+/arena-ui.css
+  Cache-Control: no-cache, max-age=0, must-revalidate
+/arena-ui-tokens.css
+  Cache-Control: no-cache, max-age=0, must-revalidate
+/arena-math.js
+  Cache-Control: no-cache, max-age=0, must-revalidate
+/arena-page.css
+  Cache-Control: no-cache, max-age=0, must-revalidate
+/arena-page-theme.js
+  Cache-Control: no-cache, max-age=0, must-revalidate
+
+/downloads/AI-Assistant-2.0.6.apk
+  Content-Type: application/vnd.android.package-archive
+  Content-Disposition: attachment

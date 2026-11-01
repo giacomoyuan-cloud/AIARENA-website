@@ -2,73 +2,79 @@
 <html lang="zh">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<meta name="theme-color" content="#faf9f5">
+<script src="/arena-page-theme.js?v=20261102-ui1"></script>
+<link rel="stylesheet" href="/arena-ui-tokens.css?v=20261102-ui1">
+<link rel="stylesheet" href="/arena-page.css?v=20261102-ui1">
+<link rel="stylesheet" href="/arena-controls.css?v=20261102-ui1">
+<link rel="stylesheet" href="/arena-ui.css?v=20261102-ui1">
 <title>越人歌 · 音准分析</title>
 <link rel="stylesheet" href="/arena-fonts.css?v=20261030-modernfont2">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:#0a0a0f;color:#f1f5f9;font-family: var(--arena-ui-font);min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:24px 16px 48px;overflow-x:hidden}
+body{background:var(--arena-bg);color:var(--arena-text);font-family: var(--arena-ui-font);min-height:100svh;display:flex;flex-direction:column;align-items:center;padding:24px 16px 48px;overflow-x:hidden}
 .screen{display:none;width:100%;max-width:480px;flex-direction:column;align-items:center}
 .screen.active{display:flex}
-h1{font-size:22px;letter-spacing:.5em;color:#f1f5f9;margin-bottom:4px;text-align:center;font-weight:900}
-.sub{font-size:10px;color:#64748b;letter-spacing:.4em;margin-bottom:24px;text-align:center}
-.card{background:#13131a;border:1px solid #1e293b;border-radius:12px;padding:18px;width:100%;margin-bottom:12px}
-.card-title{font-size:10px;color:#94a3b8;letter-spacing:.3em;margin-bottom:12px;font-weight:700}
-.btn{padding:14px 0;border-radius:40px;border:none;font-size:13px;font-weight:700;cursor:pointer;letter-spacing:.3em;font-family: var(--arena-ui-font);transition:all .15s;width:100%;margin-top:6px}
-.btn.primary{background:#166534;color:#bbf7d0}
-.btn.primary:hover{background:#15803d}
+h1{font-size:22px;letter-spacing:normal;color:var(--arena-text);margin-bottom:4px;text-align:center;font-weight:900}
+.sub{font-size:var(--ui-type-caption);color:var(--arena-muted);letter-spacing:normal;margin-bottom:24px;text-align:center}
+.card{background:var(--arena-surface);border:1px solid var(--arena-border);border-radius:12px;padding:18px;width:100%;margin-bottom:12px}
+.card-title{font-size:var(--ui-type-caption);color:var(--arena-muted);letter-spacing:normal;margin-bottom:12px;font-weight:700}
+.btn{padding:14px 0;border-radius:var(--ui-radius-control);border:none;font-size:13px;font-weight:700;cursor:pointer;letter-spacing:normal;font-family: var(--arena-ui-font);transition:opacity var(--ui-motion-feedback),transform var(--ui-motion-feedback);width:100%;margin-top:6px}
+.btn.primary{background:var(--arena-accent);color:#fff}
+@media(hover:hover) and (pointer:fine){.btn.primary:hover{filter:brightness(.95)}}
 .btn.danger{background:#7f1d1d;color:#fecaca}
-.btn.ghost{background:#1e293b;color:#94a3b8}
+.btn.ghost{background:var(--arena-border);color:var(--arena-muted)}
 .btn:active{opacity:.75;transform:scale(.98)}
-.info-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid #1e293b;font-size:13px}
+.info-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--arena-border);font-size:13px}
 .info-row:last-child{border-bottom:none}
-.info-key{color:#64748b}.info-val{color:#f1f5f9;font-weight:700}
+.info-key{color:var(--arena-muted)}.info-val{color:var(--arena-text);font-weight:700}
 .hpbox{background:#0f2027;border:1px solid #0e7490;border-radius:10px;padding:14px 18px;display:flex;align-items:center;gap:12px;margin-bottom:12px;width:100%}
 .hpicon{font-size:28px;flex-shrink:0}
 .hptext{font-size:12px;color:#7dd3fc;line-height:1.8}
 .hptext strong{color:#e0f2fe;display:block;font-size:13px;margin-bottom:2px}
 
 /* countdown */
-#cd-num{font-size:160px;font-weight:900;color:#f1f5f9;margin:16px 0;line-height:1;text-align:center;transition:all .08s}
+#cd-num{font-size:160px;font-weight:900;color:var(--arena-text);margin:16px 0;line-height:1;text-align:center;transition:all .08s}
 #cd-num.pulse{color:#4ade80;text-shadow:0 0 80px #4ade8055}
-#cd-msg{font-size:11px;color:#64748b;letter-spacing:.3em;text-align:center;min-height:20px}
+#cd-msg{font-size:var(--ui-type-caption);color:var(--arena-muted);letter-spacing:normal;text-align:center;min-height:20px}
 
 /* recording */
-#big-lyric-wrap{width:100%;background:#13131a;border:1px solid #1e293b;border-radius:12px;padding:20px 16px;text-align:center;margin-bottom:12px}
+#big-lyric-wrap{width:100%;background:var(--arena-surface);border:1px solid var(--arena-border);border-radius:12px;padding:20px 16px;text-align:center;margin-bottom:12px}
 #big-lyric{font-size:80px;font-weight:900;line-height:1;min-height:90px;display:flex;align-items:center;justify-content:center;transition:color .08s,text-shadow .08s;color:#334155}
 #big-lyric.good{color:#4ade80;text-shadow:0 0 40px #4ade8055}
 #big-lyric.warn{color:#fbbf24;text-shadow:0 0 30px #fbbf2444}
 #big-lyric.bad{color:#f87171;text-shadow:0 0 30px #f8717144}
 #pitch-row{display:flex;justify-content:space-between;align-items:center;margin-top:10px}
-#pitch-note{font-size:13px;color:#94a3b8;font-weight:700}
-#pitch-cents{font-size:13px;font-weight:700;color:#475569}
-#meter-wrap{width:100%;height:10px;background:#1e293b;border-radius:5px;overflow:hidden;position:relative;margin-bottom:4px}
+#pitch-note{font-size:13px;color:var(--arena-muted);font-weight:700}
+#pitch-cents{font-size:13px;font-weight:700;color:var(--arena-muted)}
+#meter-wrap{width:100%;height:10px;background:var(--arena-border);border-radius:5px;overflow:hidden;position:relative;margin-bottom:4px}
 #meter-c{position:absolute;left:50%;top:0;width:2px;height:100%;background:#334155;transform:translateX(-50%)}
 #meter-fill{position:absolute;top:0;height:100%;border-radius:5px;transition:all .06s}
-#meter-lbl{display:flex;justify-content:space-between;font-size:9px;color:#475569;margin-bottom:14px;padding:0 2px}
-#prog-wrap{width:100%;height:4px;background:#1e293b;border-radius:2px;overflow:hidden;margin-bottom:12px}
+#meter-lbl{display:flex;justify-content:space-between;font-size:var(--ui-type-caption);color:var(--arena-muted);margin-bottom:14px;padding:0 2px}
+#prog-wrap{width:100%;height:4px;background:var(--arena-border);border-radius:2px;overflow:hidden;margin-bottom:12px}
 #prog-fill{height:100%;background:linear-gradient(to right,#3b82f6,#8b5cf6);width:0%;transition:width .2s}
 #beat-row{display:flex;gap:10px;justify-content:center;margin-bottom:12px}
-.bd{width:10px;height:10px;border-radius:50%;background:#1e293b;transition:all .05s}
-.bd.on{background:#f1f5f9;box-shadow:0 0 10px rgba(241,245,249,.5)}
-#lyrics-strip{display:flex;flex-wrap:wrap;gap:4px 5px;padding:12px;background:#13131a;border:1px solid #1e293b;border-radius:10px;width:100%;margin-bottom:12px;justify-content:center}
+.bd{width:10px;height:10px;border-radius:50%;background:var(--arena-border);transition:all .05s}
+.bd.on{background:var(--arena-text);box-shadow:0 0 10px rgba(241,245,249,.5)}
+#lyrics-strip{display:flex;flex-wrap:wrap;gap:4px 5px;padding:12px;background:var(--arena-surface);border:1px solid var(--arena-border);border-radius:10px;width:100%;margin-bottom:12px;justify-content:center}
 .lc{font-size:15px;padding:3px 5px;border-radius:4px;color:#334155;transition:all .12s;font-weight:700}
-.lc.now{color:#f1f5f9;background:#1e293b;font-size:19px}
+.lc.now{color:var(--arena-text);background:var(--arena-border);font-size:19px}
 .lc.dg{color:#166534}.lc.dw{color:#92400e}.lc.db{color:#7f1d1d}
-#rhythm-row{display:flex;justify-content:space-between;width:100%;background:#13131a;border:1px solid #1e293b;border-radius:8px;padding:10px 16px;margin-bottom:12px}
+#rhythm-row{display:flex;justify-content:space-between;width:100%;background:var(--arena-surface);border:1px solid var(--arena-border);border-radius:8px;padding:10px 16px;margin-bottom:12px}
 .rstat{text-align:center}
-.rstat-val{font-size:18px;font-weight:900;color:#94a3b8}
-.rstat-lbl{font-size:9px;color:#475569;letter-spacing:.15em;margin-top:2px}
+.rstat-val{font-size:18px;font-weight:900;color:var(--arena-muted)}
+.rstat-lbl{font-size:var(--ui-type-caption);color:var(--arena-muted);letter-spacing:normal;margin-top:2px}
 
 /* analyzing */
-.dots{font-size:32px;letter-spacing:.3em;color:#334155;animation:blink 1.2s infinite}
+.dots{font-size:32px;letter-spacing:normal;color:#334155;animation:blink 1.2s infinite}
 @keyframes blink{0%,100%{opacity:.3}50%{opacity:1}}
 
 /* result */
 #score-row{display:flex;gap:12px;width:100%;margin-bottom:0}
-.score-box{flex:1;background:#13131a;border:1px solid #1e293b;border-radius:10px;padding:14px;text-align:center}
+.score-box{flex:1;background:var(--arena-surface);border:1px solid var(--arena-border);border-radius:10px;padding:14px;text-align:center}
 .score-num{font-size:48px;font-weight:900;line-height:1}
-.score-lbl{font-size:9px;color:#64748b;letter-spacing:.25em;margin-top:4px}
+.score-lbl{font-size:var(--ui-type-caption);color:var(--arena-muted);letter-spacing:normal;margin-top:4px}
 .note-grid{display:flex;flex-wrap:wrap;gap:5px;width:100%}
 .nc{display:flex;flex-direction:column;align-items:center;gap:2px}
 .nb{width:34px;height:34px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;cursor:help;transition:transform .1s}
@@ -76,13 +82,13 @@ h1{font-size:22px;letter-spacing:.5em;color:#f1f5f9;margin-bottom:4px;text-align
 .nb.good{background:#052e16;color:#4ade80;border:1px solid #166534}
 .nb.slight{background:#2d1a00;color:#fbbf24;border:1px solid #92400e}
 .nb.bad{background:#1c0000;color:#f87171;border:1px solid #7f1d1d}
-.nb.missed{background:#0f172a;color:#475569;border:1px solid #1e293b}
-.nl{font-size:8px;color:#64748b;font-weight:700}
-.legend{display:flex;gap:10px;flex-wrap:wrap;font-size:10px;color:#64748b;margin-top:8px}
-#ai-report{background:#13131a;border:1px solid #1e293b;border-radius:10px;padding:18px;width:100%;font-size:13px;line-height:2;color:#cbd5e1;white-space:pre-wrap;min-height:60px}
+.nb.missed{background:#0f172a;color:var(--arena-muted);border:1px solid var(--arena-border)}
+.nl{font-size:8px;color:var(--arena-muted);font-weight:700}
+.legend{display:flex;gap:10px;flex-wrap:wrap;font-size:var(--ui-type-caption);color:var(--arena-muted);margin-top:8px}
+#ai-report{background:var(--arena-surface);border:1px solid var(--arena-border);border-radius:10px;padding:18px;width:100%;font-size:13px;line-height:2;color:#cbd5e1;white-space:pre-wrap;min-height:60px}
 </style>
 </head>
-<body>
+<body class="arena-public-page arena-pitch"><nav class="arena-tool-nav" aria-label="页面导航"><span>AI 助手 · 音准分析</span><a href="/">返回助手</a></nav>
 
 <div id="screen-setup" class="screen active">
   <h1>音 准 训 练</h1>
@@ -98,7 +104,7 @@ h1{font-size:22px;letter-spacing:.5em;color:#f1f5f9;margin-bottom:4px;text-align
     <div class="card-title">选择曲目</div>
     <div class="info-row">
       <span class="info-key">曲目</span>
-      <select id="song-select" style="background:#1e293b;color:#f1f5f9;border:none;font-family: var(--arena-ui-font);font-size:13px;font-weight:700;padding:4px 8px;border-radius:6px;cursor:pointer">
+      <select aria-label="选择曲目" id="song-select" style="background:#1e293b;color:#f1f5f9;border:none;font-family: var(--arena-ui-font);font-size:13px;font-weight:700;padding:4px 8px;border-radius:6px;cursor:pointer">
         <option value="yuerge">越人歌</option>
       </select>
     </div>
@@ -1053,5 +1059,7 @@ function tapLoop(){
   tapRaf=requestAnimationFrame(tapLoop);
 }
 </script>
+<script src="/arena-controls.js?v=20261102-ui1"></script>
+<script src="/arena-ui.js?v=20261102-ui1"></script>
 </body>
 </html>

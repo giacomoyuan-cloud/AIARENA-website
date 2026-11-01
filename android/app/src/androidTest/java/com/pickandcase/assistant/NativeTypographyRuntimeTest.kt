@@ -28,7 +28,7 @@ import java.io.File
 class NativeTypographyRuntimeTest {
     @get:Rule val compose = createComposeRule()
 
-    @Test fun themeInputsMarkdownAndCodeShareApprovedFonts() {
+    @Test fun themeInputsAndMarkdownUseUiFontsWhileCodeIsMonospaced() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val face = NativeTypography.typeface(context)
         val typography = NativeTypography.typography(context)
@@ -71,7 +71,7 @@ class NativeTypographyRuntimeTest {
                     Text("所有界面统一字体，中文与 English 一致。", Modifier.testTag("font-body"))
                     OutlinedTextField("输入框 Input 123", {}, label = { Text("消息内容") })
                     Button(onClick = {}) { Text("开始讨论") }
-                    Markdown("## 回复标题 Heading\n\n正文与 **强调文字**。\n\n`const total = 123`\n\n```text\n代码区域也使用思源现代\n```")
+                    Markdown("## 回复标题 Heading\n\n正文与 **强调文字**。\n\n`const total = 123`\n\n```text\n代码区域保持等宽字体\n```")
                 } }
             }
         }
@@ -83,7 +83,14 @@ class NativeTypographyRuntimeTest {
         }
         fun textViews(view: View): List<TextView> = (if (view is TextView) listOf(view) else emptyList()) +
             (if (view is ViewGroup) (0 until view.childCount).flatMap { textViews(view.getChildAt(it)) } else emptyList())
-        compose.runOnIdle { assertTrue(textViews(root.rootView).any { it.typeface == face && it.text.contains("const total") }) }
+        compose.runOnIdle {
+            val view=textViews(root.rootView).first { it.typeface==face&&it.text.contains("const total") }
+            val text=view.text as android.text.Spanned
+            val at=text.toString().indexOf("const total")
+            val codePaint=android.text.TextPaint(view.paint)
+            text.getSpans(at,at+1,android.text.style.MetricAffectingSpan::class.java).forEach {it.updateMeasureState(codePaint)}
+            assertEquals("Rendered inline code must use fixed-width glyphs",codePaint.measureText("iiii"),codePaint.measureText("WWWW"),.01f)
+        }
         compose.onRoot().captureToImage().asAndroidBitmap().let { bitmap ->
             File(context.filesDir, "font-acceptance.png").outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
         }

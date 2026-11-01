@@ -139,7 +139,7 @@ fun SettingsScreen(s: AssistantState, vm: AssistantViewModel, onLogout: () -> Un
                     Text(notice, style = MaterialTheme.typography.bodySmall)
                 }
             },
-            confirmButton = { TextButton(onClick = { licenses = false }) { Text("关闭") } },
+            confirmButton = { ArenaTextButton(onClick = { licenses = false }) { Text("关闭") } },
         )
     }
     NativePage {
@@ -238,7 +238,7 @@ fun AccountScreen(s: AssistantState, vm: AssistantViewModel) {
                     .onFailure { vm.notice("头像读取失败，请重新选择") }
         }
     NativePage {
-        OutlinedButton(onClick = { picker.launch("image/*") }) {
+        ArenaOutlinedButton(onClick = { picker.launch("image/*") }) {
             Icon(Icons.Outlined.AddAPhoto, null)
             Spacer(Modifier.width(8.dp))
             Text(if (avatar == null) "更换头像" else "已选择新头像")
@@ -265,7 +265,7 @@ fun AccountScreen(s: AssistantState, vm: AssistantViewModel) {
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
             modifier = Modifier.fillMaxWidth(),
         )
-        Button(
+        ArenaButton(
             enabled = !s.loading,
             onClick = {
                 if (password.isNotEmpty() && password.length < 8) vm.notice("新密码至少 8 位")
@@ -292,7 +292,7 @@ fun AdminScreen(s: AssistantState, vm: AssistantViewModel) {
     var deleting by remember { mutableStateOf<JSONObject?>(null) }
     if (deleting != null) {
         val target = deleting!!
-        AlertDialog(onDismissRequest = { deleting = null }, title = { Text("删除账号 ${target.str("username")}？") }, text = { Text("该账号将无法再登录 App 和网页，已有登录也会立即失效。") }, confirmButton = { TextButton(onClick = { vm.deleteUser(target.str("accountId")); deleting = null }, modifier = Modifier.testTag("admin-delete-confirm")) { Text("确认删除", color = MaterialTheme.colorScheme.error) } }, dismissButton = { TextButton(onClick = { deleting = null }) { Text("取消") } })
+        AlertDialog(onDismissRequest = { deleting = null }, title = { Text("删除账号 ${target.str("username")}？") }, text = { Text("该账号将无法再登录 App 和网页，已有登录也会立即失效。") }, confirmButton = { ArenaTextButton(onClick = { vm.deleteUser(target.str("accountId")); deleting = null }, modifier = Modifier.testTag("admin-delete-confirm")) { Text("确认删除", color = MaterialTheme.colorScheme.error) } }, dismissButton = { ArenaTextButton(onClick = { deleting = null }) { Text("取消") } })
     }
     var username by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
@@ -333,7 +333,7 @@ fun AdminScreen(s: AssistantState, vm: AssistantViewModel) {
             )
         }
         item {
-            Button(
+            ArenaButton(
                 enabled = !s.loading && username.isNotBlank() && password.isNotEmpty(),
                 onClick = { vm.createUser(username, password) },
                 modifier = Modifier.fillMaxWidth().testTag("admin-create"),
@@ -361,12 +361,12 @@ fun AdminScreen(s: AssistantState, vm: AssistantViewModel) {
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.primary,
                         )
-                    else TextButton(onClick = { deleting = user }, enabled = !s.loading, modifier = Modifier.testTag("admin-delete-" + user.str("accountId"))) { Text("删除", color = MaterialTheme.colorScheme.error) }
+                    else ArenaTextButton(onClick = { deleting = user }, enabled = !s.loading, modifier = Modifier.testTag("admin-delete-" + user.str("accountId"))) { Text("删除", color = MaterialTheme.colorScheme.error) }
                 },
             )
         }
         if (s.data.str("cursor").isNotBlank())
-            item { TextButton(onClick = vm::moreAdmin) { Text("加载更多账号") } }
+            item { ArenaTextButton(onClick = vm::moreAdmin) { Text("加载更多账号") } }
     }
 }
 
@@ -507,7 +507,7 @@ private fun HistoryRow(chat: JSONObject, s: AssistantState, vm: AssistantViewMod
             title = { Text("移至项目") },
             text = {
                 Column(Modifier.verticalScroll(rememberScrollState())) {
-                    TextButton(
+                    ArenaTextButton(
                         onClick = {
                             vm.historyAction(
                                 "move",
@@ -520,7 +520,7 @@ private fun HistoryRow(chat: JSONObject, s: AssistantState, vm: AssistantViewMod
                         Text("普通聊天")
                     }
                     s.projects.forEach { project ->
-                        TextButton(
+                        ArenaTextButton(
                             onClick = {
                                 vm.historyAction(
                                     "move",
@@ -535,7 +535,7 @@ private fun HistoryRow(chat: JSONObject, s: AssistantState, vm: AssistantViewMod
                     }
                 }
             },
-            confirmButton = { TextButton(onClick = { move = false }) { Text("取消") } },
+            confirmButton = { ArenaTextButton(onClick = { move = false }) { Text("取消") } },
         )
     if (grouping)
         AlertDialog(
@@ -544,7 +544,7 @@ private fun HistoryRow(chat: JSONObject, s: AssistantState, vm: AssistantViewMod
             text = {
                 Column {
                     s.groups.forEach { group ->
-                        TextButton(
+                        ArenaTextButton(
                             onClick = {
                                 vm.historyAction(
                                     "group",
@@ -557,7 +557,7 @@ private fun HistoryRow(chat: JSONObject, s: AssistantState, vm: AssistantViewMod
                             Text(group.str("name"))
                         }
                     }
-                    TextButton(
+                    ArenaTextButton(
                         onClick = {
                             vm.historyAction("group", chat.str("id"), json("groupId" to null))
                             grouping = false
@@ -567,7 +567,7 @@ private fun HistoryRow(chat: JSONObject, s: AssistantState, vm: AssistantViewMod
                     }
                 }
             },
-            confirmButton = { TextButton(onClick = { grouping = false }) { Text("取消") } },
+            confirmButton = { ArenaTextButton(onClick = { grouping = false }) { Text("取消") } },
         )
     if (remove)
         AlertDialog(
@@ -575,7 +575,7 @@ private fun HistoryRow(chat: JSONObject, s: AssistantState, vm: AssistantViewMod
             title = { Text("删除这个对话？") },
             text = { Text("删除后将从历史记录中移除。") },
             confirmButton = {
-                TextButton(
+                ArenaTextButton(
                     onClick = {
                         vm.historyAction("delete", chat.str("id"))
                         remove = false
@@ -584,7 +584,7 @@ private fun HistoryRow(chat: JSONObject, s: AssistantState, vm: AssistantViewMod
                     Text("删除")
                 }
             },
-            dismissButton = { TextButton(onClick = { remove = false }) { Text("取消") } },
+            dismissButton = { ArenaTextButton(onClick = { remove = false }) { Text("取消") } },
         )
 }
 
@@ -596,7 +596,7 @@ fun ProjectsScreen(s: AssistantState, vm: AssistantViewModel) {
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text("项目", Modifier.weight(1f), style = MaterialTheme.typography.headlineSmall)
-            Button(onClick = { create = true }) {
+            ArenaButton(onClick = { create = true }) {
                 Icon(Icons.Outlined.Add, null)
                 Text("新建项目")
             }
@@ -732,7 +732,7 @@ private fun ProjectRow(project: JSONObject, view: String, vm: AssistantViewModel
             title = { Text("将项目移入回收站？") },
             text = { Text("项目的对话和资料会保留，可在回收站恢复。") },
             confirmButton = {
-                TextButton(
+                ArenaTextButton(
                     onClick = {
                         vm.projectAction("delete", project.str("id"))
                         deleting = false
@@ -741,7 +741,7 @@ private fun ProjectRow(project: JSONObject, view: String, vm: AssistantViewModel
                     Text("移入回收站")
                 }
             },
-            dismissButton = { TextButton(onClick = { deleting = false }) { Text("取消") } },
+            dismissButton = { ArenaTextButton(onClick = { deleting = false }) { Text("取消") } },
         )
 }
 
@@ -769,11 +769,11 @@ private fun ProjectEditor(
             }
         },
         confirmButton = {
-            TextButton(enabled = name.isNotBlank(), onClick = { onSave(name, instructions) }) {
+            ArenaTextButton(enabled = name.isNotBlank(), onClick = { onSave(name, instructions) }) {
                 Text("保存")
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+        dismissButton = { ArenaTextButton(onClick = onDismiss) { Text("取消") } },
     )
 }
 
@@ -818,26 +818,26 @@ fun ProjectScreen(s: AssistantState, vm: AssistantViewModel) {
             else "根据问题检索相关片段，适合日常提问。",
             style = MaterialTheme.typography.bodySmall,
         )
-        TextButton(onClick = { folderPicker.launch(null) }) {
+        ArenaTextButton(onClick = { folderPicker.launch(null) }) {
             Icon(Icons.Outlined.CreateNewFolder, null)
             Spacer(Modifier.width(8.dp))
             Text("导入文件夹")
         }
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = { vm.newChat() }) {
+            ArenaButton(onClick = { vm.newChat() }) {
                 Icon(Icons.Outlined.Add, null)
                 Text("新建对话")
             }
-            OutlinedButton(onClick = { edit = true }) { Text("项目设置") }
-            OutlinedButton(onClick = { vm.navigate(Page.TASKS) }) { Text("定时任务") }
+            ArenaOutlinedButton(onClick = { edit = true }) { Text("项目设置") }
+            ArenaOutlinedButton(onClick = { vm.navigate(Page.TASKS) }) { Text("定时任务") }
         }
         Text("参考资料", style = MaterialTheme.typography.titleMedium)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = { picker.launch(arrayOf("*/*")) }) {
+            ArenaOutlinedButton(onClick = { picker.launch(arrayOf("*/*")) }) {
                 Icon(Icons.Outlined.UploadFile, null)
                 Text("上传资料或 ZIP")
             }
-            TextButton(
+            ArenaTextButton(
                 onClick = {
                     removed = true
                     vm.service(
@@ -865,7 +865,7 @@ fun ProjectScreen(s: AssistantState, vm: AssistantViewModel) {
                         style = MaterialTheme.typography.bodySmall,
                     )
                     FlowRow {
-                        TextButton(
+                        ArenaTextButton(
                             onClick = {
                                 vm.service(
                                     "/projects",
@@ -894,8 +894,8 @@ fun ProjectScreen(s: AssistantState, vm: AssistantViewModel) {
                         ) {
                             Text("预览")
                         }
-                        TextButton(onClick = { vm.downloadProjectFile(file) }) { Text("下载原文件") }
-                        TextButton(
+                        ArenaTextButton(onClick = { vm.downloadProjectFile(file) }) { Text("下载原文件") }
+                        ArenaTextButton(
                             onClick = {
                                 replacement = file.str("id")
                                 updatePicker.launch(arrayOf("*/*"))
@@ -903,7 +903,7 @@ fun ProjectScreen(s: AssistantState, vm: AssistantViewModel) {
                         ) {
                             Text("更新")
                         }
-                        TextButton(
+                        ArenaTextButton(
                             onClick = {
                                 vm.projectAction(
                                     "remove_file",
@@ -925,7 +925,7 @@ fun ProjectScreen(s: AssistantState, vm: AssistantViewModel) {
             project.str("memory").ifBlank { "还没有项目记忆" },
             style = MaterialTheme.typography.bodyMedium,
         )
-        TextButton(onClick = { memory = true }) { Text("编辑项目记忆") }
+        ArenaTextButton(onClick = { memory = true }) { Text("编辑项目记忆") }
         Text("项目对话", style = MaterialTheme.typography.titleMedium)
         s.histories.take(30).forEach { chat ->
             ListItem(
@@ -962,7 +962,7 @@ fun ProjectScreen(s: AssistantState, vm: AssistantViewModel) {
                     Markdown(preview!!.str("text"))
                 }
             },
-            confirmButton = { TextButton(onClick = { preview = null }) { Text("关闭") } },
+            confirmButton = { ArenaTextButton(onClick = { preview = null }) { Text("关闭") } },
         )
     if (removed)
         AlertDialog(
@@ -973,7 +973,7 @@ fun ProjectScreen(s: AssistantState, vm: AssistantViewModel) {
                     s.data.arr("files").objects().forEach { file ->
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(file.str("name"), Modifier.weight(1f))
-                            TextButton(
+                            ArenaTextButton(
                                 onClick = {
                                     vm.projectAction(
                                         "restore_file",
@@ -991,7 +991,7 @@ fun ProjectScreen(s: AssistantState, vm: AssistantViewModel) {
                     }
                 }
             },
-            confirmButton = { TextButton(onClick = { removed = false }) { Text("关闭") } },
+            confirmButton = { ArenaTextButton(onClick = { removed = false }) { Text("关闭") } },
         )
 }
 
@@ -1048,7 +1048,7 @@ fun TasksScreen(s: AssistantState, vm: AssistantViewModel) {
         item {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("定时任务", Modifier.weight(1f), style = MaterialTheme.typography.headlineSmall)
-                Button(onClick = { create = true }) {
+                ArenaButton(onClick = { create = true }) {
                     Icon(Icons.Outlined.Add, null)
                     Text("新建")
                 }
@@ -1079,7 +1079,7 @@ fun TasksScreen(s: AssistantState, vm: AssistantViewModel) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Text(
-                        "下次执行：" + dateLabel(task.opt("nextRunAt")).ifBlank { "未计划" },
+                        nativeTaskState(task) + if(task.optBoolean("enabled") && !active) " · 下次执行：" + dateLabel(task.opt("nextRunAt")).ifBlank { "未计划" } else "",
                         style = MaterialTheme.typography.bodySmall,
                     )
                     if (task.str("error").isNotBlank())
@@ -1089,11 +1089,11 @@ fun TasksScreen(s: AssistantState, vm: AssistantViewModel) {
                             style = MaterialTheme.typography.bodySmall,
                         )
                     FlowRow {
-                        TextButton(onClick = { editing = task },enabled=!active) { Text("编辑") }
-                        TextButton(onClick = { vm.taskAction("run", task) },enabled=!active) { Text("立即执行") }
-                        if (task.str("status") == "running") TextButton(onClick = { vm.taskAction("stop", task) }) { Text("停止本次执行") }
-                        TextButton(onClick = { historyEpoch++; history = task; historyRuns = emptyList(); historyNext = null; loadHistory(task) }) { Text("执行记录") }
-                        TextButton(onClick = { deleting = task },enabled=!active) { Text("删除") }
+                        ArenaTextButton(onClick = { editing = task },enabled=!active) { Text("编辑") }
+                        ArenaTextButton(onClick = { vm.taskAction("run", task) },enabled=!active) { Text("立即执行") }
+                        if (task.str("status") == "running") ArenaTextButton(onClick = { vm.taskAction("stop", task) }) { Text("停止本次执行") }
+                        ArenaTextButton(onClick = { historyEpoch++; history = task; historyRuns = emptyList(); historyNext = null; loadHistory(task) }) { Text("执行记录") }
+                        ArenaTextButton(onClick = { deleting = task },enabled=!active) { Text("删除") }
                     }
                 }
             }
@@ -1106,7 +1106,7 @@ fun TasksScreen(s: AssistantState, vm: AssistantViewModel) {
             title = { Text("删除定时任务？") },
             text = { Text("删除后不再自动执行此任务。") },
             confirmButton = {
-                TextButton(
+                ArenaTextButton(
                     onClick = {
                         vm.taskAction("delete", deleting!!)
                         deleting = null
@@ -1115,7 +1115,7 @@ fun TasksScreen(s: AssistantState, vm: AssistantViewModel) {
                     Text("删除")
                 }
             },
-            dismissButton = { TextButton(onClick = { deleting = null }) { Text("取消") } },
+            dismissButton = { ArenaTextButton(onClick = { deleting = null }) { Text("取消") } },
         )
     if (create || editing != null)
         TaskEditor(
@@ -1134,7 +1134,7 @@ fun TasksScreen(s: AssistantState, vm: AssistantViewModel) {
             text = {
                 Column(Modifier.heightIn(max=480.dp).verticalScroll(rememberScrollState())) {
                     historyRuns.forEach { run ->
-                        TextButton(onClick = {
+                        ArenaTextButton(onClick = {
                             if (run.str("runId").isNotBlank() && !run.optBoolean("legacy")) {
                                 replayJob?.cancel(); replay = JSONObject()
                                 replayJob = vm.observeTaskRun(history!!,run) { replay = it }
@@ -1149,11 +1149,11 @@ fun TasksScreen(s: AssistantState, vm: AssistantViewModel) {
                     }
                     if (historyLoading) CircularProgressIndicator(Modifier.size(24.dp))
                     if (!historyLoading && historyRuns.isEmpty() && historyError.isBlank()) Text("还没有执行记录")
-                    if (historyError.isNotBlank()) { Text(historyError,color=MaterialTheme.colorScheme.error);TextButton(onClick={loadHistory(history!!,if(historyRuns.isEmpty())null else historyNext)}){Text("重试")} }
-                    if (historyNext != null) TextButton(onClick={loadHistory(history!!,historyNext)},enabled=!historyLoading) {Text("加载更早的记录")}
+                    if (historyError.isNotBlank()) { Text(historyError,color=MaterialTheme.colorScheme.error);ArenaTextButton(onClick={loadHistory(history!!,if(historyRuns.isEmpty())null else historyNext)}){Text("重试")} }
+                    if (historyNext != null) ArenaTextButton(onClick={loadHistory(history!!,historyNext)},enabled=!historyLoading) {Text("加载更早的记录")}
                 }
             },
-            confirmButton = { TextButton(onClick = { history = null }) { Text("关闭") } },
+            confirmButton = { ArenaTextButton(onClick = { history = null }) { Text("关闭") } },
         )
     if (replay != null) {
         val clipboard=androidx.compose.ui.platform.LocalClipboardManager.current
@@ -1165,8 +1165,8 @@ fun TasksScreen(s: AssistantState, vm: AssistantViewModel) {
                 else if(replay!!.has("error")) Text(replay!!.str("error"),color=MaterialTheme.colorScheme.error)
                 else { Text(taskStatus(replay!!.str("status")),style=MaterialTheme.typography.labelMedium);Markdown(replay!!.obj("reply").str("text").ifBlank {"等待任务输出…"}) }
             }},
-            confirmButton={TextButton(onClick={replayJob?.cancel();replay=null}){Text("关闭")}},
-            dismissButton={TextButton(onClick={clipboard.setText(androidx.compose.ui.text.AnnotatedString(replay!!.obj("reply").str("text")));vm.notice("内容已复制")},enabled=replay!!.obj("reply").str("text").isNotBlank()){Text("复制内容")}}
+            confirmButton={ArenaTextButton(onClick={replayJob?.cancel();replay=null}){Text("关闭")}},
+            dismissButton={ArenaTextButton(onClick={clipboard.setText(androidx.compose.ui.text.AnnotatedString(replay!!.obj("reply").str("text")));vm.notice("内容已复制")},enabled=replay!!.obj("reply").str("text").isNotBlank()){Text("复制内容")}}
         )
     }
 }
@@ -1276,7 +1276,7 @@ private fun TaskEditor(
                 frequency = it
             }
             if (frequency == "once")
-                OutlinedButton(
+                ArenaOutlinedButton(
                     onClick = {
                         val d = LocalDate.parse(date)
                         DatePickerDialog(
@@ -1309,7 +1309,7 @@ private fun TaskEditor(
                 ) {
                     day = it.toInt()
                 }
-            OutlinedButton(
+            ArenaOutlinedButton(
                 onClick = {
                     val t = LocalTime.parse(time)
                     TimePickerDialog(
@@ -1336,7 +1336,7 @@ private fun TaskEditor(
                 Text("联网搜索", Modifier.weight(1f))
                 Switch(search, { search = it })
             }
-            Button(
+            ArenaButton(
                 enabled = name.isNotBlank() && prompt.isNotBlank() && !s.loading,
                 onClick = {
                     runCatching {
@@ -1453,7 +1453,7 @@ fun PromptScreen(s: AssistantState, vm: AssistantViewModel) {
             maxLines = 18,
         )
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Button(
+            ArenaButton(
                 onClick = {
                     vm.service("/system-prompt", json("action" to "save", "prompt" to text)) {
                         vm.pageData(it)
@@ -1463,7 +1463,7 @@ fun PromptScreen(s: AssistantState, vm: AssistantViewModel) {
             ) {
                 Text("保存")
             }
-            OutlinedButton(
+            ArenaOutlinedButton(
                 onClick = {
                     vm.service("/system-prompt", json("action" to "reset")) { vm.pageData(it) }
                 }
@@ -1487,7 +1487,7 @@ fun MemoryScreen(s: AssistantState, vm: AssistantViewModel) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Markdown(s.data.str("memory").ifBlank { "还没有积累记忆。" })
-        OutlinedButton(onClick = { vm.navigate(Page.MEMORY) }) {
+        ArenaOutlinedButton(onClick = { vm.navigate(Page.MEMORY) }) {
             Icon(Icons.Outlined.Refresh, null)
             Text("刷新记忆")
         }
@@ -1559,7 +1559,7 @@ fun UsageScreen(s: AssistantState, vm: AssistantViewModel) {
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        OutlinedButton(onClick = { vm.loadUsage(all) }) { Text("刷新用量") }
+        ArenaOutlinedButton(onClick = { vm.loadUsage(all) }) { Text("刷新用量") }
     }
     if (receipt != null) NativeUsageReceipt(receipt!!) { receipt = null }
 }

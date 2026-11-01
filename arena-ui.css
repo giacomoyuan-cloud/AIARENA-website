@@ -1,0 +1,77 @@
+/* Shared visual roles. Layout belongs to each feature; controls belong here. */
+#ai-arena-app.arena-shell { --ui-focus:var(--arena-accent);--ui-input-font:var(--ui-type-control); }
+#ai-arena-app.arena-shell :is(button,[role="button"],[role="option"]) { touch-action:manipulation;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent; }
+#ai-arena-app.arena-shell :is(button,input,textarea,select,a,[tabindex]):focus-visible { outline:2px solid var(--ui-focus);outline-offset:2px; }
+#ai-arena-app.arena-shell button:not(:disabled):active { transform:scale(.98); }
+#ai-arena-app.arena-shell :is(.arena-project-dialog,.arena-workspace-dialog,.aa-image-settings,.arena-debate-settings-dialog,.arena-image-editor) {
+  box-sizing:border-box;border:1px solid var(--arena-border);border-radius:var(--ui-radius-dialog);background:var(--arena-bg);color:var(--arena-text);box-shadow:0 16px 56px #0002;
+}
+#ai-arena-app.arena-shell dialog::backdrop { background:#17171355;backdrop-filter:none; }
+#ai-arena-app.arena-shell :is(.arena-dialog-heading,.arena-project-dialog header,.arena-image-heading,.arena-debate-settings-dialog header,.arena-image-editor header) {
+  display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px var(--ui-spacing-panel);border-bottom:1px solid var(--arena-border);
+}
+#ai-arena-app.arena-shell :is(.arena-dialog-heading h2,.arena-project-dialog header h2,.arena-image-heading h3,.arena-image-heading h2,.arena-debate-settings-dialog header h2,.arena-image-editor header h2) {
+  margin:0;font:600 var(--ui-type-title)/1.5 var(--arena-ui-font);letter-spacing:-.01em;overflow-wrap:anywhere;
+}
+#ai-arena-app.arena-shell :is(.arena-dialog-heading button,.arena-project-dialog header button,.arena-image-heading button,.arena-debate-settings-dialog header button,.arena-image-editor header button) {
+  display:grid;place-items:center;flex:none;box-sizing:border-box;width:var(--ui-size-icon);height:var(--ui-size-icon);min-width:var(--ui-size-icon);min-height:var(--ui-size-icon);padding:7px;border:0;border-radius:var(--ui-radius-control);background:transparent;color:var(--arena-muted);font:20px/1 var(--arena-ui-font);
+}
+#ai-arena-app.arena-shell :is(.arena-dialog-heading button,.arena-project-dialog header button,.arena-image-heading button,.arena-debate-settings-dialog header button,.arena-image-editor header button) svg { width:18px;height:18px; }
+#ai-arena-app.arena-shell :is(.arena-project-form-body,.arena-profile-fields,.arena-prompt-content,.arena-admin-form,.arena-image-custom) :is(input:not([type="checkbox"]):not([type="range"]),textarea,select),
+#ai-arena-app.arena-shell .arena-prompt-editor {
+  box-sizing:border-box;min-width:0;min-height:var(--ui-size-control);border:1px solid var(--arena-border);border-radius:var(--ui-radius-control);background:var(--arena-sidebar);color:var(--arena-text);padding:8px 12px;font:var(--ui-input-font)/1.5 var(--arena-ui-font);
+}
+#ai-arena-app.arena-shell :is(.arena-workspace-primary,.arena-project-dialog .primary,.arena-debate-settings-save,.arena-admin-form button[type="submit"],.arena-image-editor [data-apply]) {
+  min-height:var(--ui-size-control);padding:8px 16px;border:1px solid var(--arena-accent);border-radius:var(--ui-radius-control);background:var(--arena-accent);color:#fff;font:500 var(--ui-type-control)/1.5 var(--arena-ui-font);
+}
+#ai-arena-app.arena-shell :is(.arena-workspace-primary,.arena-project-dialog .primary,.arena-debate-settings-save,.arena-image-editor [data-apply]):disabled { opacity:.45;cursor:default; }
+#ai-arena-app.arena-shell :is(.arena-workspace-muted,.arena-account-help,.arena-prompt-meta,.arena-file-toolbar,.arena-project-form-note,.arena-task-card small,.arena-project-card small,.aa-img-settings-sub,.aa-img-settings-hint) { font-size:var(--ui-type-caption);line-height:1.6; }
+:is(#ai-arena-app.arena-shell,.arena-public-page) .arena-select-source { position:absolute;width:1px;height:1px;padding:0;opacity:0;visibility:hidden;pointer-events:none;clip-path:inset(50%); }
+:is(#ai-arena-app.arena-shell,.arena-public-page) .arena-select-field { display:block;min-width:0;flex:0 1 auto; }
+#ai-arena-app.arena-shell label>.arena-select-field { width:100%; }
+:is(#ai-arena-app.arena-shell,.arena-public-page) .arena-select-trigger { min-height:var(--ui-size-control);border-radius:var(--ui-radius-control);font-size:var(--ui-type-control); }
+:is(#ai-arena-app.arena-shell,.arena-public-page) .arena-select-popover { border-radius:var(--ui-radius-popover);overflow-x:hidden; }
+:is(#ai-arena-app.arena-shell,.arena-public-page) .arena-select-option { min-height:max(40px,var(--ui-hit-min,0px));font-size:var(--ui-type-control); }
+#ai-arena-app.arena-shell :is(.aa-model-menu,.arena-effort-popover) { box-sizing:border-box;min-width:0;overflow-x:hidden; }
+#ai-arena-app.arena-shell .arena-effort-popover * { box-sizing:border-box;min-width:0; }
+#ai-arena-app.arena-shell :is(.aa-msg-body.ai-bubble pre,.aa-msg-body.ai-bubble code,.aa-code-wrap) { font-family:var(--arena-mono-font);font-size:14px;line-height:1.65;font-variant-ligatures:none; }
+#ai-arena-app.arena-shell .aa-msg-body.ai-bubble .katex { font-family:KaTeX_Main,serif; }
+#ai-arena-app.arena-shell .aa-md-math-block { max-width:100%;overflow:auto;padding:8px 0; }
+#ai-arena-app.arena-shell .aa-md-math-error { font-family:var(--arena-mono-font);white-space:pre-wrap;overflow-wrap:anywhere; }
+#ai-arena-app.arena-shell .arena-image-editor input[type="range"] { -webkit-appearance:none;appearance:none;width:140px;height:32px;background:transparent;cursor:pointer;accent-color:var(--arena-accent); }
+#ai-arena-app.arena-shell .arena-image-editor input[type="range"]::-webkit-slider-runnable-track { height:4px;border-radius:2px;background:var(--arena-border); }
+#ai-arena-app.arena-shell .arena-image-editor input[type="range"]::-moz-range-track { height:4px;border-radius:2px;background:var(--arena-border); }
+#ai-arena-app.arena-shell .arena-image-editor input[type="range"]::-webkit-slider-thumb { -webkit-appearance:none;width:20px;height:20px;margin-top:-8px;border:1px solid var(--arena-border);border-radius:50%;background:var(--arena-surface);box-shadow:0 1px 4px #0002; }
+#ai-arena-app.arena-shell .arena-image-editor input[type="range"]::-moz-range-thumb { width:20px;height:20px;border:1px solid var(--arena-border);border-radius:50%;background:var(--arena-surface);box-shadow:0 1px 4px #0002; }
+@media(hover:hover) and (pointer:fine) {
+  #ai-arena-app.arena-shell :is(.arena-dialog-heading button,.arena-project-dialog header button,.arena-image-heading button,.arena-debate-settings-dialog header button,.arena-image-editor header button):hover { background:var(--arena-hover); }
+}
+@media(pointer:coarse) {
+  #ai-arena-app.arena-shell button { min-height:var(--ui-size-touch); }
+  #ai-arena-app.arena-shell { --ui-input-font:16px;--claude-h:44px;--ui-hit-min:var(--ui-size-touch); }
+  #ai-arena-app.arena-shell :is(input,textarea,select) { font-size:16px; }
+  #ai-arena-app.arena-shell :is(.aa-send,#aaSendBtn,.arena-message-action,.arena-project-icon,.arena-dialog-heading button,.arena-project-dialog header button,.arena-image-heading button,.arena-debate-settings-dialog header button,.arena-image-editor header button,.arena-select-trigger,.arena-project-bar button,.arena-jump-latest,.arena-file-toolbar button) { min-width:var(--ui-size-touch);min-height:var(--ui-size-touch); }
+  :is(#ai-arena-app.arena-shell,.arena-public-page) .arena-select-option { min-height:var(--ui-size-touch); }
+}
+@media(max-width:600px) {
+  #ai-arena-app.arena-shell { --ui-input-font:16px; }
+  #ai-arena-app.arena-shell :is(.arena-project-form-body,.arena-profile-fields,.arena-prompt-content,.arena-admin-form,.arena-image-custom) :is(input:not([type="checkbox"]),textarea,select),#ai-arena-app.arena-shell .arena-prompt-editor { font-size:16px; }
+  #ai-arena-app.arena-shell :is(.arena-dialog-heading,.arena-project-dialog header,.arena-image-heading,.arena-debate-settings-dialog header,.arena-image-editor header) { padding:16px var(--ui-spacing-mobilePanel); }
+  #ai-arena-app.arena-shell .arena-round-options { flex-shrink:0; }
+  #ai-arena-app.arena-shell .arena-round-options button { white-space:nowrap;min-width:42px; }
+  #ai-arena-app.arena-shell.arena-debate-mode .arena-debate-footer { flex-wrap:wrap; }
+}
+@media(prefers-reduced-motion:reduce) {
+  #ai-arena-app.arena-shell :is(button,[role="button"]) { transition:none; }
+  #ai-arena-app.arena-shell button:not(:disabled):active { transform:none; }
+}
+
+@media(max-width:400px) {
+  #ai-arena-app.arena-shell.arena-debate-mode .arena-debate-round-row { grid-column:1/-1;padding:12px 16px 6px; }
+  #ai-arena-app.arena-shell.arena-debate-mode #aaSendBtn { grid-column:1/-1;grid-row:7;justify-self:stretch;margin:6px 16px 12px; }
+  #ai-arena-app.arena-shell.arena-debate-mode :is(#aaDebateStageHelp,#aaDebateProgress) { grid-row:8; }
+}
+
+#ai-arena-app.arena-shell :is(.arena-context-info,.arena-usage-details,.arena-usage-receipt,.arena-usage-summary) { font-size:var(--ui-type-caption);line-height:1.6; }
+
+#ai-arena-app.arena-shell :is(.aa-send,#aaSendBtn) { border-radius:var(--ui-radius-send); }

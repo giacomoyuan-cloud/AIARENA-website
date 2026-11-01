@@ -11,7 +11,7 @@
 #ai-arena-app.arena-shell .aa-history-item-more svg { width:20px;height:20px;flex:none;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round; }
 #ai-arena-app.arena-shell .arena-project-page button,
 #ai-arena-app.arena-shell .arena-project-menu button,
-#ai-arena-app.arena-shell .arena-project-editor button { display:inline-flex;gap:8px;align-items:center;justify-content:center;min-height:34px;padding:6px 12px;border:1px solid var(--arena-border);border-radius:8px;background:transparent;color:var(--arena-text);font:inherit;cursor:pointer; }
+#ai-arena-app.arena-shell .arena-project-editor button { display:inline-flex;gap:8px;align-items:center;justify-content:center;min-height:max(34px,var(--ui-hit-min,0px));padding:6px 12px;border:1px solid var(--arena-border);border-radius:8px;background:transparent;color:var(--arena-text);font:inherit;cursor:pointer; }
 #ai-arena-app.arena-shell .arena-project-page button:disabled,
 #ai-arena-app.arena-shell .arena-project-editor button:disabled { opacity:.5;cursor:wait; }
 #ai-arena-app.arena-shell .arena-project-page button:active,
@@ -25,14 +25,14 @@
 #ai-arena-app.arena-shell .arena-project-page-heading [aria-pressed=true] { color:var(--arena-accent); }
 #ai-arena-app.arena-shell .arena-project-breadcrumb { display:flex;align-items:center;gap:10px;margin-bottom:26px;color:var(--arena-muted);font-size:12px; }
 #ai-arena-app.arena-shell .arena-project-breadcrumb span:last-child { overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
-#ai-arena-app.arena-shell .arena-project-breadcrumb button { flex:none;white-space:nowrap;padding:0;min-height:24px;border:0;color:var(--arena-muted);font-size:12px; }
+#ai-arena-app.arena-shell .arena-project-breadcrumb button { flex:none;white-space:nowrap;padding:0;min-height:max(24px,var(--ui-hit-min,0px));border:0;color:var(--arena-muted);font-size:12px; }
 #ai-arena-app.arena-shell .arena-project-home-grid { display:grid;grid-template-columns:minmax(280px,1fr) minmax(280px,350px);gap:clamp(24px,4vw,60px);align-items:start; }
 #ai-arena-app.arena-shell .arena-project-home-main { min-width:0; }
 #ai-arena-app.arena-shell .arena-project-page .aa-input-area { position:relative;inset:auto;max-width:none;width:100%;max-height:none;margin:0 0 44px;padding:12px;flex:none; }
 #ai-arena-app.arena-shell .arena-project-page .aa-input-row { display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:0;border:0;border-radius:0;box-shadow:none;background:transparent; }
 #ai-arena-app.arena-shell:not(.arena-image-mode) .arena-project-page .aa-input-row .aa-topic { flex:1 0 100%;width:100%;min-height:74px;max-height:260px;margin:0;padding:8px 6px 20px;order:-1;resize:none;background:transparent; }
 #ai-arena-app.arena-shell .arena-project-page .arena-composer-model { margin-left:auto; }
-#ai-arena-app.arena-shell .arena-project-page .aa-send { width:32px;height:32px;min-height:32px;padding:6px; }
+#ai-arena-app.arena-shell .arena-project-page .aa-send { width:32px;height:32px;min-height:max(32px,var(--ui-hit-min,0px));padding:6px; }
 #ai-arena-app.arena-shell .arena-project-page .aa-plus-btn { width:32px;height:32px;padding:5px;border:0; }
 #ai-arena-app.arena-shell .arena-project-page .arena-model-trigger { font-size:12px;border:0;padding:4px 6px; }
 #ai-arena-app.arena-shell .arena-project-page .arena-composer-footnote { margin:10px 3px 0; }
@@ -41,11 +41,11 @@
 #ai-arena-app.arena-shell .arena-project-context > section:last-child { border-bottom:0; }
 #ai-arena-app.arena-shell .arena-project-section-heading { display:flex;gap:8px;align-items:center;justify-content:space-between;margin-bottom:10px; }
 #ai-arena-app.arena-shell .arena-project-section-heading h2 { margin:0 auto 0 0;font-size:14px;font-weight:550; }
-#ai-arena-app.arena-shell .arena-project-section-heading button { min-height:28px;padding:3px 5px;border:0;font-size:12px;white-space:nowrap; }
+#ai-arena-app.arena-shell .arena-project-section-heading button { min-height:max(28px,var(--ui-hit-min,0px));padding:3px 5px;border:0;font-size:12px;white-space:nowrap; }
 #ai-arena-app.arena-shell .arena-project-context p { margin:0;color:var(--arena-muted);font-size:12px;line-height:1.8;overflow-wrap:anywhere; }
 #ai-arena-app.arena-shell .arena-project-instructions,
 #ai-arena-app.arena-shell .arena-project-memory { display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;white-space:pre-wrap; }
-#ai-arena-app.arena-shell .arena-project-private { display:inline-flex;gap:4px;align-items:center;color:var(--arena-muted);font-size:10px;white-space:nowrap; }
+#ai-arena-app.arena-shell .arena-project-private { display:inline-flex;gap:4px;align-items:center;color:var(--arena-muted);font-size:var(--ui-type-caption);white-space:nowrap; }
 #ai-arena-app.arena-shell .arena-project-private svg { width:12px;height:12px; }
 #ai-arena-app.arena-shell .arena-project-context-empty { display:flex;flex-direction:column;align-items:center;gap:12px;margin-top:16px;padding:26px 14px;text-align:center;background:var(--arena-sidebar);border-radius:12px; }
 #ai-arena-app.arena-shell .arena-project-context-empty > svg { width:42px;height:42px;color:var(--arena-faint); }
@@ -53,14 +53,14 @@
 #ai-arena-app.arena-shell .arena-project-resource { display:flex;align-items:center;min-width:0;gap:4px; }
 #ai-arena-app.arena-shell .arena-project-resource>button:first-child { flex:1;justify-content:flex-start;min-width:0;border:0;font-size:12px;padding:8px 0; }
 #ai-arena-app.arena-shell .arena-project-resource>button:first-child span { overflow:hidden;white-space:nowrap;text-overflow:ellipsis; }
-#ai-arena-app.arena-shell .arena-project-resource>button:last-child,#ai-arena-app.arena-shell .arena-project-resource-actions>button:not(.arena-project-ocr-action) { flex:none;min-height:28px;width:28px;padding:0;border:0;color:var(--arena-muted); }
+#ai-arena-app.arena-shell .arena-project-resource>button:last-child,#ai-arena-app.arena-shell .arena-project-resource-actions>button:not(.arena-project-ocr-action) { flex:none;min-height:max(28px,var(--ui-hit-min,0px));width:28px;padding:0;border:0;color:var(--arena-muted); }
 #ai-arena-app.arena-shell .arena-project-page .arena-project-link { min-height:30px;padding:5px 0;border:0;color:var(--arena-muted);font-size:12px;justify-content:flex-start; }
 #ai-arena-app.arena-shell .arena-project-folder { margin-top:12px;font-size:12px; }
 #ai-arena-app.arena-shell .arena-project-folder summary { display:flex;align-items:center;gap:8px;cursor:pointer;overflow-wrap:anywhere; }
 #ai-arena-app.arena-shell .arena-project-folder summary span { margin-left:auto;color:var(--arena-muted); }
 #ai-arena-app.arena-shell .arena-project-task-link { flex-direction:column;align-items:flex-start;width:100%;border:0;padding:8px 0;text-align:left; }
 #ai-arena-app.arena-shell .arena-project-task-link > span { display:flex;align-items:center;gap:8px;overflow-wrap:anywhere; }
-#ai-arena-app.arena-shell .arena-project-task-link small { padding-left:28px;color:var(--arena-muted);font-size:11px; }
+#ai-arena-app.arena-shell .arena-project-task-link small { padding-left:28px;color:var(--arena-muted);font-size:var(--ui-type-caption); }
 #ai-arena-app.arena-shell .arena-project-tools { display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 24px; }
 #ai-arena-app.arena-shell .arena-project-search { display:flex;align-items:center;gap:8px;border:1px solid var(--arena-border);border-radius:8px;padding:7px 10px;max-width:340px;min-width:0;color:var(--arena-muted); }
 #ai-arena-app.arena-shell .arena-project-search input { min-width:0;width:100%;background:transparent;border:0;color:var(--arena-text);font:inherit;outline-offset:4px; }
@@ -71,7 +71,7 @@
 #ai-arena-app.arena-shell .arena-project-chat-row > button:first-child { flex:1;min-width:0;justify-content:flex-start;text-align:left;gap:12px; }
 #ai-arena-app.arena-shell .arena-project-chat-row > button:first-child > span { display:flex;flex-direction:column;min-width:0;gap:4px; }
 #ai-arena-app.arena-shell .arena-project-chat-row strong { font-size:13px;font-weight:450;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
-#ai-arena-app.arena-shell .arena-project-chat-row small { color:var(--arena-muted);font-size:11px; }
+#ai-arena-app.arena-shell .arena-project-chat-row small { color:var(--arena-muted);font-size:var(--ui-type-caption); }
 #ai-arena-app.arena-shell .arena-project-chat-row > button:last-child { width:32px;flex:none; }
 #ai-arena-app.arena-shell .arena-project-empty { grid-column:1/-1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;min-height:300px;text-align:center;color:var(--arena-muted); }
 #ai-arena-app.arena-shell .arena-project-empty > svg { width:48px;height:48px;stroke-width:1; }
@@ -97,7 +97,7 @@
 #ai-arena-app.arena-shell .arena-project-editor h2 { margin:0; }
 #ai-arena-app.arena-shell .arena-project-form-body { padding:20px 24px; }
 #ai-arena-app.arena-shell .arena-project-form-body > p { color:var(--arena-muted);font-size:12px; }
-#ai-arena-app.arena-shell .arena-project-form-body select { display:block;width:100%;margin-top:7px;padding:10px 12px;background:var(--arena-bg);color:var(--arena-text);border:1px solid var(--arena-border);border-radius:8px;font:14px/1.6 var(--arena-ui-font); }
+#ai-arena-app.arena-shell .arena-project-form-body select { display:block;width:100%;margin-top:7px;padding:10px 12px;background:var(--arena-bg);color:var(--arena-text);border:1px solid var(--arena-border);border-radius:8px;font:var(--ui-input-font,14px)/1.6 var(--arena-ui-font); }
 #ai-arena-app.arena-shell .arena-project-form-body .arena-project-checkbox { display:flex;align-items:center;gap:8px; }
 #ai-arena-app.arena-shell .arena-project-checkbox input { width:16px;height:16px;margin:0; }
 #ai-arena-app.arena-shell .arena-project-form-footer { display:flex;justify-content:flex-end;gap:8px;padding:16px 24px;border-top:1px solid var(--arena-border);position:sticky;bottom:0;background:var(--arena-bg); }
@@ -108,14 +108,14 @@
 #ai-arena-app.arena-shell .arena-project-shortcuts { padding:10px 12px 0; }
 #ai-arena-app.arena-shell .arena-project-shortcuts-label { color:var(--arena-muted);padding:8px 10px;font:12px/1.5 var(--arena-ui-font); }
 #ai-arena-app.arena-shell .arena-project-shortcut { display:flex;align-items:center;gap:2px;border-radius:8px; }
-#ai-arena-app.arena-shell .arena-project-shortcut button { display:flex;gap:10px;align-items:center;min-width:0;min-height:36px;border:0;padding:7px 10px;color:var(--arena-text);background:transparent;font:13px/1.5 var(--arena-ui-font);cursor:pointer; }
+#ai-arena-app.arena-shell .arena-project-shortcut button { display:flex;gap:10px;align-items:center;min-width:0;min-height:max(36px,var(--ui-hit-min,0px));border:0;padding:7px 10px;color:var(--arena-text);background:transparent;font:13px/1.5 var(--arena-ui-font);cursor:pointer; }
 #ai-arena-app.arena-shell .arena-project-shortcut button:first-child { flex:1; }
 #ai-arena-app.arena-shell .arena-project-shortcut button:first-child span { overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
 #ai-arena-app.arena-shell .arena-project-shortcut button:last-child { flex:none;width:28px;padding:4px; }
 #ai-arena-app.arena-shell .arena-project-shortcut:has([aria-current]) { background:var(--arena-selected); }
 #ai-arena-app.arena-shell .aa-history-item-more { display:flex;align-items:center;justify-content:center;flex:none;width:28px;height:28px;padding:5px;border:0;border-radius:6px;background:transparent;color:var(--arena-muted);cursor:pointer; }
 #ai-arena-app.arena-shell .aa-history-item-more svg { width:18px;height:18px; }
-#ai-arena-app.arena-shell .arena-chat-group-label { padding:16px 10px 6px;font:11px/1.5 var(--arena-ui-font);color:var(--arena-muted); }
+#ai-arena-app.arena-shell .arena-chat-group-label { padding:16px 10px 6px;font:var(--ui-type-caption)/1.5 var(--arena-ui-font);color:var(--arena-muted); }
 #ai-arena-app.arena-shell .arena-project-tabs { display:flex;align-items:center;gap:4px; }
 #ai-arena-app.arena-shell .arena-project-tabs button { border:0; }
 #ai-arena-app.arena-shell .arena-project-tabs button[aria-selected=true] { background:var(--arena-selected); }
@@ -124,18 +124,18 @@
 #ai-arena-app.arena-shell .arena-task-card > div { flex:1;min-width:0; }
 #ai-arena-app.arena-shell .arena-task-card h2 { margin:0;font-size:15px;font-weight:500;overflow-wrap:anywhere; }
 #ai-arena-app.arena-shell .arena-task-card p { margin:4px 0;color:var(--arena-muted);font-size:12px; }
-#ai-arena-app.arena-shell .arena-task-card small { color:var(--arena-muted);font-size:11px; }
+#ai-arena-app.arena-shell .arena-task-card small { color:var(--arena-muted);font-size:var(--ui-type-caption); }
 #ai-arena-app.arena-shell .arena-task-templates { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;padding-top:32px;border-top:1px solid var(--arena-border); }
 #ai-arena-app.arena-shell .arena-task-templates button { align-items:flex-start;justify-content:flex-start;gap:16px;text-align:left;padding:18px;border:0; }
 #ai-arena-app.arena-shell .arena-task-templates button > svg { margin-top:3px; }
 #ai-arena-app.arena-shell .arena-task-templates strong { font-size:15px;font-weight:500; }
 #ai-arena-app.arena-shell .arena-task-templates p { margin:4px 0 8px;font-size:12px;color:var(--arena-muted); }
-#ai-arena-app.arena-shell .arena-task-templates small { font-size:11px;color:var(--arena-muted); }
+#ai-arena-app.arena-shell .arena-task-templates small { font-size:var(--ui-type-caption);color:var(--arena-muted); }
 #ai-arena-app.arena-shell .arena-task-empty { min-height:350px; }
 #ai-arena-app.arena-shell .arena-task-empty > svg { width:80px;height:80px; }
 #ai-arena-app.arena-shell .arena-task-actions { display:flex;gap:8px;flex-wrap:wrap;margin:20px 0; }
 #ai-arena-app.arena-shell .arena-task-history { padding:12px 0;border-bottom:1px solid var(--arena-border);font-size:12px; }
-#ai-arena-app.arena-shell .arena-task-history button { min-height:28px;font-size:12px;margin:6px 0; }
+#ai-arena-app.arena-shell .arena-task-history button { min-height:max(28px,var(--ui-hit-min,0px));font-size:12px;margin:6px 0; }
 @media(hover:hover) and (pointer:fine){
   #ai-arena-app.arena-shell .arena-project-page button:not(.arena-workspace-primary):hover,
   #ai-arena-app.arena-shell .arena-project-menu button:hover,
@@ -163,7 +163,7 @@
   #ai-arena-app.arena-shell .arena-project-editor textarea,
   #ai-arena-app.arena-shell .arena-project-editor select { font-size:16px; }
   #ai-arena-app.arena-shell:not(.arena-image-mode) .arena-project-page .aa-input-row .aa-topic { min-height:90px; }
-  #ai-arena-app.arena-shell .arena-project-page .arena-model-trigger { max-width:210px;font-size:11px; }
+  #ai-arena-app.arena-shell .arena-project-page .arena-model-trigger { max-width:210px;font-size:var(--ui-type-caption); }
   #ai-arena-app.arena-shell .arena-project-form-grid { grid-template-columns:1fr; }
   #ai-arena-app.arena-shell .arena-task-templates { grid-template-columns:1fr;gap:6px; }
   #ai-arena-app.arena-shell .arena-project-breadcrumb { margin-bottom:20px; }
@@ -174,25 +174,25 @@
 #ai-arena-app.arena-shell .arena-project-page .arena-file-drop{border:1px dashed var(--arena-border);border-radius:9px;padding:13px 12px;margin:14px 0 8px;text-align:center;background:var(--arena-bg)}
 #ai-arena-app.arena-shell .arena-project-page .arena-file-drop.dragging{border-color:var(--arena-accent);background:var(--arena-surface)}
 #ai-arena-app.arena-shell .arena-project-page .arena-file-drop strong{font:500 13px var(--arena-ui-font)}
-#ai-arena-app.arena-shell .arena-project-page .arena-file-drop button{padding:0;min-height:24px;border:0;text-decoration:underline;text-underline-offset:3px}
-#ai-arena-app.arena-shell .arena-project-page .arena-file-drop small{display:block;margin-top:5px;color:var(--arena-muted);font-size:11px}
-#ai-arena-app.arena-shell .arena-project-page .arena-file-queue-head{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px;color:var(--arena-muted);padding:5px 0}
+#ai-arena-app.arena-shell .arena-project-page .arena-file-drop button{padding:0;min-height:max(24px,var(--ui-hit-min,0px));border:0;text-decoration:underline;text-underline-offset:3px}
+#ai-arena-app.arena-shell .arena-project-page .arena-file-drop small{display:block;margin-top:5px;color:var(--arena-muted);font-size:var(--ui-type-caption)}
+#ai-arena-app.arena-shell .arena-project-page .arena-file-queue-head{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:var(--ui-type-caption);color:var(--arena-muted);padding:5px 0}
 #ai-arena-app.arena-shell .arena-project-page .arena-file-queue-head>span:last-child{display:flex;gap:6px;flex:none}
-#ai-arena-app.arena-shell .arena-project-page .arena-file-queue-head button{font-size:11px;padding:2px 0;min-height:25px;border:0}
+#ai-arena-app.arena-shell .arena-project-page .arena-file-queue-head button{font-size:var(--ui-type-caption);padding:2px 0;min-height:max(25px,var(--ui-hit-min,0px));border:0}
 #ai-arena-app.arena-shell .arena-project-page .arena-file-queue{max-height:580px;overflow:auto;scrollbar-gutter:stable}
 #ai-arena-app.arena-shell .arena-project-page .arena-file-job{padding:11px 0;border-top:1px solid var(--arena-border)}
 #ai-arena-app.arena-shell .arena-project-page .arena-file-job-top{display:flex;gap:7px;align-items:center;min-width:0;margin-bottom:5px}
 #ai-arena-app.arena-shell .arena-project-page .arena-file-job-top>svg{width:18px;height:20px;color:var(--arena-muted)}
-#ai-arena-app.arena-shell .arena-project-page .arena-file-job-top button{min-height:25px;padding:1px 4px;font-size:11px;border:0}
+#ai-arena-app.arena-shell .arena-project-page .arena-file-job-top button{min-height:max(25px,var(--ui-hit-min,0px));padding:1px 4px;font-size:var(--ui-type-caption);border:0}
 #ai-arena-app.arena-shell .arena-project-page .arena-file-job-top [data-job-preview]{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;text-align:left;font-size:12px;font-weight:500;padding:0;opacity:1}
 #ai-arena-app.arena-shell .arena-project-page .arena-file-job-top [data-job-preview]:disabled{cursor:default}
 #ai-arena-app.arena-shell .arena-project-page .arena-file-transfer,#ai-arena-app.arena-shell .arena-project-page .arena-file-recognition{display:grid;grid-template-columns:72px 1fr;align-items:center;gap:10px;min-height:17px;padding-left:25px}
-#ai-arena-app.arena-shell .arena-project-page .arena-file-transfer label,#ai-arena-app.arena-shell .arena-project-page .arena-file-recognition label{display:flex;justify-content:space-between;gap:5px;font-size:10px;line-height:1.5;color:var(--arena-muted);font-variant-numeric:tabular-nums}
+#ai-arena-app.arena-shell .arena-project-page .arena-file-transfer label,#ai-arena-app.arena-shell .arena-project-page .arena-file-recognition label{display:flex;justify-content:space-between;gap:5px;font-size:var(--ui-type-caption);line-height:1.5;color:var(--arena-muted);font-variant-numeric:tabular-nums}
 #ai-arena-app.arena-shell .arena-project-page .arena-file-track{position:relative;height:3px;overflow:hidden;border-radius:4px;background:var(--arena-border)}
 #ai-arena-app.arena-shell .arena-project-page .arena-file-track i{position:absolute;inset:0;transform:scaleX(0);transform-origin:left center;background:var(--arena-muted);border-radius:4px;transition:transform 160ms ease-out}
 #ai-arena-app.arena-shell .arena-project-page .arena-file-recognition .arena-file-track i{background:var(--arena-accent)}
-#ai-arena-app.arena-shell .arena-project-page .arena-file-job [data-job-status]{padding-left:25px;margin:4px 0 0;color:var(--arena-muted);font-size:10px;line-height:1.7;overflow-wrap:anywhere}
+#ai-arena-app.arena-shell .arena-project-page .arena-file-job [data-job-status]{padding-left:25px;margin:4px 0 0;color:var(--arena-muted);font-size:var(--ui-type-caption);line-height:1.7;overflow-wrap:anywhere}
 #ai-arena-app.arena-shell .arena-project-page .arena-file-job[data-state=failed] [data-job-status]{color:var(--arena-accent)}
 #ai-arena-app.arena-shell .arena-project-page .arena-file-job [hidden],#ai-arena-app.arena-shell .arena-project-page .arena-file-queue-head [hidden]{display:none!important}
 @media(prefers-reduced-motion:reduce){#ai-arena-app.arena-shell .arena-project-page .arena-file-track i{transition:none}}
-@media(pointer:coarse){#ai-arena-app.arena-shell .arena-project-page .arena-file-job-top button,#ai-arena-app.arena-shell .arena-project-page .arena-file-queue-head button,#ai-arena-app.arena-shell .arena-project-page .arena-file-drop button{min-height:40px}}
+@media(pointer:coarse){#ai-arena-app.arena-shell .arena-project-page .arena-file-job-top button,#ai-arena-app.arena-shell .arena-project-page .arena-file-queue-head button,#ai-arena-app.arena-shell .arena-project-page .arena-file-drop button{min-height:max(40px,var(--ui-hit-min,0px))}}

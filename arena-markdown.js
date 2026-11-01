@@ -10,6 +10,11 @@
       return /^https?:$/.test(url.protocol) ? url.href : null;
     } catch (_) { return null; }
   }
+  function math(source, display, options) {
+    var renderer=options.math||(root.ArenaMath&&root.ArenaMath.render);
+    if(!renderer||!source||source.length>10000)return null;
+    try{return renderer(source,display);}catch(_){return null;}
+  }
   function inline(text, depth, options) {
     depth = depth || 0;
     options = options || {};
@@ -31,6 +36,10 @@
     var value = String(text).replace(/\u0000/g, '');
     value = value.replace(/(`+)([\s\S]*?)\1(?!`)/g, function (_, ticks, code) {
       return keep('<code>' + escape(code.replace(/\n/g, ' ')) + '</code>');
+    });
+    value = value.replace(/\\\(([\s\S]+?)\\\)|\\\[([\s\S]+?)\\\]/g,function(match,inlineMath,blockMath){
+      var rendered=math(inlineMath||blockMath,!!blockMath,options);
+      return keep(rendered?'<span class="aa-md-math'+(blockMath?' aa-md-math-block':'')+'">'+rendered+'</span>':escape(match));
     });
     value = value.replace(/\\([\\`*{}_\[\]()#+.!|$~>\-])/g, function (_, character) { return keep(escape(character)); });
     value = value.replace(/\[\[aa-citation:(\d+)\]\]/g, function (match, index) {
@@ -55,6 +64,12 @@
       }
       var url = safeURL(bare);
       return url ? keep('<a href="' + escape(url) + '" target="_blank" rel="noopener noreferrer">' + escape(bare) + '</a>') + suffix : match;
+    });
+    value = value.replace(/(^|[^$\\])\$(?!\$)([^\n$]*?\S)\$(?!\$)/g,function(match,before,source){
+      // Dollar amounts (including $20/$100 and Chinese price lists) stay literal.
+      if(/^\s/.test(source)||/\u0000/.test(source)||(/^\d/.test(source)&&!/[a-zA-Z\\=+^_{}<>]/.test(source))||/[\u3400-\u9fff]/.test(source))return match;
+      var rendered=math(source,false,options);
+      return rendered?before+keep('<span class="aa-md-math">'+rendered+'</span>'):match;
     });
     return restore(format(value));
   }
@@ -87,7 +102,7 @@
     var html = '', i = 0;
     function boundary(index) {
       var line = lines[index] || '';
-      return !line.trim() || /^\s{0,3}(`{3,}|~{3,}|#{1,6}\s|>|(?:[-*_]\s*){3,}$)/.test(line) || !!listItem(line) || (index + 1 < lines.length && separator(lines[index + 1]) && cells(line).length > 1);
+      return !line.trim() || /^\s{0,3}(`{3,}|~{3,}|#{1,6}\s|>|(?:[-*_]\s*){3,}$|\$\$|\\\[)/.test(line) || !!listItem(line) || (index + 1 < lines.length && separator(lines[index + 1]) && cells(line).length > 1);
     }
     while (i < lines.length) {
       var line = lines[i];
@@ -106,7 +121,8 @@
         var close = line.trim() === '$$' ? '$$' : '\\]', formula = [];
         i++; while (i < lines.length && lines[i].trim() !== close) formula.push(lines[i++]);
         if (i < lines.length) i++;
-        html += '<pre class="aa-md-formula">' + escape(formula.join('\n')) + '</pre>'; continue;
+        var source=formula.join('\n'),rendered=math(source,true,options);
+        html += rendered?'<div class="aa-md-math-block">'+rendered+'</div>':'<pre class="aa-md-formula">'+escape(source)+'</pre>'; continue;
       }
       if (i + 1 < lines.length && cells(line).length > 1 && separator(lines[i + 1])) {
         var headers = cells(line), alignments = cells(lines[i + 1]);

@@ -1,11 +1,11 @@
 {
-  "version": "2.0.5",
-  "versionCode": 205,
+  "version": "2.0.6",
+  "versionCode": 206,
   "package": "com.pickandcase.assistant",
   "minAndroid": "8.0",
-  "url": "/downloads/AI-Assistant-2.0.5.apk",
-  "bytes": 23030917,
-  "sha256": "f5025e8c667f7aa1d6d159ffe65f81893852f498b84e6967c216f43c11211f70",
+  "url": "/downloads/AI-Assistant-2.0.6.apk",
+  "bytes": 23047297,
+  "sha256": "814d7d272996b9c9b0d8e9280721270b3221fa1969b33b6624287d39fe7c0953",
   "native": true,
-  "notes": "文件由当前所选模型读取；PDF 原件直传，Word/Excel 完整图文传递；大文件按当前模型分批阅读，不再固定调用 Sol 识别。"
+  "notes": "统一网站与 App 的字体、按钮、选择器和滑块；修复暂停状态、附件旧提示与手机布局；代码等宽显示，公式支持浅色及深色主题。"
 }

@@ -146,7 +146,7 @@ fun NativeImageViewer(path: String, onDismiss: () -> Unit) {
                 )
             }
             Row(Modifier.align(Alignment.TopEnd)) {
-                TextButton(
+                ArenaTextButton(
                     onClick = {
                         scale = 1f
                         offset = Offset.Zero
@@ -260,20 +260,20 @@ fun NativeMaskEditor(reference: NativeAttachment, vm: AssistantViewModel, onDism
                     }
                 }
                 Text("笔刷大小", style = MaterialTheme.typography.labelMedium)
-                Slider(brush, { brush = it }, valueRange = 0.01f..0.16f)
+                ArenaSlider(brush, { brush = it }, valueRange = 0.01f..0.16f,showTicks=false)
                 Row {
-                    TextButton(
+                    ArenaTextButton(
                         onClick = { strokes = strokes.dropLast(1) },
                         enabled = strokes.isNotEmpty() && !saving,
                     ) {
                         Text("撤销")
                     }
-                    TextButton(onClick = { strokes = emptyList() }, enabled = !saving) {
+                    ArenaTextButton(onClick = { strokes = emptyList() }, enabled = !saving) {
                         Text("清空")
                     }
                     Spacer(Modifier.weight(1f))
-                    TextButton(onClick = onDismiss, enabled = !saving) { Text("取消") }
-                    Button(
+                    ArenaTextButton(onClick = onDismiss, enabled = !saving) { Text("取消") }
+                    ArenaButton(
                         enabled = strokes.isNotEmpty() && !saving,
                         onClick = {
                             saving = true

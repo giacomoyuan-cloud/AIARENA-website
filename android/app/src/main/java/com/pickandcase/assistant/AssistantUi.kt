@@ -60,12 +60,14 @@ import io.noties.markwon.Markwon
 import io.noties.markwon.ext.latex.JLatexMathPlugin
 import io.noties.markwon.ext.strikethrough.StrikethroughPlugin
 import io.noties.markwon.linkify.LinkifyPlugin
+import io.noties.markwon.inlineparser.MarkwonInlineParserPlugin
 import java.io.File
 import java.util.UUID
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 
-val WarmAccent = Color(0xFFC47155)
+private fun sharedColor(value:String)=Color(android.graphics.Color.parseColor(value))
+val WarmAccent = sharedColor(NativeDesignTokens.color_lightAccent)
 
 @Composable
 fun AssistantApp(vm: AssistantViewModel) {
@@ -84,17 +86,18 @@ fun AssistantApp(vm: AssistantViewModel) {
     val colors =
         if (dark)
             darkColorScheme(
-                primary = Color(0xFFE5A18B),
+                onPrimary=Color.White,
+                primary = sharedColor(NativeDesignTokens.color_darkAccent),
                 primaryContainer = Color(0xFF623F32),
                 onPrimaryContainer = Color(0xFFFFDCCE),
                 secondary = Color(0xFFD0C4AC),
                 onSecondaryContainer = Color(0xFFE8E3D6),
-                onSurface = Color(0xFFE8E6E0),
-                onBackground = Color(0xFFE8E6E0),
+                onSurface = sharedColor(NativeDesignTokens.color_darkText),
+                onBackground = sharedColor(NativeDesignTokens.color_darkText),
                 surfaceVariant = Color(0xFF36352F),
-                onSurfaceVariant = Color(0xFFC6C2B8),
-                background = Color(0xFF20201D),
-                surface = Color(0xFF272723),
+                onSurfaceVariant = sharedColor(NativeDesignTokens.color_darkMuted),
+                background = sharedColor(NativeDesignTokens.color_darkBackground),
+                surface = sharedColor(NativeDesignTokens.color_darkSurface),
                 surfaceTint = Color(0xFFE5A18B),
                 surfaceContainerLowest = Color(0xFF1B1B18),
                 surfaceContainerLow = Color(0xFF242420),
@@ -104,22 +107,23 @@ fun AssistantApp(vm: AssistantViewModel) {
                 surfaceBright = Color(0xFF3B3B34),
                 surfaceDim = Color(0xFF20201D),
                 secondaryContainer = Color(0xFF393930),
-                outlineVariant = Color(0xFF49483F),
+                outlineVariant = sharedColor(NativeDesignTokens.color_darkBorder),
             )
         else
             lightColorScheme(
-                primary = WarmAccent,
+                onPrimary=Color.White,
+                primary = sharedColor(NativeDesignTokens.color_lightAccent),
                 primaryContainer = Color(0xFFF0D4C8),
                 onPrimaryContainer = Color(0xFF613527),
                 secondary = Color(0xFF776B58),
                 onSecondaryContainer = Color(0xFF423D32),
-                onSurface = Color(0xFF32322D),
-                onBackground = Color(0xFF32322D),
+                onSurface = sharedColor(NativeDesignTokens.color_lightText),
+                onBackground = sharedColor(NativeDesignTokens.color_lightText),
                 surfaceVariant = Color(0xFFF0EDE4),
-                onSurfaceVariant = Color(0xFF77746A),
+                onSurfaceVariant = sharedColor(NativeDesignTokens.color_lightMuted),
                 outline = Color(0xFFB6B0A3),
-                background = Color(0xFFFAF9F5),
-                surface = Color(0xFFFFFEFB),
+                background = sharedColor(NativeDesignTokens.color_lightBackground),
+                surface = sharedColor(NativeDesignTokens.color_lightSurface),
                 surfaceTint = WarmAccent,
                 surfaceContainerLowest = Color(0xFFFFFFFF),
                 surfaceContainerLow = Color(0xFFFAF8F3),
@@ -129,11 +133,17 @@ fun AssistantApp(vm: AssistantViewModel) {
                 surfaceBright = Color(0xFFFFFEFB),
                 surfaceDim = Color(0xFFE1DED7),
                 secondaryContainer = Color(0xFFF0EDE4),
-                outlineVariant = Color(0xFFE1DED4),
+                outlineVariant = sharedColor(NativeDesignTokens.color_lightBorder),
             )
     val typographyContext = LocalContext.current
     val typography = remember(typographyContext) { NativeTypography.typography(typographyContext) }
-    MaterialTheme(colorScheme = colors, typography = typography) {
+    MaterialTheme(colorScheme = colors, typography = typography, shapes = Shapes(
+        extraSmall=androidx.compose.foundation.shape.RoundedCornerShape(NativeDesignTokens.radius_control.dp),
+        small=androidx.compose.foundation.shape.RoundedCornerShape(NativeDesignTokens.radius_control.dp),
+        medium=androidx.compose.foundation.shape.RoundedCornerShape(NativeDesignTokens.radius_popover.dp),
+        large=androidx.compose.foundation.shape.RoundedCornerShape(NativeDesignTokens.radius_dialog.dp),
+        extraLarge=androidx.compose.foundation.shape.RoundedCornerShape(NativeDesignTokens.radius_dialog.dp),
+    )) {
         NativeUpdateHost(vm.updates)
         Surface(Modifier.fillMaxSize(), color = colors.background) {
             if (state.session == null) LoginScreen(state, vm) else MainShell(state, vm)
@@ -204,7 +214,7 @@ private fun LoginScreen(s: AssistantState, vm: AssistantViewModel) {
                     color = MaterialTheme.colorScheme.error,
                     modifier = Modifier.testTag("login-error"),
                 )
-            Button(
+            ArenaButton(
                 onClick = { vm.login(username, password) },
                 enabled = !s.loading,
                 modifier = Modifier.fillMaxWidth().height(50.dp).testTag("login-submit"),
@@ -302,7 +312,7 @@ private fun MainShell(s: AssistantState, vm: AssistantViewModel) {
                     }
                     HorizontalDivider(Modifier.padding(vertical = 12.dp))
                     if (s.project != null)
-                        TextButton(
+                        ArenaTextButton(
                             onClick = {
                                 vm.general()
                                 coroutine.launch { drawer.close() }
@@ -374,7 +384,7 @@ private fun MainShell(s: AssistantState, vm: AssistantViewModel) {
                     },
                     actions = {
                         if (s.page == Page.CHAT) {
-                            TextButton(onClick = { vm.incognito(!s.incognito) }, enabled = !s.busy) {
+                            ArenaTextButton(onClick = { vm.incognito(!s.incognito) }, enabled = !s.busy) {
                                 Icon(Icons.Outlined.VisibilityOff, null, Modifier.size(18.dp))
                                 Spacer(Modifier.width(6.dp))
                                 Text(if (s.incognito) "无痕已开启" else "无痕模式")
@@ -389,7 +399,7 @@ private fun MainShell(s: AssistantState, vm: AssistantViewModel) {
             bottomBar = {
                 if (s.page == Page.SETTINGS)
                     Surface {
-                        OutlinedButton(
+                        ArenaOutlinedButton(
                             onClick = { logout = true },
                             modifier =
                                 Modifier.fillMaxWidth()
@@ -415,7 +425,7 @@ private fun MainShell(s: AssistantState, vm: AssistantViewModel) {
                                 Text("无痕模式已开启", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
                                 Text("此对话不保存到历史或记忆", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
                             }
-                            TextButton(onClick = { vm.incognito(false) }, enabled = !s.busy) { Text("退出无痕") }
+                            ArenaTextButton(onClick = { vm.incognito(false) }, enabled = !s.busy) { Text("退出无痕") }
                         }
                     }
                 }
@@ -443,7 +453,7 @@ private fun MainShell(s: AssistantState, vm: AssistantViewModel) {
             title = { Text("退出登录？") },
             text = { Text("云端对话会保留。此设备需要重新登录后才能查看。") },
             confirmButton = {
-                TextButton(
+                ArenaTextButton(
                     onClick = {
                         logout = false
                         vm.logout()
@@ -453,7 +463,7 @@ private fun MainShell(s: AssistantState, vm: AssistantViewModel) {
                     Text("退出登录")
                 }
             },
-            dismissButton = { TextButton(onClick = { logout = false }) { Text("取消") } },
+            dismissButton = { ArenaTextButton(onClick = { logout = false }) { Text("取消") } },
         )
 }
 
@@ -519,8 +529,8 @@ private fun ChatScreen(s: AssistantState, vm: AssistantViewModel) {
         if (s.messages.isNotEmpty() && (list.canScrollBackward || list.canScrollForward)) {
             val scrollScope = rememberCoroutineScope()
             Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                TextButton(enabled = list.canScrollBackward, onClick = { scrollScope.launch { list.animateScrollToItem(0) } }) { Icon(Icons.Outlined.ArrowUpward, "回到对话顶部", Modifier.size(16.dp)); Spacer(Modifier.width(4.dp)); Text("顶部", style = MaterialTheme.typography.labelMedium) }
-                TextButton(enabled = list.canScrollForward, onClick = { scrollScope.launch { list.animateScrollToItem(s.messages.lastIndex); list.animateScrollBy(list.layoutInfo.visibleItemsInfo.lastOrNull()?.size?.toFloat() ?: 0f) } }) { Text("最新", style = MaterialTheme.typography.labelMedium); Spacer(Modifier.width(4.dp)); Icon(Icons.Outlined.ArrowDownward, "回到最下面", Modifier.size(16.dp)) }
+                ArenaTextButton(enabled = list.canScrollBackward, onClick = { scrollScope.launch { list.animateScrollToItem(0) } }) { Icon(Icons.Outlined.ArrowUpward, "回到对话顶部", Modifier.size(16.dp)); Spacer(Modifier.width(4.dp)); Text("顶部", style = MaterialTheme.typography.labelMedium) }
+                ArenaTextButton(enabled = list.canScrollForward, onClick = { scrollScope.launch { list.animateScrollToItem(s.messages.lastIndex); list.animateScrollBy(list.layoutInfo.visibleItemsInfo.lastOrNull()?.size?.toFloat() ?: 0f) } }) { Text("最新", style = MaterialTheme.typography.labelMedium); Spacer(Modifier.width(4.dp)); Icon(Icons.Outlined.ArrowDownward, "回到最下面", Modifier.size(16.dp)) }
             }
         }
         if (s.run != null) DebateRecovery(s, vm)
@@ -545,7 +555,7 @@ private fun ChatScreen(s: AssistantState, vm: AssistantViewModel) {
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    TextButton(onClick = { options = true }, enabled = !s.busy) {
+                    ArenaTextButton(onClick = { options = true }, enabled = !s.busy) {
                         Text(
                             if (s.mode == "chat")
                                 vm.modelName(s.model) + " · " + effortLabel(s.effort)
@@ -624,10 +634,11 @@ private fun ChatScreen(s: AssistantState, vm: AssistantViewModel) {
                     IconButton(
                         onClick = { if (s.busy) vm.stop() else vm.send() },
                         enabled = s.busy || s.draft.isNotBlank(),
+                        colors=IconButtonDefaults.iconButtonColors(contentColor=Color.White),
                         modifier =
-                            Modifier.background(
-                                    MaterialTheme.colorScheme.primaryContainer,
-                                    CircleShape,
+                            Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(NativeDesignTokens.radius_send.dp)).background(
+                                    if(s.busy||s.draft.isNotBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primaryContainer,
+                                    androidx.compose.foundation.shape.RoundedCornerShape(NativeDesignTokens.radius_send.dp),
                                 )
                                 .testTag("send"),
                     ) {
@@ -732,7 +743,7 @@ private fun MessageView(message: JSONObject, s: AssistantState, vm: AssistantVie
                     }
                 }
             },
-            confirmButton = { TextButton(onClick = { referenceText = null }) { Text("关闭") } },
+            confirmButton = { ArenaTextButton(onClick = { referenceText = null }) { Text("关闭") } },
         )
     if (receiptOpen) NativeUsageReceipt(message.obj("usage")) { receiptOpen = false }
     Column(
@@ -764,7 +775,7 @@ private fun MessageView(message: JSONObject, s: AssistantState, vm: AssistantVie
         val reasoning = message.str("reasoning")
         if (reasoning.isNotBlank()) {
             var expanded by remember { mutableStateOf(false) }
-            TextButton(onClick = { expanded = !expanded }) {
+            ArenaTextButton(onClick = { expanded = !expanded }) {
                 Text(if (expanded) "收起思考过程" else "查看思考过程")
                 Icon(
                     if (expanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
@@ -857,8 +868,8 @@ private fun MessageView(message: JSONObject, s: AssistantState, vm: AssistantVie
                     )
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    TextButton(onClick = { vm.editImage(message, index) }) { Text("编辑这张") }
-                    TextButton(
+                    ArenaTextButton(onClick = { vm.editImage(message, index) }) { Text("编辑这张") }
+                    ArenaTextButton(
                         onClick = {
                             vm.imageFile(message, index) { file, mime ->
                                 if (Build.VERSION.SDK_INT >= 29) vm.saveGallery(file, mime)
@@ -873,7 +884,7 @@ private fun MessageView(message: JSONObject, s: AssistantState, vm: AssistantVie
                     ) {
                         Text("保存原图")
                     }
-                    TextButton(
+                    ArenaTextButton(
                         onClick = {
                             vm.imageFile(message, index) { file, mime ->
                                 vm.files.share(file, mime)
@@ -896,7 +907,7 @@ private fun MessageView(message: JSONObject, s: AssistantState, vm: AssistantVie
                     maxLines = 2,
                     style = MaterialTheme.typography.bodyMedium,
                 )
-                TextButton(
+                ArenaTextButton(
                     enabled = !file.optBoolean("deleted"),
                     onClick = {
                         vm.artifact(message, file) { output, mime -> vm.files.share(output, mime) }
@@ -904,7 +915,7 @@ private fun MessageView(message: JSONObject, s: AssistantState, vm: AssistantVie
                 ) {
                     Text(if (file.optBoolean("deleted")) "已删除" else "打开")
                 }
-                TextButton(
+                ArenaTextButton(
                     enabled = !file.optBoolean("deleted"),
                     onClick = {
                         vm.artifact(message, file) { output, mime ->
@@ -923,7 +934,7 @@ private fun MessageView(message: JSONObject, s: AssistantState, vm: AssistantVie
             }
         }
         message.arr("citations").objects().forEach { citation ->
-            TextButton(
+            ArenaTextButton(
                 onClick = {
                     runCatching {
                         val uri = Uri.parse(citation.str("url"))
@@ -946,7 +957,7 @@ private fun MessageView(message: JSONObject, s: AssistantState, vm: AssistantVie
         if (message.has("usage")) {
             val usage = message.obj("usage")
             val counters = usage.optJSONObject("execution") ?: usage
-            TextButton(onClick = { receiptOpen = true }) {
+            ArenaTextButton(onClick = { receiptOpen = true }) {
                 Text(
                     "输入 ${counters.str("input", "待提供")} · 输出 ${counters.str("output", "待提供")} token · " +
                         if (usage.optBoolean("billingComplete")) "$" + usage.str("costUsd")
@@ -1017,7 +1028,7 @@ private fun MessageView(message: JSONObject, s: AssistantState, vm: AssistantVie
             title = { Text("删除生成文件？") },
             text = { Text(file.str("name")) },
             confirmButton = {
-                TextButton(
+                ArenaTextButton(
                     onClick = {
                         artifactDelete = null
                         vm.artifact(message, file, true)
@@ -1026,7 +1037,7 @@ private fun MessageView(message: JSONObject, s: AssistantState, vm: AssistantVie
                     Text("删除")
                 }
             },
-            dismissButton = { TextButton(onClick = { artifactDelete = null }) { Text("取消") } },
+            dismissButton = { ArenaTextButton(onClick = { artifactDelete = null }) { Text("取消") } },
         )
     }
     if (edit)
@@ -1061,19 +1072,22 @@ fun MarkdownText(text: String) {
     val context = LocalContext.current
     val color = MaterialTheme.colorScheme.onSurface.toArgb()
     val modernTypeface = remember(context) { NativeTypography.typeface(context) }
-    val markwon = remember(context, modernTypeface) {
+    val markwon = remember(context, modernTypeface, color) {
         Markwon.builder(context)
             .usePlugin(object : io.noties.markwon.AbstractMarkwonPlugin() {
                 override fun configureTheme(builder: io.noties.markwon.core.MarkwonTheme.Builder) {
-                    builder.codeTypeface(modernTypeface)
-                        .codeBlockTypeface(modernTypeface)
+                    builder.codeTypeface(android.graphics.Typeface.MONOSPACE)
+                        .codeBlockTypeface(android.graphics.Typeface.MONOSPACE)
                         .headingTypeface(modernTypeface)
                 }
             })
             .usePlugin(StrikethroughPlugin.create())
             .usePlugin(LinkifyPlugin.create())
+            .usePlugin(MarkwonInlineParserPlugin.create())
             .usePlugin(
-                JLatexMathPlugin.create(16f * context.resources.displayMetrics.scaledDensity)
+                JLatexMathPlugin.create(16f * context.resources.displayMetrics.scaledDensity) { builder ->
+                    builder.inlinesEnabled(true).theme().textColor(color)
+                }
             )
             .build()
     }
@@ -1089,9 +1103,9 @@ fun MarkdownText(text: String) {
         modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
         update = { view ->
             view.setTextColor(color)
-            if (view.tag != text) {
-                markwon.setMarkdown(view, text)
-                view.tag = text
+            if (view.tag != (text to color)) {
+                markwon.setMarkdown(view, NativeMathMarkdown.normalize(text))
+                view.tag = text to color
             }
         },
     )
@@ -1127,7 +1141,7 @@ fun TextEditorDialog(
                 maxLines = 10,
             )
         },
-        confirmButton = { TextButton(onClick = { onSave(text) }) { Text("保存") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+        confirmButton = { ArenaTextButton(onClick = { onSave(text) }) { Text("保存") } },
+        dismissButton = { ArenaTextButton(onClick = onDismiss) { Text("取消") } },
     )
 }

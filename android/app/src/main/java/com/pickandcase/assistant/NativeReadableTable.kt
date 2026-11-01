@@ -40,7 +40,7 @@ fun NativeReadableTable(table: NativeMarkdownPart.Table) {
                         }
                     }
                 }
-                if (table.rows.size > visible) TextButton(onClick = { visible += 12 }, modifier = Modifier.fillMaxWidth()) { Text("继续阅读（剩余 ${table.rows.size - visible} 项）") }
+                if (table.rows.size > visible) ArenaTextButton(onClick = { visible += 12 }, modifier = Modifier.fillMaxWidth()) { Text("继续阅读（剩余 ${table.rows.size - visible} 项）") }
             } else {
                 Text("左右滑动查看全部列", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 val widths = table.headers.indices.map { column ->

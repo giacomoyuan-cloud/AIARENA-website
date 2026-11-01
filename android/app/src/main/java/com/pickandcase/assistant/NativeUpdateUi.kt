@@ -53,16 +53,16 @@ fun NativeUpdateHost(updates: NativeUpdates) {
         },
         confirmButton = {
             when (state.phase) {
-                UpdatePhase.AVAILABLE -> Button(onClick = updates::download, modifier = Modifier.testTag("update-download")) { Text("下载更新") }
-                UpdatePhase.READY -> Button(onClick = updates::install, modifier = Modifier.testTag("update-install")) { Text("安装更新") }
-                UpdatePhase.FAILED -> Button(onClick = { if (release == null) updates.check() else updates.download() }, modifier = Modifier.testTag("update-retry")) { Text("重试") }
-                UpdatePhase.CURRENT -> TextButton(onClick = updates::dismiss) { Text("完成") }
+                UpdatePhase.AVAILABLE -> ArenaButton(onClick = updates::download, modifier = Modifier.testTag("update-download")) { Text("下载更新") }
+                UpdatePhase.READY -> ArenaButton(onClick = updates::install, modifier = Modifier.testTag("update-install")) { Text("安装更新") }
+                UpdatePhase.FAILED -> ArenaButton(onClick = { if (release == null) updates.check() else updates.download() }, modifier = Modifier.testTag("update-retry")) { Text("重试") }
+                UpdatePhase.CURRENT -> ArenaTextButton(onClick = updates::dismiss) { Text("完成") }
                 else -> Unit
             }
         },
         dismissButton = {
-            if (state.phase == UpdatePhase.DOWNLOADING) TextButton(onClick = updates::cancel, modifier = Modifier.testTag("update-cancel")) { Text("取消下载") }
-            else if (state.phase != UpdatePhase.CURRENT) TextButton(onClick = updates::dismiss) { Text("稍后") }
+            if (state.phase == UpdatePhase.DOWNLOADING) ArenaTextButton(onClick = updates::cancel, modifier = Modifier.testTag("update-cancel")) { Text("取消下载") }
+            else if (state.phase != UpdatePhase.CURRENT) ArenaTextButton(onClick = updates::dismiss) { Text("稍后") }
         },
     )
 }

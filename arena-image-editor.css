@@ -18,13 +18,13 @@
 #ai-arena-app.arena-shell .arena-image-custom-preview .arena-ratio-preview.large { flex:0 0 156px; width:156px; height:108px; }
 #ai-arena-app.arena-shell .arena-image-custom-preview > span:last-child { display:grid; gap:7px; font-size:12px; color:var(--arena-muted); }
 #ai-arena-app.arena-shell .arena-image-custom-preview strong { font-size:13px; font-weight:500; color:var(--arena-text); }
-#ai-arena-app.arena-shell .arena-image-custom-preview small { color:var(--arena-accent); font-size:11px; }
+#ai-arena-app.arena-shell .arena-image-custom-preview small { color:var(--arena-accent); font-size:var(--ui-type-caption); }
 #ai-arena-app.arena-shell .arena-image-custom { display:flex; align-items:center; gap:12px; }
 #ai-arena-app.arena-shell .arena-image-custom label,
 #ai-arena-app.arena-shell .arena-image-number { display:grid; gap:8px; min-width:0; font-size:13px; color:var(--arena-text); }
 #ai-arena-app.arena-shell .arena-image-custom label { flex:1; }
 #ai-arena-app.arena-shell .arena-image-custom input,
-#ai-arena-app.arena-shell .arena-image-number input { min-width:0; width:100%; box-sizing:border-box; border:1px solid var(--arena-border); border-radius:9px; background:var(--arena-bg); color:var(--arena-text); padding:9px 11px; font-size:14px; }
+#ai-arena-app.arena-shell .arena-image-number input { min-width:0; width:100%; box-sizing:border-box; border:1px solid var(--arena-border); border-radius:9px; background:var(--arena-bg); color:var(--arena-text); padding:9px 11px; font-size:var(--ui-input-font,14px); }
 #ai-arena-app.arena-shell .arena-image-settings-foot a { color:var(--arena-muted); text-underline-offset:3px; }
 #ai-arena-app.arena-shell .arena-image-mask-tools { display:flex; align-items:center; flex-wrap:wrap; gap:8px; padding:0 2px 10px; color:var(--arena-muted); font-size:12px; }
 #ai-arena-app.arena-shell .arena-image-mask-tools button { border:1px solid var(--arena-border); border-radius:8px; padding:7px 10px; background:var(--arena-bg); color:var(--arena-text); font-size:12px; cursor:pointer; }
@@ -40,10 +40,10 @@
 #ai-arena-app.arena-shell .arena-image-editor { position:fixed; inset:20px; margin:auto; width:min(920px,calc(100vw - 40px)); max-height:calc(100dvh - 40px); box-sizing:border-box; padding:0; border:1px solid var(--arena-border); border-radius:18px; background:var(--arena-bg); color:var(--arena-text); box-shadow:0 24px 80px #0003; font-family: var(--arena-ui-font); overflow:hidden; }
 #ai-arena-app.arena-shell .arena-image-editor[open] { display:flex; flex-direction:column; }
 #ai-arena-app.arena-shell .arena-image-editor::backdrop { background:#0007; }
-#ai-arena-app.arena-shell .arena-image-editor header { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; padding:20px 22px 14px; }
+#ai-arena-app.arena-shell .arena-image-editor header { display:flex; justify-content:space-between; align-items:flex-start; gap:16px;  }
 #ai-arena-app.arena-shell .arena-image-editor h2 { font-size:18px; font-weight:600; letter-spacing:-.02em; margin:0 0 6px; }
 #ai-arena-app.arena-shell .arena-image-editor p { color:var(--arena-muted); font-size:13px; line-height:1.6; margin:0; }
-#ai-arena-app.arena-shell .arena-image-editor button { border:1px solid var(--arena-border); border-radius:9px; padding:8px 12px; background:var(--arena-surface); color:var(--arena-text); font-size:13px; cursor:pointer; min-height:36px; }
+#ai-arena-app.arena-shell .arena-image-editor button { border:1px solid var(--arena-border); border-radius:9px; padding:8px 12px; background:var(--arena-surface); color:var(--arena-text); font-size:13px; cursor:pointer; min-height:max(36px,var(--ui-hit-min,0px)); }
 #ai-arena-app.arena-shell .arena-image-editor button:hover { background:var(--arena-hover); }
 #ai-arena-app.arena-shell .arena-image-editor button:disabled { opacity:.4; cursor:default; }
 #ai-arena-app.arena-shell .arena-image-editor [data-close] { border:0; font-size:24px; line-height:1; padding:4px 8px; }
@@ -60,7 +60,7 @@
 #ai-arena-app.arena-shell .arena-image-editor .arena-image-editor-error { color:var(--arena-accent); padding:12px 22px 0; }
 @media(max-width:600px) {
   #ai-arena-app.arena-shell .arena-image-editor { inset:10px; width:calc(100vw - 20px); max-height:calc(100dvh - 20px); border-radius:14px; }
-  #ai-arena-app.arena-shell .arena-image-editor header { padding:16px; }
+  #ai-arena-app.arena-shell .arena-image-editor header {  }
   #ai-arena-app.arena-shell .arena-image-editor-toolbar { padding:0 16px 12px; }
   #ai-arena-app.arena-shell .arena-image-editor footer { flex-wrap:wrap; padding:12px 16px; }
   #ai-arena-app.arena-shell .arena-image-editor footer span { flex-basis:100%; }
