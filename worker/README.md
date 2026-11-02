@@ -2,6 +2,14 @@
 
 The browser remains on Cloudflare Pages. `worker.js` serves the existing `ai` Worker at `api.pickandcase.com` and keeps its existing login, chats, memory and KV bindings.
 
+## Hosted document streaming (2026-11-02)
+
+Claude official document/Skills tasks now set `stream: true` on the upstream Messages request. Previously this path buffered a complete JSON response, so a long code/document task could return an upstream HTTP 524 before any result reached the Worker. Regular chat already streamed; this fixes the separate document execution path without changing models or client layouts.
+
+Provider text, public thinking summaries, tool activity and cumulative usage checkpoints flow through the existing web and Android event contract. Thinking signatures and code inputs remain server-side. A `pause_turn` continuation preserves the exact assembled content and container, rather than replaying the original user message. A missing final event, malformed stream, provider error, or HTTP 504/524 remains a failure; partial text/summary and actual usage counters are retained, as are available generated file references. No ambiguous failure automatically starts another paid Messages request. Unknown final usage remains pending.
+
+`GET /` exposes `documentSkillsStreamVersion: 20261102-documentstream1`. Synthetic regression tests cover open-stream delivery, fragmented UTF-8, pause/continue, partial usage, cancellation, scoped artifacts and web/native durable replay. They do not establish Claude service availability or real document quality. No paid Claude call is part of this regression run.
+
 ## Project materials
 
 Projects have a saved **按需检索 / 全文阅读** switch, independent of model thinking intensity. Retrieval is the default: SQLite FTS searches this account's current project, and at most three matching excerpts (4,800 characters total) are sent with source filenames and page/row locations. A miss is reported honestly; it never means the whole file was reviewed.

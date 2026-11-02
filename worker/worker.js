@@ -4,7 +4,7 @@ import { OCR_MODEL } from './project-ocr.js';
 import { createChatRunClass } from './chat-runs.js';
 import { skillCatalog, normalizeSettings, selectSkills, selectionInstructions } from './skills.js';
 import { AUXILIARY_MODEL, AUXILIARY_SETTINGS, auxiliaryText } from './auxiliary-model.js';
-import { validateSkillFiles, serveSkillFile, runOfficialDocuments, rescopeSkillArtifacts } from './skill-files.js';
+import { validateSkillFiles, serveSkillFile, runOfficialDocuments, rescopeSkillArtifacts, DOCUMENT_SKILLS_STREAM_VERSION } from './skill-files.js';
 import { createDebateRunClass } from './debate-runs.js';
 import { OpenAITransport, openAIBackgroundFetch } from './openai-transport.js';
 import { hasOpenAIKey, openAIFetch } from './openai-keys.js';
@@ -1176,7 +1176,7 @@ OUTPUT: Return ONLY the updated memory text, nothing else.`;
       return new Response(JSON.stringify(result), { headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
     }
     if (request.method === "GET" && url.pathname !== "/memory") {
-      return new Response(JSON.stringify({ mode: "official", openaiKeyFailoverVersion:"20261030-keyfallback1", conversationFilesVersion:env.PROJECT_DOCUMENTS?DOCUMENT_DELIVERY_VERSION:null, materialsVersion:env.PROJECT_DOCUMENTS?"20261030-materials1":null,projectOcrModel:null,projectOcrVersion:null,documentDeliveryVersion:DOCUMENT_DELIVERY_VERSION, debate:DebateCore.version==='studio-v3'&&DebateRun.contractVersion==='studio-v3'?'studio-v3':null, skillsVersion:"20261030-skillmodels1", chatModesVersion:"20261030-chatmodes1", projectsVersion:"20261030-projectactions1", xai: !!env.GROK_API_KEY, openai: hasOpenAIKey(env), anthropic: !!env.ANTHROPIC_API_KEY, google: !!env.GEMINI_API_KEY, mj: false }), {
+      return new Response(JSON.stringify({ mode: "official", openaiKeyFailoverVersion:"20261030-keyfallback1", conversationFilesVersion:env.PROJECT_DOCUMENTS?DOCUMENT_DELIVERY_VERSION:null, materialsVersion:env.PROJECT_DOCUMENTS?"20261030-materials1":null,projectOcrModel:null,projectOcrVersion:null,documentDeliveryVersion:DOCUMENT_DELIVERY_VERSION, debate:DebateCore.version==='studio-v3'&&DebateRun.contractVersion==='studio-v3'?'studio-v3':null, skillsVersion:"20261030-skillmodels1", documentSkillsStreamVersion:DOCUMENT_SKILLS_STREAM_VERSION, chatModesVersion:"20261030-chatmodes1", projectsVersion:"20261030-projectactions1", xai: !!env.GROK_API_KEY, openai: hasOpenAIKey(env), anthropic: !!env.ANTHROPIC_API_KEY, google: !!env.GEMINI_API_KEY, mj: false }), {
         status: 200,
         headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*", "Cache-Control":"no-store" }
       });
