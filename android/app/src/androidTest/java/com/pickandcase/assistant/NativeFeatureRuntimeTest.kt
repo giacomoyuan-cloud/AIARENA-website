@@ -77,7 +77,7 @@ class NativeFeatureRuntimeTest : NativeHarness() {
     @Test
     fun reasoning_slider_reaches_both_endpoints_without_calling_a_model() {
         login()
-        ui.onNodeWithText("GPT-6.1 Sol · Low").performClick()
+        ui.onNodeWithText("Sol 6.1 · Low").performClick()
         ui.onNodeWithText("模型与思考深度").assertExists()
         val slider =
             ui.onNode(

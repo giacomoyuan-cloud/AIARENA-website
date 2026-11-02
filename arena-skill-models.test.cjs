@@ -31,8 +31,8 @@ for(const id of ['pptx','xlsx','docx','pdf'])test(id+' switches to Claude, rende
   f.c.renderArenaModelMenu();
   const offered=[...f.node('aaModelsSubmenu').innerHTML.matchAll(/data-arena-model="([^"]+)"/g)].map(match=>match[1]);
   assert.deepEqual(offered,models.slice(0,3));
-  assert.match(f.node('aaModelsSubmenu').innerHTML,/仅支持 Claude/);
-  f.click('gpt-6-astra');assert.deepEqual(Array.from(f.c.getActiveSubmodels()),[policy.defaultModel]);assert.match(f.c.notice,/仅支持 Claude/);
+  assert.match(f.node('aaModelsSubmenu').innerHTML,/当前 Skill 可用模型/);
+  f.click('gpt-6-astra');assert.deepEqual(Array.from(f.c.getActiveSubmodels()),[policy.defaultModel]);assert.match(f.c.notice,/当前 Skill 可用模型/);
   f.click('claude-opus-5-5');assert.deepEqual(Array.from(f.c.getActiveSubmodels()),['claude-opus-5-5']);
   assert(f.saved>0);
 });

@@ -85,7 +85,7 @@ for(const model of ['gpt-6-astra','gpt-6.1-sol'])test(model+' stays selected thr
 
 test('old Sol picker choices migrate without relabeling historical messages; image models remain separate',()=>{
   const context=browser({'aa-brand-selection':JSON.stringify({openai:'gpt-5.6-sol'}),'aa-active-brands':JSON.stringify({openai:true})});
-  context.loadState();assert.deepEqual(Array.from(context.getActiveSubmodels()),['gpt-6.1-sol']);assert.equal(context.SUBS['gpt-5.6-sol'].name,'GPT-5.6 Sol');
+  context.loadState();assert.deepEqual(Array.from(context.getActiveSubmodels()),['gpt-6.1-sol']);assert.equal(context.SUBS['gpt-5.6-sol'].name,'Sol 5.6');
   assert.deepEqual(Array.from(context.IMAGE_MODELS.filter(item=>item.value.startsWith('gpt-image')),item=>item.value),ArenaImage.OPENAI_MODELS);assert.ok(context.AVAILABLE_CHAT_MODELS.every(item=>!item.startsWith('gpt-image')));
 });
 

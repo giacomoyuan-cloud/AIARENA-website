@@ -249,8 +249,7 @@ fun ModelSheet(s: AssistantState, vm: AssistantViewModel, onDismiss: () -> Unit)
             LazyColumn(Modifier.heightIn(max = 420.dp)) {
                 items(models, key = { it.str("id") }) { model ->
                     ListItem(
-                        headlineContent = { Text(model.str("name")) },
-                        supportingContent = { Text(model.str("provider")) },
+                        headlineContent = { Text(modelDisplayName(model.str("name"))) },
                         trailingContent = {
                             if (model.str("id") == s.model)
                                 Icon(

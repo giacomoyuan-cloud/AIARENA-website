@@ -783,7 +783,7 @@ private fun MessageView(message: JSONObject, s: AssistantState, vm: AssistantVie
         if (!message.optBoolean("isUser"))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    message.str("name", "AI"),
+                    modelDisplayName(message.str("name", "AI")),
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.SemiBold,
                 )
