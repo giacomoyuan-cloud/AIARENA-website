@@ -1682,7 +1682,7 @@ class AssistantViewModel(application: Application, val api: NativeApi = NativeAp
     }
 
     fun modelName(id: String) =
-        mutable.value.catalog.arr("models").objects().find { it.str("id") == id }?.str("name") ?: id
+        modelDisplayName(mutable.value.catalog.arr("models").objects().find { it.str("id") == id }?.str("name") ?: id)
 
     private suspend fun sendImage(s: AssistantState) {
         val references = s.attachments.filter { it.image }

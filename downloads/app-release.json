@@ -1,11 +1,11 @@
 {
-  "version": "2.0.9",
-  "versionCode": 209,
+  "version": "2.0.10",
+  "versionCode": 210,
   "package": "com.pickandcase.assistant",
   "minAndroid": "8.0",
-  "url": "/downloads/AI-Assistant-2.0.9.apk",
-  "bytes": 23063685,
-  "sha256": "67d0f45a052540953c615273f64546d3c9c619940cb045275d3b6237f4a4e95b",
+  "url": "/downloads/AI-Assistant-2.0.10.apk",
+  "bytes": 23063689,
+  "sha256": "6b1adedb897469e8a7d5f838fa5400bd47571d13629ffca681ec5f58c2e2261a",
   "native": true,
-  "notes": "输入区更紧凑：加号和发送键放入框内，去掉实心底色，仅保留橙色箭头；模型选择移到下方，收紧键盘弹起时的多余留白。"
+  "notes": "模型选择、已选模型与回复标题仅显示模型名字，去掉 Claude 等品牌前缀及厂商副标题。"
 }

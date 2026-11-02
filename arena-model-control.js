@@ -7,6 +7,12 @@
   var serial=0,active=null;
   var arrow='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>';
   var check='<svg class="arena-model-check" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>';
+  function displayName(value){
+    return String(value==null?'':value).replace(/^Claude\s+/,'')
+      .replace(/^GPT-([0-9]+(?:\.[0-9]+)*)\s+(Astra|Sol)\b/,'$2 $1')
+      .replace(/^GPT Image ([0-9]+(?:\.[0-9]+)*)\s+(Sunburst|Flare)\b/,'$2 $1')
+      .replace(/^Gemini ([0-9]+(?:\.[0-9]+)*)\s+(Flash(?: Image)?|Pro)\b/,'$2 $1');
+  }
   function escape(value){return String(value==null?'':value).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
   function effortHTML(options){
     var prefix=options.prefix||'aa',levels=options.levels||[],index=levels.indexOf(options.value),labels=options.labels||{},descriptions=options.descriptions||{};
@@ -14,13 +20,13 @@
     var level=levels[index],name=labels[level]||level||'选择模型';
     var h='<div class="arena-effort-heading"><output id="'+prefix+'EffortValue" for="'+prefix+'EffortSlider" aria-live="polite">'+escape(name)+'</output>'
       +'<button type="button" class="arena-effort-reset" id="'+prefix+'ResetEffortBtn" data-model-effort-reset aria-label="恢复默认思考强度" title="恢复默认思考强度"'+(levels.length?'':' hidden')+'><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10a9 9 0 1 1 1.7 7M3 4v6h6"/></svg></button></div>'
-      +'<button type="button" class="arena-effort-model" id="'+prefix+'ModelPickerBtn" data-model-picker aria-haspopup="dialog"><span>'+escape(options.modelLabel||'选择模型')+'</span>'+arrow+'</button>';
+      +'<button type="button" class="arena-effort-model" id="'+prefix+'ModelPickerBtn" data-model-picker aria-haspopup="dialog"><span>'+escape(displayName(options.modelLabel||'选择模型'))+'</span>'+arrow+'</button>';
     if(levels.length)h+=Slider.markup({prefix:prefix,min:0,max:levels.length-1,value:index,label:options.effortLabel||'思考强度',valueText:name,description:descriptions[level]||'',left:labels[levels[0]]||levels[0],right:labels[levels[levels.length-1]]||levels[levels.length-1],attributes:{'data-effort-model':options.model}});
     return h;
   }
   function choicesHTML(options){
     return '<div class="arena-model-picker-heading"><span>'+escape(options.label||'选择模型')+'</span>'+(options.back?'<button type="button" data-arena-model-back aria-label="返回思考强度">'+arrow+'</button>':'')+'</div>'
-      +(options.items||[]).map(function(item){return '<button type="button" class="arena-model-option" data-arena-model="'+escape(item.value)+'" aria-pressed="'+(item.value===options.value)+'"'+(item.disabled?' disabled':'')+'><span>'+escape(item.label)+'</span>'+check+'</button>';}).join('');
+      +(options.items||[]).map(function(item){return '<button type="button" class="arena-model-option" data-arena-model="'+escape(item.value)+'" aria-pressed="'+(item.value===options.value)+'"'+(item.disabled?' disabled':'')+'><span>'+escape(displayName(item.label))+'</span>'+check+'</button>';}).join('');
   }
   function mount(options){
     var host=options.host,doc=host.ownerDocument,win=doc.defaultView,prefix='arenaModel'+(++serial);
@@ -31,7 +37,7 @@
     popup.id=prefix+'Popover';popup.hidden=true;popup.setAttribute('popover','manual');popup.setAttribute('role','dialog');popup.setAttribute('aria-label',options.label+'与思考深度');host.appendChild(popup);
     function selected(){return state.options.find(function(item){return item.value===state.value;});}
     function renderTrigger(){
-      var item=selected(),name=item?item.label:(options.placeholder||'选择模型'),level=state.labels&&state.labels[state.effort]||state.effort;
+      var item=selected(),name=displayName(item?item.label:(options.placeholder||'选择模型')),level=state.labels&&state.labels[state.effort]||state.effort;
       trigger.disabled=!!state.disabled;
       trigger.setAttribute('aria-label',options.label+'：'+name+(state.levels.length&&level?'，思考深度：'+level:''));
       if(options.renderLabel)options.renderLabel(state.value,item,state);
@@ -138,5 +144,5 @@
     };
     control.update(options);return control;
   }
-  return {effortHTML:effortHTML,choicesHTML:choicesHTML,mount:mount,closeAll:function(){if(active)active.close(false);}};
+  return {displayName:displayName,effortHTML:effortHTML,choicesHTML:choicesHTML,mount:mount,closeAll:function(){if(active)active.close(false);}};
 });

@@ -4,6 +4,13 @@ import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
 
+/** Presentation only; provider IDs and request model IDs stay intact. */
+fun modelDisplayName(name: String): String = name
+    .replace(Regex("^Claude\\s+"), "")
+    .replace(Regex("^GPT-([0-9]+(?:\\.[0-9]+)*)\\s+(Astra|Sol)\\b"), "$2 $1")
+    .replace(Regex("^GPT Image ([0-9]+(?:\\.[0-9]+)*)\\s+(Sunburst|Flare)\\b"), "$2 $1")
+    .replace(Regex("^Gemini ([0-9]+(?:\\.[0-9]+)*)\\s+(Flash(?: Image)?|Pro)\\b"), "$2 $1")
+
 /** Generated from the website's selectable models, never from the legacy provider registry. */
 class NativeClientContract(context: Context) {
     private val contract = JSONObject(context.assets.open("native-client-contract.json").bufferedReader().use { it.readText() })
@@ -25,6 +32,7 @@ class NativeClientContract(context: Context) {
             (available[published.str("id")] ?: JSONObject()).copyJson().apply {
                 published.keys().forEach { key -> put(key, published.get(key)) }
                 put("image", published.optBoolean("image", false))
+                put("name", modelDisplayName(str("name")))
             }
         }
         return server.copyJson().apply {

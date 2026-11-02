@@ -34,7 +34,15 @@ class NativeSiteAlignmentTest : NativeHarness() {
             assertEquals(it.clientContract.imageModels.map { m -> m.str("id") }.toSet(), models.filter { m -> m.optBoolean("image") }.map { m -> m.str("id") }.toSet())
             assertTrue(models.none { m -> m.str("id") in listOf("claude-opus-5", "gpt-5.6-sol", "gemini-3.8-flash", "gemini-3.1-pro-preview", "gemini-3.1-flash-image") })
         }
-        screenshot("aligned-current-models")
+        ui.onNodeWithTag("composer-settings").performClick()
+        ui.onNodeWithText("Fable 5.1").assertIsDisplayed()
+        ui.onNodeWithText("Opus 5.5").assertIsDisplayed()
+        ui.onNodeWithText("Sonnet 5.5").assertIsDisplayed()
+        for (provider in listOf("anthropic", "openai", "google", "xai")) ui.onNodeWithText(provider).assertDoesNotExist()
+        screenshot("model-names-only")
+        ui.onNodeWithText("Fable 5.1").performClick()
+        ui.waitUntil(10000) { snapshot().model == "claude-fable-5-1" }
+        model { assertEquals("claude-fable-5-1", it.state.value.model) }
     }
 
     @Test fun saved_retired_models_are_migrated_before_reuse() {
