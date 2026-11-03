@@ -752,6 +752,7 @@ private fun MessageView(message: JSONObject, s: AssistantState, vm: AssistantVie
     var imageIndex by rememberSaveable(message.optLong("uid")) { mutableIntStateOf(0) }
     var artifactDelete by remember { mutableStateOf<JSONObject?>(null) }
     var receiptOpen by remember { mutableStateOf(false) }
+    var contextOpen by remember { mutableStateOf(false) }
     var referenceText by remember { mutableStateOf<String?>(null) }
     if (referenceText != null)
         AlertDialog(
@@ -768,6 +769,11 @@ private fun MessageView(message: JSONObject, s: AssistantState, vm: AssistantVie
             confirmButton = { ArenaTextButton(onClick = { referenceText = null }) { Text("关闭") } },
         )
     if (receiptOpen) NativeUsageReceipt(message.obj("usage")) { receiptOpen = false }
+    if (contextOpen) AlertDialog(
+        onDismissRequest = { contextOpen = false }, title = { Text("本轮上下文") },
+        text = { Text(contextDescription(message.obj("context"))) },
+        confirmButton = { ArenaTextButton(onClick = { contextOpen = false }) { Text("关闭") } },
+    )
     Column(
         Modifier.fillMaxWidth()
             .then(
@@ -976,6 +982,13 @@ private fun MessageView(message: JSONObject, s: AssistantState, vm: AssistantVie
                 color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.bodySmall,
             )
+        if (!message.optBoolean("isUser") && message.has("context")) {
+            ArenaTextButton(onClick = { contextOpen = true }, modifier = Modifier.testTag("message-context")) {
+                Icon(Icons.Outlined.History, null, Modifier.size(16.dp))
+                Spacer(Modifier.width(6.dp))
+                Text("本轮上下文", style = MaterialTheme.typography.labelSmall)
+            }
+        }
         if (message.has("usage")) {
             val usage = message.obj("usage")
             val counters = usage.optJSONObject("execution") ?: usage

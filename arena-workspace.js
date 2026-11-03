@@ -81,7 +81,7 @@
         var selectedProject=id?(await app.api('get',{projectId:id})).project:null;
         if(epoch!==navigationEpoch||(wasOpen&&!dialog.open))return;
         project=selectedProject;
-        setContent(project?'项目设置':'新建项目','<form id="aaProjectForm"><label>项目名称<input name="name" maxlength="80" required value="'+e(project&&project.name)+'" placeholder="例如：产品设计"></label><label>项目说明<textarea name="instructions" rows="4" maxlength="4000" placeholder="这个项目的目标、背景和回复要求">'+e(project&&project.instructions)+'</textarea></label>'+(project?'<label>项目记忆<textarea name="memory" rows="4" maxlength="2400" placeholder="仅在本项目对话之间共享">'+e(project.memory)+'</textarea></label>':'')+'<p class="arena-workspace-muted">普通聊天及其他项目不会读取这里的记忆。</p><p data-w-error role="alert"></p><div class="arena-workspace-footer">'+(project?'<button type="button" data-project-archive="'+e(project.id)+'">归档项目</button>':'<button type="button" data-project-back>返回</button>')+'<button type="submit" class="arena-workspace-primary">保存'+(project?'':'并进入')+'</button></div></form>');show();content.querySelector('input').focus();
+        setContent(project?'项目设置':'新建项目','<form id="aaProjectForm"><label>项目名称<input name="name" maxlength="80" required value="'+e(project&&project.name)+'" placeholder="例如：产品设计"></label><label>项目说明<textarea name="instructions" rows="4" maxlength="4000" placeholder="这个项目的目标、背景和回复要求">'+e(project&&project.instructions)+'</textarea></label>'+(project?'<label>项目记忆<textarea name="memory" rows="4" maxlength="20000" placeholder="仅在本项目对话之间共享">'+e(project.memory)+'</textarea></label>':'')+'<p class="arena-workspace-muted">普通聊天及其他项目不会读取这里的记忆。</p><p data-w-error role="alert"></p><div class="arena-workspace-footer">'+(project?'<button type="button" data-project-archive="'+e(project.id)+'">归档项目</button>':'<button type="button" data-project-back>返回</button>')+'<button type="submit" class="arena-workspace-primary">保存'+(project?'':'并进入')+'</button></div></form>');show();content.querySelector('input').focus();
       }catch(err){if(epoch===navigationEpoch)error(err.message);}
     }
     async function enter(id){
@@ -163,7 +163,7 @@
       var form=event.target,button=form.querySelector('[type=submit]');button.disabled=true;
       try{
         var values={name:form.elements.name.value,instructions:form.elements.instructions.value};
-        if(project){values.projectId=project.id;values.memory=form.elements.memory.value;}
+        if(project){values.projectId=project.id;values.memory=form.elements.memory.value;values.memoryRevision=project.memoryRevision;}
         var data=await app.api(project?'update':'create',values);
         invalidate();
         if(project){if(app.currentProject()&&app.currentProject().id===project.id)app.refreshProject(Object.assign({},project,data.project,{memory:values.memory}));close();notify('项目设置已保存');}

@@ -1,5 +1,6 @@
 import { handleBillingLedger } from './billing-ledger.js';
 import { handleProjectLibrary } from './project-library.js';
+import { handleMemoryState,rememberCompletedRun } from './context-memory.js';
 // A generation belongs to its chat, not to a phone's HTTP connection.
 // Credentials and provider keys are never written to Durable Object storage.
 const encoder = new TextEncoder();
@@ -43,6 +44,7 @@ export function createChatRunClass(execute, DebateRun, { deferStart = () => fals
         }
         this.meta.status = 'interrupted';
         this.meta.error = '服务器连接已中断，已保留收到的内容。请重新回答以继续。';
+        if(this.meta.reply?.text?.trim()&&this.meta.reply.diagnostics?.firstTextAt){this.meta.reply.contextPartial=true;this.meta.reply.original=this.meta.reply.text;this.meta.reply.generationError=this.meta.error;}
         this.persistMeta();
         if(onInterrupt&&this.meta.reply?.diagnostics?.googleInteractionId){
           const interrupted=this.meta;
@@ -269,8 +271,18 @@ export function createChatRunClass(execute, DebateRun, { deferStart = () => fals
       } finally {
         this.meta.updatedAt = Date.now();
         this.meta.reply.completedAt = this.meta.updatedAt;
+        if(this.meta.status!=='completed'&&this.meta.reply.text?.trim()&&this.meta.reply.diagnostics?.firstTextAt){
+          this.meta.reply.contextPartial=true;this.meta.reply.original=this.meta.reply.text;
+          if(this.meta.error)this.meta.reply.generationError=this.meta.error;
+        }
         try {
           if (this.meta.error) await this.append(JSON.stringify({ error: this.meta.error }));
+          try{const saved=await rememberCompletedRun(this.meta,this.env);if(saved)this.meta.reply.context={...this.meta.reply.context,memorySavedCount:saved};}catch{
+            // A preference sync failure must never turn a completed, possibly
+            // billed reply into a failed generation or cause an automatic replay.
+            this.meta.reply.context={...this.meta.reply.context,memoryWarning:'记忆同步暂未完成，本轮聊天原文已保留'};
+          }
+          if(this.meta.reply.context?.memorySavedCount||this.meta.reply.context?.memoryWarning)await this.append(JSON.stringify({context:this.meta.reply.context}));
           await this.append('[DONE]');
           this.persistMeta();
           await this.saveChat();
@@ -320,6 +332,10 @@ export function createChatRunClass(execute, DebateRun, { deferStart = () => fals
       const target=new URL(request.url);
       if(target.hostname==='usage-ledger.internal'&&target.pathname==='/__billing')return handleBillingLedger(this.ctx,request);
       if(target.hostname==='project-library.internal')return handleProjectLibrary(this.ctx,this.env,request);
+      if(target.hostname==='context-memory.internal'){
+        const pending=(this.memoryOperation||Promise.resolve()).then(()=>handleMemoryState(this.ctx,this.env,request));
+        this.memoryOperation=pending.catch(()=>{});return pending;
+      }
       if (this.transport?.matches(request)) return this.transport.fetch(request);
       const body = await request.json();
       if (body.kind === 'debate' && this.debate) return this.debate.fetchBody(body);

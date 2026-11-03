@@ -39,3 +39,14 @@ test('summaries retain commitments and exact numbers while marking old context a
   const notes=C.notes([{uid:1,isUser:true,text:'必须使用蓝色。预算上限 73921.50 元。不要更改密码。'}]);
   assert.ok(notes.includes('73921.50'));assert.ok(notes.includes('必须'));assert.ok(notes.length<=1400);
 });
+test('received partial answers remain usable after a failure without promoting them to completed work',()=>{
+  const records=[{uid:1,isUser:true,text:'按步骤做'},{uid:2,isError:true,contextPartial:true,original:'第一步已列出，第二步',text:'第一步已列出，第二步\n\n[网络中断]',generationError:'网络中断'},{uid:3,isError:true,text:'HTTP 403'}];
+  const result=C.fullHistory(records);
+  assert.equal(result.messages.length,2);assert.match(result.messages[1].text,/尚未完成/);assert.match(result.messages[1].text,/第一步已列出，第二步/);
+  assert.doesNotMatch(result.messages[1].text,/网络中断|HTTP 403/);assert.equal(result.messages[1].partial,true);
+  assert.equal((C.fullHistory(result.messages).messages[1].text.match(/尚未完成/g)||[]).length,1);
+});
+test('completed replies with token and timing diagnostics are never labeled as interrupted',()=>{
+  const value=C.fullHistory([{uid:1,text:'任务完成',run:{status:'completed'},diagnostics:{firstTextAt:1}}]);
+  assert.equal(value.messages[0].text,'任务完成');assert.equal(value.messages[0].partial,undefined);
+});

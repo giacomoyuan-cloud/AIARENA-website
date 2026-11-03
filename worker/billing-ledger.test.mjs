@@ -155,18 +155,12 @@ test('automatic skill routing records the complete Haiku receipt alongside the s
   assert.equal(value.costUsd,'0.0120035');assert.equal(value.input,1000);assert.equal(value.auxiliary[0].purpose,'skill-router');
   const stats=await usageSummary(env,'tester');assert.equal(stats.total.calls,2);assert.equal(stats.models['claude-haiku-5-5'].input,10);
 });
-for(const refused of [false,true])test('Haiku 5.5 memory extraction '+(refused?'preserves previous memory on refusal':'records its real usage and complete text'),async t=>{
-  const {env,hash,data}=await authenticatedFixture();env.ANTHROPIC_API_KEY='synthetic-anthropic-key';data.set('mem:tester','ORIGINAL_MEMORY');
-  t.mock.method(globalThis,'fetch',(url,options)=>{
-    assert.equal(url,'https://api.anthropic.com/v1/messages');const body=JSON.parse(options.body);
-    assert.equal(body.model,'claude-haiku-5-5');assert.equal(body.service_tier,'standard_only');assert.deepEqual(body.thinking,{type:'disabled'});assert.deepEqual(body.output_config,{effort:'low'});
-    for(const name of ['temperature','top_p','top_k'])assert.ok(!(name in body));
-    return Response.json({stop_reason:refused?'refusal':'end_turn',content:[{type:'text',text:'新增事实'},{type:'text',text:'保留偏好'}],usage:{input_tokens:100,output_tokens:100}});
-  });
-  const response=await worker.fetch(new Request('https://api.pickandcase.com/memory',{method:'POST',body:JSON.stringify({user:'tester',password:hash,conversation:'synthetic memory input'})}),env),result=await response.json();
-  assert.equal(response.status,refused?500:200);assert.equal(data.get('mem:tester'),refused?'ORIGINAL_MEMORY':'新增事实\n保留偏好');
-  assert.equal(result.usage.model,'claude-haiku-5-5');assert.equal(result.usage.costUsd,'0.00006');
-  const stats=await usageSummary(env,'tester');assert.equal(stats.total.calls,1);assert.equal(stats.total.knownCostUsd,'0.00006');
+for(const conversation of ['synthetic clipped input','AI: inferred preference'])test('legacy memory posts preserve existing data without a provider bill: '+conversation,async t=>{
+  const {env,hash,data}=await authenticatedFixture();data.set('mem:tester','ORIGINAL_MEMORY');
+  t.mock.method(globalThis,'fetch',()=>assert.fail('no model request for legacy memory writes'));
+  const response=await worker.fetch(new Request('https://api.pickandcase.com/memory',{method:'POST',body:JSON.stringify({user:'tester',password:hash,conversation})}),env),result=await response.json();
+  assert.equal(response.status,200);assert.equal(result.managedByServer,true);assert.equal(result.memory,'ORIGINAL_MEMORY');assert.equal(data.get('mem:tester'),'ORIGINAL_MEMORY');
+  const stats=await usageSummary(env,'tester');assert.equal(stats.total.calls,0);
 });
 test('Gemini native long decode records one final receipt including thinking exactly once',async t=>{
   t.mock.timers.enable({apis:['Date'],now:at});
