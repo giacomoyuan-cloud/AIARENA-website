@@ -1700,7 +1700,7 @@ var TEAM_COLORS = {
 
   function serializeMsgs(){
     return msgs.map(function(m){
-      var obj = {uid:m.uid, chatMode:m.chatMode, brand:m.brand, name:m.name, text:m.text, color:m.color, isUser:m.isUser, isError:m.isError,generationError:m.generationError, round:m.round, _team:m._team, _liked:m._liked, _comment:m._comment, topicText:m.topicText, pastedTexts:m.pastedTexts, _quote:m._quote, context:m.context, reasoning:m.reasoning, activity:m.activity, citations:m.citations, _feedback:m._feedback, effort:m.effort, submodel:m.submodel, completedAt:m.completedAt, moderationHelp:m.moderationHelp, suggestedPrompt:m.suggestedPrompt, moderationTask:m.moderationTask, imageTurn:m.imageTurn, imageResponse:m.imageResponse, imageDetails:m.imageDetails, imageSettings:m.imageSettings, imageUsage:m.imageUsage, grounding:m.grounding,skills:m.skills,artifacts:m.artifacts,skillSession:m.skillSession,executionModel:m.executionModel,participantId:m.participantId,debateSessionId:m.debateSessionId,debateStage:m.debateStage};
+      var obj = {uid:m.uid, chatMode:m.chatMode, brand:m.brand, name:m.name, text:m.text, color:m.color, isUser:m.isUser, isError:m.isError,generationError:m.generationError,contextPartial:m.contextPartial,original:m.original, round:m.round, _team:m._team, _liked:m._liked, _comment:m._comment, topicText:m.topicText, pastedTexts:m.pastedTexts, _quote:m._quote, context:m.context, reasoning:m.reasoning, activity:m.activity, citations:m.citations, _feedback:m._feedback, effort:m.effort, submodel:m.submodel, completedAt:m.completedAt, moderationHelp:m.moderationHelp, suggestedPrompt:m.suggestedPrompt, moderationTask:m.moderationTask, imageTurn:m.imageTurn, imageResponse:m.imageResponse, imageDetails:m.imageDetails, imageSettings:m.imageSettings, imageUsage:m.imageUsage, grounding:m.grounding,skills:m.skills,artifacts:m.artifacts,skillSession:m.skillSession,executionModel:m.executionModel,participantId:m.participantId,debateSessionId:m.debateSessionId,debateStage:m.debateStage};
       if(m.usage!==undefined) obj.usage=m.usage;
       if(m.usageStr!==undefined) obj.usageStr=m.usageStr;
       if(m.run) obj.run = m.run;
@@ -2857,34 +2857,6 @@ var TEAM_COLORS = {
     } catch(e){ return ''; }
   }
 
-  async function updateMemory(conversationText){
-    var user = $('aaUsername').value.trim().toLowerCase();
-    var pass = getPass();
-    var memoryScope=activeProjectId,memoryChat=currentChatId,memoryTarget=msgs.slice().reverse().find(function(m){return !m.isUser&&m.usage&&m.usage.schemaVersion===2;});
-    if(!user || !pass || !conversationText) return;
-    try {
-      var res = await fetch(WORKER + '/memory', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({password: pass, user: user, projectId:memoryScope, conversation: conversationText, billingParentId:memoryTarget&&memoryTarget.usage.id})
-      });
-      var data = await res.json();
-      if(memoryScope===activeProjectId&&data.memory){ _cachedMemory = data.memory; _memoryLoaded = true; }
-      if(data.usage&&memoryTarget&&memoryScope===activeProjectId&&memoryChat===currentChatId&&msgs.indexOf(memoryTarget)!==-1){applyMessageUsage(memoryTarget,data.usage);saveCurrentChat();}
-    } catch(e){}
-  }
-
-  function buildConversationText(){
-    return msgs.slice(-8).map(function(m){
-      return (m.isUser ? '用户' : m.name) + ': ' + plainMessageText(m).slice(0, 650);
-    }).join('\n');
-  }
-
-  function injectMemory(prompt, memory){
-    if(!memory) return prompt;
-    return '【关于这个用户的已知信息】\n' + memory + '\n\n---\n\n' + prompt;
-  }
-
   function fetchWithRetry(url, opts, maxRetries){
     maxRetries = maxRetries === undefined ? 0 : maxRetries;
     return new Promise(function(resolve, reject){
@@ -3277,6 +3249,7 @@ var TEAM_COLORS = {
     return '<div class="arena-reply-notice" role="status">'+esc(timeout?'本次生成超过 '+timeout[1]+' 分钟。':reply.error)+' '+esc(detail)+'</div>';
   }
   function failChatReply(submodel,message,error){
+    if(message.text&&message.text!==String(error||'')){message.contextPartial=true;message.original=message.text;}
     message.generationError=String(error||'生成中断');message.isError=true;message.completedAt=Date.now();
     if(msgs.indexOf(message)===-1)beginStreamedReply(submodel,message);
     message._activityPhase='done';
@@ -5380,12 +5353,8 @@ callWorkerStream(sub, fullPrompt, _img, _imgMime,
       stopActiveGeneration = null;
       // 保存聊天记录
       saveCurrentChat();
-      // 后台静默更新 memory
-      if(!_bizMode && !_incognitoMode && !debate && !imageMode){
-        var convText = buildConversationText();
-        var scopeKey=activeProjectId||'general',turns=(memoryTurnCounts.get(scopeKey)||0)+1;memoryTurnCounts.set(scopeKey,turns);
-        if(convText && (turns%4===0||/记住|请牢记|remember/i.test(_topicText))) updateMemory(convText);
-      }
+      // Source-backed memory is synchronized once by the shared backend.
+
     }
   }
 // === 图像模式卡片显示控制 ===
@@ -6718,21 +6687,23 @@ if(imageMode){
   function scopedChatInput(question,system,query){
     var previous=msgs.slice(0,-1),recent=ArenaContext.fullHistory(previous);
     var previousSkillMessage=previous.filter(function(m){return !m.isUser&&(m.skills||m.skillSession);}).slice(-1)[0];
-    return {skills:skillsRuntime.settings(),artifactInputs:previousSkillMessage&&previousSkillMessage.artifacts?previousSkillMessage.artifacts.filter(function(f){return !f.deleted&&!f.unavailable&&f.token;}).slice(-5).map(function(f){return f.token;}):[],previousSkillIds:previousSkillMessage&&previousSkillMessage.skills?previousSkillMessage.skills.map(function(s){return s.id;}):[],skillSession:previousSkillMessage&&previousSkillMessage.skillSession||null,scope:activeProjectId||'general',chatId:currentChatId,question:question,query:query||question,system:activeProjectId?'':system,systemMode:activeProjectId?'project':chatSystemMode(getActiveSubmodels()[0]),history:recent.messages,historyLength:previous.length,historyEndUid:previous.length?String(previous[previous.length-1].uid):null,incognito:!!_incognitoMode,
+    return {skills:skillsRuntime.settings(),artifactInputs:previousSkillMessage&&previousSkillMessage.artifacts?previousSkillMessage.artifacts.filter(function(f){return !f.deleted&&!f.unavailable&&f.token;}).slice(-5).map(function(f){return f.token;}):[],previousSkillIds:previousSkillMessage&&previousSkillMessage.skills?previousSkillMessage.skills.map(function(s){return s.id;}):[],skillSession:previousSkillMessage&&previousSkillMessage.skillSession||null,scope:activeProjectId||'general',chatId:currentChatId,question:question,query:query||question,system:activeProjectId?'':system,systemMode:activeProjectId?'project':chatSystemMode(getActiveSubmodels()[0]),history:recent.messages,historyImages:ArenaContext.referenceImages(previous,query||question),historyLength:previous.length,historyEndUid:previous.length?String(previous[previous.length-1].uid):null,incognito:!!_incognitoMode,
       readingMode:activeProject&&activeProject.readingMode==='full'?'full':'retrieve',
       notes:_incognitoMode?ArenaContext.notes(recent.earlier,1400):'',
       excerpts:_incognitoMode?ArenaContext.excerpts(recent.earlier,query||question,{maxChars:1800}):[]};
   }
   function renderContextInfo(message){
     var context=message.context;if(!context)return '';
-    var labels=[(context.historyPolicy==='full'?'完整文字历史 ':context.historyPolicy==='compacted'?'容量内文字历史 ':'最近 ')+context.historyCount+' 条'];
+    var labels=[(context.historyPolicy==='full'?'完整文字历史 ':['summarized','compacted'].includes(context.historyPolicy)?'近期文字历史 ':'最近 ')+context.historyCount+' 条'];
     if(context.contextTokens)labels.push('上下文上限 '+context.contextTokens.toLocaleString()+' tokens');
     if(context.olderSummary)labels.push('较早'+context.summaryKind);
+    if(context.commitmentCount)labels.push('原文约定 '+context.commitmentCount+' 条');
+    if(context.memoryCount)labels.push('记忆 '+context.memoryCount+' 条');
     if(context.retrievedMessages)labels.push('旧原文 '+context.retrievedMessages+' 段');
     if(context.fileFragments)labels.push(context.readingMode==='full'?'全文阅读 '+context.fileFragments+' 段':'检索资料 '+context.fileFragments+' 段');
-    var explanation=context.historyPolicy==='full'?'已携带当前分支的完整文字历史，未进行摘要或截取。':context.historyPolicy==='compacted'?'已接近模型容量；较早文字用摘记和相关原文片段补充，细节可能省略，原聊天记录完整保留。':'原聊天记录完整保留。较早内容通过摘要和按问题检索的原文补充，摘要可能省略细节。';
+    var explanation=context.historyPolicy==='full'?'已携带当前分支的完整文字历史，未进行摘要或截取。':['summarized','compacted'].includes(context.historyPolicy)?'较早对话保留带来源的任务摘要、原文约定和相关片段，近期文字逐字保留；摘要可能省略细节，原聊天记录完整保留。':'原聊天记录完整保留。较早内容通过摘要和按问题检索的原文补充，摘要可能省略细节。';
     var materialText=(context.readingMode==='full'?(context.readingDelivery==='native'?'完整 PDF 原件直接交给当前模型，保留图文。':context.readingDelivery==='complete'?'完整提取文字与原始图片直接交给当前模型，未先生成摘要。':'全部图文由当前模型分批读取；最终回答使用阅读笔记，笔记可能省略细节。'):context.fileFragments?'仅发送检索命中的片段，没有逐页通读整份资料。':context.availableFiles?.length?'本轮没有检索到相关片段，尚未向模型提供文件正文。':'本轮未提供文件资料。');
-    return '<details class="arena-context-info"><summary>本轮上下文 · '+esc(labels.join(' · '))+'</summary><p>'+explanation+(context.scope!=='general'?'记忆和资料仅限当前项目。':'')+esc(materialText)+'</p>'+(context.files||[]).map(function(file){var source=file.source!=='conversation'&&activeProject&&activeProject.id===context.scope&&(activeProject.files||[]).find(function(item){return item.id===file.id;});var name=source?ArenaProjectFiles.name(source):file.name;return '<button data-context-file="'+esc(file.id)+'"'+(file.source==='conversation'?' data-conversation-file="true"':'')+' data-project="'+esc(context.scope)+'">'+esc(name)+(file.location?' · '+esc(file.location):'')+'</button>';}).join('')+'</details>';
+    return '<details class="arena-context-info"><summary>本轮上下文 · '+esc(labels.join(' · '))+'</summary><p>'+explanation+(context.scope!=='general'?'记忆和资料仅限当前项目。':'')+esc(materialText)+(context.contextWarning?' '+esc(context.contextWarning):'')+(context.memoryWarning?' '+esc(context.memoryWarning):'')+'</p>'+(context.files||[]).map(function(file){var source=file.source!=='conversation'&&activeProject&&activeProject.id===context.scope&&(activeProject.files||[]).find(function(item){return item.id===file.id;});var name=source?ArenaProjectFiles.name(source):file.name;return '<button data-context-file="'+esc(file.id)+'"'+(file.source==='conversation'?' data-conversation-file="true"':'')+' data-project="'+esc(context.scope)+'">'+esc(name)+(file.location?' · '+esc(file.location):'')+'</button>';}).join('')+'</details>';
   }
   workspaceController=ArenaWorkspace.mount({
     host:$('ai-arena-app'),api:projectApi,binary:projectBinary,setReadingMode:setProjectReadingMode,busy:function(){return aaRunning||scopeSwitchPending||chatNavigationPending||privacySwitchPending;},notice:arenaNotice,currentProject:function(){return activeProject;},currentScope:function(){return activeProjectId;},
@@ -6823,7 +6794,7 @@ if(imageMode){
     var account={user:$('aaUsername').value.trim().toLowerCase(),password:getPass(),loginEpoch:_accountLoginEpoch};
     var content=promptInfoDialog.querySelector('.arena-prompt-content');
     var extra=scope?(activeProject&&activeProject.instructions||''):(chatSystemMode(getActiveSubmodels()[0])!=='default'?currentChatSystemPrompt(getActiveSubmodels()[0]):'');
-    content.innerHTML='<div class="arena-prompt-scope">'+esc(scopeName)+'</div><label class="arena-prompt-label" for="aaSystemPromptEditor">系统提示词</label><p id="aaSystemPromptHint" class="arena-workspace-muted">'+(scope?'只用于这个项目；项目隔离规则始终保留。':'只用于你账号的普通聊天，不会进入项目。')+' 保存后从下一条消息生效。</p><textarea id="aaSystemPromptEditor" class="arena-prompt-editor" aria-describedby="aaSystemPromptHint" maxlength="12000" rows="8" disabled placeholder="正在读取已保存的提示词…"></textarea><div class="arena-prompt-meta"><span data-prompt-status role="status" aria-live="polite">加载中…</span><span data-prompt-count>0 / 12000</span></div><div class="arena-prompt-actions"><button type="button" data-prompt-reset disabled>恢复默认</button><button type="button" data-prompt-save class="arena-workspace-primary" disabled>保存修改</button></div>'+(extra?'<details class="arena-prompt-extra"><summary>'+(scope?'项目说明（在项目设置中修改）':'当前手动选择的附加指令')+'</summary><pre>'+esc(extra)+'</pre></details>':'')+'<h3>当前范围记忆 <span class="arena-prompt-readonly">只读</span></h3><pre data-prompt-memory role="status">'+(_incognitoMode?'无痕模式：本轮不读取或发送已保存的记忆；系统提示词仍然生效。':'加载中…')+'</pre><p class="arena-workspace-muted">提示词与记忆分别保存，修改或恢复提示词不会清空记忆。手动选择的 Skills 会作为附加指令。发送时还可能加入当前对话、较早摘要、检索命中的旧原文及相关资料片段；网页搜索开启时，服务商还会加入工具说明。</p>';
+    content.innerHTML='<div class="arena-prompt-scope">'+esc(scopeName)+'</div><label class="arena-prompt-label" for="aaSystemPromptEditor">系统提示词</label><p id="aaSystemPromptHint" class="arena-workspace-muted">'+(scope?'只用于这个项目；项目隔离规则始终保留。':'只用于你账号的普通聊天，不会进入项目。')+' 保存后从下一条消息生效。</p><textarea id="aaSystemPromptEditor" class="arena-prompt-editor" aria-describedby="aaSystemPromptHint" maxlength="12000" rows="8" disabled placeholder="正在读取已保存的提示词…"></textarea><div class="arena-prompt-meta"><span data-prompt-status role="status" aria-live="polite">加载中…</span><span data-prompt-count>0 / 12000</span></div><div class="arena-prompt-actions"><button type="button" data-prompt-reset disabled>恢复默认</button><button type="button" data-prompt-save class="arena-workspace-primary" disabled>保存修改</button></div>'+(extra?'<details class="arena-prompt-extra"><summary>'+(scope?'项目说明（在项目设置中修改）':'当前手动选择的附加指令')+'</summary><pre>'+esc(extra)+'</pre></details>':'')+ '<h3>当前范围记忆</h3><textarea data-prompt-memory class="arena-prompt-editor" aria-label="当前范围记忆" maxlength="20000" rows="5" disabled placeholder="'+(_incognitoMode?'无痕模式不读取或保存记忆':'正在读取记忆…')+'"></textarea><div class="arena-prompt-actions"><span data-memory-status role="status">明确要求记住的偏好保留原文；任务进度保留在原对话。</span><button type="button" data-memory-save class="arena-workspace-primary" disabled>保存记忆</button></div><p class="arena-workspace-muted">可编辑纠正，清空并保存即可删除记忆。</p><p class="arena-workspace-muted">提示词与记忆分别保存，修改或恢复提示词不会清空记忆。手动选择的 Skills 会作为附加指令。发送时还可能加入当前对话、较早摘要、检索命中的旧原文及相关资料片段；网页搜索开启时，服务商还会加入工具说明。</p>';
     var editor=content.querySelector('#aaSystemPromptEditor'),status=content.querySelector('[data-prompt-status]'),count=content.querySelector('[data-prompt-count]'),save=content.querySelector('[data-prompt-save]'),reset=content.querySelector('[data-prompt-reset]');
     var saved=null,busy=false;
     function isCurrent(){return epoch===promptDialogEpoch&&scope===activeProjectId&&account.loginEpoch===_accountLoginEpoch&&account.password===getPass();}
@@ -6849,10 +6820,23 @@ if(imageMode){
     $('aaSidebar').classList.add('hidden');$('aaGearBtn').setAttribute('aria-expanded','false');
     if(!promptInfoDialog.open)promptInfoDialog.showModal();
     var settings=systemPromptApi('get',scope,account).then(function(data){if(isCurrent())apply(data);}).catch(function(error){if(isCurrent()){status.textContent=error.message+'，请关闭后重试';status.setAttribute('data-error','true');}});
+    var memoryEditor=content.querySelector('[data-prompt-memory]'),memorySave=content.querySelector('[data-memory-save]'),memoryStatus=content.querySelector('[data-memory-status]'),memoryData=null,memoryBusy=false;
+    function syncMemory(){memoryEditor.disabled=_incognitoMode||memoryBusy||!memoryData||memoryData.readOnly;memorySave.disabled=memoryEditor.disabled||memoryEditor.value===memoryData.memory||memoryEditor.value.length>20000;}
+    memoryEditor.addEventListener('input',syncMemory);
+    memorySave.addEventListener('click',async function(){
+      if(!isCurrent()||memoryBusy||!memoryData||_incognitoMode)return;
+      memoryBusy=true;memoryStatus.textContent='正在保存记忆…';syncMemory();
+      try{
+        var response=await fetch(WORKER+'/memory',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'save',user:account.user,password:account.password,projectId:scope,memory:memoryEditor.value,revision:memoryData.revision})});
+        var data=await response.json();if(!response.ok)throw new Error(data.error||'保存失败');
+        if(isCurrent()){memoryData=data;memoryEditor.value=data.memory;memoryStatus.textContent='记忆已保存，下条消息生效';_cachedMemory=null;_memoryLoaded=false;}
+      }catch(error){if(isCurrent())memoryStatus.textContent=error.message;}
+      finally{memoryBusy=false;if(isCurrent())syncMemory();}
+    });
     var memory=_incognitoMode?Promise.resolve():fetch(WORKER+'/memory',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'get',user:account.user,password:account.password,projectId:scope})}).then(async function(response){
       var data=await response.json();if(!response.ok)throw new Error(data.error||'读取失败');
-      if(isCurrent())content.querySelector('[data-prompt-memory]').textContent=data.memory||'当前范围没有已保存的记忆。';
-    }).catch(function(){if(isCurrent())content.querySelector('[data-prompt-memory]').textContent='记忆读取失败，请关闭后重试。';});
+      if(isCurrent()){memoryData=data;memoryEditor.value=data.memory||'';if(data.warning)memoryStatus.textContent=data.warning;syncMemory();}
+    }).catch(function(){if(isCurrent())memoryStatus.textContent='记忆读取失败，请关闭后重试。';});
     await Promise.allSettled([settings,memory]);
   });
 

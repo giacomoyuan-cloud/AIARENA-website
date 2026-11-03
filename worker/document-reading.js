@@ -38,11 +38,12 @@ export async function retrieveLibrary(source,query,currentFileIds=[]){
   const result=await source.library('search',{query:searchQuery}),preferred=[...currentFileIds,...namedFiles(source.files,query)].map(f=>typeof f==='string'?f:f.id),hits=[];
   for(const id of preferred){const hit=result.hits.find(h=>h.file.id===id);if(hit&&!hits.includes(hit))hits.push(hit);}
   for(const hit of result.hits)if(!hits.includes(hit))hits.push(hit);
-  const items=hits.slice(0,3).map(h=>({text:h.text.slice(0,1600),file:{id:h.file.id,name:h.file.name,location:h.location,source:source.kind||'conversation'},...(h.media?{media:h.media,source}:{}),score:h.score}));
+  const items=hits.slice(0,8).map(h=>({text:h.text.slice(0,2400),file:{id:h.file.id,name:h.file.name,location:h.location,source:source.kind||'conversation'},...(h.media?{media:h.media,source}:{}),score:h.score}));
   return materialItems(items,source.files.map(f=>({...f,name:materialName(f)})));
 }
 export function materialItems(items,available=[]){
-  const chosen=items.slice(0,3),files=[];for(const x of chosen)if(!files.some(f=>f.id===x.file.id))files.push(x.file);
+  const chosen=[],files=[];let chars=0,images=0;
+  for(const item of items){if(chosen.length>=8||chars+item.text.length>18000||item.media&&images>=4)continue;chosen.push(item);chars+=item.text.length;if(item.media)images++;if(!files.some(f=>f.id===item.file.id))files.push(item.file);}
   return {text:chosen.map(x=>'资料：'+x.file.name+'，'+(x.file.location||'正文')+'\n'+x.text).join('\n\n'),files,fragments:chosen.length,mode:'retrieve',visualItems:chosen.filter(x=>x.media),available:available.map(({id,name,status})=>({id,name,status})).slice(0,20),items:chosen};
 }
 export function mergeMaterials(first,second,query){

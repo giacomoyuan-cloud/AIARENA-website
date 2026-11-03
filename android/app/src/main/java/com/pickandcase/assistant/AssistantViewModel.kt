@@ -733,6 +733,17 @@ class AssistantViewModel(application: Application, val api: NativeApi = NativeAp
         }
     }
 
+    fun saveMemory(text: String, revision: Int, onDone: () -> Unit) {
+        if (text.length > 20000) { notice("记忆最多 20000 字"); return }
+        val captured = mutable.value
+        service("/memory", json("action" to "save", "memory" to text, "revision" to revision)) { result ->
+            if (scope() == scope(captured) && mutable.value.page == Page.MEMORY) {
+                mutable.update { it.copy(data = result) }
+                onDone()
+            }
+        }
+    }
+
     fun loadProjects(archived: Boolean = false, deleted: Boolean = false) {
         service(
             "/projects",
@@ -1360,16 +1371,7 @@ class AssistantViewModel(application: Application, val api: NativeApi = NativeAp
                         "projectId" to s.project?.str("id"),
                     ),
             )
-        val history =
-            JSONArray(
-                s.messages.takeLast(3000).map {
-                    json(
-                        "uid" to it.optLong("uid"),
-                        "role" to if (it.optBoolean("isUser")) "user" else "assistant",
-                        "text" to it.str("text"),
-                    )
-                }
-            )
+        val history = contextHistory(s.messages)
         val question =
             user.str("text") +
                 (s.attachments
@@ -1384,6 +1386,9 @@ class AssistantViewModel(application: Application, val api: NativeApi = NativeAp
                 "scope" to scope(s),
                 "question" to question,
                 "history" to history,
+                "historyImages" to if (s.attachments.none { it.image }) contextImages(s.messages) else JSONArray(),
+                "historyLength" to s.messages.size,
+                "query" to s.draft,
                 "historyEndUid" to s.messages.lastOrNull()?.optLong("uid"),
                 "skills" to s.skills,
                 "files" to JSONArray(docs.map { it.skillFile() }),
@@ -1513,6 +1518,8 @@ class AssistantViewModel(application: Application, val api: NativeApi = NativeAp
                                                 message.str("reasoning") + event.str("r"),
                                             )
                                         if (event.has("error")) {
+                                            if (message.str("text").isNotBlank()) message.put("contextPartial",true).put("original",message.str("text"))
+                                            message.put("generationError",event.str("error"))
                                             message.put("isError", true)
                                             message.put(
                                                 "text",
@@ -1571,61 +1578,10 @@ class AssistantViewModel(application: Application, val api: NativeApi = NativeAp
                     mutable.update {
                         it.copy(busy = false, connection = if (completed) "已连接" else "任务已保留，可重新连接")
                     }
-                    if (completed) updateMemoryAfterChat()
                     runCatching { saveChat() }.onFailure { error(it) }
                     loadHistory()
                 }
             }
-    }
-
-    private fun updateMemoryAfterChat() {
-        val s = mutable.value
-        val last = s.messages.lastOrNull { !it.optBoolean("isUser") } ?: return
-        if (
-            s.incognito ||
-                last.optBoolean("isError") ||
-                last.obj("run").str("status") != "completed" ||
-                last.optBoolean("nativeMemoryHandled")
-        )
-            return
-        updateMessage(last.optLong("uid")) { it.put("nativeMemoryHandled", true) }
-        val countKey = "memory-turn:" + account() + ":" + scope(s)
-        val turns = preferences.getInt(countKey, 0) + 1
-        preferences.edit().putInt(countKey, turns).apply()
-        val topic = s.messages.lastOrNull { it.optBoolean("isUser") }?.str("topicText").orEmpty()
-        if (
-            turns % 4 != 0 &&
-                !Regex("记住|请牢记|remember", RegexOption.IGNORE_CASE).containsMatchIn(topic)
-        )
-            return
-        val conversation =
-            s.messages
-                .takeLast(12)
-                .joinToString("\n\n") {
-                    (if (it.optBoolean("isUser")) "用户：" else "AI：") + it.str("text")
-                }
-                .takeLast(24000)
-        viewModelScope.launch {
-            runCatching {
-                val result =
-                    api.call(
-                        "/memory",
-                        projectPayload(s)
-                            .put("conversation", conversation)
-                            .put("billingParentId", last.obj("usage").str("id")),
-                    )
-                if (
-                    account() == s.session?.accountId &&
-                        mutable.value.chatId == s.chatId &&
-                        result.has("usage")
-                ) {
-                    updateMessage(last.optLong("uid")) {
-                        it.put("memoryUsage", result.get("usage"))
-                    }
-                    saveChat()
-                }
-            }
-        }
     }
 
     private fun applyRunSnapshot(ref: JSONObject, result: JSONObject) {

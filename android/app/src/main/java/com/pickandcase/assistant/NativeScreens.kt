@@ -937,7 +937,7 @@ fun ProjectScreen(s: AssistantState, vm: AssistantViewModel) {
     }
     if (memory)
         TextEditorDialog("项目记忆", project.str("memory"), { memory = false }) {
-            vm.projectAction("update", project.str("id"), json("memory" to it)) {
+            vm.projectAction("update", project.str("id"), json("memory" to it, "memoryRevision" to project.opt("memoryRevision"))) {
                 vm.openProject(project)
             }
             memory = false
@@ -1476,17 +1476,26 @@ fun PromptScreen(s: AssistantState, vm: AssistantViewModel) {
 
 @Composable
 fun MemoryScreen(s: AssistantState, vm: AssistantViewModel) {
+    var edit by remember { mutableStateOf(false) }
+    if (edit) TextEditorDialog("编辑记忆", s.data.str("memory"), { edit = false }) { text ->
+        vm.saveMemory(text, s.data.optInt("revision")) { edit = false }
+    }
     NativePage {
         Text(
             if (s.project == null) "普通聊天记忆" else "项目记忆",
             style = MaterialTheme.typography.titleLarge,
         )
         Text(
-            "不同项目的记忆相互隔离。",
+            "不同项目的记忆相互隔离。明确要求记住的偏好会保留原文；任务进度保留在原对话。可编辑纠正，清空并保存即可删除记忆。",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Markdown(s.data.str("memory").ifBlank { "还没有积累记忆。" })
+        if (s.data.str("warning").isNotBlank()) Text(s.data.str("warning"), style = MaterialTheme.typography.bodySmall)
+        ArenaOutlinedButton(onClick = { edit = true }, enabled = !s.loading && !s.incognito && !s.data.optBoolean("readOnly")) {
+            Icon(Icons.Outlined.Edit, null)
+            Text("编辑记忆")
+        }
         ArenaOutlinedButton(onClick = { vm.navigate(Page.MEMORY) }) {
             Icon(Icons.Outlined.Refresh, null)
             Text("刷新记忆")

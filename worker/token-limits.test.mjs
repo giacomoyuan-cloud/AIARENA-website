@@ -39,6 +39,12 @@ function provider(t,calls,{count=1000}={}){
     if(url.endsWith('/tokenize-text'))return Response.json({token_ids:Array(count).fill(1)});
     if(url.endsWith('/interactions'))return Response.json({id:'v1_offline_interaction',status:'in_progress'});
     if(url.includes('/interactions/'))return stream([{event_type:'step.delta',event_id:'evt_text',delta:{type:'text',text:'完整正文'}},{event_type:'interaction.completed',event_id:'evt_done',interaction:{status:'completed',usage:{total_input_tokens:1000,total_cached_tokens:400,total_output_tokens:4,total_thought_tokens:3}}}]);
+    if(payload?.text?.format?.type==='json_schema'||payload?.output_config?.format?.type==='json_schema'){
+      const summary=Object.fromEntries(['goals','constraints','decisions','rejected','completed','pending','uncertainties'].map(k=>[k,[]]));
+      const prompt=(payload.input||payload.messages)[0].content;let source;if(prompt.includes('对话数据：\n')){source=JSON.parse(prompt.slice(prompt.indexOf('对话数据：\n')+6));const user=source.find(m=>m.role==='user');if(user)summary.goals=[{text:'保留较早用户记录',sourceUids:[user.uid],attribution:'user'}];}else{const parts=JSON.parse(prompt.slice(prompt.indexOf('[')));summary.goals=parts.flatMap(p=>p.goals);}
+      if(url.includes('anthropic'))return stream([{type:'message_start',message:{usage:{input_tokens:100,output_tokens:0}}},{type:'content_block_delta',delta:{type:'text_delta',text:JSON.stringify(summary)}},{type:'message_delta',delta:{stop_reason:'end_turn'},usage:{output_tokens:80}},{type:'message_stop'}]);
+      return stream([{type:'response.output_text.delta',delta:JSON.stringify(summary)},{type:'response.completed',response:{status:'completed',usage:{input_tokens:100,output_tokens:80}}}]);
+    }
     return stream([url.includes('anthropic')?{type:'content_block_delta',delta:{type:'text_delta',text:'完整正文'}}:url.includes('googleapis')?{candidates:[{content:{parts:[{text:'完整正文'}]}}]}:{type:'response.output_text.delta',delta:'完整正文'}]);
   });
 }
@@ -95,14 +101,15 @@ test('browser carries all original text in incognito instead of only eight clipp
   assert.equal(sandbox.result.history.length,30);assert.ok(sandbox.result.history[0].text.endsWith('x'.repeat(5000)));assert.equal(sandbox.result.notes,'');
 });
 
-test('native counting near capacity preserves the largest fitting complete history without an auxiliary generation',async t=>{
+test('capacity fitting keeps complete recent history and a source-backed summary of older turns',async t=>{
   const f=setup(),calls=[];provider(t,calls,{count:p=>Math.ceil(bodyText(p).length/4)+100});
   const history=Array.from({length:20},(_,i)=>({uid:i+1,isUser:i%2===0,text:'RECORD_'+i+' '+('a'.repeat(180000))}));
   const saved=JSON.stringify(history);f.data.set('chats:tester:history-123',saved);
   const output=await(await worker.fetch(req('claude-opus-5-5',{chat:{scope:'general',chatId:'history-123',question:'current',history:[]}}),f.env)).text();
-  const generated=calls.filter(c=>c.url==='https://api.anthropic.com/v1/messages');assert.equal(generated.length,1);
+  const generated=calls.filter(c=>c.url==='https://api.anthropic.com/v1/messages'&&!c.payload.output_config?.format);assert.equal(generated.length,1);
+  assert.ok(calls.filter(c=>c.payload.output_config?.format).length>0);assert.ok(calls.every(c=>!c.url.includes('openai')));
   assert.ok(calls.some(c=>c.url.endsWith('/count_tokens')));assert.equal(generated[0].payload.messages.length,19);
-  assert.ok(generated[0].payload.messages[0].content.startsWith('RECORD_2 '));assert.match(output,/"historyPolicy":"compacted"/);
+  assert.ok(generated[0].payload.messages[0].content.startsWith('RECORD_2 '));assert.match(output,/"historyPolicy":"summarized"/);
   assert.match(output,/"tokenCountMethod":"provider"/);assert.equal(f.data.get('chats:tester:history-123'),saved);
 });
 

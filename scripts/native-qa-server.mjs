@@ -58,8 +58,8 @@ const schedulers=new Map();env.PROJECT_SCHEDULES={idFromName:id=>id,get:id=>({fe
 const registries=new Map();env.NATIVE_ACCOUNTS={idFromName:name=>name,get:name=>({fetch:request=>{if(!registries.has(name)){const entries=new Map();registries.set(name,new NativeAccountRegistry({storage:{get:async key=>entries.get(key),put:async(key,value)=>entries.set(key,structuredClone(value)),setAlarm:async()=>{}}},env))}return registries.get(name).fetch(request)}})};
 env.CHAT_RUNS={idFromName:name=>name,get:name=>({fetch:request=>{
   if(!actors.has(name)){
-    const db=new DatabaseSync(':memory:');let alarm;
-    const storage={transactionSync(callback){db.exec('BEGIN');try{const value=callback();db.exec('COMMIT');return value}catch(error){db.exec('ROLLBACK');throw error}},sql:{exec(query,...values){const s=db.prepare(query),rows=s.columns().length?s.all(...values):(s.run(...values),[]);return {toArray:()=>rows};}},async setAlarm(time){clearTimeout(alarm);alarm=setTimeout(()=>actors.get(name).alarm().catch(error=>console.error(error)),Math.max(1,time-Date.now()));alarm.unref();}};
+    const db=new DatabaseSync(':memory:'),values=new Map();let alarm;
+    const storage={get:async key=>structuredClone(values.get(key)),put:async(key,value)=>values.set(key,structuredClone(value)),delete:async key=>values.delete(key),transactionSync(callback){db.exec('BEGIN');try{const value=callback();db.exec('COMMIT');return value}catch(error){db.exec('ROLLBACK');throw error}},sql:{exec(query,...values){const s=db.prepare(query),rows=s.columns().length?s.all(...values):(s.run(...values),[]);return {toArray:()=>rows};}},async setAlarm(time){clearTimeout(alarm);alarm=setTimeout(()=>actors.get(name).alarm().catch(error=>console.error(error)),Math.max(1,time-Date.now()));alarm.unref();}};
     actors.set(name,new Run({storage,waitUntil:promise=>promise.catch(console.error)},env));
   }
   return actors.get(name).fetch(request);

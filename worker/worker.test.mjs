@@ -327,19 +327,19 @@ test('new official usage does not overwrite the previous aggregate',async t=>{
   assert.equal(usageRecords(data,'shared-access','gpt-6-astra').length,1);
 });
 
-test('memory extraction retains the official Anthropic route and stores text only',async t=>{
-  const {env,data}=setup();
-  mockFetch(t,(url,options)=>{ assert.equal(url,'https://api.anthropic.com/v1/messages'); assert.equal(options.headers.Authorization,'Bearer '+env.ANTHROPIC_API_KEY); return Response.json({content:[{type:'thinking',thinking:'not memory'},{type:'text',text:'User prefers concise answers.'}]}); });
-  const response=await worker.fetch(new Request('https://api.pickandcase.com/memory',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user:'tester',password,conversation:'A test-only conversation'})}),env);
-  assert.equal(response.status,200);
+test('legacy clipped-memory submissions cannot overwrite user source or start a paid extraction',async t=>{
+  const {env,data}=setup();data.set('mem:tester','User prefers concise answers.');
+  mockFetch(t,()=>assert.fail('legacy memory posts must not call any model'));
+  const response=await worker.fetch(new Request('https://api.pickandcase.com/memory',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user:'tester',password,conversation:'AI: invented preference'})}),env);
+  assert.equal(response.status,200);assert.equal((await response.json()).managedByServer,true);
   assert.equal(data.get('mem:tester'),'User prefers concise answers.');
 });
 
-test('failed official memory requests leave the existing saved memory unchanged',async t=>{
-  const {env,data}=setup(); data.set('mem:tester','Existing memory');
-  mockFetch(t,()=>Response.json({error:{message:'Request not allowed'}},{status:403}));
-  const response=await worker.fetch(new Request('https://api.pickandcase.com/memory',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user:'tester',password,conversation:'A test-only conversation'})}),env);
-  assert.equal(response.status,500); assert.equal(data.get('mem:tester'),'Existing memory');
+test('memory reads remain available when the old auxiliary provider key is unavailable',async t=>{
+  const {env,data}=setup();data.set('mem:tester','Existing memory');delete env.ANTHROPIC_API_KEY;data.set('user:tester',JSON.stringify({hash:password}));
+  mockFetch(t,()=>assert.fail('reading memory must not generate text'));
+  const response=await worker.fetch(new Request('https://api.pickandcase.com/memory',{method:'POST',body:JSON.stringify({user:'tester',password:JSON.parse(data.get('user:tester')).hash,action:'get'})}),env);
+  assert.equal(response.status,200);assert.equal((await response.json()).memory,'Existing memory');
 });
 
 test('optional Cloudflare native gateway keeps OpenAI credentials, streaming and privacy controls',async t=>{
@@ -504,7 +504,7 @@ test('Oakley retains historical chat lists, messages, skills and memory keys',as
   assert.deepEqual(await chat.json(),{messages});
   const query='?user=Oakley&pass='+ownerHash;
   assert.deepEqual(await (await worker.fetch(new Request('https://api.pickandcase.com/skills'+query),env)).json(),{skills:[{id:'saved-skill'}]});
-  assert.deepEqual(await (await worker.fetch(new Request('https://api.pickandcase.com/memory'+query),env)).json(),{memory:'Existing memory'});
+  assert.equal((await (await worker.fetch(new Request('https://api.pickandcase.com/memory'+query),env)).json()).memory,'Existing memory');
   assert.deepEqual(data,before);
 });
 

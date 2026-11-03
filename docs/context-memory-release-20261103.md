@@ -1,0 +1,23 @@
+# Context and memory continuity — 2026-11-03
+
+The web and native clients now send the same complete text-history contract, including pasted reference text, quotations, source links, scoped file references and interrupted output. A current user request is kept separate from reference material. Native history no longer has a 3,000-message cutoff, and a failed answer with received content remains available as explicitly unfinished work.
+
+The shared backend highlights exact user requirements and corrections. For long conversations it keeps at least 24 recent messages when capacity allows and creates a structured task checkpoint containing goals, constraints, decisions, rejected approaches, completed and pending work, uncertainty and source message IDs. Checkpoints stay with the selected provider: Haiku 5.5 with thinking disabled for Claude, Sol 6.1 Low for OpenAI, or the selected Gemini/Grok model at Low. They use the existing official transport, are verified against their source prefix, and advance incrementally rather than re-summarizing on every turn. Editing an earlier message invalidates its checkpoint. Summary failures retain the source; if the source cannot fit, generation stops before the final model request instead of silently dropping history. Auxiliary requests are metered as context summaries and uncertain requests are never automatically replayed.
+
+Ordinary and project memory use their existing, separate account scopes. Completed replies save explicit user-authored preferences with their source message, not AI-inferred task decisions. An existing Durable Object serializes updates from multiple clients, deduplicates run IDs and checks edit revisions. Durable storage is authoritative; a delayed KV backup does not erase a committed preference. The existing plaintext KV representation remains readable by old clients, with a structured recovery backup. Manual corrections commit before retiring old entries. Incognito generations neither load saved memory nor persist checkpoints or preferences.
+
+Both clients can inspect and edit memory. A stale edit is rejected for refresh rather than overwriting a newer value. The old clipped, client-triggered paid extraction is retired. Task progress stays in the conversation; personal preferences do not implicitly carry unrelated tasks into another chat.
+
+File follow-ups combine the current question with recent user subjects and scoped file names. Retrieval allows up to eight relevant fragments, 18,000 characters and four visual fragments, with source diversity. Retrieval remains distinct from full reading. An earlier full-reading instruction is not replayed as a new instruction. Follow-ups can reopen the latest original inline images; unrelated topics do not carry those images.
+
+## Verification and release
+
+- 794 offline checks passed; targeted continuity scenarios are recorded in the task's `context-memory-release-20261103` acceptance directory. These cover edit invalidation, unfinished output, reference-instruction separation, incognito isolation, concurrent memory updates, stale edits and backup failures.
+- Android 2.0.11 (211): 18 JVM tests passed, including seven native context cases; Release lint and assembly passed. The package name, version, checksum and unchanged signing certificate were checked against 2.0.10.
+- Website build and Worker dry-run passed. The pre-release deployed source map matched all 37 corresponding main-branch modules.
+- Real-provider and production readback results are maintained separately from offline results. Synthetic provider tests do not establish real Claude response quality.
+- Browser automation disconnected during acceptance; another task's Chrome window was not operated. No Android system image or physical test device was available. Desktop/mobile visual acceptance and native runtime/physical-device acceptance are not claimed.
+
+This repairs known transmission, recovery, compaction and memory-update problems. Summaries and retrieval remain selective, and model interpretation can still be imperfect; original history is retained and the context disclosure identifies summarization or missing memory.
+
+Official guidance: [Claude context windows](https://platform.claude.com/docs/en/build-with-claude/context-windows), [Claude compaction](https://platform.claude.com/docs/en/build-with-claude/compaction), [OpenAI structured outputs](https://developers.openai.com/api/docs/guides/structured-outputs).

@@ -157,5 +157,10 @@ test('full reading preserves recognition warnings without rejecting fully proces
 
 test('three new attachments each receive an excerpt before one file takes another slot',async t=>{
  const s=setup(t),c={chatId:'diverse-files-chat'},pdf=await upload(s,c,{name:'reference.pdf',segments:[{ordinal:0,location:'第 1 页',text:'PDF_FIRST budget 73921.50'},{ordinal:1,location:'第 2 页',text:'PDF_SECOND budget 73921.50'}]}),word=await upload(s,c,{name:'reference.docx',text:'WORD_BUDGET budget 73921.50'}),excel=await upload(s,c,{name:'reference.xlsx',text:'EXCEL_BUDGET 73921.50'}),calls=mockProvider(t);
- const r=await ask(s,c,'请列出各附件 budget',{documents:{enabled:true,currentFileIds:[pdf.id,word.id,excel.id]}});assert.equal(r.status,200);const sent=JSON.stringify(calls[0]);assert.match(sent,/PDF_FIRST/);assert.match(sent,/WORD_BUDGET/);assert.match(sent,/EXCEL_BUDGET/);assert.doesNotMatch(sent,/PDF_SECOND/);assert.match(r.text,/"fileFragments":3/);
+ const r=await ask(s,c,'请列出各附件 budget',{documents:{enabled:true,currentFileIds:[pdf.id,word.id,excel.id]}});assert.equal(r.status,200);const sent=JSON.stringify(calls[0]);assert.match(sent,/PDF_FIRST/);assert.match(sent,/WORD_BUDGET/);assert.match(sent,/EXCEL_BUDGET/);assert.ok(sent.indexOf('EXCEL_BUDGET')<sent.indexOf('PDF_SECOND'));assert.match(r.text,/"fileFragments":4/);
+});
+test('follow-up retrieval uses the old subject without replaying its old full-reading instruction',async t=>{
+ const s=setup(t),c={chatId:'followup-reading-chat'};await upload(s,c,{name:'budget.txt',text:'DM6 motor budget 73921.50'});const calls=mockProvider(t);
+ const response=await ask(s,c,'那预算呢？',{readingMode:'retrieve',history:[{uid:'old-request',role:'user',text:'请全文阅读 budget.txt 的 DM6 motor 参数'}]});
+ assert.equal(response.status,200);assert.match(response.text,/"readingMode":"retrieve"/);assert.match(JSON.stringify(calls.at(-1)),/73921.50/);
 });

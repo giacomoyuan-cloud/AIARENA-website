@@ -53,7 +53,7 @@ export async function fitTokenBudget({provider,model,payload,env,signal,outputTo
   async function candidate(start){
     while(start<history.length&&['assistant','model'].includes(history[start].role))start++;
     if(cache.has(start))return cache.get(start);
-    const note=start?compact(start):{text:''},next={...payload};
+    const note=start?await compact(start):{text:''},next={...payload};
     if(items){next[form.key]=history.slice(start).concat(current);if(start&&note.text)form.write(next,form.system+'\n'+note.text);}
     // A byte upper bound avoids a token-count round trip for safely small text
     // requests. Large inputs and Argon's shared long-decode budget use native counts.
