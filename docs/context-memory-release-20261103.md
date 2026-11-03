@@ -12,10 +12,12 @@ File follow-ups combine the current question with recent user subjects and scope
 
 ## Verification and release
 
-- 794 offline checks passed; targeted continuity scenarios are recorded in the task's `context-memory-release-20261103` acceptance directory. These cover edit invalidation, unfinished output, reference-instruction separation, incognito isolation, concurrent memory updates, stale edits and backup failures.
+- 795 offline checks passed; targeted continuity scenarios are recorded in the task's `context-memory-release-20261103` acceptance directory. These cover edit invalidation, unfinished output, reference-instruction separation, incognito isolation, concurrent memory updates, stale edits, backup failures and preservation of user file references through history merging.
 - Android 2.0.11 (211): 18 JVM tests passed, including seven native context cases; Release lint and assembly passed. The package name, version, checksum and unchanged signing certificate were checked against 2.0.10.
 - Website build and Worker dry-run passed. The pre-release deployed source map matched all 37 corresponding main-branch modules.
-- Real-provider and production readback results are maintained separately from offline results. Synthetic provider tests do not establish real Claude response quality.
+- Real Sol 6.1 Low acceptance passed two synthetic conversations: a normal continuation and a long conversation with 12 older messages summarized and 24 recent messages retained. Both returned the corrected budget 81234.60, the blue-gray choice and an unapproved cloud-backup proposal. This used two replies and one context-summary call, with no automatic replay.
+- Automatic project preference saving was read back through both web and native endpoints. Concurrent edits using one revision returned 200 and 409; the test native session was logged out and the synthetic project soft-deleted afterward. Existing personal memory and user conversations were not edited.
+- PR #124 deployed the initial change; its downloaded Worker source map matched all 40 source modules. Public Android 2.0.11 bytes matched the retained signed APK checksum. A final shared-history fix also preserves file names from user messages for follow-up retrieval. Synthetic provider tests do not establish real Claude response quality.
 - Browser automation disconnected during acceptance; another task's Chrome window was not operated. No Android system image or physical test device was available. Desktop/mobile visual acceptance and native runtime/physical-device acceptance are not claimed.
 
 This repairs known transmission, recovery, compaction and memory-update problems. Summaries and retrieval remain selective, and model interpretation can still be imperfect; original history is retained and the context disclosure identifies summarization or missing memory.
