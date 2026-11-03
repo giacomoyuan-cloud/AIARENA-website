@@ -50,3 +50,9 @@ test('completed replies with token and timing diagnostics are never labeled as i
   const value=C.fullHistory([{uid:1,text:'任务完成',run:{status:'completed'},diagnostics:{firstTextAt:1}}]);
   assert.equal(value.messages[0].text,'任务完成');assert.equal(value.messages[0].partial,undefined);
 });
+test('user file names survive history merging so a follow-up can retrieve their original source',()=>{
+  const files=[{id:'manual-123',name:'DM6产品手册.pdf',source:'project',location:'第12页'}];
+  const history=C.merge([{uid:1,isUser:true,text:'读这份手册',files}],[{uid:1,role:'user',text:'读这份手册'}]);
+  assert.deepEqual(history[0].files,files);assert.deepEqual(C.fullHistory(history).messages[0].files,files);
+  assert.match(C.retrievalQuery(history,'它的参数呢'),/DM6产品手册.pdf/);
+});

@@ -54,7 +54,7 @@
   function normalize(messages){
     return (Array.isArray(messages)?messages:[]).filter(function(m){return m&&(!m.isError||partial(m));}).map(function(m,index){
       var role=m.role==='user'||m.isUser?'user':'assistant';
-      return {uid:String(m.uid===undefined?'item-'+index:m.uid),role:role,text:plain(m,false),original:plain(m,true),clipped:!!m.clipped,partial:partial(m),...(role==='user'?{userText:userText(m)}:{files:fileRefs(m)})};
+      return {uid:String(m.uid===undefined?'item-'+index:m.uid),role:role,text:plain(m,false),original:plain(m,true),clipped:!!m.clipped,partial:partial(m),files:fileRefs(m),...(role==='user'?{userText:userText(m)}:{})};
     }).filter(function(m){return m.text.trim()||m.original.trim();});
   }
   function selectRecent(messages,options){
@@ -71,7 +71,7 @@
     return {messages:result,chars:used,earlier:all.filter(function(m){return !complete.has(m.uid);}),truncated:start>0||result.some(function(m){return m.clipped;})};
   }
   function fullHistory(messages){
-    var result=normalize(messages).map(function(m){return {uid:m.uid,role:m.role,text:m.original||m.text,clipped:false,...(m.partial?{partial:true}:{}),...(m.role==='user'?{userText:m.userText}:{files:m.files})};});
+    var result=normalize(messages).map(function(m){return {uid:m.uid,role:m.role,text:m.original||m.text,clipped:false,...(m.partial?{partial:true}:{}),...(m.files?.length?{files:m.files}:{}),...(m.role==='user'?{userText:m.userText}:{})};});
     return {messages:result,chars:result.reduce(function(n,m){return n+m.text.length;},0),earlier:[],truncated:false};
   }
   function chunks(text,size,overlap){
@@ -121,7 +121,7 @@
     normalize(recent).forEach(function(m){
       if(positions.has(m.uid)){var previous=all[positions.get(m.uid)];if(!m.clipped){if(previous.original.length>m.original.length&&previous.text===m.text)m.original=previous.original;if(m.original===previous.original&&previous.userText!==undefined)m.userText=previous.userText;if(!m.files?.length&&previous.files?.length)m.files=previous.files;all[positions.get(m.uid)]=m;}}else{positions.set(m.uid,all.length);all.push(m);}
     });
-    return all.map(function(m){return {uid:m.uid,role:m.role,text:m.text,original:m.original,...(m.partial?{partial:true}:{}),...(m.role==='user'?{userText:m.userText}:{files:m.files})};});
+    return all.map(function(m){return {uid:m.uid,role:m.role,text:m.text,original:m.original,...(m.partial?{partial:true}:{}),...(m.files?.length?{files:m.files}:{}),...(m.role==='user'?{userText:m.userText}:{})};});
   }
   function followup(question){
     var text=String(question||'').trim();
